@@ -12,6 +12,8 @@ main{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:14px}.panel{bac
 h2{font-size:16px;margin:0 0 14px}.sub{font-size:12px;color:#68716b;margin:-8px 0 12px}
 label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;background:#fff;color:#202124}input:focus,select:focus{outline:2px solid #899b8d;outline-offset:1px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;margin-bottom:10px}.wide{grid-column:1/-1}button{border:0;border-radius:11px;min-height:44px;padding:10px 15px;background:#263b30;color:#fff;font:inherit;font-weight:600;cursor:pointer}button.secondary{background:#edf1ed;color:#263b30}button:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:13px;min-height:20px;color:#526257;margin-top:8px}.status.error{color:#b42318}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}.item{border:1px solid #e7eae6;border-radius:12px;padding:12px;margin-top:9px;display:grid;gap:5px}.item strong{font-size:15px}.muted{font-size:12px;color:#6a746d}.pill{font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px;width:max-content}.empty{font-size:13px;color:#788079;padding:18px 0;text-align:center}.hidden{display:none}
 @media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
+ .scan-modal{position:fixed;inset:0;background:#101512dd;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}.scan-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px}.scan-dialog video{display:block;width:100%;max-height:58vh;object-fit:cover;background:#111;border-radius:12px}.scan-hint{font-size:13px;color:#59635c;margin:10px 0}.scan-actions{display:flex;gap:8px;margin-top:12px}.scan-actions button{flex:1}
+@media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -61,7 +63,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="field"><label for="stockLocationFilter">儲存位置</label><select id="stockLocationFilter"><option value="">全部位置</option></select></div>
 <div class="field wide"><label><input id="includeZeroStock" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示零庫存項目</label></div>
 </div>
-<div class="actions"><button id="refreshStock" type="button">查詢庫存</button></div>
+<div class="actions"><button id="refreshStock" type="button">查詢庫存</button><button id="scanInventoryButton" class="secondary" type="button">相機掃描</button></div>
 <div id="stockList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 </section>
 <section class="panel" id="inventoryAdjustmentPanel">
@@ -135,7 +137,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </div>
 </form>
 <h3>加入商品</h3>
-<div class="field"><label for="saleBarcodeScan">掃描／輸入商品條碼（按 Enter 加入）</label><input id="saleBarcodeScan" autocomplete="off" inputmode="numeric" placeholder="掃描器可直接輸入條碼"></div>
+<div class="field"><label for="saleBarcodeScan">掃描／輸入商品條碼（按 Enter 加入）</label><div class="toolbar"><input id="saleBarcodeScan" autocomplete="off" inputmode="numeric" placeholder="掃描器可直接輸入條碼"><button id="scanSaleButton" class="secondary" type="button">相機掃描</button></div></div>
 <div class="grid">
 <div class="field"><label for="saleProduct">商品（可依編號／名稱／條碼選擇）</label><select id="saleProduct"><option value="">請選擇商品</option></select></div>
 <div class="field"><label for="saleLocation">出貨位置</label><select id="saleLocation"><option value="">請選擇位置</option></select></div>
@@ -470,10 +472,17 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </section>
 <section class="panel products">
 <h2>商品清單</h2>
-<div class="toolbar"><input id="search" placeholder="搜尋編號、條碼或名稱" aria-label="搜尋商品"><button id="searchButton" type="button">搜尋</button></div>
+<div class="toolbar"><input id="search" placeholder="搜尋編號、條碼或名稱" aria-label="搜尋商品"><button id="searchButton" type="button">搜尋</button><button id="scanProductButton" class="secondary" type="button">掃描</button></div>
 <div id="productList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
 </section>
 </main>
+<div id="scanModal" class="scan-modal hidden" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
+ <div class="scan-dialog"><h2 id="scanTitle">掃描商品條碼／QR Code</h2>
+  <video id="scanVideo" autoplay muted playsinline></video>
+  <p id="scanHint" class="scan-hint" role="status">將商品條碼或 QR Code 對準鏡頭，辨識成功後會自動帶入商品。</p>
+  <div class="scan-actions"><button id="closeScanner" class="secondary" type="button">關閉相機</button><button id="switchScannerCamera" class="secondary" type="button">切換鏡頭</button></div>
+ </div>
+</div>
 <script>
 const $=id=>document.getElementById(id);
 let companyId="";
@@ -498,6 +507,7 @@ let purchaseCartLines=[];
 let purchasesById=new Map();
 let selectedPurchase=null;
 let selectedPurchaseLine=null;
+let scanStream=null,scanFrameHandle=null,scanDetector=null,scanTarget="",scanFacingMode="environment",scanBusy=false;
 const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"部分刷卡",TRANSFER:"轉帳",OTHER:"其他"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
@@ -507,6 +517,56 @@ const api=async(path,options={})=>{
 };
 const message=(id,text,error=false)=>{$(id).textContent=text;$(id).classList.toggle("error",error)};
 const selectedCompany=()=>companyId;
+
+function stopCameraScanner(){
+ if(scanFrameHandle!==null){cancelAnimationFrame(scanFrameHandle);scanFrameHandle=null;}
+ if(scanStream){scanStream.getTracks().forEach(track=>track.stop());scanStream=null;}
+ const video=$("scanVideo");if(video)video.srcObject=null;
+ scanDetector=null;scanBusy=false;
+}
+async function closeCameraScanner(){stopCameraScanner();$("scanModal").classList.add("hidden");}
+async function openCameraScanner(target){
+ scanTarget=target;
+ if(!("BarcodeDetector" in window)){message("globalStatus","此瀏覽器尚未支援相機條碼辨識；可使用外接條碼槍或手動輸入條碼。",true);return;}
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){message("globalStatus","瀏覽器無法使用相機，請確認使用 HTTPS 並允許相機權限。",true);return;}
+ try{
+  stopCameraScanner();
+  const supported=await window.BarcodeDetector.getSupportedFormats();
+  const preferred=["qr_code","ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar","data_matrix","pdf417","aztec"];
+  const formats=preferred.filter(format=>supported.includes(format));
+  if(!formats.length)throw new Error("此瀏覽器沒有可用的條碼格式。");
+  scanDetector=new window.BarcodeDetector({formats});
+  scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:scanFacingMode},width:{ideal:1280},height:{ideal:720}},audio:false});
+  const video=$("scanVideo");video.srcObject=scanStream;await video.play();
+  $("scanHint").textContent="辨識中…請將條碼完整對準畫面中央。";$("scanModal").classList.remove("hidden");
+  const detect=async()=>{
+   if(!scanStream||!scanDetector||scanBusy)return;
+   try{
+    const codes=await scanDetector.detect(video);
+    const value=codes.find(item=>item.rawValue&&String(item.rawValue).trim())?.rawValue;
+    if(value){scanBusy=true;const targetNow=scanTarget;await closeCameraScanner();await handleScannedProductCode(String(value).trim(),targetNow);return;}
+   }catch(error){$("scanHint").textContent="相機辨識中，請調整距離與角度。";}
+   if(scanStream)scanFrameHandle=requestAnimationFrame(detect);
+  };
+  scanFrameHandle=requestAnimationFrame(detect);
+ }catch(error){stopCameraScanner();$("scanModal").classList.add("hidden");message("globalStatus","無法啟動相機掃描："+(error.message||"請檢查相機權限"),true);}
+}
+async function handleScannedProductCode(code,target){
+ if(!companyId){message("globalStatus","請先選擇公司。",true);return;}
+ try{
+  const product=await api("/companies/"+companyId+"/products/lookup?code="+encodeURIComponent(code));
+  if(target==="sale"){
+   if(!selectedSiteId){message("saleStatus","請先選擇據點。",true);return;}
+   $("saleProduct").value=product.id;$("saleBarcodeScan").value=code;await addSaleProduct();
+  }else if(target==="inventory"){
+   $("inventorySearch").value=product.barcode||code;await loadInventoryStock();
+   message("globalStatus","已找到："+product.product_code+" · "+product.name);
+  }else{
+   $("search").value=code;await loadProducts();
+   message("globalStatus","已找到商品："+product.product_code+" · "+product.name);
+  }
+ }catch(error){message(target==="sale"?"saleStatus":"globalStatus",error.message||"找不到此商品。",true);}
+}
 async function loadCompanies(selectId){
  const rows=await api("/companies");
  $("companySelect").innerHTML='<option value="">請選擇公司</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
@@ -1378,6 +1438,13 @@ $("goldPriceForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 $("refreshStock").addEventListener("click",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
+$("scanInventoryButton").addEventListener("click",()=>openCameraScanner("inventory"));
+$("scanSaleButton").addEventListener("click",()=>openCameraScanner("sale"));
+$("scanProductButton").addEventListener("click",()=>openCameraScanner("product"));
+$("closeScanner").addEventListener("click",closeCameraScanner);
+$("switchScannerCamera").addEventListener("click",async()=>{scanFacingMode=scanFacingMode==="environment"?"user":"environment";await openCameraScanner(scanTarget);});
+$("scanModal").addEventListener("click",event=>{if(event.target===$("scanModal"))closeCameraScanner();});
+window.addEventListener("pagehide",stopCameraScanner);
 $("inventorySearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadInventoryStock().catch(err=>message("globalStatus",err.message,true));});
 $("stockLocationFilter").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
 $("includeZeroStock").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
