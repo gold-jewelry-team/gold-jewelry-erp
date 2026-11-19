@@ -1,13 +1,13 @@
 """Add statement-linked bank adjustment transactions.
-Revision ID: 0017_bank_reconciliation_adjustments
-Revises: 0016_bank_reconciliation_snapshots
+Revision ID: 0017_bank_recon_adjustments
+Revises: 0016_bank_recon_snapshots
 Create Date: 2026-11-19
 """
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-revision: str="0017_bank_reconciliation_adjustments"
-down_revision: Union[str,None]="0016_bank_reconciliation_snapshots"
+revision: str="0017_bank_recon_adjustments"
+down_revision: Union[str,None]="0016_bank_recon_snapshots"
 branch_labels: Union[str,Sequence[str],None]=None
 depends_on: Union[str,Sequence[str],None]=None
 
