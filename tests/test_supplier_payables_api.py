@@ -144,6 +144,14 @@ def test_supplier_payment_rejects_mixed_currency_and_duplicate_bill_allocation()
             assert response.status_code == 201, response.text
             ids.append(response.json()["id"])
 
+        foreign_payment = client.post(f"{base}/payments", json={
+            "site_id": str(site_id), "supplier_id": str(supplier_id),
+            "payment_no": "SP-USD", "payment_method": "TRANSFER",
+            "allocations": [{"bill_id": ids[1], "amount": "50.00"}],
+        })
+        assert foreign_payment.status_code == 422
+        assert "新台幣" in foreign_payment.json()["detail"]
+
         mixed = client.post(f"{base}/payments", json={
             "site_id": str(site_id), "supplier_id": str(supplier_id),
             "payment_no": "SP-MIX", "payment_method": "TRANSFER",
