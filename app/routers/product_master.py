@@ -206,3 +206,27 @@ def update_product(
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail="商品編號或條碼已存在，請檢查後再試。") from exc
+
+
+@router.get("/companies/{company_id}/products/lookup", response_model=ProductRead)
+def lookup_product_by_scan_code(
+    company_id: UUID,
+    code: str = Query(min_length=1, max_length=100),
+    include_inactive: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Resolve one scanned barcode or product code within the selected company."""
+    _require_company(db, company_id)
+    scanned = code.strip()
+    if not scanned:
+        raise HTTPException(status_code=422, detail="請提供商品條碼或商品編號。")
+    statement = select(Product).where(
+        Product.company_id == company_id,
+        or_(Product.barcode == scanned, Product.product_code == scanned),
+    )
+    if not include_inactive:
+        statement = statement.where(Product.is_active.is_(True))
+    product = db.scalar(statement)
+    if product is None:
+        raise HTTPException(status_code=404, detail="找不到此條碼／商品編號的有效商品。")
+    return product
