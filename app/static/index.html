@@ -896,7 +896,7 @@ function printProductQrLabel(product){
     '<div class="labor">工錢：'+escapeHtml(laborText)+'</div>'+
     '<div class="dark">暗碼：—</div>'+
     '<div class="extra"><span>長度：—</span><span>款式：—</span></div></section></div>'+
-    '<script>const image=document.getElementById("productBarcodeImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};<\\/script></body></html>';
+    '<script>const image=document.getElementById("productBarcodeImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};'+'</scr'+'ipt></body></html>';
   const printWindow=window.open("","_blank","width=800,height=400");
   if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗。",true);return;}
   printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
