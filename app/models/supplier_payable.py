@@ -37,6 +37,15 @@ class SupplierBill(Base):
     )
 
 
+    @property
+    def paid_amount(self) -> Decimal:
+        return sum((item.amount for item in self.allocations), Decimal("0"))
+
+    @property
+    def outstanding_amount(self) -> Decimal:
+        return self.total_amount - self.paid_amount
+
+
 class SupplierPayment(Base):
     __tablename__ = "supplier_payments"
     __table_args__ = (
