@@ -69,6 +69,10 @@ def test_supplier_bills_partial_payments_and_daily_cash_outflow():
         })
         assert bill2.status_code == 201, bill2.text
 
+        listed_bills = client.get(f"{base}/bills", params={"site_id": str(site_id)})
+        assert listed_bills.status_code == 200, listed_bills.text
+        assert len(listed_bills.json()) == 2
+
         payment1 = client.post(f"{base}/payments", json={
             "site_id": str(site_id), "supplier_id": str(supplier_id),
             "payment_no": "SP-001", "payment_method": "TRANSFER",
@@ -81,6 +85,10 @@ def test_supplier_bills_partial_payments_and_daily_cash_outflow():
         assert payment1.status_code == 201, payment1.text
         assert payment1.json()["total_amount"] == "1200.00"
         assert len(payment1.json()["allocations"]) == 2
+
+        listed_payments = client.get(f"{base}/payments", params={"site_id": str(site_id)})
+        assert listed_payments.status_code == 200, listed_payments.text
+        assert len(listed_payments.json()) == 1
 
         refreshed1 = client.get(f"{base}/bills/{bill1.json()['id']}")
         refreshed2 = client.get(f"{base}/bills/{bill2.json()['id']}")
