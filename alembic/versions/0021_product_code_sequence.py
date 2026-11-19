@@ -4,6 +4,7 @@ Revision ID: 0021_product_code_sequence
 Revises: 0020_sales_card_tender
 Create Date: 2026-11-19
 """
+import re
 from typing import Sequence, Union
 
 from alembic import op
@@ -40,6 +41,30 @@ def upgrade() -> None:
             sa.select(companies.c.id, sa.literal(1), sa.literal(5)),
         )
     )
+
+    # Existing product codes may already have a shared numeric suffix.
+    # Continue after the largest existing suffix for each company by default.
+    bind = op.get_bind()
+    products = sa.table(
+        "products",
+        sa.column("company_id", sa.Uuid()),
+        sa.column("product_code", sa.String(length=50)),
+    )
+    for company_id, in bind.execute(sa.select(companies.c.id)):
+        codes = bind.execute(
+            sa.select(products.c.product_code).where(products.c.company_id == company_id)
+        ).scalars().all()
+        suffixes = [
+            int(match.group(1))
+            for code in codes
+            if (match := re.search(r"-(\d+)$", code))
+        ]
+        if suffixes:
+            bind.execute(
+                sa.update(sequences)
+                .where(sequences.c.company_id == company_id)
+                .values(next_number=max(suffixes) + 1)
+            )
 
 
 def downgrade() -> None:
