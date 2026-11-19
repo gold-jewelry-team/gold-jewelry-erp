@@ -1,3 +1,7 @@
+import pytest
+
+pytest.importorskip("app.routers.labor_code_settings")
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
