@@ -18,8 +18,11 @@ def test_mobile_workspace_serves_html():
     assert "formatLaborDarkCode" in response.text
     assert "labor-code-config" in response.text
     assert "暗碼：" in response.text
+    assert 'id="labelCopyCount"' in response.text
+    assert "Array.from({length:copies},()=>labelMarkup)" in response.text
+    assert "本批可列印上限" in response.text
     assert "/barcode.svg" in response.text
-    assert "productBarcodeImage" in response.text
+    assert 'class="barcode"' in response.text
     assert "data-print-product-label" in response.text
     assert 'id="companySelect"' in response.text
     assert 'id="inventoryStockPanel"' in response.text
