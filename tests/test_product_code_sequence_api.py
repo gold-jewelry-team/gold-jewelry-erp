@@ -137,3 +137,21 @@ def test_editing_manual_product_code_advances_shared_sequence():
     )
     assert generated.status_code == 200, generated.text
     assert generated.json()["product_code"] == "G00R-02001"
+
+
+def test_sequence_update_rejects_explicit_null_values():
+    company_id = create_company()
+    response = client.patch(
+        f"/companies/{company_id}/product-code-sequence",
+        json={"next_number": None},
+    )
+    assert response.status_code == 422
+
+
+def test_sequence_update_rejects_width_outside_supported_range():
+    company_id = create_company()
+    response = client.patch(
+        f"/companies/{company_id}/product-code-sequence",
+        json={"number_width": 13},
+    )
+    assert response.status_code == 422
