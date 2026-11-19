@@ -538,8 +538,8 @@ async function loadCategories(){
  $("productCategory").insertAdjacentHTML("beforeend",opts);
 }
 async function loadInventoryOptions(){
- const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct"];
- const locationIds=["stockLocationFilter","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter","saleLocation"];
+ const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct","purchaseProduct"];
+ const locationIds=["stockLocationFilter","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter","saleLocation","purchaseReceiveLocation"];
  if(!companyId||!selectedSiteId){
   inventoryProducts=[];inventoryLocations=[];
   $("stockList").innerHTML='<div class="empty">請先選擇公司與據點</div>';
@@ -570,6 +570,7 @@ async function loadInventoryOptions(){
  $("adjustmentProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
  $("transferProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
  $("saleProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
+ $("purchaseProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
  $("movementProductFilter").innerHTML='<option value="">全部商品</option>'+allProductOptions;
  const activeLocations=locations.filter(x=>x.is_active);
  const locationOptions=locations.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）'+(x.is_active?'':'（已停用）')+'</option>').join("");
@@ -579,6 +580,7 @@ async function loadInventoryOptions(){
  $("transferFromLocation").innerHTML='<option value="">請選擇來源</option>'+activeLocationOptions;
  $("transferToLocation").innerHTML='<option value="">請選擇目的</option>'+activeLocationOptions;
  $("saleLocation").innerHTML='<option value="">請選擇位置</option>'+activeLocationOptions;
+ $("purchaseReceiveLocation").innerHTML='<option value="">請選擇位置</option>'+activeLocationOptions;
  $("movementLocationFilter").innerHTML='<option value="">全部位置</option>'+locationOptions;
  await loadInventoryStock();
  await loadInventoryMovements();
@@ -894,7 +896,7 @@ $("returnPaymentForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 async function loadSuppliers(){
- const supplierSelects=["billSupplier","billFilterSupplier"];
+ const supplierSelects=["billSupplier","billFilterSupplier","purchaseSupplier"];
  if(!companyId){
   suppliersById=new Map();
   $("supplierList").innerHTML='<div class="empty">請先選擇公司</div>';
@@ -905,6 +907,7 @@ async function loadSuppliers(){
  suppliersById=new Map(rows.map(x=>[x.id,x]));
  const options=rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("billSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
+ $("purchaseSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
  $("billFilterSupplier").innerHTML='<option value="">全部供應商</option>'+options;
  $("supplierList").innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span><span class="muted">統編：'+escapeHtml(x.tax_id||"未填")+' · 聯絡人：'+escapeHtml(x.contact_name||"未填")+' · 電話：'+escapeHtml(x.phone||"未填")+'</span>'+(x.address?'<span class="muted">'+escapeHtml(x.address)+'</span>':'')+'</article>').join(""):'<div class="empty">尚未建立供應商</div>';
 }
@@ -978,6 +981,155 @@ $("supplierPaymentForm").addEventListener("submit",async event=>{
  }catch(error){message("supplierPaymentStatus",error.message,true);}
  finally{button.disabled=false;}
 });
+const purchaseStatusLabels={DRAFT:"草稿",ORDERED:"已下單",PARTIALLY_RECEIVED:"部分到貨",RECEIVED:"已收貨",CANCELLED:"已取消"};
+const expenseCategoryLabels={RENT:"租金",UTILITIES:"水電瓦斯",SALARIES:"薪資",SUPPLIES:"耗材",SHIPPING:"運費",REPAIR:"維修",OTHER:"其他"};
+const drawerTypeLabels={BANK_DEPOSIT:"存入銀行",BANK_WITHDRAWAL:"銀行提款",FLOAT_INCREASE:"增加備用金",FLOAT_DECREASE:"減少備用金",OTHER_IN:"其他收入",OTHER_OUT:"其他支出"};
+function renderPurchaseCart(){
+ $("purchaseCartList").innerHTML=purchaseCartLines.length?purchaseCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">數量：'+escapeHtml(line.quantity)+' · 單位成本：'+escapeHtml(line.unit_cost)+' · 重量：'+escapeHtml(line.weight??"未填")+' '+escapeHtml(line.weight_unit_code||"")+'</span><div class="actions"><button class="secondary" type="button" data-remove-purchase-line="'+index+'">移除</button></div></article>').join(""):'<div class="empty">尚未加入採購商品</div>';
+ $("createPurchase").disabled=!purchaseCartLines.length;
+}
+async function loadPurchases(){
+ const box=$("purchaseList");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';purchasesById=new Map();return;}
+ const params=new URLSearchParams({site_id:selectedSiteId});
+ if($("purchaseFilterStatus").value)params.set("status",$("purchaseFilterStatus").value);
+ const rows=await api("/companies/"+companyId+"/purchases?"+params.toString());
+ purchasesById=new Map(rows.map(x=>[x.id,x]));
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.purchase_no)+'</strong><span class="pill">'+escapeHtml(purchaseStatusLabels[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 下單日：'+escapeHtml(row.order_date)+' · 預計到貨：'+escapeHtml(row.expected_date||"未設定")+'</span><span class="muted">商品明細：'+row.lines.map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);return escapeHtml(product?.product_code||"商品")+" "+escapeHtml(line.received_quantity)+"/"+escapeHtml(line.quantity);}).join("、")+'</span><div class="actions">'+(row.status==="DRAFT"?'<button class="secondary" type="button" data-submit-purchase="'+escapeHtml(row.id)+'">送出採購單</button>':'')+(["DRAFT","ORDERED"].includes(row.status)?'<button class="secondary" type="button" data-cancel-purchase="'+escapeHtml(row.id)+'">取消採購單</button>':'')+(["ORDERED","PARTIALLY_RECEIVED"].includes(row.status)?'<button class="secondary" type="button" data-open-receive="'+escapeHtml(row.id)+'">到貨驗收</button>':'')+'</div></article>').join(""):'<div class="empty">沒有符合條件的採購單</div>';
+}
+async function loadExpenses(){
+ const box=$("expenseList");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
+ const params=new URLSearchParams({site_id:selectedSiteId});
+ if($("expenseFilterStatus").value)params.set("status",$("expenseFilterStatus").value);
+ if($("expenseFilterCategory").value)params.set("category_code",$("expenseFilterCategory").value);
+ const rows=await api("/companies/"+companyId+"/operating-expenses?"+params.toString());
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.expense_no)+' · '+escapeHtml(row.description)+'</strong><span class="pill">'+(row.status==="PAID"?"已付款":row.status==="UNPAID"?"未付款":"已作廢")+'</span><span class="muted">日期：'+escapeHtml(row.expense_date)+' · 分類：'+escapeHtml(expenseCategoryLabels[row.category_code]||row.category_code)+' · 金額：'+escapeHtml(row.amount)+' 元</span><span class="muted">收款對象：'+escapeHtml(row.payee||"未填")+' · 付款方式：'+escapeHtml(row.payment_method||"尚未付款")+'</span>'+(row.status==="UNPAID"?'<div class="actions"><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">登錄付款</button></div>':'')+'</article>').join(""):'<div class="empty">沒有符合條件的營業費用</div>';
+}
+async function loadCashDrawerMovements(){
+ const box=$("cashDrawerList");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
+ const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/cash-drawer-movements");
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(drawerTypeLabels[row.movement_type]||row.movement_type)+'</strong><span class="pill">'+(row.direction==="IN"?"現金櫃流入":"現金櫃流出")+'</span><span class="muted">金額：'+escapeHtml(row.amount)+' 元 · '+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span><span class="muted">說明：'+escapeHtml(row.description)+' · 經手人：'+escapeHtml(row.created_by_name)+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無現金櫃異動</div>';
+}
+$("addPurchaseLine").addEventListener("click",()=>{
+ if(!companyId||!selectedSiteId){message("purchaseStatus","請先選擇公司與據點。",true);return;}
+ const product=inventoryProducts.find(x=>x.id===$("purchaseProduct").value&&x.is_active);
+ if(!product){message("purchaseStatus","請選擇有效商品。",true);return;}
+ const quantity=Number($("purchaseQuantity").value),unitCost=Number($("purchaseUnitCost").value);
+ const weightText=$("purchaseWeight").value.trim();
+ if(!(quantity>0)||!(unitCost>=0)|| (weightText!==""&&!(Number(weightText)>=0))){message("purchaseStatus","請確認訂購數量、重量與單位成本。",true);return;}
+ purchaseCartLines.push({product_id:product.id,product,quantity:String(quantity),weight:weightText===""?null:String(weightText),weight_unit_code:$("purchaseWeightUnit").value,unit_cost:String(unitCost),note:$("purchaseLineNote").value.trim()||null});
+ renderPurchaseCart();message("purchaseStatus","採購明細已加入。");
+ $("purchaseProduct").value="";$("purchaseQuantity").value="1";$("purchaseWeight").value="";$("purchaseUnitCost").value="0";$("purchaseLineNote").value="";
+});
+$("purchaseCartList").addEventListener("click",event=>{
+ const button=event.target.closest("[data-remove-purchase-line]");
+ if(!button)return;
+ purchaseCartLines.splice(Number(button.dataset.removePurchaseLine),1);renderPurchaseCart();
+});
+$("createPurchase").addEventListener("click",async()=>{
+ if(!companyId||!selectedSiteId)return;
+ if(!$("purchaseHeaderForm").reportValidity())return;
+ if(!purchaseCartLines.length){message("purchaseStatus","請先加入採購商品。",true);return;}
+ const payload={site_id:selectedSiteId,supplier_id:$("purchaseSupplier").value,purchase_no:$("purchaseNo").value.trim(),order_date:$("purchaseOrderDate").value,expected_date:$("purchaseExpectedDate").value||null,currency_code:$("purchaseCurrency").value,note:$("purchaseNote").value.trim()||null,lines:purchaseCartLines.map(({product,...line})=>line)};
+ const button=$("createPurchase");button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/purchases",{method:"POST",body:JSON.stringify(payload)});
+  purchaseCartLines=[];renderPurchaseCart();$("purchaseHeaderForm").reset();$("purchaseOrderDate").value=taipeiDateValue();
+  message("purchaseStatus","採購草稿已建立。請在採購單紀錄中送出後再辦理到貨驗收。");
+  await loadPurchases();
+ }catch(error){message("purchaseStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("purchaseFilterStatus").addEventListener("change",()=>loadPurchases().catch(error=>message("purchaseStatus",error.message,true)));
+$("refreshPurchases").addEventListener("click",()=>loadPurchases().catch(error=>message("purchaseStatus",error.message,true)));
+$("purchaseList").addEventListener("click",async event=>{
+ const submit=event.target.closest("[data-submit-purchase]");
+ const cancel=event.target.closest("[data-cancel-purchase]");
+ const receive=event.target.closest("[data-open-receive]");
+ if(submit||cancel){
+  const id=(submit||cancel).dataset[submit?"submitPurchase":"cancelPurchase"];
+  const action=submit?"submit":"cancel";
+  const button=submit||cancel;button.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/purchases/"+id+"/"+action,{method:"POST"});
+   message("purchaseStatus",submit?"採購單已送出。":"採購單已取消。");
+   await loadPurchases();
+  }catch(error){message("purchaseStatus",error.message,true);}
+  finally{button.disabled=false;}
+ }
+ if(receive){
+  selectedPurchase=purchasesById.get(receive.dataset.openReceive);
+  if(!selectedPurchase)return;
+  $("purchaseReceivePanel").classList.remove("hidden");
+  $("purchaseReceiveLocation").innerHTML='<option value="">請選擇位置</option>'+inventoryLocations.filter(x=>x.is_active).map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+  $("selectedPurchaseLine").innerHTML=selectedPurchase.lines.filter(line=>Number(line.received_quantity)<Number(line.quantity)).map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);return '<article class="item"><strong>'+escapeHtml(product?.product_code||"商品")+' · '+escapeHtml(product?.name||"")+'</strong><span class="muted">已驗收 '+escapeHtml(line.received_quantity)+' / 訂購 '+escapeHtml(line.quantity)+' · 尚餘 '+(Number(line.quantity)-Number(line.received_quantity))+'</span><div class="actions"><button class="secondary" type="button" data-receive-line="'+escapeHtml(line.id)+'" data-remaining="'+(Number(line.quantity)-Number(line.received_quantity))+'">選取此明細驗收</button></div></article>';}).join("")||'<div class="empty">此採購單已全部驗收完成</div>';
+  $("purchaseReceiveForm").classList.add("hidden");
+  $("purchaseReceivePanel").scrollIntoView({behavior:"smooth",block:"start"});
+ }
+});
+$("selectedPurchaseLine").addEventListener("click",event=>{
+ const button=event.target.closest("[data-receive-line]");
+ if(!button)return;
+ selectedPurchaseLine=button.dataset.receiveLine;
+ $("purchaseReceiveQuantity").max=button.dataset.remaining;
+ $("purchaseReceiveQuantity").value=button.dataset.remaining;
+ $("purchaseReceiveForm").classList.remove("hidden");
+});
+$("cancelPurchaseReceive").addEventListener("click",()=>{$("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;selectedPurchaseLine=null;});
+$("purchaseReceiveForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!selectedPurchase||!selectedPurchaseLine)return;
+ const payload={purchase_line_id:selectedPurchaseLine,location_id:$("purchaseReceiveLocation").value,received_quantity:$("purchaseReceiveQuantity").value};
+ const button=$("purchaseReceiveForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/purchases/"+selectedPurchase.id+"/receive",{method:"POST",body:JSON.stringify(payload)});
+  message("purchaseReceiveStatus","到貨驗收成功，已新增庫存入庫流水。");
+  $("purchaseReceiveForm").classList.add("hidden");selectedPurchase=null;selectedPurchaseLine=null;
+  await loadPurchases();await loadInventoryOptions();
+ }catch(error){message("purchaseReceiveStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("expenseForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!selectedSiteId){message("expenseStatus","請先選擇公司與據點。",true);return;}
+ const payload={site_id:selectedSiteId,expense_no:$("expenseNo").value.trim(),expense_date:$("expenseDate").value,category_code:$("expenseCategory").value,description:$("expenseDescription").value.trim(),amount:$("expenseAmount").value,payee:$("expensePayee").value.trim()||null,payment_method:$("expensePaymentMethod").value||null,receipt_no:$("expenseReceiptNo").value.trim()||null,note:$("expenseNote").value.trim()||null};
+ const button=$("expenseForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/operating-expenses",{method:"POST",body:JSON.stringify(payload)});
+  $("expenseForm").reset();$("expenseDate").value=taipeiDateValue();message("expenseStatus","營業費用已新增。");
+  await loadExpenses();
+ }catch(error){message("expenseStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("refreshExpenses").addEventListener("click",()=>loadExpenses().catch(error=>message("expenseStatus",error.message,true)));
+$("expenseFilterStatus").addEventListener("change",()=>loadExpenses().catch(error=>message("expenseStatus",error.message,true)));
+$("expenseFilterCategory").addEventListener("change",()=>loadExpenses().catch(error=>message("expenseStatus",error.message,true)));
+$("expenseList").addEventListener("click",async event=>{
+ const button=event.target.closest("[data-pay-expense]");
+ if(!button)return;
+ button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/operating-expenses/"+button.dataset.payExpense+"/pay",{method:"POST",body:JSON.stringify({payment_method:"CASH"})});
+  message("expenseStatus","營業費用已登錄付款。");
+  await loadExpenses();
+ }catch(error){message("expenseStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("cashDrawerForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!selectedSiteId){message("cashDrawerStatus","請先選擇公司與據點。",true);return;}
+ const payload={movement_type:$("drawerMovementType").value,amount:$("drawerAmount").value,description:$("drawerDescription").value.trim(),created_by_name:$("drawerActor").value.trim(),reference_no:$("drawerReference").value.trim()||null,note:$("drawerNote").value.trim()||null};
+ const button=$("cashDrawerForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/cash-drawer-movements",{method:"POST",body:JSON.stringify(payload)});
+  $("cashDrawerForm").reset();message("cashDrawerStatus","現金櫃異動已新增。");
+  await loadCashDrawerMovements();
+ }catch(error){message("cashDrawerStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("refreshCashDrawer").addEventListener("click",()=>loadCashDrawerMovements().catch(error=>message("cashDrawerStatus",error.message,true)));
 async function loadSalesHistory(){
  const box=$("salesHistoryList");
  if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
