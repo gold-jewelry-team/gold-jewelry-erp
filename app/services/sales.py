@@ -11,6 +11,7 @@ from app.models.sale import Sale, SaleLine
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.services.inventory import create_inventory_movement
+from app.services.daily_closing import assert_business_day_open
 from app.services.pricing.gold_prices import get_effective_gold_price
 from app.services.pricing.rounding import round_twd_like_legacy
 from app.services.pricing.sales import SalePricingInput, calculate_sale_amount
@@ -71,6 +72,7 @@ def create_sale_draft(
         raise ValueError("銷售明細不可空白。")
 
     priced_at = at or datetime.now(timezone.utc)
+    assert_business_day_open(session, site_id=site_id, at=priced_at)
     sale = Sale(
         company_id=company_id,
         site_id=site_id,
@@ -244,6 +246,7 @@ def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
         raise ValueError("銷售單沒有商品明細。")
 
     completed_at = datetime.now(timezone.utc)
+    assert_business_day_open(session, site_id=sale.site_id, at=completed_at)
     for line in lines:
         if line.product_id is None or line.source_location_id is None:
             raise ValueError("銷售明細缺少商品或出貨儲存位置。")
