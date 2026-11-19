@@ -754,10 +754,6 @@ $("newSale").addEventListener("click",()=>{
  message("saleStatus","可開始下一筆銷售。");
 });
 $("saleCardAmount").disabled=true;
-$("newSale").addEventListener("click",()=>{currentSale=null;saleCartLines=[];$("salePaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("saleHeaderForm").reset();$("saleCardAmount").disabled=true;$("saleBarcodeScan").value="";message("saleStatus","可開始下一筆銷售。");});
- }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
-});
-$("saleCardAmount").disabled=true;
 $("closingBusinessDate").value=taipeiDateValue();
 $("closingBusinessDate").max=taipeiDateValue();
 $("closingFromDate").value=taipeiDateValue(-30);
