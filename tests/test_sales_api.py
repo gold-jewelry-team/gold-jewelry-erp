@@ -120,6 +120,19 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert line["sell_gold_price_value"] == "12000.0000"
         assert line["pricing_rule_version"] == "legacy-v1"
 
+        history = client.get(
+            f"/companies/{company_id}/sales",
+            params={"site_id": str(site_id), "q": "SALE-BAR-001", "status": "DRAFT"},
+        )
+        assert history.status_code == 200, history.text
+        assert len(history.json()) == 1
+        assert history.json()[0]["id"] == sale["id"]
+        invalid_range = client.get(
+            f"/companies/{company_id}/sales",
+            params={"from_date": "2026-11-20", "to_date": "2026-11-19"},
+        )
+        assert invalid_range.status_code == 422
+
         mixed = client.post(f"/companies/{company_id}/sales", json={
             "site_id": str(site_id),
             "sale_no": "SO-API-MIXED-001",
