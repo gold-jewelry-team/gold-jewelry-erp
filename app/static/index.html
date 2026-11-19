@@ -80,7 +80,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <h2>庫存調整</h2>
 <p class="sub">用於期初入庫或盤點差異調整；出庫時不可超過目前庫存。</p>
 <form id="inventoryAdjustmentForm">
-<div class="field"><label for="adjustmentProduct">商品</label><select id="adjustmentProduct" required><option value="">請選擇商品</option></select></div>
+<div class="field"><label for="adjustmentProduct">商品</label><select id="adjustmentProduct" required><option value="">請選擇商品</option></select><div class="toolbar"><input id="adjustmentScanCode" placeholder="掃描／輸入條碼後按 Enter"><button id="scanAdjustmentButton" class="secondary" type="button">相機</button></div></div>
 <div class="field"><label for="adjustmentLocation">儲存位置</label><select id="adjustmentLocation" required><option value="">請選擇位置</option></select></div>
 <div class="field"><label for="adjustmentDirection">調整方向</label><select id="adjustmentDirection"><option value="IN">增加庫存（入）</option><option value="OUT">減少庫存（出）</option></select></div>
 <div class="field"><label for="adjustmentQuantity">數量</label><input id="adjustmentQuantity" type="number" min="1" step="1" value="1" required></div>
@@ -93,7 +93,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <h2>櫃位調撥</h2>
 <p class="sub">同一據點內將商品從一個儲存位置移至另一個位置。</p>
 <form id="inventoryTransferForm">
-<div class="field"><label for="transferProduct">商品</label><select id="transferProduct" required><option value="">請選擇商品</option></select></div>
+<div class="field"><label for="transferProduct">商品</label><select id="transferProduct" required><option value="">請選擇商品</option></select><div class="toolbar"><input id="transferScanCode" placeholder="掃描／輸入條碼後按 Enter"><button id="scanTransferButton" class="secondary" type="button">相機</button></div></div>
 <div class="field"><label for="transferFromLocation">來源位置</label><select id="transferFromLocation" required><option value="">請選擇來源</option></select></div>
 <div class="field"><label for="transferToLocation">目的位置</label><select id="transferToLocation" required><option value="">請選擇目的</option></select></div>
 <div class="field"><label for="transferQuantity">數量</label><input id="transferQuantity" type="number" min="1" step="1" value="1" required></div>
@@ -302,7 +302,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </form>
 <h3>採購商品明細</h3>
 <div class="grid">
-<div class="field"><label for="purchaseProduct">商品</label><select id="purchaseProduct"><option value="">請選擇商品</option></select></div>
+<div class="field"><label for="purchaseProduct">商品</label><select id="purchaseProduct"><option value="">請選擇商品</option></select><div class="toolbar"><input id="purchaseScanCode" placeholder="掃描／輸入條碼後按 Enter"><button id="scanPurchaseButton" class="secondary" type="button">相機</button></div></div>
 <div class="field"><label for="purchaseQuantity">訂購數量</label><input id="purchaseQuantity" type="number" min="0.001" step="0.001" value="1"></div>
 <div class="field"><label for="purchaseWeight">總重量（選填）</label><input id="purchaseWeight" type="number" min="0" step="0.0001"></div>
 <div class="field"><label for="purchaseWeightUnit">重量單位</label><select id="purchaseWeightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
@@ -321,6 +321,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div id="purchaseList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 <section id="purchaseReceivePanel" class="panel hidden">
 <h3>到貨驗收</h3>
+<div class="toolbar"><input id="purchaseReceiveScanCode" placeholder="掃描／輸入商品條碼後按 Enter"><button id="scanPurchaseReceiveButton" class="secondary" type="button">相機掃描</button></div>
 <div id="selectedPurchaseLine"></div>
 <form id="purchaseReceiveForm" class="hidden">
 <div class="grid">
@@ -569,6 +570,17 @@ async function handleScannedProductCode(code,target){
   if(target==="sale"){
    if(!selectedSiteId){message("saleStatus","請先選擇據點。",true);return;}
    $("saleProduct").value=product.id;$("saleBarcodeScan").value=code;await addSaleProduct();
+  }else if(target==="adjustment"){
+   $("adjustmentProduct").value=product.id;$("adjustmentScanCode").value="";message("adjustmentStatus","已選取："+product.product_code+" · "+product.name);
+  }else if(target==="transfer"){
+   $("transferProduct").value=product.id;$("transferScanCode").value="";message("transferStatus","已選取："+product.product_code+" · "+product.name);
+  }else if(target==="purchase"){
+   $("purchaseProduct").value=product.id;$("purchaseScanCode").value="";message("purchaseStatus","已選取："+product.product_code+" · "+product.name+"；請輸入訂購數量與成本。");
+  }else if(target==="purchaseReceive"){
+   if(!selectedPurchase){message("purchaseReceiveStatus","請先開啟要驗收的採購單。",true);return;}
+   const line=(selectedPurchase.lines||[]).find(x=>x.product_id===product.id&&Number(x.received_quantity)<Number(x.quantity));
+   if(!line){message("purchaseReceiveStatus","此商品不在目前採購單的未完成明細中。",true);return;}
+   selectedPurchaseLine=line.id;const remaining=Number(line.quantity)-Number(line.received_quantity);$("purchaseReceiveQuantity").max=String(remaining);$("purchaseReceiveQuantity").value=String(remaining);$("purchaseReceiveForm").classList.remove("hidden");$("purchaseReceiveScanCode").value="";message("purchaseReceiveStatus","已選取驗收商品："+product.product_code+"；請確認入庫位置與數量。");
   }else if(target==="stocktake"){
    await addStocktakeProduct(product);
   }else if(target==="inventory"){
@@ -1540,6 +1552,11 @@ $("applyStocktake").addEventListener("click",async()=>{
 });
 $("scanInventoryButton").addEventListener("click",()=>openCameraScanner("inventory"));
 $("scanStocktakeButton").addEventListener("click",()=>openCameraScanner("stocktake"));
+$("scanAdjustmentButton").addEventListener("click",()=>openCameraScanner("adjustment"));
+$("scanTransferButton").addEventListener("click",()=>openCameraScanner("transfer"));
+$("scanPurchaseButton").addEventListener("click",()=>openCameraScanner("purchase"));
+$("scanPurchaseReceiveButton").addEventListener("click",()=>openCameraScanner("purchaseReceive"));
+[["adjustmentScanCode","adjustment"],["transferScanCode","transfer"],["purchaseScanCode","purchase"],["purchaseReceiveScanCode","purchaseReceive"]].forEach(([id,target])=>$(id).addEventListener("keydown",event=>{if(event.key!=="Enter")return;event.preventDefault();const code=$(id).value.trim();if(code)handleScannedProductCode(code,target);}));
 $("scanSaleButton").addEventListener("click",()=>openCameraScanner("sale"));
 $("scanProductButton").addEventListener("click",()=>openCameraScanner("product"));
 $("closeScanner").addEventListener("click",closeCameraScanner);

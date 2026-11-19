@@ -45,6 +45,11 @@ def test_mobile_workspace_serves_html():
     assert 'id="purchasingPanel"' in response.text
     assert 'id="purchaseHeaderForm"' in response.text
     assert 'id="purchaseReceiveForm"' in response.text
+    assert 'id="adjustmentScanCode"' in response.text
+    assert 'id="transferScanCode"' in response.text
+    assert 'id="purchaseScanCode"' in response.text
+    assert 'id="purchaseReceiveScanCode"' in response.text
+    assert 'id="scanPurchaseReceiveButton"' in response.text
     assert 'id="operatingExpensesPanel"' in response.text
     assert 'id="expenseForm"' in response.text
     assert 'id="cashDrawerPanel"' in response.text
