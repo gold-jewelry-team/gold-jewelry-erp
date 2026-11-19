@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+import hashlib
 from decimal import Decimal
 
 from sqlalchemy import create_engine, select
@@ -119,12 +120,12 @@ def test_new_duplicates_always_reference_original_root_even_when_history_is_chai
         import_id=batch.id,
         company_id=company.id,
         bank_account_id=account.id,
-        transaction_date=__import__("datetime").date(2026, 11, 19),
+        transaction_date=date(2026, 11, 19),
         description="歷史利息",
         amount=Decimal("5.00"),
         direction="IN",
         reference_no="ROOT-001",
-        fingerprint="root-chain-fingerprint",
+        fingerprint=hashlib.sha256("2026-11-19|歷史利息|5.00|IN|ROOT-001".encode("utf-8")).hexdigest(),
         status="UNMATCHED",
     )
     db.add(root)
