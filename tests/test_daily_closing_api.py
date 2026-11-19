@@ -49,6 +49,13 @@ def _context():
         final_amount=Decimal("525"),
         completed_at=datetime(2026, 11, 19, 3, 0, tzinfo=timezone.utc),
     )
+    mixed_sale = Sale(
+        company_id=company.id, site_id=site.id, sale_no="DC-MIXED",
+        status="COMPLETED", payment_method="MIXED", currency_code="TWD",
+        subtotal=Decimal("1000"), card_amount=Decimal("500"),
+        card_fee=Decimal("25"), final_amount=Decimal("1025"),
+        completed_at=datetime(2026, 11, 19, 4, 0, tzinfo=timezone.utc),
+    )
     outside_sale = Sale(
         company_id=company.id, site_id=site.id, sale_no="DC-OUTSIDE",
         status="COMPLETED", payment_method="CASH", currency_code="TWD",
@@ -62,7 +69,7 @@ def _context():
         subtotal=Decimal("1000"), card_fee=Decimal("0"),
         final_amount=Decimal("1000"),
     )
-    session.add_all([cash_sale, card_sale, outside_sale, draft_sale])
+    session.add_all([cash_sale, card_sale, mixed_sale, outside_sale, draft_sale])
     session.flush()
     session.add(SaleReturn(
         company_id=company.id, site_id=site.id, sale_id=cash_sale.id,
@@ -96,11 +103,11 @@ def test_daily_closing_snapshots_sales_returns_and_payment_methods():
         )
         assert response.status_code == 201, response.text
         result = response.json()
-        assert result["sales_count"] == 2
+        assert result["sales_count"] == 3
         assert result["returns_count"] == 1
-        assert result["gross_sales_amount"] == "825.00"
+        assert result["gross_sales_amount"] == "1850.00"
         assert result["return_reversal_amount"] == "-100.00"
-        assert result["net_sales_amount"] == "725.00"
+        assert result["net_sales_amount"] == "1750.00"
 
         summaries = {item["payment_method"]: item for item in result["payment_summaries"]}
         assert summaries["CASH"]["sales_count"] == 1
@@ -108,6 +115,9 @@ def test_daily_closing_snapshots_sales_returns_and_payment_methods():
         assert summaries["CASH"]["net_sales_amount"] == "200.00"
         assert summaries["CARD"]["gross_sales_amount"] == "525.00"
         assert summaries["CARD"]["net_sales_amount"] == "525.00"
+        assert summaries["MIXED"]["sales_count"] == 1
+        assert summaries["MIXED"]["gross_sales_amount"] == "1025.00"
+        assert summaries["MIXED"]["net_sales_amount"] == "1025.00"
 
         duplicate = client.post(
             f"/companies/{company_id}/sites/{site_id}/daily-closings",
