@@ -389,9 +389,9 @@ $("productEditForm").addEventListener("submit",async event=>{
   await api("/companies/"+companyId+"/products/"+editingProduct.id,{method:"PATCH",body:JSON.stringify(payload)});
   $("productEditPanel").classList.add("hidden");
   editingProduct=null;
-  await loadProducts();
-  await loadInventoryOptions();
   message("productStatus","商品資料已更新。");
+  try{await loadProducts();await loadInventoryOptions();}
+  catch(refreshError){message("globalStatus","商品已更新，但畫面重新載入失敗："+refreshError.message,true);}
  }catch(error){
   message("productEditStatus",error.message,true);
  }finally{saveButton.disabled=false;}
@@ -410,8 +410,9 @@ $("inventoryAdjustmentForm").addEventListener("submit",async event=>{
  try{
   await api("/companies/"+companyId+"/inventory/adjustments",{method:"POST",body:JSON.stringify(payload)});
   $("adjustmentQuantity").value="1";$("adjustmentNote").value="";
-  await loadInventoryStock();await loadInventoryMovements();
   message("adjustmentStatus","庫存調整已記錄。");
+  try{await loadInventoryStock();await loadInventoryMovements();}
+  catch(refreshError){message("globalStatus","庫存調整已記錄，但畫面重新載入失敗："+refreshError.message,true);}
  }catch(error){message("adjustmentStatus",error.message,true);}
  finally{button.disabled=false;}
 });
@@ -423,8 +424,9 @@ $("inventoryTransferForm").addEventListener("submit",async event=>{
  try{
   await api("/companies/"+companyId+"/inventory/transfers",{method:"POST",body:JSON.stringify(payload)});
   $("transferQuantity").value="1";$("transferNote").value="";
-  await loadInventoryStock();await loadInventoryMovements();
   message("transferStatus","櫃位調撥已完成。");
+  try{await loadInventoryStock();await loadInventoryMovements();}
+  catch(refreshError){message("globalStatus","櫃位調撥已完成，但畫面重新載入失敗："+refreshError.message,true);}
  }catch(error){message("transferStatus",error.message,true);}
  finally{button.disabled=false;}
 });
