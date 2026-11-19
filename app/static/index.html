@@ -1046,6 +1046,7 @@ $("newSale").addEventListener("click",()=>{
  message("saleStatus","可開始下一筆銷售。");
 });
 $("saleCardAmount").disabled=true;
+$("billDate").value=taipeiDateValue();
 $("closingBusinessDate").value=taipeiDateValue();
 $("closingBusinessDate").max=taipeiDateValue();
 $("closingFromDate").value=taipeiDateValue(-30);
