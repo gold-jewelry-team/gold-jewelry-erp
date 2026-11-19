@@ -136,6 +136,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0023_purchase_labor_cost"
+          alembic current | grep -q "0024_labor_code_settings"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
