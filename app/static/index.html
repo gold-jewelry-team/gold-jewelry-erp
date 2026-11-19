@@ -28,9 +28,30 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <form id="companyForm">
 <div class="field"><label for="companyCode">公司代碼</label><input id="companyCode" required maxlength="30" placeholder="例如 JEWEL"></div>
 <div class="field"><label for="companyName">公司名稱</label><input id="companyName" required maxlength="120" placeholder="銀樓名稱"></div>
+<div class="field"><label for="companyTaxId">統一編號（選填）</label><input id="companyTaxId" maxlength="20" placeholder="例如 12345678"></div>
 <button type="submit">建立公司</button>
 </form>
 <div id="companyStatus" class="status" role="status"></div>
+</section>
+<section class="panel span2">
+<h2>門市／據點設定</h2>
+<p class="sub">先選擇公司，再建立總店、分店或倉庫據點。</p>
+<div class="field"><label for="siteSelect">目前據點</label><select id="siteSelect"><option value="">請先選擇公司</option></select></div>
+<form id="siteForm">
+<div class="grid"><div class="field"><label for="siteCode">據點代碼</label><input id="siteCode" required maxlength="30" placeholder="例如 SHOP01"></div>
+<div class="field"><label for="siteName">據點名稱</label><input id="siteName" required maxlength="120" placeholder="例如 總店"></div>
+<div class="field wide"><label for="siteAddress">地址（選填）</label><input id="siteAddress" maxlength="255"></div>
+<div class="field wide"><label for="sitePhone">電話（選填）</label><input id="sitePhone" maxlength="30"></div></div>
+<button type="submit">新增據點</button></form><div id="siteStatus" class="status" role="status"></div>
+</section>
+<section class="panel span2">
+<h2>庫存儲存位置</h2><p class="sub">每個據點可建立多個位置，例如展示櫃、保險櫃、倉庫及維修區。</p>
+<form id="locationForm"><div class="grid"><div class="field"><label for="locationCode">位置代碼</label><input id="locationCode" required maxlength="30" placeholder="例如 SHOWCASE"></div>
+<div class="field"><label for="locationName">位置名稱</label><input id="locationName" required maxlength="120" placeholder="例如 展示櫃"></div>
+<div class="field"><label for="locationType">位置類型</label><select id="locationType"><option value="STORE_FLOOR">展示／營業區</option><option value="SAFE">保險櫃</option><option value="WAREHOUSE">倉庫</option><option value="REPAIR">維修區</option><option value="TRANSIT">調撥中</option><option value="OTHER">其他</option></select></div>
+<div class="field"><label for="locationDescription">說明（選填）</label><input id="locationDescription" maxlength="255"></div></div>
+<button type="submit">新增儲存位置</button></form>
+<div id="locationList" class="empty">請先選擇據點</div><div id="locationStatus" class="status" role="status"></div>
 </section>
 <section class="panel">
 <h2>新增商品分類</h2>
@@ -75,6 +96,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <script>
 const $=id=>document.getElementById(id);
 let companyId="";
+let selectedSiteId="";
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -89,9 +111,22 @@ async function loadCompanies(selectId){
  if(selectId&&rows.some(x=>x.id===selectId)) $("companySelect").value=selectId;
  else if(rows.length===1) $("companySelect").value=rows[0].id;
  companyId=$("companySelect").value;
- await loadCategories(); await loadSequence(); await loadProducts();
+ await loadSites(); await loadCategories(); await loadSequence(); await loadProducts();
 }
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function loadSites(selectId){
+ const select=$("siteSelect");selectedSiteId="";
+ if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';return;}
+ const rows=await api("/companies/"+companyId+"/sites");
+ select.innerHTML='<option value="">請選擇據點</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ if(selectId&&rows.some(x=>x.id===selectId))select.value=selectId;else if(rows.length===1)select.value=rows[0].id;
+ selectedSiteId=select.value;await loadStorageLocations();
+}
+async function loadStorageLocations(){
+ const box=$("locationList");if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';return;}
+ const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations");
+ box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.location_type)+'</span><span class="muted">代碼：'+escapeHtml(x.code)+(x.description?' · '+escapeHtml(x.description):'')+'</span></article>').join(""):'<div class="empty">此據點尚未建立儲存位置</div>';
+}
 async function loadCategories(){
  $("parentCategory").innerHTML='<option value="">無</option>';
  $("productCategory").innerHTML='<option value="">未分類</option>';
@@ -115,11 +150,14 @@ async function loadProducts(){
  const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
  box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(x.category_id||"未分類")+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span></article>').join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;try{await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();}catch(e){message("siteStatus",e.message,true);}});
+$("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
+$("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
-$("companyForm").addEventListener("submit",async e=>{e.preventDefault();try{const x=await api("/companies",{method:"POST",body:JSON.stringify({code:$("companyCode").value.trim(),name:$("companyName").value.trim()})});$("companyForm").reset();await loadCompanies(x.id);message("companyStatus","公司已建立");}catch(err){message("companyStatus",err.message,true);}});
+$("companyForm").addEventListener("submit",async e=>{e.preventDefault();try{const x=await api("/companies",{method:"POST",body:JSON.stringify({code:$("companyCode").value.trim(),name:$("companyName").value.trim(),tax_id:$("companyTaxId").value.trim()||null})});$("companyForm").reset();await loadCompanies(x.id);message("companyStatus","公司已建立");}catch(err){message("companyStatus",err.message,true);}});
 $("categoryForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("categoryStatus","請先選擇公司",true);return;}try{await api("/companies/"+companyId+"/product-categories",{method:"POST",body:JSON.stringify({code:$("categoryCode").value.trim(),name:$("categoryName").value.trim(),parent_id:$("parentCategory").value||null})});$("categoryForm").reset();await loadCategories();message("categoryStatus","分類已新增");}catch(err){message("categoryStatus",err.message,true);}});
 $("productForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("productStatus","請先選擇公司",true);return;}try{const payload={product_code:$("productCode").value.trim(),barcode:$("barcode").value.trim()||null,name:$("productName").value.trim(),category_id:$("productCategory").value||null,material_code:$("materialCode").value.trim()||null,gross_weight:$("grossWeight").value,net_weight:$("netWeight").value,weight_unit_code:$("weightUnit").value,labor_fee:$("laborFee").value,note:$("productNote").value.trim()||null};await api("/companies/"+companyId+"/products",{method:"POST",body:JSON.stringify(payload)});$("productForm").reset();$("grossWeight").value="0";$("netWeight").value="0";$("laborFee").value="0";await loadProducts();await loadSequence();message("productStatus","商品已新增");}catch(err){message("productStatus",err.message,true);}});
 $("searchButton").addEventListener("click",()=>loadProducts().catch(e=>message("globalStatus",e.message,true)));
