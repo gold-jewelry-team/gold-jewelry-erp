@@ -15,7 +15,7 @@ from app.models.daily_closing import DailyClosing
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.supplier_payable import SupplierBill, SupplierPayment
-from app.routers import daily_closing, supplier_payables
+from app.routers import daily_closing, supplier_payables, suppliers
 
 
 def _payable_context():
@@ -46,8 +46,30 @@ def _payable_context():
 
     app.dependency_overrides.clear()
     app.dependency_overrides[supplier_payables.get_db] = override_db
+    app.dependency_overrides[suppliers.get_db] = override_db
     app.dependency_overrides[daily_closing.get_db] = override_db
     return engine, TestSession, ids
+
+
+def test_supplier_master_create_and_list():
+    engine, _TestSession, (company_id, _site_id, _supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        response = client.post(f"/companies/{company_id}/suppliers", json={
+            "code": "SUP-02",
+            "name": "新增測試供應商",
+            "tax_id": "12345678",
+            "contact_name": "王小姐",
+            "phone": "02-12345678",
+        })
+        assert response.status_code == 201, response.text
+        assert response.json()["name"] == "新增測試供應商"
+        listed = client.get(f"/companies/{company_id}/suppliers")
+        assert listed.status_code == 200, listed.text
+        assert {row["code"] for row in listed.json()} == {"SUP-01", "SUP-02"}
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
 
 
 def test_supplier_bills_partial_payments_and_daily_cash_outflow():
@@ -69,6 +91,10 @@ def test_supplier_bills_partial_payments_and_daily_cash_outflow():
         })
         assert bill2.status_code == 201, bill2.text
 
+        listed_bills = client.get(f"{base}/bills", params={"site_id": str(site_id)})
+        assert listed_bills.status_code == 200, listed_bills.text
+        assert len(listed_bills.json()) == 2
+
         payment1 = client.post(f"{base}/payments", json={
             "site_id": str(site_id), "supplier_id": str(supplier_id),
             "payment_no": "SP-001", "payment_method": "TRANSFER",
@@ -81,6 +107,10 @@ def test_supplier_bills_partial_payments_and_daily_cash_outflow():
         assert payment1.status_code == 201, payment1.text
         assert payment1.json()["total_amount"] == "1200.00"
         assert len(payment1.json()["allocations"]) == 2
+
+        listed_payments = client.get(f"{base}/payments", params={"site_id": str(site_id)})
+        assert listed_payments.status_code == 200, listed_payments.text
+        assert len(listed_payments.json()) == 1
 
         refreshed1 = client.get(f"{base}/bills/{bill1.json()['id']}")
         refreshed2 = client.get(f"{base}/bills/{bill2.json()['id']}")

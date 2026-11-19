@@ -212,6 +212,68 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </section>
 <div class="actions hidden" id="newSaleActions"><button id="newSale" type="button">開始下一筆銷售</button></div>
 </section>
+<section class="panel span2" id="supplierPayablesPanel">
+<h2>供應商與應付帳款</h2>
+<p class="sub">供應商資料、供應商帳單及實際付款分開記錄。帳單可先建檔，付款時再逐筆分攤；外幣帳單可登錄，但目前付款功能僅支援 TWD。</p>
+<section class="panel">
+<h3>供應商資料</h3>
+<form id="supplierForm">
+<div class="grid">
+<div class="field"><label for="supplierCode">供應商代碼</label><input id="supplierCode" maxlength="40" required></div>
+<div class="field"><label for="supplierName">供應商名稱</label><input id="supplierName" maxlength="160" required></div>
+<div class="field"><label for="supplierTaxId">統一編號</label><input id="supplierTaxId" maxlength="20"></div>
+<div class="field"><label for="supplierContact">聯絡人</label><input id="supplierContact" maxlength="80"></div>
+<div class="field"><label for="supplierPhone">電話</label><input id="supplierPhone" maxlength="40"></div>
+<div class="field"><label for="supplierAddress">地址</label><input id="supplierAddress" maxlength="255"></div>
+</div>
+<button type="submit">新增供應商</button>
+</form>
+<div id="supplierStatus" class="status" role="status"></div>
+<div id="supplierList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
+</section>
+<section class="panel">
+<h3>新增供應商帳單</h3>
+<form id="supplierBillForm">
+<div class="grid">
+<div class="field"><label for="billSupplier">供應商</label><select id="billSupplier" required><option value="">請選擇供應商</option></select></div>
+<div class="field"><label for="billNo">供應商帳單號碼</label><input id="billNo" maxlength="50" required></div>
+<div class="field"><label for="billDate">帳單日期</label><input id="billDate" type="date" required></div>
+<div class="field"><label for="billDueDate">到期日</label><input id="billDueDate" type="date"></div>
+<div class="field"><label for="billCurrency">幣別</label><select id="billCurrency"><option value="TWD">TWD 新台幣</option><option value="USD">USD 美元</option><option value="JPY">JPY 日圓</option><option value="CNY">CNY 人民幣</option></select></div>
+<div class="field"><label for="billAmount">帳單總額</label><input id="billAmount" type="number" min="0.01" step="0.01" required></div>
+<div class="field wide"><label for="billNote">備註</label><input id="billNote" maxlength="500"></div>
+</div>
+<button type="submit">建立供應商帳單</button>
+</form>
+<div id="supplierBillStatus" class="status" role="status"></div>
+<h3>應付帳款清單</h3>
+<div class="grid">
+<div class="field"><label for="billFilterSupplier">供應商篩選</label><select id="billFilterSupplier"><option value="">全部供應商</option></select></div>
+<div class="field"><label for="billFilterStatus">帳單狀態</label><select id="billFilterStatus"><option value="">全部狀態</option><option value="OPEN">未付款</option><option value="PARTIALLY_PAID">部分付款</option><option value="PAID">已付清</option><option value="VOID">已作廢</option></select></div>
+</div>
+<div class="actions"><button id="refreshSupplierBills" class="secondary" type="button">更新帳單</button></div>
+<div id="supplierBillList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
+</section>
+<section class="panel hidden" id="supplierPaymentPanel">
+<h3>供應商付款</h3>
+<div id="selectedSupplierBill"></div>
+<form id="supplierPaymentForm">
+<div class="grid">
+<div class="field"><label for="supplierPaymentNo">付款單號</label><input id="supplierPaymentNo" maxlength="50" required></div>
+<div class="field"><label for="supplierPaymentMethod">付款方式</label><select id="supplierPaymentMethod"><option value="TRANSFER">轉帳</option><option value="CASH">現金</option><option value="CARD">刷卡</option><option value="OTHER">其他</option></select></div>
+<div class="field"><label for="supplierPaymentAmount">本次付款金額（TWD）</label><input id="supplierPaymentAmount" type="number" min="0.01" step="0.01" required></div>
+<div class="field"><label for="supplierPaymentReference">銀行／交易編號</label><input id="supplierPaymentReference" maxlength="100"></div>
+<div class="field wide"><label for="supplierPaymentNote">付款備註</label><input id="supplierPaymentNote" maxlength="500"></div>
+</div>
+<div class="actions"><button type="submit">登錄供應商付款</button><button id="cancelSupplierPayment" class="secondary" type="button">取消</button></div>
+</form>
+<div id="supplierPaymentStatus" class="status" role="status"></div>
+</section>
+<section class="panel">
+<h3>供應商付款紀錄</h3>
+<div id="supplierPaymentHistory" aria-live="polite"><div class="empty">尚無付款紀錄</div></div>
+</section>
+</section>
 <section class="panel span2" id="dailyClosingPanel">
 <h2>每日結帳</h2>
 <p class="sub">每日結帳會建立該據點營業日的不可變快照。送出前請確認營業日期；同一據點同一營業日只能結帳一次。</p>
@@ -337,6 +399,9 @@ let saleCartLines=[];
 let currentSale=null;
 let saleReturns=[];
 let selectedReturn=null;
+let suppliersById=new Map();
+let supplierBillsById=new Map();
+let selectedSupplierBill=null;
 const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"部分刷卡",TRANSFER:"轉帳",OTHER:"其他"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
@@ -357,11 +422,11 @@ async function loadCompanies(selectId){
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 async function loadSites(selectId){
  const select=$("siteSelect");selectedSiteId="";selectedClosing=null;$("cashCountPanel").classList.add("hidden");
- if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();return;}
+ if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();return;}
  const rows=await api("/companies/"+companyId+"/sites");
  select.innerHTML='<option value="">請選擇據點</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId))select.value=selectId;else if(rows.length===1)select.value=rows[0].id;
- selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();
+ selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();
 }
 async function loadStorageLocations(){
  const box=$("locationList");if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';return;}
@@ -572,10 +637,10 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -732,6 +797,91 @@ $("returnPaymentForm").addEventListener("submit",async event=>{
   message("returnPaymentStatus","退貨收付款紀錄已新增。");
   try{await loadReturnPayments(selectedReturn);}catch(refreshError){message("returnPaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
  }catch(error){message("returnPaymentStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+async function loadSuppliers(){
+ const supplierSelects=["billSupplier","billFilterSupplier"];
+ if(!companyId){
+  suppliersById=new Map();
+  $("supplierList").innerHTML='<div class="empty">請先選擇公司</div>';
+  for(const id of supplierSelects)$(id).innerHTML=id==="billFilterSupplier"?'<option value="">全部供應商</option>':'<option value="">請選擇供應商</option>';
+  return;
+ }
+ const rows=await api("/companies/"+companyId+"/suppliers");
+ suppliersById=new Map(rows.map(x=>[x.id,x]));
+ const options=rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ $("billSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
+ $("billFilterSupplier").innerHTML='<option value="">全部供應商</option>'+options;
+ $("supplierList").innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span><span class="muted">統編：'+escapeHtml(x.tax_id||"未填")+' · 聯絡人：'+escapeHtml(x.contact_name||"未填")+' · 電話：'+escapeHtml(x.phone||"未填")+'</span>'+(x.address?'<span class="muted">'+escapeHtml(x.address)+'</span>':'')+'</article>').join(""):'<div class="empty">尚未建立供應商</div>';
+}
+async function loadSupplierBills(){
+ if(!companyId){$("supplierBillList").innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ const params=new URLSearchParams();
+ if($("billFilterSupplier").value)params.set("supplier_id",$("billFilterSupplier").value);
+ if($("billFilterStatus").value)params.set("status",$("billFilterStatus").value);
+ if(selectedSiteId)params.set("site_id",selectedSiteId);
+ const rows=await api("/companies/"+companyId+"/supplier-payables/bills"+(params.toString()?"?"+params.toString():""));
+ supplierBillsById=new Map(rows.map(x=>[x.id,x]));
+ $("supplierBillList").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.bill_no)+'</strong><span class="pill">'+({OPEN:"未付款",PARTIALLY_PAID:"部分付款",PAID:"已付清",VOID:"已作廢"}[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 帳單日：'+escapeHtml(row.bill_date)+' · 到期日：'+escapeHtml(row.due_date||"未設定")+'</span><span class="muted">總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+' · 已付：'+escapeHtml(row.paid_amount)+' · 未付：'+escapeHtml(row.outstanding_amount)+'</span>'+(row.status!=="PAID"&&row.status!=="VOID"&&row.currency_code==="TWD"?'<div class="actions"><button class="secondary" type="button" data-pay-supplier-bill="'+escapeHtml(row.id)+'">登錄付款</button></div>':'')+'</article>').join(""):'<div class="empty">沒有符合條件的供應商帳單</div>';
+}
+async function loadSupplierPayments(){
+ if(!companyId){$("supplierPaymentHistory").innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ const params=new URLSearchParams();if(selectedSiteId)params.set("site_id",selectedSiteId);
+ const rows=await api("/companies/"+companyId+"/supplier-payables/payments"+(params.toString()?"?"+params.toString():""));
+ $("supplierPaymentHistory").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.payment_no)+' · '+escapeHtml(row.payment_method)+'</strong><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 付款時間：'+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</span><span class="pill">付款總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+'</span><span class="muted">分攤：'+(row.allocations||[]).map(a=>escapeHtml(supplierBillsById.get(a.bill_id)?.bill_no||"帳單")+" "+escapeHtml(a.amount)).join("、")+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無供應商付款紀錄</div>';
+}
+$("supplierForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId)return;
+ const button=$("supplierForm").querySelector('button[type="submit"]');button.disabled=true;
+ const payload={code:$("supplierCode").value.trim(),name:$("supplierName").value.trim(),tax_id:$("supplierTaxId").value.trim()||null,contact_name:$("supplierContact").value.trim()||null,phone:$("supplierPhone").value.trim()||null,address:$("supplierAddress").value.trim()||null};
+ try{
+  await api("/companies/"+companyId+"/suppliers",{method:"POST",body:JSON.stringify(payload)});
+  $("supplierForm").reset();message("supplierStatus","供應商已新增。");
+  await loadSuppliers();
+ }catch(error){message("supplierStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("supplierBillForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!selectedSiteId){message("supplierBillStatus","請先選擇公司與據點。",true);return;}
+ const payload={site_id:selectedSiteId,supplier_id:$("billSupplier").value,bill_no:$("billNo").value.trim(),bill_date:$("billDate").value,due_date:$("billDueDate").value||null,currency_code:$("billCurrency").value,total_amount:$("billAmount").value,note:$("billNote").value.trim()||null};
+ const button=$("supplierBillForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/supplier-payables/bills",{method:"POST",body:JSON.stringify(payload)});
+  $("supplierBillForm").reset();$("billDate").value=taipeiDateValue();message("supplierBillStatus","供應商帳單已建立。");
+  await loadSupplierBills();await loadSupplierPayments();
+ }catch(error){message("supplierBillStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("refreshSupplierBills").addEventListener("click",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
+$("billFilterSupplier").addEventListener("change",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
+$("billFilterStatus").addEventListener("change",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
+$("supplierBillList").addEventListener("click",event=>{
+ const button=event.target.closest("[data-pay-supplier-bill]");
+ if(!button)return;
+ const bill=supplierBillsById.get(button.dataset.paySupplierBill);
+ if(!bill)return;
+ selectedSupplierBill=bill;
+ $("supplierPaymentPanel").classList.remove("hidden");
+ $("selectedSupplierBill").innerHTML='<article class="item"><strong>'+escapeHtml(bill.bill_no)+'</strong><span class="muted">總額 '+escapeHtml(bill.total_amount)+' '+escapeHtml(bill.currency_code)+' · 已付 '+escapeHtml(bill.paid_amount)+' · 尚欠 '+escapeHtml(bill.outstanding_amount)+'</span></article>';
+ $("supplierPaymentAmount").value=bill.outstanding_amount;
+ $("supplierPaymentPanel").scrollIntoView({behavior:"smooth",block:"start"});
+});
+$("cancelSupplierPayment").addEventListener("click",()=>{$("supplierPaymentPanel").classList.add("hidden");selectedSupplierBill=null;});
+$("supplierPaymentForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!selectedSupplierBill||!companyId||!selectedSiteId)return;
+ const amount=$("supplierPaymentAmount").value;
+ if(!(Number(amount)>0)){message("supplierPaymentStatus","請輸入大於 0 的付款金額。",true);return;}
+ const button=$("supplierPaymentForm").querySelector('button[type="submit"]');button.disabled=true;
+ const payload={site_id:selectedSiteId,supplier_id:selectedSupplierBill.supplier_id,payment_no:$("supplierPaymentNo").value.trim(),payment_method:$("supplierPaymentMethod").value,allocations:[{bill_id:selectedSupplierBill.id,amount}],reference_no:$("supplierPaymentReference").value.trim()||null,note:$("supplierPaymentNote").value.trim()||null};
+ try{
+  await api("/companies/"+companyId+"/supplier-payables/payments",{method:"POST",body:JSON.stringify(payload)});
+  message("supplierPaymentStatus","供應商付款已登錄。");
+  $("supplierPaymentForm").reset();$("supplierPaymentPanel").classList.add("hidden");selectedSupplierBill=null;
+  await loadSupplierBills();await loadSupplierPayments();
+ }catch(error){message("supplierPaymentStatus",error.message,true);}
  finally{button.disabled=false;}
 });
 async function loadSalesHistory(){
@@ -896,6 +1046,7 @@ $("newSale").addEventListener("click",()=>{
  message("saleStatus","可開始下一筆銷售。");
 });
 $("saleCardAmount").disabled=true;
+$("billDate").value=taipeiDateValue();
 $("closingBusinessDate").value=taipeiDateValue();
 $("closingBusinessDate").max=taipeiDateValue();
 $("closingFromDate").value=taipeiDateValue(-30);

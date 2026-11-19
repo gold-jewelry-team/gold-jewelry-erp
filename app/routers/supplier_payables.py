@@ -77,6 +77,7 @@ def post_supplier_bill(
 @router.get("/bills", response_model=list[SupplierBillRead])
 def list_supplier_bills(
     company_id: UUID,
+    site_id: UUID | None = None,
     supplier_id: UUID | None = None,
     status: str | None = Query(default=None, pattern="^(OPEN|PARTIALLY_PAID|PAID|VOID)$"),
     due_before: date | None = None,
@@ -90,6 +91,8 @@ def list_supplier_bills(
         .order_by(SupplierBill.due_date, SupplierBill.bill_date.desc())
         .limit(limit)
     )
+    if site_id:
+        statement = statement.where(SupplierBill.site_id == site_id)
     if supplier_id:
         statement = statement.where(SupplierBill.supplier_id == supplier_id)
     if status:
@@ -139,6 +142,7 @@ def post_supplier_payment(
 @router.get("/payments", response_model=list[SupplierPaymentRead])
 def list_supplier_payments(
     company_id: UUID,
+    site_id: UUID | None = None,
     supplier_id: UUID | None = None,
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
@@ -150,6 +154,8 @@ def list_supplier_payments(
         .order_by(SupplierPayment.paid_at.desc())
         .limit(limit)
     )
+    if site_id:
+        statement = statement.where(SupplierPayment.site_id == site_id)
     if supplier_id:
         statement = statement.where(SupplierPayment.supplier_id == supplier_id)
     return list(db.scalars(statement).all())
