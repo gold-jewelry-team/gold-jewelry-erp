@@ -225,20 +225,24 @@ async function loadInventoryOptions(){
   return;
  }
  const [products,locations]=await Promise.all([
-  api("/companies/"+companyId+"/products?limit=500"),
-  api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations")
+  api("/companies/"+companyId+"/products?limit=500&include_inactive=true"),
+  api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations?include_inactive=true")
  ]);
  inventoryProducts=products;
  inventoryLocations=locations;
- const productOptions=products.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
+ const activeProducts=products.filter(x=>x.is_active);
+ const productOptions=activeProducts.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
+ const allProductOptions=products.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
  $("adjustmentProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
  $("transferProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
- $("movementProductFilter").innerHTML='<option value="">全部商品</option>'+productOptions;
- const locationOptions=locations.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ $("movementProductFilter").innerHTML='<option value="">全部商品</option>'+allProductOptions;
+ const activeLocations=locations.filter(x=>x.is_active);
+ const locationOptions=locations.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）'+(x.is_active?'':'（已停用）')+'</option>').join("");
+ const activeLocationOptions=activeLocations.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("stockLocationFilter").innerHTML='<option value="">全部位置</option>'+locationOptions;
- $("adjustmentLocation").innerHTML='<option value="">請選擇位置</option>'+locationOptions;
- $("transferFromLocation").innerHTML='<option value="">請選擇來源</option>'+locationOptions;
- $("transferToLocation").innerHTML='<option value="">請選擇目的</option>'+locationOptions;
+ $("adjustmentLocation").innerHTML='<option value="">請選擇位置</option>'+activeLocationOptions;
+ $("transferFromLocation").innerHTML='<option value="">請選擇來源</option>'+activeLocationOptions;
+ $("transferToLocation").innerHTML='<option value="">請選擇目的</option>'+activeLocationOptions;
  $("movementLocationFilter").innerHTML='<option value="">全部位置</option>'+locationOptions;
  await loadInventoryStock();
  await loadInventoryMovements();
