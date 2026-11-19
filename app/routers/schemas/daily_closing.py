@@ -24,6 +24,7 @@ class DailyClosingPaymentSummaryRead(BaseModel):
     refunded_amount: Decimal
     supplier_paid_amount: Decimal
     expenses_paid_amount: Decimal
+    expenses_paid_amount: Decimal
     net_cash_flow: Decimal
 
 
@@ -42,6 +43,7 @@ class DailyClosingRead(BaseModel):
     collected_amount: Decimal
     refunded_amount: Decimal
     supplier_paid_amount: Decimal
+    expenses_paid_amount: Decimal
     net_cash_flow: Decimal
     closed_at: datetime
     note: str | None

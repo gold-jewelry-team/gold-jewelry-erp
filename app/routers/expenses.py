@@ -1,5 +1,5 @@
 """Operating expense APIs."""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -46,7 +46,7 @@ class ExpenseRead(BaseModel):
     currency_code: str
     status: str
     payment_method: str | None
-    paid_at: object | None
+    paid_at: datetime | None
     receipt_no: str | None
     note: str | None
 
