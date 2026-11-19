@@ -134,8 +134,19 @@ def create_product(
         .with_for_update()
     )
     match = re.search(r"-(\d+)$", product.product_code)
-    if sequence is not None and match:
-        sequence.next_number = max(sequence.next_number, int(match.group(1)) + 1)
+    if match:
+        numeric_suffix = int(match.group(1))
+        existing_codes = db.query(Product.product_code).filter(
+            Product.company_id == company_id
+        ).all()
+        if any(
+            (existing_match := re.search(r"-(\d+)$", existing_code[0]))
+            and int(existing_match.group(1)) == numeric_suffix
+            for existing_code in existing_codes
+        ):
+            raise HTTPException(status_code=409, detail="此流水號已被其他商品使用，請使用下一個未使用號碼。")
+        if sequence is not None:
+            sequence.next_number = max(sequence.next_number, numeric_suffix + 1)
     try:
         db.commit()
         db.refresh(product)
@@ -159,6 +170,27 @@ def update_product(
     if product is None:
         raise HTTPException(status_code=404, detail="找不到指定商品。")
     changes = payload.model_dump(exclude_unset=True)
+    if "product_code" in changes and changes["product_code"] is not None:
+        sequence = db.scalar(
+            select(ProductCodeSequence)
+            .where(ProductCodeSequence.company_id == company_id)
+            .with_for_update()
+        )
+        match = re.search(r"-(\d+)$", changes["product_code"])
+        if match:
+            numeric_suffix = int(match.group(1))
+            existing_codes = db.query(Product.id, Product.product_code).where(
+                Product.company_id == company_id,
+                Product.id != product_id,
+            ).all()
+            if any(
+                (existing_match := re.search(r"-(\d+)$", existing_code))
+                and int(existing_match.group(1)) == numeric_suffix
+                for _, existing_code in existing_codes
+            ):
+                raise HTTPException(status_code=409, detail="此流水號已被其他商品使用，請使用其他未使用號碼。")
+            if sequence is not None:
+                sequence.next_number = max(sequence.next_number, numeric_suffix + 1)
     if "category_id" in changes:
         _require_category(db, company_id, changes["category_id"])
     gross_weight = changes.get("gross_weight", product.gross_weight)
