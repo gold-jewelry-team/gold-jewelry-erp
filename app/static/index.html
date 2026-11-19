@@ -307,6 +307,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="field"><label for="purchaseWeight">總重量（選填）</label><input id="purchaseWeight" type="number" min="0" step="0.0001"></div>
 <div class="field"><label for="purchaseWeightUnit">重量單位</label><select id="purchaseWeightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
 <div class="field"><label for="purchaseUnitCost">單位成本</label><input id="purchaseUnitCost" type="number" min="0" step="0.01" value="0"></div>
+<div class="field"><label for="purchaseCostLaborFee">進貨成本工錢（每件）</label><input id="purchaseCostLaborFee" type="number" min="0" step="0.01" value="0"></div>
 <div class="field"><label for="purchaseLineNote">明細備註</label><input id="purchaseLineNote" maxlength="500"></div>
 </div>
 <div class="actions"><button id="addPurchaseLine" type="button">加入採購明細</button></div>
@@ -1176,7 +1177,7 @@ const purchaseStatusLabels={DRAFT:"草稿",ORDERED:"已下單",PARTIALLY_RECEIVE
 const expenseCategoryLabels={RENT:"租金",UTILITIES:"水電瓦斯",SALARIES:"薪資",SUPPLIES:"耗材",SHIPPING:"運費",REPAIR:"維修",OTHER:"其他"};
 const drawerTypeLabels={BANK_DEPOSIT:"存入銀行",BANK_WITHDRAWAL:"銀行提款",FLOAT_INCREASE:"增加備用金",FLOAT_DECREASE:"減少備用金",OTHER_IN:"其他收入",OTHER_OUT:"其他支出"};
 function renderPurchaseCart(){
- $("purchaseCartList").innerHTML=purchaseCartLines.length?purchaseCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">數量：'+escapeHtml(line.quantity)+' · 單位成本：'+escapeHtml(line.unit_cost)+' · 重量：'+escapeHtml(line.weight??"未填")+' '+escapeHtml(line.weight_unit_code||"")+'</span><div class="actions"><button class="secondary" type="button" data-remove-purchase-line="'+index+'">移除</button></div></article>').join(""):'<div class="empty">尚未加入採購商品</div>';
+ $("purchaseCartList").innerHTML=purchaseCartLines.length?purchaseCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">數量：'+escapeHtml(line.quantity)+' · 單位成本：'+escapeHtml(line.unit_cost)+' · 成本工錢：'+escapeHtml(line.cost_labor_fee)+' · 重量：'+escapeHtml(line.weight??"未填")+' '+escapeHtml(line.weight_unit_code||"")+'</span><div class="actions"><button class="secondary" type="button" data-remove-purchase-line="'+index+'">移除</button></div></article>').join(""):'<div class="empty">尚未加入採購商品</div>';
  $("createPurchase").disabled=!purchaseCartLines.length;
 }
 function renderBillPurchaseOptions(){
@@ -1215,10 +1216,10 @@ $("addPurchaseLine").addEventListener("click",()=>{
  if(!product){message("purchaseStatus","請選擇有效商品。",true);return;}
  const quantity=Number($("purchaseQuantity").value),unitCost=Number($("purchaseUnitCost").value);
  const weightText=$("purchaseWeight").value.trim();
- if(!(quantity>0)||!(unitCost>=0)|| (weightText!==""&&!(Number(weightText)>=0))){message("purchaseStatus","請確認訂購數量、重量與單位成本。",true);return;}
- purchaseCartLines.push({product_id:product.id,product,quantity:String(quantity),weight:weightText===""?null:String(weightText),weight_unit_code:$("purchaseWeightUnit").value,unit_cost:String(unitCost),note:$("purchaseLineNote").value.trim()||null});
+ if(!(quantity>0)||!(unitCost>=0)||!(Number($("purchaseCostLaborFee").value)>=0)|| (weightText!==""&&!(Number(weightText)>=0))){message("purchaseStatus","請確認訂購數量、重量與單位成本。",true);return;}
+ purchaseCartLines.push({product_id:product.id,product,quantity:String(quantity),weight:weightText===""?null:String(weightText),weight_unit_code:$("purchaseWeightUnit").value,unit_cost:String(unitCost),cost_labor_fee:String(Number($("purchaseCostLaborFee").value||0)),note:$("purchaseLineNote").value.trim()||null});
  renderPurchaseCart();message("purchaseStatus","採購明細已加入。");
- $("purchaseProduct").value="";$("purchaseQuantity").value="1";$("purchaseWeight").value="";$("purchaseUnitCost").value="0";$("purchaseLineNote").value="";
+ $("purchaseProduct").value="";$("purchaseQuantity").value="1";$("purchaseWeight").value="";$("purchaseUnitCost").value="0";$("purchaseCostLaborFee").value="0";$("purchaseLineNote").value="";
 });
 $("purchaseCartList").addEventListener("click",event=>{
  const button=event.target.closest("[data-remove-purchase-line]");

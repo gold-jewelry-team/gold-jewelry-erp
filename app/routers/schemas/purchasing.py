@@ -47,6 +47,7 @@ class PurchaseLineCreate(BaseModel):
     weight: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=4)
     weight_unit_code: str | None = Field(default=None, max_length=20)
     unit_cost: Decimal = Field(ge=0, max_digits=18, decimal_places=2)
+    cost_labor_fee: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
     note: str | None = Field(default=None, max_length=500)
 
 
@@ -71,6 +72,7 @@ class PurchaseLineRead(BaseModel):
     weight: Decimal | None
     weight_unit_code: str | None
     unit_cost: Decimal
+    cost_labor_fee: Decimal
     note: str | None
     created_at: datetime
 
