@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-# Rebased on the current receipt-lot API and product-label schema.
 def test_mobile_workspace_serves_html():
     response = TestClient(app).get("/app")
     assert response.status_code == 200
@@ -16,6 +15,9 @@ def test_mobile_workspace_serves_html():
     assert 'id="labelLotModal"' in response.text
     assert "label-lots" in response.text
     assert "進貨成本工錢" in response.text
+    assert "formatLaborDarkCode" in response.text
+    assert "labor-code-config" in response.text
+    assert "暗碼：" in response.text
     assert "/barcode.svg" in response.text
     assert "productBarcodeImage" in response.text
     assert "data-print-product-label" in response.text
