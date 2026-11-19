@@ -1,6 +1,7 @@
+import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from fastapi.testclient import TestClient
 
 from app import models  # noqa: F401
 from app.db.base import Base
@@ -9,7 +10,6 @@ from app.routers.company_setup import get_db
 
 engine = create_engine("sqlite+pysqlite:///:memory:")
 TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-Base.metadata.create_all(engine)
 
 
 def override_get_db():
@@ -20,17 +20,27 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
 
-def setup_function():
+@pytest.fixture(autouse=True)
+def isolate_company_setup_database():
+    # Other test modules also use the global FastAPI app and may clear overrides.
+    # Reinstall this module's override for every test to prevent CI-order coupling.
+    previous = app.dependency_overrides.get(get_db)
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    try:
+        yield
+    finally:
+        if previous is None:
+            app.dependency_overrides.pop(get_db, None)
+        else:
+            app.dependency_overrides[get_db] = previous
 
 
 def teardown_module():
-    app.dependency_overrides.clear()
     engine.dispose()
 
 
