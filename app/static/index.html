@@ -123,6 +123,51 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <h3>金價歷史紀錄</h3>
 <div id="goldPriceHistory" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 </section>
+<section class="panel span2" id="dailyClosingPanel">
+<h2>每日結帳</h2>
+<p class="sub">每日結帳會建立該據點營業日的不可變快照。送出前請確認營業日期；同一據點同一營業日只能結帳一次。</p>
+<form id="dailyClosingForm">
+<div class="grid">
+<div class="field"><label for="closingBusinessDate">營業日期（台灣時間）</label><input id="closingBusinessDate" type="date" required></div>
+<div class="field"><label for="closingNote">結帳備註</label><input id="closingNote" maxlength="500"></div>
+</div>
+<button type="submit">建立每日結帳</button>
+</form>
+<div id="dailyClosingStatus" class="status" role="status"></div>
+<h3>結帳紀錄查詢</h3>
+<div class="grid">
+<div class="field"><label for="closingFromDate">起始日期</label><input id="closingFromDate" type="date"></div>
+<div class="field"><label for="closingToDate">結束日期</label><input id="closingToDate" type="date"></div>
+</div>
+<div class="actions"><button class="secondary" id="refreshDailyClosings" type="button">查詢結帳紀錄</button></div>
+<div id="dailyClosingList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
+</section>
+<section class="panel span2 hidden" id="cashCountPanel">
+<h2>現金盤點與獨立覆核</h2>
+<div id="selectedClosingSummary"></div>
+<form id="cashCountCreateForm" class="hidden">
+<h3>建立現金盤點</h3>
+<p class="sub">預期現金由期初備用金、當日現金收付及現金櫃台收支計算；差額＝實際盤點－預期現金。</p>
+<div class="grid">
+<div class="field"><label for="openingCashFloat">期初備用金（TWD）</label><input id="openingCashFloat" type="number" min="0" step="0.01" value="0" required></div>
+<div class="field"><label for="countedCashAmount">實際盤點金額（TWD）</label><input id="countedCashAmount" type="number" min="0" step="0.01" required></div>
+<div class="field"><label for="countedByName">盤點人</label><input id="countedByName" maxlength="120" required></div>
+<div class="field"><label for="countNote">盤點備註</label><input id="countNote" maxlength="500"></div>
+</div>
+<button type="submit">儲存現金盤點</button>
+</form>
+<div id="cashCountResult"></div>
+<form id="cashCountReviewForm" class="hidden">
+<h3>現金盤點覆核</h3>
+<p class="sub">覆核人必須與盤點人不同，且每筆盤點只能覆核一次。</p>
+<div class="grid">
+<div class="field"><label for="reviewedByName">覆核人</label><input id="reviewedByName" maxlength="120" required></div>
+<div class="field"><label for="reviewNote">覆核備註</label><input id="reviewNote" maxlength="500"></div>
+</div>
+<button type="submit">確認覆核</button>
+</form>
+<div id="cashCountStatus" class="status" role="status"></div>
+</section>
 <section class="panel">
 <h2>新增商品分類</h2>
 <form id="categoryForm">
@@ -197,10 +242,13 @@ let inventoryProducts=[];
 let inventoryLocations=[];
 const movementTypeLabels={RECEIPT:"入庫",SALE:"銷售",TRANSFER:"櫃位調撥",ADJUSTMENT:"庫存調整",RETURN:"退貨",REPAIR_SEND:"送修",REPAIR_RETURN:"維修返還"};
 const goldPriceSourceLabels={MANUAL:"手動",IMPORT:"匯入",SYSTEM:"系統"};
+let dailyClosingsById=new Map();
+let selectedClosing=null;
+const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"部分刷卡",TRANSFER:"轉帳",OTHER:"其他"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
- if(!response.ok) throw new Error(data.detail||"操作失敗");
+ if(!response.ok){const error=new Error(data.detail||"操作失敗");error.status=response.status;throw error;}
  return data;
 };
 const message=(id,text,error=false)=>{$(id).textContent=text;$(id).classList.toggle("error",error)};
@@ -216,11 +264,11 @@ async function loadCompanies(selectId){
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 async function loadSites(selectId){
  const select=$("siteSelect");selectedSiteId="";
- if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();return;}
+ if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();return;}
  const rows=await api("/companies/"+companyId+"/sites");
  select.innerHTML='<option value="">請選擇據點</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId))select.value=selectId;else if(rows.length===1)select.value=rows[0].id;
- selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();
+ selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();
 }
 async function loadStorageLocations(){
  const box=$("locationList");if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';return;}
@@ -331,6 +379,62 @@ async function loadGoldPrices(){
  sellBox.innerHTML=renderCurrent(sell,"賣出價");
  historyBox.innerHTML=history.length?history.map(x=>'<article class="item"><strong>'+(x.price_type==="BUY"?"買入價":"賣出價")+'：'+escapeHtml(x.price_value)+' '+escapeHtml(x.currency_code)+' / '+escapeHtml(x.unit_code)+'</strong><span class="muted">生效：'+escapeHtml(formatGoldPriceDate(x.effective_at))+' · 來源：'+escapeHtml(goldPriceSourceLabels[x.source]||x.source)+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無金價歷史紀錄</div>';
 }
+function taipeiDateValue(offsetDays=0){
+ return new Date(Date.now()+8*60*60*1000+offsetDays*24*60*60*1000).toISOString().slice(0,10);
+}
+function renderCashCount(row){
+ $("cashCountCreateForm").classList.add("hidden");
+ const variance=Number(row.cash_variance);
+ const varianceText=variance>0?"+"+escapeHtml(row.cash_variance):escapeHtml(row.cash_variance);
+ $("cashCountResult").innerHTML='<article class="item"><strong>現金盤點結果</strong><span class="muted">期初備用金：'+escapeHtml(row.opening_cash_float)+' 元</span><span class="muted">預期現金：'+escapeHtml(row.expected_cash_amount)+' 元</span><span class="muted">實際盤點：'+escapeHtml(row.counted_cash_amount)+' 元</span><span class="pill">現金差額：'+varianceText+' 元</span><span class="muted">盤點人：'+escapeHtml(row.counted_by_name)+' · 盤點時間：'+escapeHtml(row.counted_at?new Date(row.counted_at).toLocaleString("zh-TW"):"—")+'</span>'+(row.count_note?'<span class="muted">盤點備註：'+escapeHtml(row.count_note)+'</span>':'')+(row.reviewed_at?'<span class="muted">覆核人：'+escapeHtml(row.reviewed_by_name)+' · 覆核時間：'+escapeHtml(new Date(row.reviewed_at).toLocaleString("zh-TW"))+'</span>':'<span class="muted">尚未覆核</span>')+(row.review_note?'<span class="muted">覆核備註：'+escapeHtml(row.review_note)+'</span>':'')+'</article>';
+ if(row.reviewed_at)$("cashCountReviewForm").classList.add("hidden");
+ else $("cashCountReviewForm").classList.remove("hidden");
+}
+function renderClosingSummary(closing){
+ const summaries=(closing.payment_summaries||[]).map(x=>'<span class="muted">'+escapeHtml(paymentMethodLabels[x.payment_method]||x.payment_method)+'：銷售 '+escapeHtml(x.gross_sales_amount)+' 元／退貨 '+escapeHtml(x.return_reversal_amount)+' 元／收款 '+escapeHtml(x.collected_amount)+' 元／退款 '+escapeHtml(x.refunded_amount)+' 元</span>').join("");
+ $("selectedClosingSummary").innerHTML='<article class="item"><strong>營業日 '+escapeHtml(closing.business_date)+' 結帳摘要</strong><span class="muted">銷售 '+escapeHtml(closing.sales_count)+' 筆 · 退貨 '+escapeHtml(closing.returns_count)+' 筆</span><span class="muted">銷售總額：'+escapeHtml(closing.gross_sales_amount)+' 元 · 退貨沖回：'+escapeHtml(closing.return_reversal_amount)+' 元 · 淨銷售：'+escapeHtml(closing.net_sales_amount)+' 元</span><span class="muted">實收：'+escapeHtml(closing.collected_amount)+' 元 · 退款：'+escapeHtml(closing.refunded_amount)+' 元</span><span class="muted">廠商付款：'+escapeHtml(closing.supplier_paid_amount)+' 元 · 營業支出：'+escapeHtml(closing.expenses_paid_amount)+' 元</span><span class="muted">現金櫃台流入：'+escapeHtml(closing.cash_drawer_in_amount)+' 元 · 流出：'+escapeHtml(closing.cash_drawer_out_amount)+' 元 · 淨現金流：'+escapeHtml(closing.net_cash_flow)+' 元</span>'+summaries+'</article>';
+}
+async function loadDailyClosings(){
+ const box=$("dailyClosingList");
+ if(!companyId||!selectedSiteId){
+  dailyClosingsById=new Map();selectedClosing=null;
+  box.innerHTML='<div class="empty">請先選擇公司與據點</div>';
+  $("cashCountPanel").classList.add("hidden");
+  return;
+ }
+ box.innerHTML='<div class="empty">結帳紀錄載入中…</div>';
+ const params=new URLSearchParams();
+ if($("closingFromDate").value)params.set("from_date",$("closingFromDate").value);
+ if($("closingToDate").value)params.set("to_date",$("closingToDate").value);
+ const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/daily-closings"+(params.toString()?"?"+params.toString():""));
+ dailyClosingsById=new Map(rows.map(x=>[x.id,x]));
+ box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>營業日 '+escapeHtml(x.business_date)+'</strong><span class="pill">已結帳</span><span class="muted">銷售 '+escapeHtml(x.sales_count)+' 筆 · 退貨 '+escapeHtml(x.returns_count)+' 筆 · 淨銷售 '+escapeHtml(x.net_sales_amount)+' 元</span><span class="muted">收款 '+escapeHtml(x.collected_amount)+' 元 · 退款 '+escapeHtml(x.refunded_amount)+' 元 · 淨現金流 '+escapeHtml(x.net_cash_flow)+' 元</span><span class="muted">結帳時間：'+escapeHtml(x.closed_at?new Date(x.closed_at).toLocaleString("zh-TW"):"—")+'</span><div class="actions"><button class="secondary" type="button" data-select-closing="'+escapeHtml(x.id)+'">現金盤點／查看</button></div></article>').join(""):'<div class="empty">查詢期間沒有每日結帳紀錄</div>';
+}
+async function openCashCount(closing){
+ selectedClosing=closing;
+ renderClosingSummary(closing);
+ $("cashCountPanel").classList.remove("hidden");
+ $("cashCountCreateForm").classList.add("hidden");
+ $("cashCountReviewForm").classList.add("hidden");
+ $("cashCountResult").innerHTML="";
+ $("cashCountStatus").textContent="";
+ $("cashCountPanel").scrollIntoView({behavior:"smooth",block:"start"});
+ await loadCashCount();
+}
+async function loadCashCount(){
+ if(!selectedClosing||!companyId||!selectedSiteId)return;
+ const url="/companies/"+companyId+"/sites/"+selectedSiteId+"/daily-closings/"+selectedClosing.id+"/cash-count";
+ try{
+  const row=await api(url);
+  renderCashCount(row);
+ }catch(error){
+  if(error.status===404){
+   $("cashCountCreateForm").classList.remove("hidden");
+   $("cashCountReviewForm").classList.add("hidden");
+   $("cashCountResult").innerHTML='<div class="empty">此結帳日尚未建立現金盤點。</div>';
+  }else{message("cashCountStatus",error.message,true);}
+ }
+}
 async function loadSequence(){
  if(!companyId)return;
  const data=await api("/companies/"+companyId+"/product-code-sequence");
@@ -346,7 +450,7 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
 $("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
