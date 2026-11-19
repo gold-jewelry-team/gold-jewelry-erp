@@ -102,6 +102,26 @@ jobs:
               "ck_bank_transactions_type_direction",
           }.issubset(check_names), f"Missing bank transaction checks: {check_names}"
 
+          expected_scope_fks = {
+              ("bank_statement_imports", "fk_bank_statement_imports_account_company"),
+              ("bank_transactions", "fk_bank_transactions_account_company"),
+              ("bank_transactions", "fk_bank_transactions_statement_line_scope"),
+              ("bank_statement_lines", "fk_bank_statement_lines_account_company"),
+              ("bank_statement_lines", "fk_bank_statement_lines_import_scope"),
+              ("bank_statement_lines", "fk_bank_statement_lines_duplicate_scope"),
+              ("bank_statement_lines", "fk_bank_statement_lines_matched_tx_scope"),
+              ("bank_reconciliation_snapshots", "fk_bank_reconciliation_account_company"),
+              ("bank_reconciliation_snapshots", "fk_bank_reconciliation_import_scope"),
+          }
+          missing_scope_fks = []
+          for table, expected_name in expected_scope_fks:
+              actual_names = {
+                  fk.get("name") for fk in inspector.get_foreign_keys(table)
+              }
+              if expected_name not in actual_names:
+                  missing_scope_fks.append(f"{table}.{expected_name}")
+          assert not missing_scope_fks, f"Missing ownership-scope foreign keys: {missing_scope_fks}"
+
           print("PostgreSQL schema verification passed.")
           engine.dispose()
           PY
@@ -116,6 +136,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0017_bank_recon_adjustments"
+          alembic current | grep -q "0018_recon_scope_constraints"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
