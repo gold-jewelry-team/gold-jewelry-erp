@@ -77,13 +77,6 @@ def update_product_code_sequence(
     _require_company(db, company_id)
     sequence = _get_sequence(db, company_id, lock=True)
     changes = payload.model_dump(exclude_unset=True)
-    if "next_number" in changes:
-        largest = _largest_existing_suffix(db, company_id)
-        if changes["next_number"] <= largest:
-            raise HTTPException(
-                status_code=422,
-                detail=f"下一個流水號必須大於既有商品編號最大尾碼 {largest}。",
-            )
     for field, value in changes.items():
         setattr(sequence, field, value)
     db.commit()
@@ -103,13 +96,16 @@ def generate_product_code(
     _require_company(db, company_id)
     sequence = _get_sequence(db, company_id, lock=True)
     prefix = payload.prefix.upper()
-    while True:
-        code = f"{prefix}{sequence.next_number:0{sequence.number_width}d}"
+    used_numbers = {
+        int(match.group(1))
+        for code, in db.query(Product.product_code).filter(
+            Product.company_id == company_id
+        ).all()
+        if (match := re.search(r"-(\\d+)$", code))
+    }
+    while sequence.next_number in used_numbers:
         sequence.next_number += 1
-        if db.scalar(select(Product.id).where(
-            Product.company_id == company_id,
-            Product.product_code == code,
-        )) is None:
-            break
+    code = f"{prefix}{sequence.next_number:0{sequence.number_width}d}"
+    sequence.next_number += 1
     db.commit()
     return ProductCodeGenerated(product_code=code, next_number=sequence.next_number)
