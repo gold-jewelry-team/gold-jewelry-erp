@@ -543,6 +543,7 @@ function renderSaleResult(sale){
  const lines=(sale.lines||[]).map(x=>'<article class="item"><strong>'+escapeHtml(x.product_code_snapshot||"商品")+' · '+escapeHtml(x.product_name_snapshot)+'</strong><span class="muted">商品金額：'+escapeHtml(x.subtotal)+' 元 · 刷卡手續費分攤：'+escapeHtml(x.card_fee)+' 元 · 本項應收：'+escapeHtml(x.final_amount)+' 元</span></article>').join("");
  $("saleDraftResult").innerHTML='<article class="item"><strong>銷售單 '+escapeHtml(sale.sale_no)+' · '+escapeHtml(sale.status)+'</strong><span class="muted">商品總額：'+escapeHtml(sale.subtotal)+' 元</span><span class="muted">刷卡本金：'+escapeHtml(sale.card_amount)+' 元 · 刷卡手續費（5%）：'+escapeHtml(sale.card_fee)+' 元</span><span class="muted">現金本金：'+escapeHtml(sale.cash_amount)+' 元</span><span class="pill">顧客應付總額：'+escapeHtml(sale.final_amount)+' 元</span></article>'+lines;
  const isDraft=sale.status==="DRAFT";
+ if(isDraft){selectedReturn=null;$("returnPaymentPanel").classList.add("hidden");}
  $("newSaleActions").classList.toggle("hidden",isDraft);
  $("salePaymentPanel").classList.toggle("hidden",sale.status!=="COMPLETED");
  $("saleReturnPanel").classList.toggle("hidden",sale.status!=="COMPLETED");
@@ -752,6 +753,9 @@ $("salesHistoryList").addEventListener("click",async event=>{
  const button=event.target.closest("[data-open-sale]");
  if(!button)return;
  try{
+  if(currentSale&&currentSale.status==="DRAFT"&&currentSale.id!==button.dataset.openSale){
+   message("salesHistoryStatus","目前有尚未處理的銷售草稿，請先完成或作廢後再開啟其他銷售。",true);return;
+  }
   const sale=await api("/companies/"+companyId+"/sales/"+button.dataset.openSale);
   saleCartLines=[];renderSaleCart();renderSaleResult(sale);
   $("saleDraftResult").scrollIntoView({behavior:"smooth",block:"start"});
