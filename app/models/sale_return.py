@@ -12,7 +12,6 @@ from app.db.base import Base
 class SaleReturn(Base):
     __tablename__ = "sale_returns"
     __table_args__ = (
-        CheckConstraint("refund_amount >= 0", name="ck_sale_returns_refund_nonnegative"),
         Index("ix_sale_returns_company_site_created", "company_id", "site_id", "created_at"),
         UniqueConstraint("site_id", "return_no", name="uq_sale_returns_site_return_no"),
     )
@@ -22,7 +21,7 @@ class SaleReturn(Base):
     site_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=False)
     sale_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sales.id", ondelete="RESTRICT"), nullable=False)
     return_no: Mapped[str] = mapped_column(String(40), nullable=False)
-    refund_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    settlement_reversal_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="TWD", server_default="TWD")
     reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -33,7 +32,6 @@ class SaleReturn(Base):
 class SaleReturnLine(Base):
     __tablename__ = "sale_return_lines"
     __table_args__ = (
-        CheckConstraint("refund_amount >= 0", name="ck_sale_return_lines_refund_nonnegative"),
         UniqueConstraint("sale_line_id", name="uq_sale_return_lines_sale_line"),
         Index("ix_sale_return_lines_return_id", "return_id"),
     )
@@ -48,6 +46,6 @@ class SaleReturnLine(Base):
     product_name_snapshot: Mapped[str] = mapped_column(String(200), nullable=False)
     net_weight: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     weight_unit_code: Mapped[str] = mapped_column(String(20), nullable=False)
-    refund_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    settlement_reversal_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     sale_return: Mapped["SaleReturn"] = relationship(back_populates="lines")
