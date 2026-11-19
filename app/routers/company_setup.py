@@ -38,9 +38,9 @@ def list_companies(include_inactive: bool = False, db: Session = Depends(get_db)
 def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
     company = Company(**payload.model_dump())
     db.add(company)
-    db.flush()
-    db.add(ProductCodeSequence(company_id=company.id, next_number=1, number_width=5))
     try:
+        db.flush()
+        db.add(ProductCodeSequence(company_id=company.id, next_number=1, number_width=5))
         db.commit()
         db.refresh(company)
         return company
