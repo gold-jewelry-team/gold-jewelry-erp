@@ -1,4 +1,4 @@
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -68,8 +68,7 @@ def list_sales(
         )
     if to_date is not None:
         statement = statement.where(
-            Sale.created_at < datetime.combine(to_date, time.max, tzinfo=taipei)
-            .replace(microsecond=999999)
+            Sale.created_at < datetime.combine(to_date + timedelta(days=1), time.min, tzinfo=taipei)
         )
     if from_date is not None and to_date is not None and to_date < from_date:
         raise HTTPException(status_code=422, detail="結束日期不可早於起始日期。")
