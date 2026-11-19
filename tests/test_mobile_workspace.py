@@ -20,6 +20,8 @@ def test_mobile_workspace_serves_html():
     assert "暗碼：" in response.text
     assert 'id="labelCopyCount"' in response.text
     assert "Array.from({length:copies},()=>labelMarkup)" in response.text
+    assert ".label:last-child{page-break-after:auto;break-after:auto}" in response.text
+    assert "@media print" in response.text
     assert "本批可列印上限" in response.text
     assert 'id="chainLengthUnit"' in response.text
     assert 'id="editChainLengthUnit"' in response.text
