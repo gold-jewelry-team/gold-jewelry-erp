@@ -43,7 +43,7 @@ def get_gold_price_history(
 @router.get("/effective", response_model=GoldPriceRead | None)
 def get_effective_price(
     company_id: UUID,
-    at: datetime = Query(default_factory=lambda: datetime.now(timezone.utc)),
+    at: datetime | None = None,
     site_id: UUID | None = None,
     price_type: str = Query(pattern="^(BUY|SELL)$"),
     db: Session = Depends(get_db),
@@ -52,7 +52,7 @@ def get_effective_price(
         raise HTTPException(status_code=404, detail="找不到指定公司。")
     return get_effective_gold_price(
         db, company_id=company_id, site_id=site_id,
-        price_type=price_type, at=at,
+        price_type=price_type, at=at or datetime.now(timezone.utc),
     )
 
 
