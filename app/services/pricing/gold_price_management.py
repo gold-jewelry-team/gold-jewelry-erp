@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
@@ -76,7 +76,11 @@ def list_gold_prices(
         raise ValueError("查詢筆數必須介於 1 到 500。")
     statement = select(GoldPrice).where(GoldPrice.company_id == company_id)
     if site_id is not None:
-        statement = statement.where(GoldPrice.site_id == site_id)
+        # A site history includes company-wide fallback prices as well as
+        # site-specific overrides, matching effective-price lookup behavior.
+        statement = statement.where(
+            or_(GoldPrice.site_id == site_id, GoldPrice.site_id.is_(None))
+        )
     if price_type is not None:
         if price_type not in ("BUY", "SELL"):
             raise ValueError("金價類型必須是 BUY 或 SELL。")
