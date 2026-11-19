@@ -2,7 +2,8 @@
 import csv
 import hashlib
 import io
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 from sqlalchemy import select
@@ -11,6 +12,8 @@ from app.models.bank_account import BankAccount, BankTransaction
 from app.models.bank_statement import BankStatementImport, BankStatementLine
 
 REQUIRED_HEADERS={"transaction_date","description","amount","direction"}
+TAIPEI=ZoneInfo("Asia/Taipei")
+UTC=ZoneInfo("UTC")
 
 def _fingerprint(day: date, description: str, amount: Decimal, direction: str, reference: str | None) -> str:
     raw="|".join([day.isoformat(),description.strip(),format(amount,".2f"),direction,reference or ""])
@@ -64,8 +67,8 @@ def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_accoun
                     BankTransaction.direction==direction,
                     BankTransaction.amount==amount,
                     BankTransaction.reference_no==reference,
-                    BankTransaction.occurred_at>=datetime.combine(day,datetime.min.time(),tzinfo=timezone.utc),
-                    BankTransaction.occurred_at<datetime.combine(day,datetime.max.time(),tzinfo=timezone.utc),
+                    BankTransaction.occurred_at>=datetime.combine(day,time.min,tzinfo=TAIPEI).astimezone(UTC),
+                    BankTransaction.occurred_at<datetime.combine(day+timedelta(days=1),time.min,tzinfo=TAIPEI).astimezone(UTC),
                     ~BankTransaction.id.in_(select(BankStatementLine.matched_bank_transaction_id).where(
                         BankStatementLine.matched_bank_transaction_id.is_not(None))
                     )
@@ -92,7 +95,11 @@ def match_statement_line(session: Session, *, company_id: UUID, line_id: UUID,
         BankTransaction.company_id==company_id,
         BankTransaction.bank_account_id==line.bank_account_id).with_for_update()).scalar_one_or_none()
     if tx is None: raise ValueError("銀行流水不存在或不屬於同一銀行帳戶。")
-    if tx.direction!=line.direction or tx.amount!=line.amount or tx.occurred_at.date()!=line.transaction_date:
+    occurred_at=tx.occurred_at
+    if occurred_at.tzinfo is None:
+        occurred_at=occurred_at.replace(tzinfo=UTC)
+    bank_local_date=occurred_at.astimezone(TAIPEI).date()
+    if tx.direction!=line.direction or tx.amount!=line.amount or bank_local_date!=line.transaction_date:
         raise ValueError("銀行流水的日期、方向或金額與對帳單明細不一致。")
     if line.reference_no and tx.reference_no!=line.reference_no:
         raise ValueError("銀行流水參考編號與對帳單不一致。")
