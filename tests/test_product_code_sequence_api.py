@@ -83,14 +83,57 @@ def test_manual_product_code_advances_shared_sequence():
     assert generated.json()["product_code"] == "G00R-22619"
 
 
-def test_sequence_cannot_be_reset_below_existing_numeric_suffix():
+def test_sequence_can_start_at_one_and_skips_used_suffixes_across_prefixes():
     company_id = create_company()
     client.post(
         f"/companies/{company_id}/products",
-        json={"product_code": "G00R-01000", "name": "既有商品"},
+        json={"product_code": "G00R-00001", "name": "既有商品一"},
     )
-    response = client.patch(
+    client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "F00HF-00002", "name": "既有商品二"},
+    )
+    configured = client.patch(
         f"/companies/{company_id}/product-code-sequence",
-        json={"next_number": 1000},
+        json={"next_number": 1},
     )
-    assert response.status_code == 422
+    assert configured.status_code == 200, configured.text
+    generated = client.post(
+        f"/companies/{company_id}/product-code-sequence/next",
+        json={"prefix": "G00E-"},
+    )
+    assert generated.status_code == 200, generated.text
+    assert generated.json()["product_code"] == "G00E-00003"
+
+
+def test_manual_product_codes_cannot_reuse_numeric_suffix_across_prefixes():
+    company_id = create_company()
+    first = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00R-12345", "name": "第一件"},
+    )
+    assert first.status_code == 201, first.text
+    duplicate_suffix = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "F00HF-12345", "name": "第二件"},
+    )
+    assert duplicate_suffix.status_code == 409
+
+
+def test_editing_manual_product_code_advances_shared_sequence():
+    company_id = create_company()
+    product = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00R-00001", "name": "待修改商品"},
+    ).json()
+    updated = client.patch(
+        f"/companies/{company_id}/products/{product['id']}",
+        json={"product_code": "G00E-02000"},
+    )
+    assert updated.status_code == 200, updated.text
+    generated = client.post(
+        f"/companies/{company_id}/product-code-sequence/next",
+        json={"prefix": "G00R-"},
+    )
+    assert generated.status_code == 200, generated.text
+    assert generated.json()["product_code"] == "G00R-02001"
