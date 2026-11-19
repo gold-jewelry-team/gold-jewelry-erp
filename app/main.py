@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.routers.health import router as health_router
@@ -50,3 +53,9 @@ app.include_router(bank_reconciliation_reports_router)
 @app.get("/", tags=["system"])
 def root() -> dict[str, str]:
     return {"name": settings.app_name, "status": "ok", "docs": "/docs"}
+
+
+@app.get("/app", tags=["workspace"], include_in_schema=False)
+def mobile_workspace() -> FileResponse:
+    """Serve the mobile-first product and category workspace."""
+    return FileResponse(Path(__file__).parent / "static" / "index.html")
