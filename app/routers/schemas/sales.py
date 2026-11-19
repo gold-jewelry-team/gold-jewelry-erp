@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SaleLineCreate(BaseModel):
@@ -17,9 +17,16 @@ class SaleLineCreate(BaseModel):
 class SaleCreate(BaseModel):
     site_id: UUID
     sale_no: str = Field(min_length=1, max_length=40)
-    payment_method: str = Field(default="CASH", pattern="^(CASH|CARD|TRANSFER|OTHER)$")
+    payment_method: str = Field(default="CASH", pattern="^(CASH|CARD|MIXED|TRANSFER|OTHER)$")
+    card_amount: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
     note: str | None = Field(default=None, max_length=500)
     lines: list[SaleLineCreate] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_card_amount(self):
+        if self.card_amount is not None and self.payment_method in {"TRANSFER", "OTHER"} and self.card_amount > 0:
+            raise ValueError("轉帳或其他付款方式不可同時指定刷卡金額。")
+        return self
 
 
 class SaleLineRead(BaseModel):
@@ -65,6 +72,7 @@ class SaleRead(BaseModel):
     payment_method: str
     currency_code: str
     subtotal: Decimal
+    card_amount: Decimal
     card_fee: Decimal
     final_amount: Decimal
     completed_at: datetime | None
