@@ -67,9 +67,10 @@ def create_reconciliation_snapshot(session: Session, *, company_id: UUID, bank_a
     ignored_count=sum(1 for line in lines if line.status=="IGNORED")
     balance_net=closing-opening
     difference=statement_net-ledger_net
+    balance_difference=balance_net-statement_net
     status="RECONCILED" if (
         unmatched_count==0 and duplicate_count==0 and unmatched_ledger==0
-        and difference==0 and balance_net==statement_net
+        and difference==0 and balance_difference==0
     ) else "NEEDS_REVIEW"
     snapshot=BankReconciliationSnapshot(
         company_id=company_id,bank_account_id=bank_account_id,import_id=import_id,

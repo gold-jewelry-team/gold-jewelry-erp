@@ -24,6 +24,7 @@ class BankReconciliationSnapshot(Base):
     statement_closing_balance: Mapped[Decimal] = mapped_column(Numeric(18,2), nullable=False)
     statement_net_movement: Mapped[Decimal] = mapped_column(Numeric(18,2), nullable=False)
     ledger_net_movement: Mapped[Decimal] = mapped_column(Numeric(18,2), nullable=False)
+    balance_difference: Mapped[Decimal] = mapped_column(Numeric(18,2), nullable=False)
     net_difference: Mapped[Decimal] = mapped_column(Numeric(18,2), nullable=False)
     statement_line_count: Mapped[int] = mapped_column(Integer, nullable=False)
     matched_line_count: Mapped[int] = mapped_column(Integer, nullable=False)

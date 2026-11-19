@@ -37,6 +37,7 @@ class SnapshotRead(BaseModel):
     statement_closing_balance:Decimal
     statement_net_movement:Decimal
     ledger_net_movement:Decimal
+    balance_difference:Decimal
     net_difference:Decimal
     statement_line_count:int
     matched_line_count:int

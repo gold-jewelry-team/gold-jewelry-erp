@@ -44,6 +44,7 @@ def test_reconciliation_snapshot_reconciled_when_balances_and_matches_agree():
     assert row.statement_net_movement==Decimal("500.00")
     assert row.ledger_net_movement==Decimal("500.00")
     assert row.net_difference==Decimal("0.00")
+    assert row.balance_difference==Decimal("0.00")
     assert row.unmatched_ledger_count==0
     engine.dispose()
 

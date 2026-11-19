@@ -24,6 +24,7 @@ def upgrade()->None:
         sa.Column("statement_closing_balance",sa.Numeric(18,2),nullable=False),
         sa.Column("statement_net_movement",sa.Numeric(18,2),nullable=False),
         sa.Column("ledger_net_movement",sa.Numeric(18,2),nullable=False),
+        sa.Column("balance_difference",sa.Numeric(18,2),nullable=False),
         sa.Column("net_difference",sa.Numeric(18,2),nullable=False),
         sa.Column("statement_line_count",sa.Integer(),nullable=False),
         sa.Column("matched_line_count",sa.Integer(),nullable=False),
