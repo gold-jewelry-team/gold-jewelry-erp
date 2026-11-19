@@ -133,7 +133,7 @@ def create_product(
         .where(ProductCodeSequence.company_id == company_id)
         .with_for_update()
     )
-    match = re.search(r"-(\\d+)$", product.product_code)
+    match = re.search(r"-(\d+)$", product.product_code)
     if sequence is not None and match:
         sequence.next_number = max(sequence.next_number, int(match.group(1)) + 1)
     try:
