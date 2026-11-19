@@ -53,6 +53,53 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <button type="submit">新增儲存位置</button></form>
 <div id="locationList" class="empty">請先選擇據點</div><div id="locationStatus" class="status" role="status"></div>
 </section>
+<section class="panel span2" id="inventoryStockPanel">
+<h2>商品庫存查詢</h2>
+<p class="sub">依目前選取的據點查詢各商品在不同儲存位置的數量，可搜尋商品編號、條碼、名稱或櫃位。</p>
+<div class="grid">
+<div class="field"><label for="inventorySearch">商品／條碼／櫃位搜尋</label><input id="inventorySearch" maxlength="100" placeholder="輸入商品編號、條碼、名稱或位置"></div>
+<div class="field"><label for="stockLocationFilter">儲存位置</label><select id="stockLocationFilter"><option value="">全部位置</option></select></div>
+<div class="field wide"><label><input id="includeZeroStock" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示零庫存項目</label></div>
+</div>
+<div class="actions"><button id="refreshStock" type="button">查詢庫存</button></div>
+<div id="stockList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
+</section>
+<section class="panel" id="inventoryAdjustmentPanel">
+<h2>庫存調整</h2>
+<p class="sub">用於期初入庫或盤點差異調整；出庫時不可超過目前庫存。</p>
+<form id="inventoryAdjustmentForm">
+<div class="field"><label for="adjustmentProduct">商品</label><select id="adjustmentProduct" required><option value="">請選擇商品</option></select></div>
+<div class="field"><label for="adjustmentLocation">儲存位置</label><select id="adjustmentLocation" required><option value="">請選擇位置</option></select></div>
+<div class="field"><label for="adjustmentDirection">調整方向</label><select id="adjustmentDirection"><option value="IN">增加庫存（入）</option><option value="OUT">減少庫存（出）</option></select></div>
+<div class="field"><label for="adjustmentQuantity">數量</label><input id="adjustmentQuantity" type="number" min="0.001" step="0.001" value="1" required></div>
+<div class="field"><label for="adjustmentNote">原因／備註</label><input id="adjustmentNote" maxlength="500" placeholder="例如：期初盤點"></div>
+<button type="submit">送出庫存調整</button>
+</form>
+<div id="adjustmentStatus" class="status" role="status"></div>
+</section>
+<section class="panel" id="inventoryTransferPanel">
+<h2>櫃位調撥</h2>
+<p class="sub">同一據點內將商品從一個儲存位置移至另一個位置。</p>
+<form id="inventoryTransferForm">
+<div class="field"><label for="transferProduct">商品</label><select id="transferProduct" required><option value="">請選擇商品</option></select></div>
+<div class="field"><label for="transferFromLocation">來源位置</label><select id="transferFromLocation" required><option value="">請選擇來源</option></select></div>
+<div class="field"><label for="transferToLocation">目的位置</label><select id="transferToLocation" required><option value="">請選擇目的</option></select></div>
+<div class="field"><label for="transferQuantity">數量</label><input id="transferQuantity" type="number" min="0.001" step="0.001" value="1" required></div>
+<div class="field"><label for="transferNote">備註</label><input id="transferNote" maxlength="500"></div>
+<button type="submit">確認櫃位調撥</button>
+</form>
+<div id="transferStatus" class="status" role="status"></div>
+</section>
+<section class="panel span2" id="inventoryMovementPanel">
+<h2>庫存異動紀錄</h2>
+<div class="grid">
+<div class="field"><label for="movementTypeFilter">異動類型</label><select id="movementTypeFilter"><option value="">全部類型</option><option value="RECEIPT">入庫</option><option value="SALE">銷售</option><option value="TRANSFER">櫃位調撥</option><option value="ADJUSTMENT">庫存調整</option><option value="RETURN">退貨</option><option value="REPAIR_SEND">送修</option><option value="REPAIR_RETURN">維修返還</option></select></div>
+<div class="field"><label for="movementProductFilter">商品</label><select id="movementProductFilter"><option value="">全部商品</option></select></div>
+<div class="field"><label for="movementLocationFilter">儲存位置</label><select id="movementLocationFilter"><option value="">全部位置</option></select></div>
+</div>
+<div class="actions"><button class="secondary" id="refreshMovements" type="button">重新載入異動紀錄</button></div>
+<div id="movementList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
+</section>
 <section class="panel">
 <h2>新增商品分類</h2>
 <form id="categoryForm">
@@ -123,6 +170,9 @@ let selectedSiteId="";
 let categoryNames=new Map();
 let productsById=new Map();
 let editingProduct=null;
+let inventoryProducts=[];
+let inventoryLocations=[];
+const movementTypeLabels={RECEIPT:"入庫",SALE:"銷售",TRANSFER:"櫃位調撥",ADJUSTMENT:"庫存調整",RETURN:"退貨",REPAIR_SEND:"送修",REPAIR_RETURN:"維修返還"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -146,7 +196,7 @@ async function loadSites(selectId){
  const rows=await api("/companies/"+companyId+"/sites");
  select.innerHTML='<option value="">請選擇據點</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId))select.value=selectId;else if(rows.length===1)select.value=rows[0].id;
- selectedSiteId=select.value;await loadStorageLocations();
+ selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();
 }
 async function loadStorageLocations(){
  const box=$("locationList");if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';return;}
@@ -163,6 +213,60 @@ async function loadCategories(){
  $("parentCategory").insertAdjacentHTML("beforeend",opts);
  $("productCategory").insertAdjacentHTML("beforeend",opts);
 }
+async function loadInventoryOptions(){
+ const productIds=["adjustmentProduct","transferProduct","movementProductFilter"];
+ const locationIds=["stockLocationFilter","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter"];
+ if(!companyId||!selectedSiteId){
+  inventoryProducts=[];inventoryLocations=[];
+  $("stockList").innerHTML='<div class="empty">請先選擇公司與據點</div>';
+  $("movementList").innerHTML='<div class="empty">請先選擇公司與據點</div>';
+  for(const id of productIds)$(id).innerHTML=id==="movementProductFilter"?'<option value="">全部商品</option>':'<option value="">請選擇商品</option>';
+  for(const id of locationIds)$(id).innerHTML=(id==="stockLocationFilter"||id==="movementLocationFilter")?'<option value="">全部位置</option>':'<option value="">請選擇位置</option>';
+  return;
+ }
+ const [products,locations]=await Promise.all([
+  api("/companies/"+companyId+"/products?limit=500"),
+  api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations")
+ ]);
+ inventoryProducts=products;
+ inventoryLocations=locations;
+ const productOptions=products.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
+ $("adjustmentProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
+ $("transferProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
+ $("movementProductFilter").innerHTML='<option value="">全部商品</option>'+productOptions;
+ const locationOptions=locations.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ $("stockLocationFilter").innerHTML='<option value="">全部位置</option>'+locationOptions;
+ $("adjustmentLocation").innerHTML='<option value="">請選擇位置</option>'+locationOptions;
+ $("transferFromLocation").innerHTML='<option value="">請選擇來源</option>'+locationOptions;
+ $("transferToLocation").innerHTML='<option value="">請選擇目的</option>'+locationOptions;
+ $("movementLocationFilter").innerHTML='<option value="">全部位置</option>'+locationOptions;
+ await loadInventoryStock();
+ await loadInventoryMovements();
+}
+async function loadInventoryStock(){
+ const box=$("stockList");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
+ box.innerHTML='<div class="empty">庫存載入中…</div>';
+ const params=new URLSearchParams({site_id:selectedSiteId,include_zero:String($("includeZeroStock").checked)});
+ if($("stockLocationFilter").value)params.set("location_id",$("stockLocationFilter").value);
+ const rows=await api("/companies/"+companyId+"/inventory/stock?"+params.toString());
+ const q=$("inventorySearch").value.trim().toLocaleLowerCase();
+ const filtered=rows.filter(x=>!q||[x.product_code,x.product_name,x.barcode,x.location_name,x.location_code].some(v=>String(v||"").toLocaleLowerCase().includes(q)));
+ box.innerHTML=filtered.length?filtered.map(x=>'<article class="item"><strong>'+escapeHtml(x.product_name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 位置：'+escapeHtml(x.location_name)+'（'+escapeHtml(x.location_code)+'）</span><span class="muted">目前庫存：'+escapeHtml(x.quantity)+'</span></article>').join(""):'<div class="empty">沒有符合條件的庫存資料</div>';
+}
+async function loadInventoryMovements(){
+ const box=$("movementList");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
+ box.innerHTML='<div class="empty">異動紀錄載入中…</div>';
+ const params=new URLSearchParams({site_id:selectedSiteId,limit:"100"});
+ if($("movementTypeFilter").value)params.set("movement_type",$("movementTypeFilter").value);
+ if($("movementProductFilter").value)params.set("product_id",$("movementProductFilter").value);
+ if($("movementLocationFilter").value)params.set("location_id",$("movementLocationFilter").value);
+ const rows=await api("/companies/"+companyId+"/inventory/movements?"+params.toString());
+ const locationNames=new Map(inventoryLocations.map(x=>[x.id,x.name+"（"+x.code+"）"]));
+ const productNames=new Map(inventoryProducts.map(x=>[x.id,x.product_code+" · "+x.name]));
+ box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(productNames.get(x.product_id)||"商品資料不存在")+'</strong><span class="pill">'+escapeHtml(movementTypeLabels[x.movement_type]||x.movement_type)+'</span><span class="muted">來源：'+escapeHtml(x.from_location_id?(locationNames.get(x.from_location_id)||"位置資料不存在"):"—")+' → 目的：'+escapeHtml(x.to_location_id?(locationNames.get(x.to_location_id)||"位置資料不存在"):"—")+'</span><span class="muted">數量：'+escapeHtml(x.quantity)+' · 時間：'+escapeHtml(x.occurred_at?new Date(x.occurred_at).toLocaleString("zh-TW"):"—")+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">目前沒有符合條件的異動紀錄</div>';
+}
 async function loadSequence(){
  if(!companyId)return;
  const data=await api("/companies/"+companyId+"/product-code-sequence");
@@ -178,7 +282,7 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();await loadInventoryOptions();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
 $("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
@@ -212,7 +316,7 @@ $("applyCategoryTemplates").addEventListener("click",async()=>{
  }finally{button.disabled=false;}
 });
 $("categoryForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("categoryStatus","請先選擇公司",true);return;}try{await api("/companies/"+companyId+"/product-categories",{method:"POST",body:JSON.stringify({code:$("categoryCode").value.trim(),name:$("categoryName").value.trim(),parent_id:$("parentCategory").value||null})});$("categoryForm").reset();await loadCategories();message("categoryStatus","分類已新增");}catch(err){message("categoryStatus",err.message,true);}});
-$("productForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("productStatus","請先選擇公司",true);return;}try{const payload={product_code:$("productCode").value.trim(),barcode:$("barcode").value.trim()||null,name:$("productName").value.trim(),category_id:$("productCategory").value||null,material_code:$("materialCode").value.trim()||null,gross_weight:$("grossWeight").value,net_weight:$("netWeight").value,weight_unit_code:$("weightUnit").value,labor_fee:$("laborFee").value,note:$("productNote").value.trim()||null};await api("/companies/"+companyId+"/products",{method:"POST",body:JSON.stringify(payload)});$("productForm").reset();$("grossWeight").value="0";$("netWeight").value="0";$("laborFee").value="0";await loadProducts();await loadSequence();message("productStatus","商品已新增");}catch(err){message("productStatus",err.message,true);}});
+$("productForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("productStatus","請先選擇公司",true);return;}try{const payload={product_code:$("productCode").value.trim(),barcode:$("barcode").value.trim()||null,name:$("productName").value.trim(),category_id:$("productCategory").value||null,material_code:$("materialCode").value.trim()||null,gross_weight:$("grossWeight").value,net_weight:$("netWeight").value,weight_unit_code:$("weightUnit").value,labor_fee:$("laborFee").value,note:$("productNote").value.trim()||null};await api("/companies/"+companyId+"/products",{method:"POST",body:JSON.stringify(payload)});$("productForm").reset();$("grossWeight").value="0";$("netWeight").value="0";$("laborFee").value="0";await loadProducts();await loadSequence();await loadInventoryOptions();message("productStatus","商品已新增");}catch(err){message("productStatus",err.message,true);}});
 function openProductEditor(product){
  editingProduct=product;
  $("editProductId").value=product.id;
@@ -276,6 +380,38 @@ $("productEditForm").addEventListener("submit",async event=>{
  }catch(error){
   message("productEditStatus",error.message,true);
  }finally{saveButton.disabled=false;}
+});
+$("refreshStock").addEventListener("click",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
+$("inventorySearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadInventoryStock().catch(err=>message("globalStatus",err.message,true));});
+$("stockLocationFilter").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
+$("includeZeroStock").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
+$("refreshMovements").addEventListener("click",()=>loadInventoryMovements().catch(e=>message("globalStatus",e.message,true)));
+["movementTypeFilter","movementProductFilter","movementLocationFilter"].forEach(id=>$(id).addEventListener("change",()=>loadInventoryMovements().catch(e=>message("globalStatus",e.message,true))));
+$("inventoryAdjustmentForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!selectedSiteId){message("adjustmentStatus","請先選擇公司與據點。",true);return;}
+ const payload={site_id:selectedSiteId,product_id:$("adjustmentProduct").value,location_id:$("adjustmentLocation").value,direction:$("adjustmentDirection").value,quantity:$("adjustmentQuantity").value,note:$("adjustmentNote").value.trim()||null};
+ const button=$("inventoryAdjustmentForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/inventory/adjustments",{method:"POST",body:JSON.stringify(payload)});
+  $("adjustmentQuantity").value="1";$("adjustmentNote").value="";
+  await loadInventoryStock();await loadInventoryMovements();
+  message("adjustmentStatus","庫存調整已記錄。");
+ }catch(error){message("adjustmentStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("inventoryTransferForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!selectedSiteId){message("transferStatus","請先選擇公司與據點。",true);return;}
+ const payload={site_id:selectedSiteId,product_id:$("transferProduct").value,from_location_id:$("transferFromLocation").value,to_location_id:$("transferToLocation").value,quantity:$("transferQuantity").value,note:$("transferNote").value.trim()||null};
+ const button=$("inventoryTransferForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/inventory/transfers",{method:"POST",body:JSON.stringify(payload)});
+  $("transferQuantity").value="1";$("transferNote").value="";
+  await loadInventoryStock();await loadInventoryMovements();
+  message("transferStatus","櫃位調撥已完成。");
+ }catch(error){message("transferStatus",error.message,true);}
+ finally{button.disabled=false;}
 });
 $("searchButton").addEventListener("click",()=>loadProducts().catch(e=>message("globalStatus",e.message,true)));
 $("search").addEventListener("keydown",e=>{if(e.key==="Enter")loadProducts().catch(err=>message("globalStatus",err.message,true));});
