@@ -11,9 +11,11 @@ from app.models.purchase import Purchase, PurchaseLine
 __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "InventoryMovement", "Supplier",
-    "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary",
+    "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary", "PaymentTransaction",
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine
 
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
+
+from app.models.payment_transaction import PaymentTransaction
