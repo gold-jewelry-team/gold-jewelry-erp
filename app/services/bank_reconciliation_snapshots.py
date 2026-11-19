@@ -40,8 +40,6 @@ def create_reconciliation_snapshot(session: Session, *, company_id: UUID, bank_a
         BankStatementLine.import_id==import_id,
         BankStatementLine.company_id==company_id,
         BankStatementLine.bank_account_id==bank_account_id,
-        BankStatementLine.transaction_date>=period_start,
-        BankStatementLine.transaction_date<=period_end
     ).with_for_update()).all())
     if not lines:
         raise ValueError("指定期間沒有對帳單明細。")
@@ -77,7 +75,7 @@ def create_reconciliation_snapshot(session: Session, *, company_id: UUID, bank_a
         period_start=period_start,period_end=period_end,
         statement_opening_balance=opening,statement_closing_balance=closing,
         statement_net_movement=statement_net,ledger_net_movement=ledger_net,
-        net_difference=difference,statement_line_count=len(lines),
+        balance_difference=balance_difference,net_difference=difference,statement_line_count=len(lines),
         matched_line_count=matched_count,unmatched_line_count=unmatched_count,
         duplicate_line_count=duplicate_count,ignored_line_count=ignored_count,
         unmatched_ledger_count=unmatched_ledger,status=status,
