@@ -21,6 +21,10 @@ def test_mobile_workspace_serves_html():
     assert 'id="labelCopyCount"' in response.text
     assert "Array.from({length:copies},()=>labelMarkup)" in response.text
     assert "本批可列印上限" in response.text
+    assert 'id="chainLengthUnit"' in response.text
+    assert 'id="editChainLengthUnit"' in response.text
+    assert 'type="number" min="0" step="0.1"' in response.text
+    assert "editChainLengthRaw" in response.text
     assert "/barcode.svg" in response.text
     assert 'class="barcode"' in response.text
     assert "data-print-product-label" in response.text
