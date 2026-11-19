@@ -2,7 +2,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, Integer, Numeric, String, Uuid, func
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, ForeignKeyConstraint, Index, Integer, Numeric, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
@@ -13,6 +13,8 @@ class BankReconciliationSnapshot(Base):
         CheckConstraint("status IN ('RECONCILED','NEEDS_REVIEW')", name="ck_bank_reconciliation_status"),
         CheckConstraint("statement_line_count >= 0 AND matched_line_count >= 0 AND unmatched_line_count >= 0 AND duplicate_line_count >= 0 AND ignored_line_count >= 0 AND unmatched_ledger_count >= 0", name="ck_bank_reconciliation_counts_nonnegative"),
         Index("ix_bank_reconciliation_account_period", "bank_account_id", "period_start", "period_end"),
+        ForeignKeyConstraint(["bank_account_id", "company_id"], ["bank_accounts.id", "bank_accounts.company_id"], ondelete="RESTRICT", name="fk_bank_reconciliation_account_company"),
+        ForeignKeyConstraint(["import_id", "company_id", "bank_account_id"], ["bank_statement_imports.id", "bank_statement_imports.company_id", "bank_statement_imports.bank_account_id"], ondelete="RESTRICT", name="fk_bank_reconciliation_import_scope"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
