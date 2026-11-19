@@ -11,5 +11,7 @@ from app.models.purchase import Purchase, PurchaseLine
 __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "InventoryMovement", "Supplier",
-    "Purchase", "PurchaseLine",
+    "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine",
 ]
+
+from app.models.sale_return import SaleReturn, SaleReturnLine

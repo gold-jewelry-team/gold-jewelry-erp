@@ -76,3 +76,13 @@ Sales are created as drafts with server-calculated prices and immutable product 
 - `POST /companies/{company_id}/sales/{sale_id}/void` — void a draft only. Completed sales must use a future return workflow.
 
 The sale-line inventory references are nullable at the database level for historical compatibility, but the sales API requires both product and source location. A sale cannot complete twice; stock insufficiency rolls back the whole completion transaction.
+
+
+### Sales returns
+
+- `POST /companies/{company_id}/sales/{sale_id}/returns` — return one or more individually tracked items from a completed sale. Provide the original `sale_line_ids`; the API appends a `RETURN` movement to each item's original source location.
+- `GET /companies/{company_id}/sales/{sale_id}/returns/{return_id}` — retrieve the return and item snapshots.
+
+Each sale line can be returned only once because each product row represents one individually barcoded item. Draft or void sales cannot be returned. Return creation and all stock-restocking movements share one database transaction; a failure rolls back the entire return.
+
+The signed `settlement_reversal_amount` is the opposite of the original sale-line settlement: a negative value means the store owes the customer, while a positive value means the customer owes the store. This records the settlement obligation only; it does **not** issue a cash/card/bank refund. Actual payment/refund execution will be handled by the finance and payment ledger workflow.
