@@ -19,17 +19,30 @@ def _fingerprint(day: date, description: str, amount: Decimal, direction: str, r
     raw="|".join([day.isoformat(),description.strip(),format(amount,".2f"),direction,reference or ""])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-def _duplicate_root_id(session: Session, line_id: UUID) -> UUID:
-    """Resolve a duplicate chain to its original statement line."""
+def _duplicate_root_id(
+    session: Session,
+    line_id: UUID,
+    *,
+    company_id: UUID,
+    bank_account_id: UUID,
+) -> UUID:
+    """Resolve a duplicate chain while enforcing its company/account scope."""
     current_id = line_id
     visited: set[UUID] = set()
     while current_id not in visited:
         visited.add(current_id)
-        parent_id = session.scalar(
-            select(BankStatementLine.duplicate_of_line_id).where(
-                BankStatementLine.id == current_id
-            )
-        )
+        row = session.execute(
+            select(
+                BankStatementLine.company_id,
+                BankStatementLine.bank_account_id,
+                BankStatementLine.duplicate_of_line_id,
+            ).where(BankStatementLine.id == current_id)
+        ).one_or_none()
+        if row is None:
+            raise ValueError("歷史對帳單重複關聯指向不存在的明細，請先修復資料。")
+        row_company_id, row_account_id, parent_id = row
+        if row_company_id != company_id or row_account_id != bank_account_id:
+            raise ValueError("歷史對帳單重複關聯跨越公司或銀行帳戶，請先修復資料。")
         if parent_id is None:
             return current_id
         current_id = parent_id
@@ -79,7 +92,12 @@ def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_accoun
                     BankStatementLine.bank_account_id==bank_account_id,
                     BankStatementLine.fingerprint==fingerprint
                 ).order_by(BankStatementLine.created_at, BankStatementLine.id).limit(1)).scalar_one_or_none()
-                duplicate_id=_duplicate_root_id(session, duplicate.id) if duplicate else None
+                duplicate_id=_duplicate_root_id(
+                    session,
+                    duplicate.id,
+                    company_id=company_id,
+                    bank_account_id=bank_account_id,
+                ) if duplicate else None
             line=BankStatementLine(id=line_id,import_id=batch.id,company_id=company_id,
                 bank_account_id=bank_account_id,transaction_date=day,description=description,
                 amount=amount,direction=direction,reference_no=reference,fingerprint=fingerprint,

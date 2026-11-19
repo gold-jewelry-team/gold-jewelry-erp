@@ -255,3 +255,101 @@ def test_import_rejects_historical_duplicate_cycle():
         )
     db.rollback()
     engine.dispose()
+
+
+
+@pytest.mark.parametrize("scope", ["company", "bank_account"])
+def test_import_rejects_duplicate_links_outside_company_or_account_scope(scope):
+    engine, db, company, account, _ = _setup()
+
+    if scope == "company":
+        foreign_company = Company(code="OTHER", name="另一家公司")
+        db.add(foreign_company)
+        db.flush()
+        foreign_account_company_id = foreign_company.id
+    else:
+        foreign_account_company_id = company.id
+
+    foreign_account = BankAccount(
+        company_id=foreign_account_company_id,
+        bank_name="其他銀行",
+        account_name="其他帳戶",
+        account_last4="5678",
+        currency_code="TWD",
+        opening_balance=Decimal("0.00"),
+        opening_balance_at=datetime(2026, 11, 1, tzinfo=timezone.utc),
+    )
+    db.add(foreign_account)
+    db.flush()
+
+    fingerprint = hashlib.sha256(
+        "2026-11-19|跨範圍測試|9.00|IN|SCOPE-001".encode("utf-8")
+    ).hexdigest()
+
+    foreign_batch = BankStatementImport(
+        company_id=foreign_account_company_id,
+        bank_account_id=foreign_account.id,
+        source_file_name="foreign.csv",
+        row_count=1,
+        status="IMPORTED",
+        imported_by_name="測試人員",
+    )
+    target_batch = BankStatementImport(
+        company_id=company.id,
+        bank_account_id=account.id,
+        source_file_name="target.csv",
+        row_count=1,
+        status="IMPORTED",
+        imported_by_name="測試人員",
+    )
+    db.add_all([foreign_batch, target_batch])
+    db.flush()
+
+    foreign_root = BankStatementLine(
+        import_id=foreign_batch.id,
+        company_id=foreign_account_company_id,
+        bank_account_id=foreign_account.id,
+        transaction_date=date(2026, 11, 19),
+        description="跨範圍測試",
+        amount=Decimal("9.00"),
+        direction="IN",
+        reference_no="SCOPE-001",
+        fingerprint=fingerprint,
+        status="UNMATCHED",
+    )
+    db.add(foreign_root)
+    db.flush()
+
+    # Simulate corrupted historical data: a line in the requested account
+    # points to a root owned by another account or another company.
+    malformed_duplicate = BankStatementLine(
+        import_id=target_batch.id,
+        company_id=company.id,
+        bank_account_id=account.id,
+        transaction_date=date(2026, 11, 19),
+        description="跨範圍測試",
+        amount=Decimal("9.00"),
+        direction="IN",
+        reference_no="SCOPE-001",
+        fingerprint=fingerprint,
+        status="DUPLICATE",
+        duplicate_of_line_id=foreign_root.id,
+    )
+    db.add(malformed_duplicate)
+    db.commit()
+
+    csv_content = (
+        "transaction_date,description,amount,direction,reference_no\n"
+        "2026-11-19,跨範圍測試,9.00,IN,SCOPE-001\n"
+    )
+    with pytest.raises(ValueError, match="跨越公司或銀行帳戶"):
+        import_bank_statement_csv(
+            db,
+            company_id=company.id,
+            bank_account_id=account.id,
+            csv_content=csv_content,
+            source_file_name="scope-check.csv",
+            imported_by_name="測試人員",
+        )
+    db.rollback()
+    engine.dispose()
