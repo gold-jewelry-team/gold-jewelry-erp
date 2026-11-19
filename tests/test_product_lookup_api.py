@@ -84,3 +84,34 @@ def test_exact_scan_lookup_rejects_unknown_and_inactive_products():
     )
     assert unknown.status_code == 404
     assert inactive.status_code == 404
+
+
+def test_product_qr_svg_encodes_barcode_or_product_code():
+    company_id = client.post(
+        "/companies", json={"code": "QR", "name": "QR 標籤測試銀樓"}
+    ).json()["id"]
+    with_barcode = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00R-QR001", "barcode": "471000000901", "name": "有條碼戒指"},
+    ).json()
+    without_barcode = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00R-QR002", "name": "使用商品編號的戒指"},
+    ).json()
+
+    barcode_qr = client.get(
+        f"/companies/{company_id}/products/{with_barcode['id']}/qr.svg"
+    )
+    code_qr = client.get(
+        f"/companies/{company_id}/products/{without_barcode['id']}/qr.svg"
+    )
+    assert barcode_qr.status_code == 200
+    assert barcode_qr.headers["content-type"].startswith("image/svg+xml")
+    assert "<svg" in barcode_qr.text
+    assert code_qr.status_code == 200
+    assert "<svg" in code_qr.text
+
+    missing = client.get(
+        f"/companies/{company_id}/products/00000000-0000-0000-0000-000000000000/qr.svg"
+    )
+    assert missing.status_code == 404
