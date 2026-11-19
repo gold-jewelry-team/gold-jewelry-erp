@@ -38,6 +38,7 @@ def create_sale(company_id: UUID, payload: SaleCreate, db: Session = Depends(get
             site_id=payload.site_id,
             sale_no=payload.sale_no,
             payment_method=payload.payment_method,
+            card_amount=payload.card_amount,
             lines=[line.model_dump() for line in payload.lines],
             note=payload.note,
         )

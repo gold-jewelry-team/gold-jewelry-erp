@@ -30,7 +30,11 @@ def create_cash_count(session: Session, *, company_id: UUID, site_id: UUID, clos
         DailyClosingPaymentSummary.payment_method == "CASH"
     ))
     cash_net = cash_summary.net_cash_flow if cash_summary else Decimal("0")
-    expected = opening_cash_float + cash_net
+    drawer_net = (
+        cash_summary.cash_drawer_in_amount - cash_summary.cash_drawer_out_amount
+        if cash_summary else Decimal("0")
+    )
+    expected = opening_cash_float + cash_net + drawer_net
     variance = counted_cash_amount - expected
     row = DailyCashCount(
         company_id=company_id, site_id=site_id, closing_id=closing_id,

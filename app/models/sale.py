@@ -15,7 +15,7 @@ class Sale(Base):
     __tablename__ = "sales"
     __table_args__ = (
         CheckConstraint("status IN ('DRAFT', 'COMPLETED', 'VOID')", name="ck_sales_status"),
-        CheckConstraint("payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')", name="ck_sales_payment_method"),
+        CheckConstraint("payment_method IN ('CASH', 'CARD', 'MIXED', 'TRANSFER', 'OTHER')", name="ck_sales_payment_method"),
         CheckConstraint("length(currency_code) = 3", name="ck_sales_currency_code_length"),
         Index("ix_sales_company_site_created", "company_id", "site_id", "created_at"),
         UniqueConstraint("site_id", "sale_no", name="uq_sales_site_sale_no"),
@@ -29,6 +29,7 @@ class Sale(Base):
     payment_method: Mapped[str] = mapped_column(String(12), nullable=False, default="CASH", server_default="CASH")
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="TWD", server_default="TWD")
     subtotal: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
+    card_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"), server_default="0")
     card_fee: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
     final_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
