@@ -135,6 +135,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </div>
 </form>
 <h3>加入商品</h3>
+<div class="field"><label for="saleBarcodeScan">掃描／輸入商品條碼（按 Enter 加入）</label><input id="saleBarcodeScan" autocomplete="off" inputmode="numeric" placeholder="掃描器可直接輸入條碼"></div>
 <div class="grid">
 <div class="field"><label for="saleProduct">商品（可依編號／名稱／條碼選擇）</label><select id="saleProduct"><option value="">請選擇商品</option></select></div>
 <div class="field"><label for="saleLocation">出貨位置</label><select id="saleLocation"><option value="">請選擇位置</option></select></div>
@@ -499,10 +500,10 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;saleCartLines=[];currentSale=null;renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -598,6 +599,94 @@ $("productEditForm").addEventListener("submit",async event=>{
  }catch(error){
   message("productEditStatus",error.message,true);
  }finally{saveButton.disabled=false;}
+});
+async function addSaleProduct(){
+ if(!companyId||!selectedSiteId){message("saleStatus","請先選擇公司與據點。",true);return;}
+ if(currentSale){message("saleStatus","目前銷售單已建立，請先完成或作廢後再建立下一筆。",true);return;}
+ const productId=$("saleProduct").value,locationId=$("saleLocation").value;
+ const product=inventoryProducts.find(x=>x.id===productId);
+ const location=inventoryLocations.find(x=>x.id===locationId);
+ if(!product||!product.is_active){message("saleStatus","請選擇有效商品。",true);return;}
+ if(!location||!location.is_active){message("saleStatus","請選擇有效出貨位置。",true);return;}
+ if(saleCartLines.some(x=>x.product.id===product.id)){message("saleStatus","每件商品只能加入一次，這件商品已在購物車。",true);return;}
+ const button=$("addSaleLine");button.disabled=true;
+ try{
+  const params=new URLSearchParams({site_id:selectedSiteId,location_id:locationId,product_id:productId,include_zero:"true"});
+  const balances=await api("/companies/"+companyId+"/inventory/stock?"+params.toString());
+  const balance=balances.reduce((sum,x)=>sum+Number(x.quantity),0);
+  if(balance<1)throw new Error("此位置沒有可銷售庫存，請先確認商品入庫或選擇正確位置。");
+  const oldWeight=Number($("saleOldGoldWeight").value||0);
+  const source=$("saleTradeInSource").value||null;
+  if(oldWeight>0&&!source)throw new Error("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。");
+  if(oldWeight===0&&source)throw new Error("選擇舊金來源時，請輸入大於 0 的舊金重量。");
+  const labor=$("saleLaborFee").value.trim();
+  saleCartLines.push({product,location,labor_fee:labor===""?null:labor,old_gold_weight:String(oldWeight),trade_in_source:source,trade_in_ratio:$("saleTradeInRatio").value||"0.95"});
+  renderSaleCart();
+  $("saleBarcodeScan").value="";
+  $("saleOldGoldWeight").value="0";$("saleTradeInSource").value="";$("saleLaborFee").value="";
+  message("saleStatus","已加入購物車。實際金額會依建立草稿當下有效金價計算。");
+ }catch(error){message("saleStatus",error.message,true);}
+ finally{button.disabled=false;}
+}
+$("addSaleLine").addEventListener("click",addSaleProduct);
+$("saleCartList").addEventListener("click",event=>{
+ const button=event.target.closest("[data-remove-sale-line]");
+ if(!button||currentSale)return;
+ saleCartLines.splice(Number(button.dataset.removeSaleLine),1);renderSaleCart();
+});
+$("saleBarcodeScan").addEventListener("keydown",event=>{
+ if(event.key!=="Enter")return;
+ event.preventDefault();
+ const barcode=$("saleBarcodeScan").value.trim();
+ const product=inventoryProducts.find(x=>x.is_active&&x.barcode===barcode);
+ if(!product){message("saleStatus","找不到此條碼的有效商品，請確認條碼或改用商品選單。",true);return;}
+ $("saleProduct").value=product.id;
+ addSaleProduct();
+});
+$("salePaymentMethod").addEventListener("change",()=>{
+ const method=$("salePaymentMethod").value;
+ $("saleCardAmount").disabled=method!=="MIXED";
+ if(method!=="MIXED")$("saleCardAmount").value="";
+});
+$("createSaleDraft").addEventListener("click",async()=>{
+ if(!companyId||!selectedSiteId||!saleCartLines.length||currentSale)return;
+ const method=$("salePaymentMethod").value;
+ const cardText=$("saleCardAmount").value.trim();
+ if(method==="MIXED"&&cardText===""){message("saleStatus","部分刷卡請輸入顧客指定的刷卡本金。",true);return;}
+ if(method==="MIXED"&&(!Number.isInteger(Number(cardText))||Number(cardText)<=0)){message("saleStatus","刷卡本金必須為正整數元。",true);return;}
+ const payload={
+  site_id:selectedSiteId,sale_no:$("saleNo").value.trim(),payment_method:method,
+  card_amount:method==="MIXED"?cardText:null,
+  note:$("saleNote").value.trim()||null,
+  lines:saleCartLines.map(x=>({product_id:x.product.id,source_location_id:x.location.id,labor_fee:x.labor_fee,old_gold_weight:x.old_gold_weight,trade_in_source:x.trade_in_source,trade_in_ratio:x.trade_in_ratio}))
+ };
+ const button=$("createSaleDraft");button.disabled=true;
+ try{
+  const sale=await api("/companies/"+companyId+"/sales",{method:"POST",body:JSON.stringify(payload)});
+  renderSaleResult(sale);
+  message("saleStatus","銷售草稿建立成功。請核對每項商品金額、刷卡本金及 5% 手續費，再完成銷售。");
+ }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
+});
+$("completeSale").addEventListener("click",async()=>{
+ if(!currentSale||currentSale.status!=="DRAFT")return;
+ const button=$("completeSale");button.disabled=true;
+ try{
+  const sale=await api("/companies/"+companyId+"/sales/"+currentSale.id+"/complete",{method:"POST"});
+  renderSaleResult(sale);
+  $("saleDraftActions").classList.add("hidden");
+  message("saleStatus","銷售已完成，庫存已扣除。");
+  try{await loadInventoryOptions();}catch(refreshError){message("globalStatus","銷售已完成，但庫存畫面重新載入失敗："+refreshError.message,true);}
+ }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
+});
+$("voidSale").addEventListener("click",async()=>{
+ if(!currentSale||currentSale.status!=="DRAFT")return;
+ const button=$("voidSale");button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/sales/"+currentSale.id+"/void",{method:"POST"});
+  message("saleStatus","銷售草稿已作廢，未扣除庫存。");
+  currentSale=null;saleCartLines=[];renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");
+  $("saleHeaderForm").reset();$("saleCardAmount").disabled=true;
+ }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
 $("closingBusinessDate").value=taipeiDateValue();
 $("closingBusinessDate").max=taipeiDateValue();
