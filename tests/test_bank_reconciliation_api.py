@@ -36,9 +36,8 @@ def test_statement_csv_import_duplicate_detection_and_matching():
             "bank_name":"其他","account_name":"次帳戶","account_last4":"5678",
             "opening_balance":"0.00","opening_balance_at":datetime.now(timezone.utc).isoformat()})
         assert tx.status_code==201
-        from app.db.session import SessionLocal
-        # Seed a ledger transaction directly so the statement import can exact-match it.
-        seed=SessionLocal()
+        # Seed a ledger transaction in the same in-memory SQLite database.
+        seed=Session()
         ledger=BankTransaction(company_id=cid,bank_account_id=aid,transaction_type="CASH_DEPOSIT",
             direction="IN",amount=Decimal("1250.00"),currency_code="TWD",
             reference_no="REF-01",description="現金存款",created_by_name="測試",

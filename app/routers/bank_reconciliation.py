@@ -1,5 +1,6 @@
 """Bank statement import and reconciliation APIs."""
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -37,9 +38,9 @@ class StatementLineRead(BaseModel):
     import_id:UUID
     company_id:UUID
     bank_account_id:UUID
-    transaction_date:object
+    transaction_date:date
     description:str
-    amount:object
+    amount:Decimal
     direction:str
     reference_no:str|None
     status:str
@@ -81,7 +82,7 @@ def list_lines(company_id:UUID,account_id:UUID,import_id:UUID,status:str|None=No
 @router.post("/{import_id}/lines/{line_id}/match",response_model=ActionResult)
 def post_match(company_id:UUID,account_id:UUID,import_id:UUID,line_id:UUID,payload:MatchCreate,db:Session=Depends(get_db)):
     line=db.execute(select(BankStatementLine).where(BankStatementLine.import_id==import_id,
-        BankStatementLine.bank_account_id==account_id)).scalar_one_or_none()
+        BankStatementLine.bank_account_id==account_id,BankStatementLine.id==line_id)).scalar_one_or_none()
     if line is None or line.id!=line_id:
         raise HTTPException(status_code=404,detail="對帳單明細不存在。")
     try:
