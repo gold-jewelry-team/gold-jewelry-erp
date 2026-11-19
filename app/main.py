@@ -8,6 +8,7 @@ from app.routers.purchases import router as purchases_router
 from app.routers.inventory import router as inventory_router
 from app.routers.sales import router as sales_router
 from app.routers.sales_returns import router as sales_returns_router
+from app.routers.daily_closing import router as daily_closing_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -21,6 +22,7 @@ app.include_router(purchases_router)
 app.include_router(inventory_router)
 app.include_router(sales_router)
 app.include_router(sales_returns_router)
+app.include_router(daily_closing_router)
 
 
 @app.get("/", tags=["system"])

@@ -86,3 +86,14 @@ The sale-line inventory references are nullable at the database level for histor
 Each sale line can be returned only once because each product row represents one individually barcoded item. Draft or void sales cannot be returned. Return creation and all stock-restocking movements share one database transaction; a failure rolls back the entire return.
 
 The signed `settlement_reversal_amount` is the opposite of the original sale-line settlement: a negative value means the store owes the customer, while a positive value means the customer owes the store. This records the settlement obligation only; it does **not** issue a cash/card/bank refund. Actual payment/refund execution will be handled by the finance and payment ledger workflow.
+
+
+### Daily business closing
+
+- `POST /companies/{company_id}/sites/{site_id}/daily-closings` — create the one-time closing snapshot for a Taipei business date.
+- `GET /companies/{company_id}/sites/{site_id}/daily-closings` — list closing snapshots; optional `from_date` and `to_date` filters.
+- `GET /companies/{company_id}/sites/{site_id}/daily-closings/{closing_id}` — retrieve the snapshot and payment-method summaries.
+
+The snapshot includes completed sales, returns created on that business date, and signed net sales by the original sale's payment method. The business-day boundary is Asia/Taipei. A site may be closed only once per date. Once closed, new sale completions and returns for that business date are blocked to keep the snapshot stable.
+
+This is an operational sales/return summary, not a cash count, bank reconciliation, or proof that a card/bank settlement has arrived. Actual tender collection, cash drawer variance, refund execution, and bank settlement matching remain separate finance workflows. There is no reopen or edit endpoint in this phase; corrections require a controlled adjustment workflow rather than changing a historical snapshot.
