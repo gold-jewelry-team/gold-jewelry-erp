@@ -1,6 +1,6 @@
 """PostgreSQL integration tests for database-enforced reconciliation ownership scopes."""
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
@@ -37,7 +37,7 @@ def _line(batch, company_id, account_id, *, duplicate_of=None, matched_tx=None):
         import_id=batch.id,
         company_id=company_id,
         bank_account_id=account_id,
-        transaction_date=__import__("datetime").date(2026, 11, 19),
+        transaction_date=date(2026, 11, 19),
         description="PostgreSQL constraint test",
         amount=Decimal("9.00"),
         direction="IN",
