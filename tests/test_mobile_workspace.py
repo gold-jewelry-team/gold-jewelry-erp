@@ -10,3 +10,5 @@ def test_mobile_workspace_serves_html():
     assert "黃金珠寶進銷存" in response.text
     assert 'id="productForm"' in response.text
     assert 'id="companySelect"' in response.text
+    assert 'id="productEditForm"' in response.text
+    assert 'data-edit-product="' in response.text
