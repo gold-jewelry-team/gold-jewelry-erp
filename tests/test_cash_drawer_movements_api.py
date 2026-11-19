@@ -44,9 +44,11 @@ def test_bank_deposit_updates_cash_drawer_expected_balance_and_closing_snapshot(
         assert close.status_code==201,close.text
         body=close.json()
         assert body["cash_drawer_out_amount"]=="400.00"
+        # A bank deposit changes physical drawer cash, not operating cash flow.
+        assert body["net_cash_flow"]=="0.00"
         cash_summary=next(x for x in body["payment_summaries"] if x["payment_method"]=="CASH")
         assert cash_summary["cash_drawer_out_amount"]=="400.00"
-        assert cash_summary["net_cash_flow"]=="-400.00"
+        assert cash_summary["net_cash_flow"]=="0.00"
         cash_url=f"/companies/{cid}/sites/{sid}/daily-closings/{body['id']}/cash-count"
         counted=client.post(cash_url,json={"opening_cash_float":"1000.00","counted_cash_amount":"600.00","counted_by_name":"店員甲"})
         assert counted.status_code==201,counted.text
