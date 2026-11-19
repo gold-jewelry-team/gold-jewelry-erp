@@ -686,7 +686,7 @@ $("voidSale").addEventListener("click",async()=>{
  try{
   await api("/companies/"+companyId+"/sales/"+currentSale.id+"/void",{method:"POST"});
   message("saleStatus","銷售草稿已作廢，未扣除庫存。");
-  currentSale=null;saleCartLines=[];renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
+  currentSale=null;saleCartLines=[];$("siteSelect").disabled=false;$("companySelect").disabled=false;renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
   $("saleHeaderForm").reset();$("saleCardAmount").disabled=true;
 $("newSale").addEventListener("click",()=>{currentSale=null;saleCartLines=[];renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("saleHeaderForm").reset();$("saleCardAmount").disabled=true;$("saleBarcodeScan").value="";message("saleStatus","可開始下一筆銷售。");});
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
