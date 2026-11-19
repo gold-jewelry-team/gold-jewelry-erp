@@ -1024,7 +1024,8 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  }catch(error){message("laborCodeStatus",error.message,true);}
  finally{button.disabled=false;}
 });
-\n$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
+
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
 $("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
@@ -1070,7 +1071,10 @@ function openProductEditor(product){
  $("editNetWeight").value=product.net_weight;
  $("editWeightUnit").value=product.weight_unit_code;
  $("editLaborFee").value=product.labor_fee;
- const chainLengthMatch=String(product.chain_length||"").match(/^([0-9]+(?:\.[0-9]+)?)\s*(尺|cm)$/i);\n $("editChainLength").value=chainLengthMatch?chainLengthMatch[1]:"";\n $("editChainLengthUnit").value=chainLengthMatch?chainLengthMatch[2]:"尺";\n $("editChainLengthRaw").value=chainLengthMatch?"":(product.chain_length||"");
+ const chainLengthMatch=String(product.chain_length||"").match(/^([0-9]+(?:\.[0-9]+)?)\s*(尺|cm)$/i);
+ $("editChainLength").value=chainLengthMatch?chainLengthMatch[1]:"";
+ $("editChainLengthUnit").value=chainLengthMatch?chainLengthMatch[2]:"尺";
+ $("editChainLengthRaw").value=chainLengthMatch?"":(product.chain_length||"");
  $("editStyleCode").value=product.style_code||"";
  $("editProductNote").value=product.note||"";
  const select=$("editProductCategory");
@@ -1102,7 +1106,8 @@ $("confirmLabelLot").addEventListener("click",()=>{
  if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
  printProductQrLabel(product,lot,printWindow,config,copies);
 });
-\n$("productList").addEventListener("click",event=>{
+
+$("productList").addEventListener("click",event=>{
  const printButton=event.target.closest("[data-print-product-label]");
  if(printButton){const product=productsById.get(printButton.dataset.printProductLabel);if(product)beginProductLabelPrint(product);return;}
  const button=event.target.closest("[data-edit-product]");
