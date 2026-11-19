@@ -224,8 +224,18 @@ async function loadInventoryOptions(){
   for(const id of locationIds)$(id).innerHTML=(id==="stockLocationFilter"||id==="movementLocationFilter")?'<option value="">全部位置</option>':'<option value="">請選擇位置</option>';
   return;
  }
+ const productsPromise=(async()=>{
+  const all=[];let offset=0;
+  while(true){
+   const page=await api("/companies/"+companyId+"/products?limit=500&offset="+offset+"&include_inactive=true");
+   all.push(...page);
+   if(page.length<500)break;
+   offset+=500;
+  }
+  return all;
+ })();
  const [products,locations]=await Promise.all([
-  api("/companies/"+companyId+"/products?limit=500&include_inactive=true"),
+  productsPromise,
   api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations?include_inactive=true")
  ]);
  inventoryProducts=products;
