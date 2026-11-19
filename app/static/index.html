@@ -912,7 +912,14 @@ function formatRocStickerDate(value){
  const rocYear=Number(get("year"))-1911;
  return String(rocYear).slice(-2).padStart(2,"0")+get("month")+get("day");
 }
-function printProductQrLabel(product,lot,printWindow){
+function formatLaborDarkCode(value,config){
+ const digits=String(Math.round(Number(value||0)));
+ const mappings=new Map((config?.mappings||[]).map(item=>[Number(item.digit),item.code_char]));
+ const encoded=[...digits].map(char=>mappings.get(Number(char))??char).join("");
+ const prefix=/^[A-Za-z0-9]{1,5}$/.test(config?.prefix||"")?config.prefix.toUpperCase():"A";
+ return prefix+"-"+encoded;
+}
+function printProductQrLabel(product,lot,printWindow,config){
  const selectedCompanyId=companyId;
  if(!printWindow||printWindow.closed)return;
  const sellLabor=Number(product.labor_fee||0);
@@ -928,6 +935,7 @@ function printProductQrLabel(product,lot,printWindow){
  const location=lot?lot.location_name:"—";
  const receiptDate=lot?formatRocStickerDate(lot.received_at):"—";
  const laborText=Number.isFinite(sellLabor)?Math.round(sellLabor).toString():"—";
+ const darkCode=Number.isFinite(sellLabor)?formatLaborDarkCode(sellLabor,config):"—";
  const html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>3×10 cm 商品貼紙</title><style>'+
   '@page{size:100mm 30mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:100mm;height:30mm;font-family:Arial,"Noto Sans TC",sans-serif;color:#111}'+
   '.label{width:100mm;height:30mm;padding:1mm;display:grid;grid-template-columns:49mm 49mm;column-gap:0;overflow:hidden;page-break-after:always}'+
@@ -948,7 +956,7 @@ function printProductQrLabel(product,lot,printWindow){
   '<div class="source-row"><span>廠商：'+escapeHtml(supplier)+'</span><span>櫃位：'+escapeHtml(location)+'</span><span>進貨日：'+escapeHtml(receiptDate)+'</span></div></section>'+
   '<section class="right"><div class="weight">'+escapeHtml(weightText)+'</div>'+
   '<div class="labor">工錢：'+escapeHtml(laborText)+'</div>'+
-  '<div class="dark">暗碼：—</div>'+
+  '<div class="dark">暗碼：'+escapeHtml(darkCode)+'</div>'+
   '<div class="extra"><span>長度：'+escapeHtml(product.chain_length||"—")+'</span><span>款式：'+escapeHtml(product.style_code?("款式:"+product.style_code):"—")+'</span></div></section></div>'+
   '<script>const image=document.getElementById("productBarcodeImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};<\/script></body></html>';
  printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
@@ -958,18 +966,19 @@ async function beginProductLabelPrint(product){
  if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
  printWindow.document.write("<p style='font-family:sans-serif;padding:20px'>正在讀取進貨批次…</p>");
  try{
-  const lots=await api("/companies/"+companyId+"/products/"+product.id+"/label-lots");
+  const [lots,config]=await Promise.all([api("/companies/"+companyId+"/products/"+product.id+"/label-lots"),api("/companies/"+companyId+"/labor-code-config")]);
   if(lots.length>1){
    printWindow.close();
    pendingLabelProduct=product;
    pendingLabelLots=lots;
+   pendingLabelConfig=config;
    const select=$("labelLotSelect");
    select.innerHTML=lots.map((lot,index)=>'<option value="'+index+'">'+escapeHtml(lot.received_at?new Date(lot.received_at).toLocaleString("zh-TW"):"日期未記錄")+' · '+escapeHtml(lot.supplier_name)+' · '+escapeHtml(lot.location_name)+' · 數量 '+escapeHtml(lot.received_quantity)+'</option>').join("");
    renderLabelLotDetails();
    $("labelLotModal").classList.remove("hidden");
    return;
   }
-  printProductQrLabel(product,lots[0]||null,printWindow);
+  printProductQrLabel(product,lots[0]||null,printWindow,config);
  }catch(error){
   printWindow.close();
   message("globalStatus","讀取商品進貨批次失敗："+error.message,true);
@@ -977,6 +986,7 @@ async function beginProductLabelPrint(product){
 }
 let pendingLabelProduct=null;
 let pendingLabelLots=[];
+let pendingLabelConfig=null;
 function renderLabelLotDetails(){
  const lot=pendingLabelLots[Number($("labelLotSelect").value)];
  if(!lot){$("labelLotDetails").textContent="";return;}
@@ -1071,16 +1081,17 @@ function openProductEditor(product){
 }
 
 $("labelLotSelect").addEventListener("change",renderLabelLotDetails);
-$("cancelLabelLot").addEventListener("click",()=>{$("labelLotModal").classList.add("hidden");pendingLabelProduct=null;pendingLabelLots=[];});
+$("cancelLabelLot").addEventListener("click",()=>{$("labelLotModal").classList.add("hidden");pendingLabelProduct=null;pendingLabelLots=[];pendingLabelConfig=null;});
 $("confirmLabelLot").addEventListener("click",()=>{
  const lot=pendingLabelLots[Number($("labelLotSelect").value)];
  const product=pendingLabelProduct;
  if(!lot||!product)return;
  $("labelLotModal").classList.add("hidden");
- pendingLabelProduct=null;pendingLabelLots=[];
+ const config=pendingLabelConfig;
+ pendingLabelProduct=null;pendingLabelLots=[];pendingLabelConfig=null;
  const printWindow=window.open("","_blank","width=800,height=400");
  if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
- printProductQrLabel(product,lot,printWindow);
+ printProductQrLabel(product,lot,printWindow,config);
 });
 \n$("productList").addEventListener("click",event=>{
  const printButton=event.target.closest("[data-print-product-label]");
