@@ -30,12 +30,15 @@ def _get_purchase(db: Session, company_id: UUID, purchase_id: UUID):
 
 @router.get("", response_model=list[PurchaseRead])
 def list_purchases(company_id: UUID,
+                   site_id: UUID | None = None,
                    status: str | None = Query(default=None, pattern="^(DRAFT|ORDERED|PARTIALLY_RECEIVED|RECEIVED|CANCELLED)$"),
                    limit: int = Query(default=100, ge=1, le=500),
                    db: Session = Depends(get_db)):
     if db.get(Company, company_id) is None:
         raise HTTPException(status_code=404, detail="找不到指定公司。")
     statement = select(Purchase).where(Purchase.company_id == company_id).options(selectinload(Purchase.lines))
+    if site_id is not None:
+        statement = statement.where(Purchase.site_id == site_id)
     if status:
         statement = statement.where(Purchase.status == status)
     return list(db.scalars(statement.order_by(Purchase.order_date.desc()).limit(limit)).all())
