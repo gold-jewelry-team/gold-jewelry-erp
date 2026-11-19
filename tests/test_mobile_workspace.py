@@ -15,6 +15,9 @@ def test_mobile_workspace_serves_html():
     assert 'id="labelLotModal"' in response.text
     assert "label-lots" in response.text
     assert "進貨成本工錢" in response.text
+    assert "formatLaborDarkCode" in response.text
+    assert "labor-code-config" in response.text
+    assert "暗碼：" in response.text
     assert "/barcode.svg" in response.text
     assert "productBarcodeImage" in response.text
     assert "data-print-product-label" in response.text
