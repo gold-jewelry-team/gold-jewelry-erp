@@ -390,6 +390,7 @@ $("productEditForm").addEventListener("submit",async event=>{
   $("productEditPanel").classList.add("hidden");
   editingProduct=null;
   await loadProducts();
+  await loadInventoryOptions();
   message("productStatus","商品資料已更新。");
  }catch(error){
   message("productEditStatus",error.message,true);
