@@ -647,7 +647,7 @@ function restoreStocktakeDraft(){
  }catch(error){localStorage.removeItem(stocktakeStorageKey());stocktakeLines=[];stocktakeLocationId="";}
  const select=$("stocktakeLocation");
  if(stocktakeLocationId&&inventoryLocations.some(x=>x.id===stocktakeLocationId&&x.is_active))select.value=stocktakeLocationId;
- else{stocktakeLocationId="";select.value="";}
+ else{stocktakeLocationId="";stocktakeLines=[];select.value="";}
  if(!stocktakeLocationId){const first=inventoryLocations.find(x=>x.is_active);if(first){stocktakeLocationId=first.id;select.value=first.id;}}
  persistStocktakeDraft();renderStocktake();
 }
