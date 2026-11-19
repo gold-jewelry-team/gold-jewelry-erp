@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#171717">
+<title>黃金珠寶進銷存</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202124;background:#f5f5f2;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;padding:0 0 env(safe-area-inset-bottom)}header{background:#202522;color:#fff;padding:20px 16px 16px;position:sticky;top:0;z-index:5}header h1{font-size:20px;margin:0 0 5px}header p{font-size:12px;color:#c8d0ca;margin:0}
+main{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:14px}.panel{background:#fff;border:1px solid #e5e7e3;border-radius:16px;padding:16px;box-shadow:0 2px 10px #1111}
+h2{font-size:16px;margin:0 0 14px}.sub{font-size:12px;color:#68716b;margin:-8px 0 12px}
+label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;background:#fff;color:#202124}input:focus,select:focus{outline:2px solid #899b8d;outline-offset:1px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;margin-bottom:10px}.wide{grid-column:1/-1}button{border:0;border-radius:11px;min-height:44px;padding:10px 15px;background:#263b30;color:#fff;font:inherit;font-weight:600;cursor:pointer}button.secondary{background:#edf1ed;color:#263b30}button:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:13px;min-height:20px;color:#526257;margin-top:8px}.status.error{color:#b42318}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}.item{border:1px solid #e7eae6;border-radius:12px;padding:12px;margin-top:9px;display:grid;gap:5px}.item strong{font-size:15px}.muted{font-size:12px;color:#6a746d}.pill{font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px;width:max-content}.empty{font-size:13px;color:#788079;padding:18px 0;text-align:center}.hidden{display:none}
+@media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 商品主檔</p></header>
+<main>
+<section class="panel span2">
+<h2>目前公司</h2>
+<div class="grid"><div class="field wide"><label for="companySelect">公司／銀樓</label><select id="companySelect"><option value="">載入中…</option></select></div></div>
+<div class="actions"><button class="secondary" id="reloadCompanies" type="button">重新載入</button></div>
+<div id="globalStatus" class="status" role="status"></div>
+</section>
+<section class="panel">
+<h2>新增公司</h2>
+<form id="companyForm">
+<div class="field"><label for="companyCode">公司代碼</label><input id="companyCode" required maxlength="30" placeholder="例如 JEWEL"></div>
+<div class="field"><label for="companyName">公司名稱</label><input id="companyName" required maxlength="120" placeholder="銀樓名稱"></div>
+<button type="submit">建立公司</button>
+</form>
+<div id="companyStatus" class="status" role="status"></div>
+</section>
+<section class="panel">
+<h2>新增商品分類</h2>
+<form id="categoryForm">
+<div class="field"><label for="categoryCode">分類代碼</label><input id="categoryCode" required maxlength="40" placeholder="例如 RING"></div>
+<div class="field"><label for="categoryName">分類名稱</label><input id="categoryName" required maxlength="120" placeholder="例如 戒指"></div>
+<div class="field"><label for="parentCategory">上層分類（選填）</label><select id="parentCategory"><option value="">無</option></select></div>
+<button type="submit">新增分類</button>
+</form>
+<div id="categoryStatus" class="status" role="status"></div>
+</section>
+<section class="panel span2">
+<h2>新增單件商品</h2>
+<p class="sub">每筆資料代表一件獨立商品；商品編號可先手動輸入。</p>
+<form id="productForm">
+<div class="grid">
+<div class="field"><label for="productCode">商品編號</label><input id="productCode" required maxlength="50" placeholder="G00R-22618"></div>
+<div class="field"><label for="barcode">條碼</label><input id="barcode" maxlength="100" placeholder="可留空"></div>
+<div class="field wide"><label for="productName">商品名稱</label><input id="productName" required maxlength="200" placeholder="黃金戒指"></div>
+<div class="field"><label for="productCategory">商品分類</label><select id="productCategory"><option value="">未分類</option></select></div>
+<div class="field"><label for="materialCode">材質代碼</label><input id="materialCode" maxlength="30" placeholder="例如 G"></div>
+<div class="field"><label for="grossWeight">總重</label><input id="grossWeight" type="number" min="0" step="0.0001" value="0" required></div>
+<div class="field"><label for="netWeight">淨重</label><input id="netWeight" type="number" min="0" step="0.0001" value="0" required></div>
+<div class="field"><label for="weightUnit">重量單位代碼</label><select id="weightUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
+<div class="field"><label for="laborFee">工錢</label><input id="laborFee" type="number" min="0" step="0.01" value="0" required></div>
+<div class="field wide"><label for="productNote">備註</label><input id="productNote" maxlength="500"></div>
+</div>
+<button type="submit">新增商品</button>
+</form>
+<div id="productStatus" class="status" role="status"></div>
+</section>
+<section class="panel products">
+<h2>商品清單</h2>
+<div class="toolbar"><input id="search" placeholder="搜尋編號、條碼或名稱" aria-label="搜尋商品"><button id="searchButton" type="button">搜尋</button></div>
+<div id="productList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let companyId="";
+const api=async(path,options={})=>{
+ const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
+ const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
+ if(!response.ok) throw new Error(data.detail||"操作失敗");
+ return data;
+};
+const message=(id,text,error=false)=>{$(id).textContent=text;$(id).classList.toggle("error",error)};
+const selectedCompany=()=>companyId;
+async function loadCompanies(selectId){
+ const rows=await api("/companies");
+ $("companySelect").innerHTML='<option value="">請選擇公司</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ if(selectId&&rows.some(x=>x.id===selectId)) $("companySelect").value=selectId;
+ else if(rows.length===1) $("companySelect").value=rows[0].id;
+ companyId=$("companySelect").value;
+ await loadCategories(); await loadProducts();
+}
+function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+async function loadCategories(){
+ $("parentCategory").innerHTML='<option value="">無</option>';
+ $("productCategory").innerHTML='<option value="">未分類</option>';
+ if(!companyId)return;
+ const rows=await api("/companies/"+companyId+"/product-categories");
+ const opts=rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ $("parentCategory").insertAdjacentHTML("beforeend",opts);
+ $("productCategory").insertAdjacentHTML("beforeend",opts);
+}
+async function loadProducts(){
+ const box=$("productList");
+ if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ box.innerHTML='<div class="empty">載入中…</div>';
+ const q=$("search").value.trim();
+ const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
+ box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(x.category_id||"未分類")+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span></article>').join(""):'<div class="empty">尚無符合條件的商品</div>';
+}
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;try{await loadCategories();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
+$("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
+$("companyForm").addEventListener("submit",async e=>{e.preventDefault();try{const x=await api("/companies",{method:"POST",body:JSON.stringify({code:$("companyCode").value.trim(),name:$("companyName").value.trim()})});$("companyForm").reset();await loadCompanies(x.id);message("companyStatus","公司已建立");}catch(err){message("companyStatus",err.message,true);}});
+$("categoryForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("categoryStatus","請先選擇公司",true);return;}try{await api("/companies/"+companyId+"/product-categories",{method:"POST",body:JSON.stringify({code:$("categoryCode").value.trim(),name:$("categoryName").value.trim(),parent_id:$("parentCategory").value||null})});$("categoryForm").reset();await loadCategories();message("categoryStatus","分類已新增");}catch(err){message("categoryStatus",err.message,true);}});
+$("productForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("productStatus","請先選擇公司",true);return;}try{const payload={product_code:$("productCode").value.trim(),barcode:$("barcode").value.trim()||null,name:$("productName").value.trim(),category_id:$("productCategory").value||null,material_code:$("materialCode").value.trim()||null,gross_weight:$("grossWeight").value,net_weight:$("netWeight").value,weight_unit_code:$("weightUnit").value,labor_fee:$("laborFee").value,note:$("productNote").value.trim()||null};await api("/companies/"+companyId+"/products",{method:"POST",body:JSON.stringify(payload)});$("productForm").reset();$("grossWeight").value="0";$("netWeight").value="0";$("laborFee").value="0";await loadProducts();message("productStatus","商品已新增");}catch(err){message("productStatus",err.message,true);}});
+$("searchButton").addEventListener("click",()=>loadProducts().catch(e=>message("globalStatus",e.message,true)));
+$("search").addEventListener("keydown",e=>{if(e.key==="Enter")loadProducts().catch(err=>message("globalStatus",err.message,true));});
+loadCompanies().catch(e=>message("globalStatus",e.message,true));
+</script>
+</body></html>
