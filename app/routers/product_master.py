@@ -1,7 +1,11 @@
 import re
 from uuid import UUID
 
+from io import BytesIO
+
+import segno
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -230,3 +234,24 @@ def lookup_product_by_scan_code(
     if product is None:
         raise HTTPException(status_code=404, detail="找不到此條碼／商品編號的有效商品。")
     return product
+
+
+
+@router.get("/companies/{company_id}/products/{product_id}/qr.svg", include_in_schema=False)
+def product_qr_label(company_id: UUID, product_id: UUID, db: Session = Depends(get_db)):
+    """Render a printable QR code containing this item's exact scan identifier."""
+    _require_company(db, company_id)
+    product = db.scalar(select(Product).where(
+        Product.id == product_id, Product.company_id == company_id
+    ))
+    if product is None:
+        raise HTTPException(status_code=404, detail="找不到指定商品。")
+    payload = (product.barcode or product.product_code).strip()
+    qr = segno.make_qr(payload, error="m")
+    output = BytesIO()
+    qr.save(output, kind="svg", xmldecl=False, svgns=True, scale=5, border=2)
+    return Response(
+        content=output.getvalue().decode("utf-8"),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=300"},
+    )
