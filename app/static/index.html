@@ -1068,7 +1068,7 @@ function openProductEditor(product){
  $("editNetWeight").value=product.net_weight;
  $("editWeightUnit").value=product.weight_unit_code;
  $("editLaborFee").value=product.labor_fee;
- const chainLengthMatch=String(product.chain_length||"").match(/^([0-9]+(?:\\.[0-9]+)?)\\s*(尺|cm)$/i);\n $("editChainLength").value=chainLengthMatch?chainLengthMatch[1]:"";\n $("editChainLengthUnit").value=chainLengthMatch?chainLengthMatch[2]:"尺";\n $("editChainLengthRaw").value=chainLengthMatch?"":(product.chain_length||"");
+ const chainLengthMatch=String(product.chain_length||"").match(/^([0-9]+(?:\.[0-9]+)?)\s*(尺|cm)$/i);\n $("editChainLength").value=chainLengthMatch?chainLengthMatch[1]:"";\n $("editChainLengthUnit").value=chainLengthMatch?chainLengthMatch[2]:"尺";\n $("editChainLengthRaw").value=chainLengthMatch?"":(product.chain_length||"");
  $("editStyleCode").value=product.style_code||"";
  $("editProductNote").value=product.note||"";
  const select=$("editProductCategory");
