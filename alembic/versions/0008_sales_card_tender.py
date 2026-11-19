@@ -1,4 +1,4 @@
-""""Persist the actual card principal and allow mixed tender sales.
+"""Persist the actual card principal and allow mixed tender sales.
 
 Revision ID: 0008_sales_card_tender
 Revises: 0007_sales_returns
@@ -59,4 +59,3 @@ def downgrade() -> None:
         "payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')",
     )
     op.drop_column("sales", "card_amount")
-"
