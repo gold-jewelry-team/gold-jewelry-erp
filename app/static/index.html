@@ -12,7 +12,7 @@ main{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:14px}.panel{bac
 h2{font-size:16px;margin:0 0 14px}.sub{font-size:12px;color:#68716b;margin:-8px 0 12px}
 label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;background:#fff;color:#202124}input:focus,select:focus{outline:2px solid #899b8d;outline-offset:1px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;margin-bottom:10px}.wide{grid-column:1/-1}button{border:0;border-radius:11px;min-height:44px;padding:10px 15px;background:#263b30;color:#fff;font:inherit;font-weight:600;cursor:pointer}button.secondary{background:#edf1ed;color:#263b30}button:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:13px;min-height:20px;color:#526257;margin-top:8px}.status.error{color:#b42318}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}.item{border:1px solid #e7eae6;border-radius:12px;padding:12px;margin-top:9px;display:grid;gap:5px}.item strong{font-size:15px}.muted{font-size:12px;color:#6a746d}.pill{font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px;width:max-content}.empty{font-size:13px;color:#788079;padding:18px 0;text-align:center}.hidden{display:none}
 @media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
- .scan-modal.hidden{display:none}.scan-modal{position:fixed;inset:0;background:#101512dd;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}.scan-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px}.scan-dialog video{display:block;width:100%;max-height:58vh;object-fit:cover;background:#111;border-radius:12px}.scan-hint{font-size:13px;color:#59635c;margin:10px 0}.scan-actions{display:flex;gap:8px;margin-top:12px}.scan-actions button{flex:1}
+ .label-lot-modal.hidden{display:none}.label-lot-modal{position:fixed;inset:0;background:#101512dd;z-index:25;display:flex;align-items:center;justify-content:center;padding:16px}.label-lot-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px;max-height:90vh;overflow:auto}.scan-modal.hidden{display:none}.scan-modal{position:fixed;inset:0;background:#101512dd;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}.scan-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px}.scan-dialog video{display:block;width:100%;max-height:58vh;object-fit:cover;background:#111;border-radius:12px}.scan-hint{font-size:13px;color:#59635c;margin:10px 0}.scan-actions{display:flex;gap:8px;margin-top:12px}.scan-actions button{flex:1}
 @media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
 </style>
 </head>
@@ -492,6 +492,15 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div id="productList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
 </section>
 </main>
+<div id="labelLotModal" class="label-lot-modal hidden" role="dialog" aria-modal="true" aria-labelledby="labelLotTitle">
+ <div class="label-lot-dialog">
+  <h2 id="labelLotTitle">選擇貼紙的進貨批次</h2>
+  <p class="sub">同一商品可能有不同供應商、進貨日期或櫃位，請選擇這張貼紙對應的實際批次。</p>
+  <div class="field"><label for="labelLotSelect">進貨批次</label><select id="labelLotSelect"></select></div>
+  <p id="labelLotDetails" class="muted"></p>
+  <div class="actions"><button id="confirmLabelLot" type="button">列印此批次</button><button id="cancelLabelLot" class="secondary" type="button">取消</button></div>
+ </div>
+</div>
 <div id="scanModal" class="scan-modal hidden" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
  <div class="scan-dialog"><h2 id="scanTitle">掃描商品條碼／QR Code</h2>
   <video id="scanVideo" autoplay muted playsinline></video>
@@ -870,42 +879,86 @@ async function loadSequence(){
  $("numberWidth").value=String(data.number_width);
 }
 
-function printProductQrLabel(product){
-  const selectedCompanyId=companyId;
-  const barcodeValue=(product.barcode||product.product_code||"").trim();
-  if(!selectedCompanyId||!product.id||!barcodeValue){message("globalStatus","商品缺少公司、商品 ID 或條碼，無法列印。",true);return;}
-  const barcodeUrl="/companies/"+selectedCompanyId+"/products/"+product.id+"/barcode.svg";
-  const weight=Number(product.gross_weight||0);
-  const weightText=Number.isFinite(weight)?weight.toFixed(2)+" "+(product.weight_unit_code||""):"—";
-  const labor=Number(product.labor_fee||0);
-  const laborText=Number.isFinite(labor)?Math.round(labor).toString():"—";
-  const html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>商品條碼貼紙</title><style>'+
-    '@page{size:100mm 30mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:100mm;height:30mm;font-family:Arial,"Noto Sans TC",sans-serif;color:#111}'+
-    '.label{width:100mm;height:30mm;padding:1mm;display:grid;grid-template-columns:49mm 49mm;column-gap:0;overflow:hidden;page-break-after:always}'+
-    '.left{width:49mm;height:28mm;display:grid;grid-template-rows:4mm 11mm 1fr;align-items:center;min-width:0}'+
-    '.product-code{text-align:center;font-size:9pt;font-weight:700;line-height:4mm;white-space:nowrap;overflow:hidden}'+
-    '.barcode{display:block;width:47mm;height:11mm;object-fit:fill;margin:0 auto}'+
-    '.source-row{display:flex;align-items:end;justify-content:space-between;gap:1mm;font-size:6pt;white-space:nowrap;overflow:hidden}'+
-    '.source-row span{overflow:hidden;text-overflow:clip}'+
-    '.right{width:49mm;height:28mm;padding:0 1mm 0 2mm;display:grid;grid-template-rows:12mm 5mm 5mm 6mm;align-items:center;min-width:0}'+
-    '.weight{font-size:20pt;font-weight:800;line-height:1;white-space:nowrap}'+
-    '.labor{font-size:9pt;font-weight:700;white-space:nowrap}'+
-    '.dark{font-size:8pt;font-weight:700;white-space:nowrap}'+
-    '.extra{display:flex;justify-content:space-between;gap:1mm;font-size:7pt;white-space:nowrap;overflow:hidden}'+
-    '@media screen{body{background:#eee}.label{background:#fff;margin:12px auto;box-shadow:0 1px 5px #999}}'+
-    '</style></head><body><div class="label">'+
-    '<section class="left"><div class="product-code">'+escapeHtml(product.product_code)+'</div>'+
-    '<img id="productBarcodeImage" class="barcode" src="'+barcodeUrl+'" alt="Code 128 條碼">'+
-    '<div class="source-row"><span>廠商：—</span><span>櫃位：—</span><span>進貨日：—</span></div></section>'+
-    '<section class="right"><div class="weight">'+escapeHtml(weightText)+'</div>'+
-    '<div class="labor">工錢：'+escapeHtml(laborText)+'</div>'+
-    '<div class="dark">暗碼：—</div>'+
-    '<div class="extra"><span>長度：—</span><span>款式：—</span></div></section></div>'+
-    '<script>const image=document.getElementById("productBarcodeImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};'+'</scr'+'ipt></body></html>';
-  const printWindow=window.open("","_blank","width=800,height=400");
-  if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗。",true);return;}
-  printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
+function formatRocStickerDate(value){
+ if(!value)return "—";
+ const date=new Date(value);
+ if(Number.isNaN(date.getTime()))return "—";
+ const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(date);
+ const get=type=>parts.find(part=>part.type===type)?.value||"";
+ const rocYear=Number(get("year"))-1911;
+ return String(rocYear).slice(-2).padStart(2,"0")+get("month")+get("day");
 }
+function printProductQrLabel(product,lot,printWindow){
+ const selectedCompanyId=companyId;
+ if(!printWindow||printWindow.closed)return;
+ const sellLabor=Number(product.labor_fee||0);
+ const costLabor=Number(lot?.cost_labor_fee||0);
+ if(lot&&sellLabor<costLabor){
+  const proceed=window.confirm("警告：此批商品的銷售工錢（"+sellLabor+"）低於進貨成本工錢（"+costLabor+"）。仍要列印嗎？");
+  if(!proceed){printWindow.close();return;}
+ }
+ const barcodeUrl="/companies/"+selectedCompanyId+"/products/"+product.id+"/barcode.svg";
+ const weight=Number(product.gross_weight||0);
+ const weightText=Number.isFinite(weight)?weight.toFixed(2)+" "+(product.weight_unit_code||""):"—";
+ const supplier=lot?lot.supplier_name:"—";
+ const location=lot?lot.location_name:"—";
+ const receiptDate=lot?formatRocStickerDate(lot.received_at):"—";
+ const laborText=Number.isFinite(sellLabor)?Math.round(sellLabor).toString():"—";
+ const html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>3×10 cm 商品貼紙</title><style>'+
+  '@page{size:100mm 30mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:100mm;height:30mm;font-family:Arial,"Noto Sans TC",sans-serif;color:#111}'+
+  '.label{width:100mm;height:30mm;padding:1mm;display:grid;grid-template-columns:49mm 49mm;column-gap:0;overflow:hidden;page-break-after:always}'+
+  '.left{width:49mm;height:28mm;display:grid;grid-template-rows:4mm 11mm 1fr;align-items:center;min-width:0}'+
+  '.product-code{text-align:center;font-size:9pt;font-weight:700;line-height:4mm;white-space:nowrap;overflow:hidden}'+
+  '.barcode{display:block;width:47mm;height:11mm;object-fit:fill;margin:0 auto}'+
+  '.source-row{display:flex;align-items:end;justify-content:space-between;gap:1mm;font-size:6pt;white-space:nowrap;overflow:hidden}'+
+  '.source-row span{overflow:hidden;text-overflow:clip}'+
+  '.right{width:49mm;height:28mm;padding:0 1mm 0 2mm;display:grid;grid-template-rows:12mm 5mm 5mm 6mm;align-items:center;min-width:0}'+
+  '.weight{font-size:20pt;font-weight:800;line-height:1;white-space:nowrap}'+
+  '.labor{font-size:9pt;font-weight:700;white-space:nowrap}'+
+  '.dark{font-size:8pt;font-weight:700;white-space:nowrap}'+
+  '.extra{display:flex;justify-content:space-between;gap:1mm;font-size:7pt;white-space:nowrap;overflow:hidden}'+
+  '@media screen{body{background:#eee}.label{background:#fff;margin:12px auto;box-shadow:0 1px 5px #999}}'+
+  '</style></head><body><div class="label">'+
+  '<section class="left"><div class="product-code">'+escapeHtml(product.product_code)+'</div>'+
+  '<img id="productBarcodeImage" class="barcode" src="'+barcodeUrl+'" alt="Code 128 條碼">'+
+  '<div class="source-row"><span>廠商：'+escapeHtml(supplier)+'</span><span>櫃位：'+escapeHtml(location)+'</span><span>進貨日：'+escapeHtml(receiptDate)+'</span></div></section>'+
+  '<section class="right"><div class="weight">'+escapeHtml(weightText)+'</div>'+
+  '<div class="labor">工錢：'+escapeHtml(laborText)+'</div>'+
+  '<div class="dark">暗碼：—</div>'+
+  '<div class="extra"><span>長度：'+escapeHtml(product.chain_length||"—")+'</span><span>款式：'+escapeHtml(product.style_code?("款式:"+product.style_code):"—")+'</span></div></section></div>'+
+  '<script>const image=document.getElementById("productBarcodeImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};<\/script></body></html>';
+ printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
+}
+async function beginProductLabelPrint(product){
+ const printWindow=window.open("","_blank","width=800,height=400");
+ if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
+ printWindow.document.write("<p style='font-family:sans-serif;padding:20px'>正在讀取進貨批次…</p>");
+ try{
+  const lots=await api("/companies/"+companyId+"/products/"+product.id+"/label-lots");
+  if(lots.length>1){
+   printWindow.close();
+   pendingLabelProduct=product;
+   pendingLabelLots=lots;
+   const select=$("labelLotSelect");
+   select.innerHTML=lots.map((lot,index)=>'<option value="'+index+'">'+escapeHtml(lot.received_at?new Date(lot.received_at).toLocaleString("zh-TW"):"日期未記錄")+' · '+escapeHtml(lot.supplier_name)+' · '+escapeHtml(lot.location_name)+' · 數量 '+escapeHtml(lot.received_quantity)+'</option>').join("");
+   renderLabelLotDetails();
+   $("labelLotModal").classList.remove("hidden");
+   return;
+  }
+  printProductQrLabel(product,lots[0]||null,printWindow);
+ }catch(error){
+  printWindow.close();
+  message("globalStatus","讀取商品進貨批次失敗："+error.message,true);
+ }
+}
+let pendingLabelProduct=null;
+let pendingLabelLots=[];
+function renderLabelLotDetails(){
+ const lot=pendingLabelLots[Number($("labelLotSelect").value)];
+ if(!lot){$("labelLotDetails").textContent="";return;}
+ $("labelLotDetails").textContent="採購單："+lot.purchase_no+"；進貨成本工錢："+lot.cost_labor_fee+"；單位成本："+lot.unit_cost+" "+lot.currency_code;
+}
+
 async function loadProducts(){
  const box=$("productList");
  if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
@@ -978,9 +1031,22 @@ function openProductEditor(product){
  $("productEditPanel").classList.remove("hidden");
  $("productEditPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
-$("productList").addEventListener("click",event=>{
+
+$("labelLotSelect").addEventListener("change",renderLabelLotDetails);
+$("cancelLabelLot").addEventListener("click",()=>{$("labelLotModal").classList.add("hidden");pendingLabelProduct=null;pendingLabelLots=[];});
+$("confirmLabelLot").addEventListener("click",()=>{
+ const lot=pendingLabelLots[Number($("labelLotSelect").value)];
+ const product=pendingLabelProduct;
+ if(!lot||!product)return;
+ $("labelLotModal").classList.add("hidden");
+ pendingLabelProduct=null;pendingLabelLots=[];
+ const printWindow=window.open("","_blank","width=800,height=400");
+ if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
+ printProductQrLabel(product,lot,printWindow);
+});
+\n$("productList").addEventListener("click",event=>{
  const printButton=event.target.closest("[data-print-product-label]");
- if(printButton){const product=productsById.get(printButton.dataset.printProductLabel);if(product)printProductQrLabel(product);return;}
+ if(printButton){const product=productsById.get(printButton.dataset.printProductLabel);if(product)beginProductLabelPrint(product);return;}
  const button=event.target.closest("[data-edit-product]");
  if(!button)return;
  const product=productsById.get(button.dataset.editProduct);
