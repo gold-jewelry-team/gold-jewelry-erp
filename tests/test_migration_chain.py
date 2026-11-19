@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_mixed_payment_summaries():
+def test_alembic_history_is_a_single_linear_chain_through_card_tender():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0019_daily_closing_mixed_payment"]
+    assert script.get_heads() == ["0020_sales_card_tender"]
 
     expected = [
+        "0020_sales_card_tender",
         "0019_daily_closing_mixed_payment",
         "0018_recon_scope_constraints",
         "0017_bank_recon_adjustments",
