@@ -623,7 +623,7 @@ async function handleScannedProductCode(code,target){
 async function loadLaborCodeConfig(){
  const grid=$("laborCodesGrid");
  if(!grid)return;
- grid.innerHTML=Array.from({length:10},(_,digit)=>'<div class="field"><label for="laborCode'+digit+'">數字 '+digit+' 對應暗碼</label><input id="laborCode'+digit+'" maxlength="10" autocomplete="off" placeholder="預設 '+digit+'"></div>').join("");
+ grid.innerHTML=Array.from({length:10},(_,digit)=>'<div class="field"><label for="laborCode'+digit+'">數字 '+digit+' 對應暗碼</label><input id="laborCode'+digit+'" maxlength="4" autocomplete="off" placeholder="預設 '+digit+'"></div>').join("");
  if(!companyId){
   $("laborCodePrefix").value="A";
   for(let digit=0;digit<=9;digit++)$("laborCode"+digit).value=String(digit);
