@@ -2,15 +2,16 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_sales_returns():
+def test_alembic_history_is_a_single_linear_chain_through_card_tender():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0007_sales_returns"]
+    assert script.get_heads() == ["0008_sales_card_tender"]
 
     expected = [
+        "0008_sales_card_tender",
         "0007_sales_returns",
         "0006_sales_inventory_links",
         "0005_suppliers_purchasing",
-        "0004_products_inventory",
+        "0004_products_inventory_ledger",
         "0003_sales_snapshots",
         "0002_gold_prices",
         "0001_core",
