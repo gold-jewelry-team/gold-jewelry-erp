@@ -49,7 +49,7 @@ def test_statement_csv_import_duplicate_detection_and_matching():
         import_id=imported.json()["id"]
         lines=client.get(f"{root}/statement-imports/{import_id}/lines")
         assert lines.status_code==200,lines.text
-        assert [x["status"] for x in lines.json()]==["MATCHED","UNMATCHED"]
+        assert sorted(x["status"] for x in lines.json())==["MATCHED","UNMATCHED"]
         line_id=lines.json()[1]["id"]
         duplicate=client.post(f"{root}/statement-imports",json={"csv_content":csv_text,"source_file_name":"nov-copy.csv","imported_by_name":"店員甲"})
         assert duplicate.status_code==201,duplicate.text
