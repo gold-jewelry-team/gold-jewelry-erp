@@ -16,6 +16,7 @@ class CashDrawerMovement(Base):
         CheckConstraint("currency_code = 'TWD'", name="ck_cash_drawer_movements_currency_twd"),
         Index("ix_cash_drawer_movements_company_site_created_at", "company_id", "site_id", "created_at"),
     )
+    bank_transaction_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("bank_transactions.id", ondelete="RESTRICT"), nullable=True, unique=True)
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
     site_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=False)

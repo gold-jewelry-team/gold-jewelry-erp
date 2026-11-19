@@ -11,7 +11,7 @@ from app.models.purchase import Purchase, PurchaseLine
 __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "InventoryMovement", "Supplier",
-    "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary", "PaymentTransaction", "SupplierBill", "SupplierPayment", "SupplierPaymentAllocation", "OperatingExpense", "DailyCashCount", "CashDrawerMovement",
+    "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary", "PaymentTransaction", "SupplierBill", "SupplierPayment", "SupplierPaymentAllocation", "OperatingExpense", "DailyCashCount", "CashDrawerMovement", "BankAccount", "BankTransaction",
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine
@@ -27,3 +27,5 @@ from app.models.operating_expense import OperatingExpense
 from app.models.cash_count import DailyCashCount
 
 from app.models.cash_drawer_movement import CashDrawerMovement
+
+from app.models.bank_account import BankAccount, BankTransaction
