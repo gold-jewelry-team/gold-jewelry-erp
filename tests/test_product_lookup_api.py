@@ -115,3 +115,34 @@ def test_product_qr_svg_encodes_barcode_or_product_code():
         f"/companies/{company_id}/products/00000000-0000-0000-0000-000000000000/qr.svg"
     )
     assert missing.status_code == 404
+
+
+def test_product_code128_svg_uses_barcode_or_product_code():
+    company_id = client.post(
+        "/companies", json={"code": "BC128", "name": "一維條碼測試銀樓"}
+    ).json()["id"]
+    with_barcode = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00R-BC001", "barcode": "471000001001", "name": "一維條碼戒指"},
+    ).json()
+    without_barcode = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00R-BC002", "name": "商品編號條碼戒指"},
+    ).json()
+
+    barcode_response = client.get(
+        f"/companies/{company_id}/products/{with_barcode['id']}/barcode.svg"
+    )
+    fallback_response = client.get(
+        f"/companies/{company_id}/products/{without_barcode['id']}/barcode.svg"
+    )
+    assert barcode_response.status_code == 200
+    assert barcode_response.headers["content-type"].startswith("image/svg+xml")
+    assert "<svg" in barcode_response.text
+    assert fallback_response.status_code == 200
+    assert "<svg" in fallback_response.text
+
+    missing = client.get(
+        f"/companies/{company_id}/products/00000000-0000-0000-0000-000000000000/barcode.svg"
+    )
+    assert missing.status_code == 404
