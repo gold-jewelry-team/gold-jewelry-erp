@@ -46,7 +46,7 @@ class DailyClosingPaymentSummary(Base):
     __table_args__ = (
         CheckConstraint("sales_count >= 0 AND returns_count >= 0", name="ck_daily_closing_payment_counts_nonnegative"),
         UniqueConstraint("closing_id", "payment_method", name="uq_daily_closing_payment_method"),
-        CheckConstraint("payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')", name="ck_daily_closing_payment_method"),
+        CheckConstraint("payment_method IN ('CASH', 'CARD', 'MIXED', 'TRANSFER', 'OTHER')", name="ck_daily_closing_payment_method"),
         Index("ix_daily_closing_payment_summaries_closing_id", "closing_id"),
     )
 
