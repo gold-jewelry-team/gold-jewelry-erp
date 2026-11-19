@@ -51,6 +51,8 @@ class Product(Base):
     net_weight: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False, default=Decimal("0"))
     weight_unit_code: Mapped[str] = mapped_column(String(20), nullable=False, default="QIAN", server_default="QIAN")
     labor_fee: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
+    chain_length: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    style_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())

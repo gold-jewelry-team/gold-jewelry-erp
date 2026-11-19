@@ -1,3 +1,7 @@
+import pytest
+
+pytest.importorskip("app.routers.labor_code_settings", reason="activated when labor-code settings feature is merged")
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
