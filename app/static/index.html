@@ -237,6 +237,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="grid">
 <div class="field"><label for="billSupplier">供應商</label><select id="billSupplier" required><option value="">請選擇供應商</option></select></div>
 <div class="field"><label for="billNo">供應商帳單號碼</label><input id="billNo" maxlength="50" required></div>
+<div class="field"><label for="billPurchase">關聯採購單（選填）</label><select id="billPurchase"><option value="">不關聯採購單</option></select></div>
 <div class="field"><label for="billDate">帳單日期</label><input id="billDate" type="date" required></div>
 <div class="field"><label for="billDueDate">到期日</label><input id="billDueDate" type="date"></div>
 <div class="field"><label for="billCurrency">幣別</label><select id="billCurrency"><option value="TWD">TWD 新台幣</option><option value="USD">USD 美元</option><option value="JPY">JPY 日圓</option><option value="CNY">CNY 人民幣</option></select></div>
@@ -943,7 +944,7 @@ $("supplierForm").addEventListener("submit",async event=>{
 $("supplierBillForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("supplierBillStatus","請先選擇公司與據點。",true);return;}
- const payload={site_id:selectedSiteId,supplier_id:$("billSupplier").value,bill_no:$("billNo").value.trim(),bill_date:$("billDate").value,due_date:$("billDueDate").value||null,currency_code:$("billCurrency").value,total_amount:$("billAmount").value,note:$("billNote").value.trim()||null};
+ const payload={site_id:selectedSiteId,supplier_id:$("billSupplier").value,purchase_id:$("billPurchase").value||null,bill_no:$("billNo").value.trim(),bill_date:$("billDate").value,due_date:$("billDueDate").value||null,currency_code:$("billCurrency").value,total_amount:$("billAmount").value,note:$("billNote").value.trim()||null};
  const button=$("supplierBillForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
   await api("/companies/"+companyId+"/supplier-payables/bills",{method:"POST",body:JSON.stringify(payload)});
@@ -954,6 +955,8 @@ $("supplierBillForm").addEventListener("submit",async event=>{
 });
 $("refreshSupplierBills").addEventListener("click",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
 $("billFilterSupplier").addEventListener("change",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
+$("billSupplier").addEventListener("change",renderBillPurchaseOptions);
+$("billPurchase").addEventListener("change",()=>{const purchase=purchasesById.get($("billPurchase").value);if(purchase){$("billSupplier").value=purchase.supplier_id;$("billCurrency").value=purchase.currency_code;renderBillPurchaseOptions();$("billPurchase").value=purchase.id;}});
 $("billFilterStatus").addEventListener("change",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
 $("supplierBillList").addEventListener("click",event=>{
  const button=event.target.closest("[data-pay-supplier-bill]");
@@ -989,6 +992,11 @@ function renderPurchaseCart(){
  $("purchaseCartList").innerHTML=purchaseCartLines.length?purchaseCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">數量：'+escapeHtml(line.quantity)+' · 單位成本：'+escapeHtml(line.unit_cost)+' · 重量：'+escapeHtml(line.weight??"未填")+' '+escapeHtml(line.weight_unit_code||"")+'</span><div class="actions"><button class="secondary" type="button" data-remove-purchase-line="'+index+'">移除</button></div></article>').join(""):'<div class="empty">尚未加入採購商品</div>';
  $("createPurchase").disabled=!purchaseCartLines.length;
 }
+function renderBillPurchaseOptions(){
+ const supplierId=$("billSupplier").value;
+ const rows=[...purchasesById.values()].filter(x=>["ORDERED","PARTIALLY_RECEIVED","RECEIVED"].includes(x.status)&&(!supplierId||x.supplier_id===supplierId));
+ $("billPurchase").innerHTML='<option value="">不關聯採購單</option>'+rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.purchase_no)+'（'+escapeHtml(purchaseStatusLabels[x.status]||x.status)+'）</option>').join("");
+}
 async function loadPurchases(){
  const box=$("purchaseList");
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';purchasesById=new Map();return;}
@@ -996,6 +1004,7 @@ async function loadPurchases(){
  if($("purchaseFilterStatus").value)params.set("status",$("purchaseFilterStatus").value);
  const rows=await api("/companies/"+companyId+"/purchases?"+params.toString());
  purchasesById=new Map(rows.map(x=>[x.id,x]));
+ renderBillPurchaseOptions();
  box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.purchase_no)+'</strong><span class="pill">'+escapeHtml(purchaseStatusLabels[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 下單日：'+escapeHtml(row.order_date)+' · 預計到貨：'+escapeHtml(row.expected_date||"未設定")+'</span><span class="muted">商品明細：'+row.lines.map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);return escapeHtml(product?.product_code||"商品")+" "+escapeHtml(line.received_quantity)+"/"+escapeHtml(line.quantity);}).join("、")+'</span><div class="actions">'+(row.status==="DRAFT"?'<button class="secondary" type="button" data-submit-purchase="'+escapeHtml(row.id)+'">送出採購單</button>':'')+(["DRAFT","ORDERED"].includes(row.status)?'<button class="secondary" type="button" data-cancel-purchase="'+escapeHtml(row.id)+'">取消採購單</button>':'')+(["ORDERED","PARTIALLY_RECEIVED"].includes(row.status)?'<button class="secondary" type="button" data-open-receive="'+escapeHtml(row.id)+'">到貨驗收</button>':'')+'</div></article>').join(""):'<div class="empty">沒有符合條件的採購單</div>';
 }
 async function loadExpenses(){
