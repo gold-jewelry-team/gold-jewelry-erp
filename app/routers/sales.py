@@ -1,12 +1,14 @@
+from datetime import date, datetime, time
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
-from app.models.sale import Sale
+from app.models.sale import Sale, SaleLine
 from app.routers.schemas.sales import SaleActionResult, SaleCreate, SaleRead
 from app.services.sales import complete_sale, create_sale_draft, void_sale_draft
 
@@ -27,6 +29,53 @@ def _load_sale(db: Session, company_id: UUID, sale_id: UUID) -> Sale | None:
         .options(selectinload(Sale.lines))
         .where(Sale.company_id == company_id, Sale.id == sale_id)
     )
+
+
+@router.get("", response_model=list[SaleRead])
+def list_sales(
+    company_id: UUID,
+    site_id: UUID | None = None,
+    q: str | None = None,
+    status: str | None = Query(default=None, pattern="^(DRAFT|COMPLETED|VOID)$"),
+    from_date: date | None = None,
+    to_date: date | None = None,
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    statement = (
+        select(Sale)
+        .options(selectinload(Sale.lines))
+        .where(Sale.company_id == company_id)
+    )
+    if site_id is not None:
+        statement = statement.where(Sale.site_id == site_id)
+    if status is not None:
+        statement = statement.where(Sale.status == status)
+    if q and q.strip():
+        pattern = f"%{q.strip()}%"
+        statement = statement.where(or_(
+            Sale.sale_no.ilike(pattern),
+            Sale.lines.any(or_(
+                SaleLine.product_code_snapshot.ilike(pattern),
+                SaleLine.barcode_snapshot.ilike(pattern),
+                SaleLine.product_name_snapshot.ilike(pattern),
+            )),
+        ))
+    taipei = ZoneInfo("Asia/Taipei")
+    if from_date is not None:
+        statement = statement.where(
+            Sale.created_at >= datetime.combine(from_date, time.min, tzinfo=taipei)
+        )
+    if to_date is not None:
+        statement = statement.where(
+            Sale.created_at < datetime.combine(to_date, time.max, tzinfo=taipei)
+            .replace(microsecond=999999)
+        )
+    if from_date is not None and to_date is not None and to_date < from_date:
+        raise HTTPException(status_code=422, detail="結束日期不可早於起始日期。")
+    return list(db.scalars(
+        statement.order_by(Sale.created_at.desc(), Sale.sale_no.desc()).limit(limit)
+    ).all())
 
 
 @router.post("", response_model=SaleRead, status_code=201)
