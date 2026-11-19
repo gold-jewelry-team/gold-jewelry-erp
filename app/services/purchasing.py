@@ -1,6 +1,6 @@
 """Purchase order creation, lifecycle and atomic goods receiving."""
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
 from sqlalchemy import select
@@ -107,10 +107,27 @@ def receive_purchase_line(session: Session, *, purchase_id: UUID, purchase_line_
     if location is None or location.site_id != purchase.site_id or not location.is_active:
         raise ValueError("入庫儲存位置不存在、未啟用或不屬於採購據點。")
 
+    receipt_weight = None
+    if line.weight is not None:
+        previous_weights = session.scalars(select(InventoryMovement.weight).where(
+            InventoryMovement.reference_type == "PURCHASE_LINE",
+            InventoryMovement.reference_id == line.id,
+            InventoryMovement.movement_type == "RECEIPT",
+        )).all()
+        previously_received_weight = sum(
+            (value or Decimal("0") for value in previous_weights), Decimal("0")
+        )
+        if line.received_quantity + received_quantity == line.quantity:
+            receipt_weight = line.weight - previously_received_weight
+        else:
+            receipt_weight = (
+                line.weight * received_quantity / line.quantity
+            ).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
     movement = InventoryMovement(
         company_id=purchase.company_id, site_id=purchase.site_id, product_id=line.product_id,
         movement_type="RECEIPT", to_location_id=location_id, quantity=received_quantity,
-        weight=line.weight, weight_unit_code=line.weight_unit_code,
+        weight=receipt_weight, weight_unit_code=line.weight_unit_code,
         reference_type="PURCHASE_LINE", reference_id=line.id,
         note=f"採購單 {purchase.purchase_no} 驗收入庫",
     )
