@@ -1,5 +1,6 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ProductCodeSequenceRead(BaseModel):
@@ -12,6 +13,13 @@ class ProductCodeSequenceRead(BaseModel):
 class ProductCodeSequenceUpdate(BaseModel):
     next_number: int | None = Field(default=None, ge=1)
     number_width: int | None = Field(default=None, ge=1, le=12)
+
+    @field_validator("next_number", "number_width", mode="before")
+    @classmethod
+    def reject_explicit_null(cls, value):
+        if value is None:
+            raise ValueError("流水號設定不可為空值。")
+        return value
 
 
 class ProductCodeGenerate(BaseModel):
