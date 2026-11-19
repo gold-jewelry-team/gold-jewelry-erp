@@ -19,6 +19,22 @@ def _fingerprint(day: date, description: str, amount: Decimal, direction: str, r
     raw="|".join([day.isoformat(),description.strip(),format(amount,".2f"),direction,reference or ""])
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+def _duplicate_root_id(session: Session, line_id: UUID) -> UUID:
+    """Resolve a duplicate chain to its original statement line."""
+    current_id = line_id
+    visited: set[UUID] = set()
+    while current_id not in visited:
+        visited.add(current_id)
+        parent_id = session.scalar(
+            select(BankStatementLine.duplicate_of_line_id).where(
+                BankStatementLine.id == current_id
+            )
+        )
+        if parent_id is None:
+            return current_id
+        current_id = parent_id
+    raise ValueError("歷史對帳單重複關聯存在循環，請先修復資料。")
+
 def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_account_id: UUID,
                               csv_content: str, source_file_name: str, imported_by_name: str) -> BankStatementImport:
     account=session.execute(select(BankAccount).where(BankAccount.id==bank_account_id,
@@ -63,7 +79,7 @@ def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_accoun
                     BankStatementLine.bank_account_id==bank_account_id,
                     BankStatementLine.fingerprint==fingerprint
                 ).order_by(BankStatementLine.created_at, BankStatementLine.id).limit(1)).scalar_one_or_none()
-                duplicate_id=duplicate.id if duplicate else None
+                duplicate_id=_duplicate_root_id(session, duplicate.id) if duplicate else None
             line=BankStatementLine(id=line_id,import_id=batch.id,company_id=company_id,
                 bank_account_id=bank_account_id,transaction_date=day,description=description,
                 amount=amount,direction=direction,reference_no=reference,fingerprint=fingerprint,
