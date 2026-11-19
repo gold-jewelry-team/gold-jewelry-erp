@@ -19,7 +19,7 @@ def upgrade()->None:
         batch.create_foreign_key("fk_bank_transactions_statement_line_id_bank_statement_lines","bank_statement_lines",["statement_line_id"],["id"],ondelete="RESTRICT")
         batch.create_check_constraint("ck_bank_transactions_type","transaction_type IN ('CASH_DEPOSIT','CASH_WITHDRAWAL','TRANSFER_IN','TRANSFER_OUT','BANK_FEE','INTEREST_IN','OTHER_ADJUSTMENT')")
         batch.create_check_constraint("ck_bank_transactions_type_direction","(transaction_type IN ('CASH_DEPOSIT','TRANSFER_IN','INTEREST_IN') AND direction = 'IN') OR (transaction_type IN ('CASH_WITHDRAWAL','TRANSFER_OUT','BANK_FEE') AND direction = 'OUT') OR transaction_type = 'OTHER_ADJUSTMENT'")
-        batch.create_index("ix_bank_transactions_statement_line","statement_line_id",unique=True)
+        batch.create_index("ix_bank_transactions_statement_line",["statement_line_id"],unique=True)
 
 def downgrade()->None:
     with op.batch_alter_table("bank_transactions") as batch:
