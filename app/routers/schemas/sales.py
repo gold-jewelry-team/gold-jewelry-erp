@@ -92,3 +92,9 @@ class SaleRead(BaseModel):
             return Decimal("0.00")
         cash = round_twd_like_legacy(self.subtotal) - self.card_amount
         return cash if cash > 0 else Decimal("0.00")
+
+
+class SaleActionResult(BaseModel):
+    sale_id: UUID
+    status: str
+    message: str
