@@ -111,6 +111,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <h3>新增金價紀錄</h3>
 <div class="grid">
 <div class="field"><label for="goldPriceType">金價類型</label><select id="goldPriceType"><option value="BUY">買入價</option><option value="SELL">賣出價</option></select></div>
+<div class="field"><label for="goldPriceScope">適用範圍</label><select id="goldPriceScope"><option value="SITE">目前據點</option><option value="COMPANY">全公司所有據點</option></select></div>
 <div class="field"><label for="goldPriceValue">每單位金價（TWD）</label><input id="goldPriceValue" type="number" min="0.0001" step="0.0001" required></div>
 <div class="field"><label for="goldPriceUnit">計價單位</label><select id="goldPriceUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
 <div class="field"><label for="goldPriceEffectiveAt">生效時間（台灣時間）</label><input id="goldPriceEffectiveAt" type="datetime-local" required></div>
@@ -452,7 +453,7 @@ $("goldPriceForm").addEventListener("submit",async event=>{
  if(!companyId||!selectedSiteId){message("goldPriceStatus","請先選擇公司與據點。",true);return;}
  const value=$("goldPriceEffectiveAt").value;
  if(!value){message("goldPriceStatus","請輸入金價生效時間。",true);return;}
- const payload={site_id:selectedSiteId,price_type:$("goldPriceType").value,price_value:$("goldPriceValue").value,currency_code:"TWD",unit_code:$("goldPriceUnit").value,effective_at:value+":00+08:00",source:"MANUAL",note:$("goldPriceNote").value.trim()||null};
+ const payload={site_id:$("goldPriceScope").value==="COMPANY"?null:selectedSiteId,price_type:$("goldPriceType").value,price_value:$("goldPriceValue").value,currency_code:"TWD",unit_code:$("goldPriceUnit").value,effective_at:value+":00+08:00",source:"MANUAL",note:$("goldPriceNote").value.trim()||null};
  const button=$("goldPriceForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
   await api("/companies/"+companyId+"/gold-prices",{method:"POST",body:JSON.stringify(payload)});
