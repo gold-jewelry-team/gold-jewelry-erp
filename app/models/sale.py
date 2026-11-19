@@ -6,7 +6,7 @@ from decimal import Decimal
 from sqlalchemy import (
     CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, UniqueConstraint, func
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -36,6 +36,7 @@ class Sale(Base):
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    lines: Mapped[list["SaleLine"]] = relationship(back_populates="sale", order_by="SaleLine.line_no")
 
 
 class SaleLine(Base):
@@ -53,6 +54,9 @@ class SaleLine(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sale_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sales.id", ondelete="RESTRICT"), nullable=False)
+    product_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), nullable=True)
+    source_location_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("storage_locations.id", ondelete="RESTRICT"), nullable=True)
+    sale: Mapped["Sale"] = relationship(back_populates="lines")
     line_no: Mapped[int] = mapped_column(nullable=False)
     product_code_snapshot: Mapped[str | None] = mapped_column(String(50), nullable=True)
     barcode_snapshot: Mapped[str | None] = mapped_column(String(100), nullable=True)
