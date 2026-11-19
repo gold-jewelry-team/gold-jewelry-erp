@@ -24,6 +24,8 @@ def test_mobile_workspace_serves_html():
     assert 'id="completeSale"' in response.text
     assert 'id="voidSale"' in response.text
     assert 'id="newSale"' in response.text
+    assert 'id="salePaymentPanel"' in response.text
+    assert 'id="salePaymentForm"' in response.text
     assert 'id="dailyClosingForm"' in response.text
     assert 'id="cashCountCreateForm"' in response.text
     assert 'id="cashCountReviewForm"' in response.text
