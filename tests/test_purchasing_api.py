@@ -32,11 +32,12 @@ def test_supplier_purchase_submit_and_receive_api():
     session.add(site)
     session.flush()
     location = StorageLocation(site_id=site.id, code="SAFE", name="保險櫃", location_type="SAFE")
+    second_location = StorageLocation(site_id=site.id, code="SHOW", name="展示櫃", location_type="STORE_FLOOR")
     product = Product(company_id=company.id, product_code="API-G-001", name="測試金戒",
                       gross_weight=Decimal("1.2"), net_weight=Decimal("1.1"))
-    session.add_all([location, product])
+    session.add_all([location, second_location, product])
     session.commit()
-    company_id, site_id, location_id, product_id = company.id, site.id, location.id, product.id
+    company_id, site_id, location_id, second_location_id, product_id = company.id, site.id, location.id, second_location.id, product.id
     session.close()
 
     def override_db():
@@ -82,24 +83,30 @@ def test_supplier_purchase_submit_and_receive_api():
         assert submitted.status_code == 200, submitted.text
         assert submitted.json()["status"] == "ORDERED"
 
-        received = client.post(f"/companies/{company_id}/purchases/{purchase_id}/receive", json={
-            "purchase_line_id": line_id, "location_id": str(location_id), "received_quantity": "2",
+        first_received = client.post(f"/companies/{company_id}/purchases/{purchase_id}/receive", json={
+            "purchase_line_id": line_id, "location_id": str(location_id), "received_quantity": "1",
         })
-        assert received.status_code == 200, received.text
-        assert received.json()["status"] == "RECEIVED"
+        assert first_received.status_code == 200, first_received.text
+        assert first_received.json()["status"] == "PARTIALLY_RECEIVED"
+
+        second_received = client.post(f"/companies/{company_id}/purchases/{purchase_id}/receive", json={
+            "purchase_line_id": line_id, "location_id": str(second_location_id), "received_quantity": "1",
+        })
+        assert second_received.status_code == 200, second_received.text
+        assert second_received.json()["status"] == "RECEIVED"
 
         label_lots = client.get(f"/companies/{company_id}/products/{product_id}/label-lots")
         assert label_lots.status_code == 200, label_lots.text
-        assert len(label_lots.json()) == 1
-        lot = label_lots.json()[0]
-        assert lot["purchase_no"] == "PO-API-001"
-        assert lot["supplier_code"] == "SUP-API"
-        assert lot["supplier_name"] == "測試供應商"
-        assert lot["location_code"] == "SAFE"
-        assert lot["location_name"] == "保險櫃"
-        assert lot["received_quantity"] == "2.000"
-        assert lot["cost_labor_fee"] == "350.00"
-        assert lot["currency_code"] == "TWD"
+        assert len(label_lots.json()) == 2
+        lots = label_lots.json()
+        assert {lot["location_code"] for lot in lots} == {"SAFE", "SHOW"}
+        for lot in lots:
+            assert lot["purchase_no"] == "PO-API-001"
+            assert lot["supplier_code"] == "SUP-API"
+            assert lot["supplier_name"] == "測試供應商"
+            assert lot["received_quantity"] == "1.000"
+            assert lot["cost_labor_fee"] == "350.00"
+            assert lot["currency_code"] == "TWD"
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
