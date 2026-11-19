@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -77,3 +77,21 @@ class ProductRead(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ProductLabelDataRead(BaseModel):
+    """Authoritative data assembled for a printable single-item label."""
+    model_config = ConfigDict(from_attributes=True)
+    product_id: UUID
+    product_code: str
+    barcode: str | None
+    gross_weight: Decimal
+    weight_unit_code: str
+    selling_labor_fee: Decimal
+    cost_labor_fee: Decimal | None
+    chain_length: str | None
+    style_code: str | None
+    supplier_code: str | None
+    supplier_name: str | None
+    purchase_date: date | None
+    locations: list[str]
