@@ -105,7 +105,7 @@ def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_accoun
                     line.matched_bank_transaction_id=candidates[0].id
                     matched_transaction_ids.add(candidates[0].id)
             session.add(line)
-            seen_fingerprints.setdefault(fingerprint,line_id)
+            seen_fingerprints.setdefault(fingerprint,duplicate_id or line_id)
             count+=1
         if count==0: raise ValueError("CSV 沒有可匯入的交易明細。")
         batch.row_count=count
