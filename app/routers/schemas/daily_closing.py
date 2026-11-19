@@ -22,6 +22,7 @@ class DailyClosingPaymentSummaryRead(BaseModel):
     net_sales_amount: Decimal
     collected_amount: Decimal
     refunded_amount: Decimal
+    supplier_paid_amount: Decimal
     net_cash_flow: Decimal
 
 
