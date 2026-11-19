@@ -149,7 +149,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="actions"><button id="createSaleDraft" type="button">建立銷售草稿</button></div>
 <div id="saleStatus" class="status" role="status"></div>
 <div id="saleDraftResult"></div>
-<div class="actions hidden" id="saleDraftActions"><button id="completeSale" type="button">完成銷售並扣庫存</button><button class="secondary" id="voidSale" type="button">作廢草稿</button></div>
+<div class="actions hidden" id="saleDraftActions"><button id="completeSale" type="button">完成銷售並扣庫存</button><button class="secondary" id="voidSale" type="button">作廢草稿</button></div><div class="actions hidden" id="newSaleActions"><button id="newSale" type="button">開始下一筆銷售</button></div>
 </section>
 <section class="panel span2" id="dailyClosingPanel">
 <h2>每日結帳</h2>
@@ -477,7 +477,7 @@ function renderSaleCart(){
 }
 function renderSaleResult(sale){
  currentSale=sale;
- const lines=(sale.lines||[]).map(x=>'<article class="item"><strong>'+escapeHtml(x.product_code_snapshot||"商品")+' · '+escapeHtml(x.product_name_snapshot)+'</strong><span class="muted">商品金額：'+escapeHtml(x.subtotal)+' 元 · 刷卡手續費分攤：'+escapeHtml(x.card_fee)+' 元 · 本項應收：'+escapeHtml(x.final_amount)+' 元</span><span class="muted">本項刷卡手續費：'+escapeHtml(x.card_fee)+' 元</span></article>').join("");
+ const lines=(sale.lines||[]).map(x=>'<article class="item"><strong>'+escapeHtml(x.product_code_snapshot||"商品")+' · '+escapeHtml(x.product_name_snapshot)+'</strong><span class="muted">商品金額：'+escapeHtml(x.subtotal)+' 元 · 刷卡手續費分攤：'+escapeHtml(x.card_fee)+' 元 · 本項應收：'+escapeHtml(x.final_amount)+' 元</span></article>').join("");
  $("saleDraftResult").innerHTML='<article class="item"><strong>銷售單 '+escapeHtml(sale.sale_no)+' · '+escapeHtml(sale.status)+'</strong><span class="muted">商品總額：'+escapeHtml(sale.subtotal)+' 元</span><span class="muted">刷卡本金：'+escapeHtml(sale.card_amount)+' 元 · 刷卡手續費（5%）：'+escapeHtml(sale.card_fee)+' 元</span><span class="muted">現金本金：'+escapeHtml(sale.cash_amount)+' 元</span><span class="pill">顧客應付總額：'+escapeHtml(sale.final_amount)+' 元</span></article>'+lines;
  const isDraft=sale.status==="DRAFT";
  $("saleDraftActions").classList.toggle("hidden",!isDraft);
@@ -500,10 +500,10 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;saleCartLines=[];currentSale=null;renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;saleCartLines=[];currentSale=null;renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -673,7 +673,8 @@ $("completeSale").addEventListener("click",async()=>{
  try{
   const sale=await api("/companies/"+companyId+"/sales/"+currentSale.id+"/complete",{method:"POST"});
   renderSaleResult(sale);
-  $("saleDraftActions").classList.add("hidden");
+  $("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
+  $("newSaleActions").classList.remove("hidden");
   message("saleStatus","銷售已完成，庫存已扣除。");
   try{await loadInventoryOptions();}catch(refreshError){message("globalStatus","銷售已完成，但庫存畫面重新載入失敗："+refreshError.message,true);}
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
@@ -684,8 +685,9 @@ $("voidSale").addEventListener("click",async()=>{
  try{
   await api("/companies/"+companyId+"/sales/"+currentSale.id+"/void",{method:"POST"});
   message("saleStatus","銷售草稿已作廢，未扣除庫存。");
-  currentSale=null;saleCartLines=[];renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");
+  currentSale=null;saleCartLines=[];renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
   $("saleHeaderForm").reset();$("saleCardAmount").disabled=true;
+$("newSale").addEventListener("click",()=>{currentSale=null;saleCartLines=[];renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("saleHeaderForm").reset();$("saleCardAmount").disabled=true;$("saleBarcodeScan").value="";message("saleStatus","可開始下一筆銷售。");});
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
 $("saleCardAmount").disabled=true;
