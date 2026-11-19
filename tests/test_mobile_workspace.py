@@ -28,6 +28,10 @@ def test_mobile_workspace_serves_html():
     assert 'id="salePaymentForm"' in response.text
     assert 'id="actualPaymentMethod"' in response.text
     assert 'id="salePaymentList"' in response.text
+    assert 'id="supplierPayablesPanel"' in response.text
+    assert 'id="supplierForm"' in response.text
+    assert 'id="supplierBillForm"' in response.text
+    assert 'id="supplierPaymentForm"' in response.text
     assert 'id="salesHistoryPanel"' in response.text
     assert 'id="salesHistoryQuery"' in response.text
     assert 'id="salesHistoryState"' in response.text
