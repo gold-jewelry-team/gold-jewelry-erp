@@ -15,6 +15,8 @@
 - 銷售訂單與逐商品成交價格快照
 - 商品分類、單件商品主檔與公司內唯一商品編號／條碼
 - 庫存異動流水：進貨、銷售、調撥、調整、退貨及送修／維修返還
+- 供應商主檔、採購單、採購明細、送出／取消及部分到貨驗收 API
+- 驗收成功才建立入庫流水；部分到貨按比例分配重量，最後一批吸收精度尾差
 
 ## 資料模型與 Migration
 Alembic 版本鏈：
@@ -22,6 +24,7 @@ Alembic 版本鏈：
 2. `0002_gold_prices`：金價歷史
 3. `0003_sales_snapshots`：銷售訂單及成交快照
 4. `0004_products_inventory`：商品分類、商品主檔及庫存異動流水
+5. `0005_suppliers_purchasing`：供應商、採購單及採購明細
 
 以上僅代表程式碼與 Migration 檔案已建立；**尚未建立正式 Neon 資料庫，也尚未對任何正式資料庫執行 Migration**。
 
@@ -40,9 +43,16 @@ Alembic 版本鏈：
 3. 啟動：`uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`
 4. 開啟 `/docs` 查看 API。
 
+## API
+- `GET/POST /companies/{company_id}/suppliers`：供應商查詢與新增
+- `GET/PATCH /companies/{company_id}/suppliers/{supplier_id}`：供應商明細與更新
+- `POST /companies/{company_id}/suppliers/{supplier_id}/deactivate`：停用供應商
+- `GET/POST /companies/{company_id}/purchases`：採購單查詢與建立
+- `GET /companies/{company_id}/purchases/{purchase_id}`：採購單明細
+- `POST .../{purchase_id}/submit|cancel|receive`：送出、取消及驗收入庫
+
 ## 尚待開發
-- 商品與儲存位置歸屬驗證、庫存查詢與異動 API
-- 廠商、採購單、到貨驗收及進貨入庫
+- 商品與儲存位置歸屬驗證、完整庫存查詢與異動 API
 - 銷售結帳流程與庫存扣帳的原子性交易
 - 退貨、盤點、差異調整、送修流程
 - 權限、稽核、報表、備份與復原測試
