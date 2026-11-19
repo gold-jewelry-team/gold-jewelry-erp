@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_operating_expenses():
+def test_alembic_history_is_a_single_linear_chain_through_daily_cash_counts():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0011_operating_expenses"]
+    assert script.get_heads() == ["0012_daily_cash_counts"]
 
     expected = [
+        "0012_daily_cash_counts",
         "0011_operating_expenses",
         "0010_supplier_payables",
         "0009_payment_transactions",
