@@ -38,6 +38,7 @@ class PurchaseLine(Base):
         CheckConstraint("quantity > 0", name="ck_purchase_lines_quantity_positive"),
         CheckConstraint("received_quantity >= 0 AND received_quantity <= quantity", name="ck_purchase_lines_received_quantity"),
         CheckConstraint("unit_cost >= 0", name="ck_purchase_lines_unit_cost_nonnegative"),
+        CheckConstraint("cost_labor_fee >= 0", name="ck_purchase_lines_cost_labor_fee_nonnegative"),
         CheckConstraint("weight IS NULL OR weight >= 0", name="ck_purchase_lines_weight_nonnegative"),
     )
 
@@ -49,6 +50,7 @@ class PurchaseLine(Base):
     weight: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
     weight_unit_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     unit_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
+    cost_labor_fee: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"), server_default="0")
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 

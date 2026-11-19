@@ -61,11 +61,12 @@ def test_supplier_purchase_submit_and_receive_api():
             "purchase_no": "PO-API-001", "order_date": date.today().isoformat(),
             "currency_code": "TWD",
             "lines": [{"product_id": str(product_id), "quantity": "2",
-                       "weight": "1.1", "weight_unit_code": "QIAN", "unit_cost": "12000"}],
+                       "weight": "1.1", "weight_unit_code": "QIAN", "unit_cost": "12000", "cost_labor_fee": "350"}],
         })
         assert purchase_response.status_code == 201, purchase_response.text
         purchase = purchase_response.json()
         assert purchase["status"] == "DRAFT"
+        assert purchase["lines"][0]["cost_labor_fee"] == "350.00"
 
         listed = client.get(
             f"/companies/{company_id}/purchases",
