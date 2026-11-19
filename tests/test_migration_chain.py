@@ -11,7 +11,7 @@ def test_alembic_history_is_a_single_linear_chain_through_card_tender():
         "0007_sales_returns",
         "0006_sales_inventory_links",
         "0005_suppliers_purchasing",
-        "0004_products_inventory_ledger",
+        "0004_products_inventory",
         "0003_sales_snapshots",
         "0002_gold_prices",
         "0001_core",
