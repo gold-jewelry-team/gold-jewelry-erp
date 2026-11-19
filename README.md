@@ -64,3 +64,15 @@ Alembic 版本鏈：
 
 ## 資源與上線安全
 不會在未經確認前建立 Neon／Render 付費資源、部署正式服務或執行正式資料庫 Migration。正式上線前仍須完成完整測試、資料庫演練、權限與資安檢查。
+
+
+### Sales API
+
+Sales are created as drafts with server-calculated prices and immutable product / gold-price snapshots. The backend requires an effective BUY and SELL gold price at the time of creation, and the price unit must match the product weight unit.
+
+- `POST /companies/{company_id}/sales` — create a priced draft; each line identifies one individually tracked product and its source storage location.
+- `GET /companies/{company_id}/sales/{sale_id}` — read the sale and its snapshots.
+- `POST /companies/{company_id}/sales/{sale_id}/complete` — atomically append one SALE inventory movement per line and complete the sale.
+- `POST /companies/{company_id}/sales/{sale_id}/void` — void a draft only. Completed sales must use a future return workflow.
+
+The sale-line inventory references are nullable at the database level for historical compatibility, but the sales API requires both product and source location. A sale cannot complete twice; stock insufficiency rolls back the whole completion transaction.
