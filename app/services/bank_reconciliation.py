@@ -119,3 +119,55 @@ def ignore_statement_line(session: Session, *, company_id: UUID, line_id: UUID) 
     line.status="IGNORED"
     session.flush()
     return line
+
+
+def create_statement_adjustment(session: Session, *, company_id: UUID, import_id: UUID,
+    line_id: UUID, transaction_type: str, created_by_name: str, reason: str,
+    occurred_at: datetime | None = None) -> BankTransaction:
+    """Create an append-only bank ledger adjustment linked to one unmatched statement line."""
+    actor=created_by_name.strip()
+    memo=reason.strip()
+    if not actor:
+        raise ValueError("調整人不可空白。")
+    if not memo:
+        raise ValueError("調整原因不可空白。")
+    if transaction_type not in {"BANK_FEE","INTEREST_IN","OTHER_ADJUSTMENT"}:
+        raise ValueError("不支援的銀行調整類型。")
+    line=session.execute(select(BankStatementLine).where(
+        BankStatementLine.id==line_id,
+        BankStatementLine.import_id==import_id,
+        BankStatementLine.company_id==company_id
+    ).with_for_update()).scalar_one_or_none()
+    if line is None:
+        raise ValueError("對帳單明細不存在或不屬於此匯入批次。")
+    if line.status!="UNMATCHED":
+        raise ValueError("只有未配對明細可以建立調整流水。")
+    account=session.execute(select(BankAccount).where(
+        BankAccount.id==line.bank_account_id,
+        BankAccount.company_id==company_id
+    ).with_for_update()).scalar_one_or_none()
+    if account is None or not account.is_active:
+        raise ValueError("銀行帳戶不存在或已停用。")
+    if transaction_type=="BANK_FEE" and line.direction!="OUT":
+        raise ValueError("銀行手續費必須是支出明細。")
+    if transaction_type=="INTEREST_IN" and line.direction!="IN":
+        raise ValueError("銀行利息收入必須是收入明細。")
+    existing=session.execute(select(BankTransaction.id).where(
+        BankTransaction.statement_line_id==line.id)).scalar_one_or_none()
+    if existing:
+        raise ValueError("此對帳單明細已建立調整流水。")
+    tx=BankTransaction(
+        company_id=company_id,bank_account_id=line.bank_account_id,site_id=None,
+        statement_line_id=line.id,transaction_type=transaction_type,
+        direction=line.direction,amount=line.amount,currency_code="TWD",
+        reference_no=line.reference_no,description=line.description[:200],
+        created_by_name=actor,occurred_at=occurred_at or datetime.combine(
+            line.transaction_date,datetime.min.time(),tzinfo=TAIPEI),
+        note=memo
+    )
+    session.add(tx)
+    session.flush()
+    line.status="MATCHED"
+    line.matched_bank_transaction_id=tx.id
+    session.flush()
+    return tx

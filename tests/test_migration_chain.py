@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_bank_reconciliation_snapshots():
+def test_alembic_history_is_a_single_linear_chain_through_bank_reconciliation_adjustments():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0016_bank_reconciliation_snapshots"]
+    assert script.get_heads() == ["0017_bank_reconciliation_adjustments"]
 
     expected = [
+        "0017_bank_reconciliation_adjustments",
         "0016_bank_reconciliation_snapshots",
         "0015_bank_statement_reconciliation",
         "0014_bank_accounts_ledger",
