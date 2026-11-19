@@ -339,8 +339,8 @@ def test_import_rejects_duplicate_links_outside_company_or_account_scope(scope):
     db.commit()
 
     csv_content = (
-        "transaction_date,description,amount,direction,reference_no\\n"
-        "2026-11-19,跨範圍測試,9.00,IN,SCOPE-001\\n"
+        "transaction_date,description,amount,direction,reference_no\n"
+        "2026-11-19,跨範圍測試,9.00,IN,SCOPE-001\n"
     )
     with pytest.raises(ValueError, match="跨越公司或銀行帳戶"):
         import_bank_statement_csv(
