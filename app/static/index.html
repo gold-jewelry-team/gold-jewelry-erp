@@ -99,6 +99,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 const $=id=>document.getElementById(id);
 let companyId="";
 let selectedSiteId="";
+let categoryNames=new Map();
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -134,6 +135,7 @@ async function loadCategories(){
  $("productCategory").innerHTML='<option value="">未分類</option>';
  if(!companyId)return;
  const rows=await api("/companies/"+companyId+"/product-categories");
+ categoryNames=new Map(rows.map(x=>[x.id,x.name+"（"+x.code+"）"]));
  const opts=rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("parentCategory").insertAdjacentHTML("beforeend",opts);
  $("productCategory").insertAdjacentHTML("beforeend",opts);
@@ -150,7 +152,7 @@ async function loadProducts(){
  box.innerHTML='<div class="empty">載入中…</div>';
  const q=$("search").value.trim();
  const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
- box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(x.category_id||"未分類")+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span></article>').join(""):'<div class="empty">尚無符合條件的商品</div>';
+ box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
 $("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
