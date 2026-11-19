@@ -68,6 +68,10 @@ def test_bank_transfers_update_drawer_balance_but_not_operating_cash_flow():
         assert withdrawal.status_code == 201, withdrawal.text
         assert withdrawal.json()["direction"] == "IN"
 
+        listed_movements = client.get(movement_url)
+        assert listed_movements.status_code == 200, listed_movements.text
+        assert len(listed_movements.json()) == 2
+
         business_date = datetime.now(timezone.utc).astimezone(
             ZoneInfo("Asia/Taipei")
         ).date()
