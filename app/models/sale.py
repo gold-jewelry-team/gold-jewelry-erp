@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
-    CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, func
+    CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, UniqueConstraint, func
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,6 +18,7 @@ class Sale(Base):
         CheckConstraint("payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')", name="ck_sales_payment_method"),
         CheckConstraint("length(currency_code) = 3", name="ck_sales_currency_code_length"),
         Index("ix_sales_company_site_created", "company_id", "site_id", "created_at"),
+        UniqueConstraint("site_id", "sale_no", name="uq_sales_site_sale_no"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -47,6 +48,7 @@ class SaleLine(Base):
         CheckConstraint("trade_in_ratio IS NULL OR (trade_in_ratio > 0 AND trade_in_ratio <= 1)", name="ck_sale_lines_trade_in_ratio"),
         CheckConstraint("currency_code IS NULL OR length(currency_code) = 3", name="ck_sale_lines_currency_code_length"),
         Index("ix_sale_lines_sale_id", "sale_id"),
+        UniqueConstraint("sale_id", "line_no", name="uq_sale_lines_sale_line_no"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
