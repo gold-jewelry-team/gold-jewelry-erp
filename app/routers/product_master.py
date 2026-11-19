@@ -126,7 +126,6 @@ def create_product(
     if payload.net_weight > payload.gross_weight:
         raise HTTPException(status_code=422, detail="淨重不可大於總重。")
     product = Product(company_id=company_id, **payload.model_dump())
-    db.add(product)
     # Manual codes also advance the shared company sequence when they end in -digits.
     sequence = db.scalar(
         select(ProductCodeSequence)
@@ -147,6 +146,7 @@ def create_product(
             raise HTTPException(status_code=409, detail="此流水號已被其他商品使用，請使用下一個未使用號碼。")
         if sequence is not None:
             sequence.next_number = max(sequence.next_number, numeric_suffix + 1)
+    db.add(product)
     try:
         db.commit()
         db.refresh(product)
