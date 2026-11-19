@@ -4,12 +4,12 @@ from alembic.script import ScriptDirectory
 
 def test_alembic_history_is_a_single_linear_chain_through_bank_reconciliation_adjustments():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0017_bank_reconciliation_adjustments"]
+    assert script.get_heads() == ["0017_bank_recon_adjustments"]
 
     expected = [
-        "0017_bank_reconciliation_adjustments",
-        "0016_bank_reconciliation_snapshots",
-        "0015_bank_statement_reconciliation",
+        "0017_bank_recon_adjustments",
+        "0016_bank_recon_snapshots",
+        "0015_bank_stmt_reconcile",
         "0014_bank_accounts_ledger",
         "0013_cash_drawer_movements",
         "0012_daily_cash_counts",
