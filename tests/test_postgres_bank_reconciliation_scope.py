@@ -122,8 +122,8 @@ def test_postgres_rejects_cross_scope_duplicate_chain(scope):
         db.flush()
 
         csv_content = (
-            "transaction_date,description,amount,direction,reference_no\\n"
-            "2026-11-19,PostgreSQL scope,9.00,IN,PG-SCOPE-001\\n"
+            "transaction_date,description,amount,direction,reference_no\n"
+            "2026-11-19,PostgreSQL scope,9.00,IN,PG-SCOPE-001\n"
         )
         with pytest.raises(ValueError, match="跨越公司或銀行帳戶"):
             import_bank_statement_csv(
