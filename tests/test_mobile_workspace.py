@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
+# Rebased on the current receipt-lot API and product-label schema.
 def test_mobile_workspace_serves_html():
     response = TestClient(app).get("/app")
     assert response.status_code == 200
