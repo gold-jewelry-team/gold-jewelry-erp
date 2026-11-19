@@ -1,7 +1,7 @@
 import re
 from uuid import UUID
 
-from io import StringIO
+from io import BytesIO
 
 import segno
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -248,10 +248,10 @@ def product_qr_label(company_id: UUID, product_id: UUID, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="找不到指定商品。")
     payload = (product.barcode or product.product_code).strip()
     qr = segno.make_qr(payload, error="m")
-    output = StringIO()
+    output = BytesIO()
     qr.save(output, kind="svg", xmldecl=False, svgns=True, scale=5, border=2)
     return Response(
-        content=output.getvalue(),
+        content=output.getvalue().decode("utf-8"),
         media_type="image/svg+xml",
         headers={"Cache-Control": "private, max-age=300"},
     )
