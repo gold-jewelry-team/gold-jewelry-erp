@@ -13,7 +13,7 @@ from app.models.company import Company
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.models.product import Product
-from app.routers import purchases, suppliers
+from app.routers import product_master, purchases, suppliers
 
 
 def test_supplier_purchase_submit_and_receive_api():
@@ -49,6 +49,7 @@ def test_supplier_purchase_submit_and_receive_api():
     app.dependency_overrides.clear()
     app.dependency_overrides[suppliers.get_db] = override_db
     app.dependency_overrides[purchases.get_db] = override_db
+    app.dependency_overrides[product_master.get_db] = override_db
     try:
         client = TestClient(app)
         supplier_response = client.post(f"/companies/{company_id}/suppliers",
@@ -86,6 +87,19 @@ def test_supplier_purchase_submit_and_receive_api():
         })
         assert received.status_code == 200, received.text
         assert received.json()["status"] == "RECEIVED"
+
+        label_lots = client.get(f"/companies/{company_id}/products/{product_id}/label-lots")
+        assert label_lots.status_code == 200, label_lots.text
+        assert len(label_lots.json()) == 1
+        lot = label_lots.json()[0]
+        assert lot["purchase_no"] == "PO-API-001"
+        assert lot["supplier_code"] == "SUP-API"
+        assert lot["supplier_name"] == "測試供應商"
+        assert lot["location_code"] == "SAFE"
+        assert lot["location_name"] == "保險櫃"
+        assert lot["received_quantity"] == "2.000"
+        assert lot["cost_labor_fee"] == "350.00"
+        assert lot["currency_code"] == "TWD"
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
