@@ -5,7 +5,7 @@ import io
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 from decimal import Decimal, InvalidOperation
-from uuid import UUID
+from uuid import UUID, uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.models.bank_account import BankAccount, BankTransaction
@@ -39,6 +39,10 @@ def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_accoun
             status="IMPORTED",imported_by_name=actor)
         session.add(batch); session.flush()
         count=0
+        # autoflush is disabled for request sessions, so keep this batch's
+        # fingerprints and matched ledger IDs in memory while parsing.
+        seen_fingerprints: dict[str, UUID] = {}
+        matched_transaction_ids: set[UUID] = set()
         for raw in reader:
             row={str(k).strip(): (v or "").strip() for k,v in raw.items() if k is not None}
             try:
@@ -52,15 +56,20 @@ def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_accoun
             if direction not in {"IN","OUT"} or amount<=0 or amount.quantize(Decimal("0.01"))!=amount or not description:
                 raise ValueError("CSV 每筆明細必須有正數兩位小數金額、IN/OUT 方向及交易摘要。")
             fingerprint=_fingerprint(day,description,amount,direction,reference)
-            duplicate=session.execute(select(BankStatementLine).where(
-                BankStatementLine.bank_account_id==bank_account_id,
-                BankStatementLine.fingerprint==fingerprint)).scalar_one_or_none()
-            line=BankStatementLine(import_id=batch.id,company_id=company_id,bank_account_id=bank_account_id,
-                transaction_date=day,description=description,amount=amount,direction=direction,
-                reference_no=reference,fingerprint=fingerprint,
-                status="DUPLICATE" if duplicate else "UNMATCHED",
-                duplicate_of_line_id=duplicate.id if duplicate else None)
-            if not duplicate and reference:
+            line_id=uuid4()
+            duplicate_id=seen_fingerprints.get(fingerprint)
+            if duplicate_id is None:
+                duplicate=session.execute(select(BankStatementLine).where(
+                    BankStatementLine.bank_account_id==bank_account_id,
+                    BankStatementLine.fingerprint==fingerprint
+                ).order_by(BankStatementLine.created_at, BankStatementLine.id).limit(1)).scalar_one_or_none()
+                duplicate_id=duplicate.id if duplicate else None
+            line=BankStatementLine(id=line_id,import_id=batch.id,company_id=company_id,
+                bank_account_id=bank_account_id,transaction_date=day,description=description,
+                amount=amount,direction=direction,reference_no=reference,fingerprint=fingerprint,
+                status="DUPLICATE" if duplicate_id else "UNMATCHED",
+                duplicate_of_line_id=duplicate_id)
+            if not duplicate_id and reference:
                 candidates=list(session.scalars(select(BankTransaction).where(
                     BankTransaction.company_id==company_id,
                     BankTransaction.bank_account_id==bank_account_id,
@@ -73,10 +82,15 @@ def import_bank_statement_csv(session: Session, *, company_id: UUID, bank_accoun
                         BankStatementLine.matched_bank_transaction_id.is_not(None))
                     )
                 )).all())
+                candidates=[candidate for candidate in candidates
+                    if candidate.id not in matched_transaction_ids]
                 if len(candidates)==1:
                     line.status="MATCHED"
                     line.matched_bank_transaction_id=candidates[0].id
-            session.add(line); count+=1
+                    matched_transaction_ids.add(candidates[0].id)
+            session.add(line)
+            seen_fingerprints.setdefault(fingerprint,line_id)
+            count+=1
         if count==0: raise ValueError("CSV 沒有可匯入的交易明細。")
         batch.row_count=count
         session.flush()
