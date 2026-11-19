@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_payment_transactions():
+def test_alembic_history_is_a_single_linear_chain_through_supplier_payables():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0009_payment_transactions"]
+    assert script.get_heads() == ["0010_supplier_payables"]
 
     expected = [
+        "0010_supplier_payables",
         "0009_payment_transactions",
         "0008_daily_closing",
         "0007_sales_returns",

@@ -94,7 +94,7 @@ The signed `settlement_reversal_amount` is the opposite of the original sale-lin
 - `GET /companies/{company_id}/sites/{site_id}/daily-closings` — list closing snapshots; optional `from_date` and `to_date` filters.
 - `GET /companies/{company_id}/sites/{site_id}/daily-closings/{closing_id}` — retrieve the snapshot and payment-method summaries.
 
-The snapshot includes completed sales, returns created on that business date, signed net sales by the original sale's payment method, and actual collections/refunds recorded on that business date. The business-day boundary is Asia/Taipei. A site may be closed only once per date. Once closed, new sale completions and returns for that business date are blocked to keep the snapshot stable.
+The snapshot includes completed sales, returns created on that business date, signed net sales by the original sale's payment method, and actual collections, customer refunds, and supplier disbursements recorded on that business date. The business-day boundary is Asia/Taipei. A site may be closed only once per date. Once closed, new sale completions and returns for that business date are blocked to keep the snapshot stable.
 
 This is an operational sales/return summary, not a cash count, bank reconciliation, or proof that a card/bank settlement has arrived. Actual tender collection, cash drawer variance, refund execution, and bank settlement matching remain separate finance workflows. There is no reopen or edit endpoint in this phase; corrections require a controlled adjustment workflow rather than changing a historical snapshot.
 
@@ -108,4 +108,15 @@ This is an operational sales/return summary, not a cash count, bank reconciliati
 
 Payment transactions are append-only, positive-amount entries with direction `IN` or `OUT`. Sale obligations with a positive final amount are collected (`IN`); negative sale amounts are paid to the customer (`OUT`). For returns, the signed settlement reversal determines the direction. Partial payments are supported, and the API rejects amounts above the remaining obligation. Payment method can be CASH, CARD, TRANSFER, or OTHER.
 
-Daily closing now separately reports expected sales/return totals and actual collections, refunds, and net cash flow by payment method. A recorded payment uses the actual payment date in Asia/Taipei for closing. This ledger records payment events but does not yet connect to a bank, card acquirer, or payment gateway. Payment entries are immutable; a controlled reversal/correction workflow is a later phase.
+Daily closing now separately reports expected sales/return totals and actual collections, refunds, and net cash flow by payment method, including supplier outflows. A recorded payment uses the actual payment date in Asia/Taipei for closing. This ledger records payment events but does not yet connect to a bank, card acquirer, or payment gateway. Payment entries are immutable; a controlled reversal/correction workflow is a later phase.
+
+
+### Supplier accounts payable
+
+- `POST /companies/{company_id}/supplier-payables/bills` — record a supplier invoice/bill with an explicitly entered amount; optionally link it to a purchase order.
+- `GET /companies/{company_id}/supplier-payables/bills` — list bills with paid/outstanding balances; filter by supplier, status, or due date.
+- `GET /companies/{company_id}/supplier-payables/bills/{bill_id}` — retrieve a bill.
+- `POST /companies/{company_id}/supplier-payables/payments` — record one supplier disbursement allocated across one or more bills.
+- `GET /companies/{company_id}/supplier-payables/payments` and `GET /companies/{company_id}/supplier-payables/payments/{payment_id}` — list or retrieve supplier disbursements.
+
+Supplier invoice amounts are entered explicitly and are not inferred from purchase-line unit costs, because the current purchase-line cost basis has not yet been formalized as a universal payable formula. Payments support partial settlement and multi-bill allocation, reject overpayment and mixed currencies, and are included as supplier cash outflows in daily closing. Supplier payment entries are append-only; correction/reversal workflow is a later phase.

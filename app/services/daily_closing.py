@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
 from app.models.payment_transaction import PaymentTransaction
+from app.models.supplier_payable import SupplierPayment
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
@@ -102,6 +103,7 @@ def create_daily_closing(
         "return_reversal_amount": ZERO,
         "collected_amount": ZERO,
         "refunded_amount": ZERO,
+        "supplier_paid_amount": ZERO,
     })
     for sale in sales:
         bucket = totals[sale.payment_method]
@@ -133,8 +135,20 @@ def create_daily_closing(
         else:
             bucket["refunded_amount"] += payment.amount
 
+    supplier_payments = list(session.scalars(
+        select(SupplierPayment).where(
+            SupplierPayment.company_id == company_id,
+            SupplierPayment.site_id == site_id,
+            SupplierPayment.paid_at >= start_at,
+            SupplierPayment.paid_at < end_at,
+        )
+    ).all())
+    for payment in supplier_payments:
+        totals[payment.payment_method]["supplier_paid_amount"] += payment.total_amount
+
     total_collected = sum((p.amount for p in payments if p.direction == "IN"), ZERO)
     total_refunded = sum((p.amount for p in payments if p.direction == "OUT"), ZERO)
+    total_supplier_paid = sum((p.total_amount for p in supplier_payments), ZERO)
 
     closing = DailyClosing(
         company_id=company_id,
@@ -155,7 +169,8 @@ def create_daily_closing(
         ),
         collected_amount=total_collected,
         refunded_amount=total_refunded,
-        net_cash_flow=total_collected - total_refunded,
+        supplier_paid_amount=total_supplier_paid,
+        net_cash_flow=total_collected - total_refunded - total_supplier_paid,
         note=note,
     )
     session.add(closing)
@@ -177,7 +192,12 @@ def create_daily_closing(
             net_sales_amount=sales_amount + reversal_amount,
             collected_amount=bucket["collected_amount"],
             refunded_amount=bucket["refunded_amount"],
-            net_cash_flow=bucket["collected_amount"] - bucket["refunded_amount"],
+            supplier_paid_amount=bucket["supplier_paid_amount"],
+            net_cash_flow=(
+                bucket["collected_amount"]
+                - bucket["refunded_amount"]
+                - bucket["supplier_paid_amount"]
+            ),
         ))
     session.flush()
     return closing
