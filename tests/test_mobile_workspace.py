@@ -17,5 +17,8 @@ def test_mobile_workspace_serves_html():
     assert 'id="goldPricePanel"' in response.text
     assert 'id="goldPriceForm"' in response.text
     assert 'id="goldPriceScope"' in response.text
+    assert 'id="dailyClosingForm"' in response.text
+    assert 'id="cashCountCreateForm"' in response.text
+    assert 'id="cashCountReviewForm"' in response.text
     assert 'id="productEditForm"' in response.text
     assert 'data-edit-product="' in response.text
