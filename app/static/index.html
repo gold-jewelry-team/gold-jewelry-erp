@@ -450,10 +450,10 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -549,6 +549,60 @@ $("productEditForm").addEventListener("submit",async event=>{
  }catch(error){
   message("productEditStatus",error.message,true);
  }finally{saveButton.disabled=false;}
+});
+$("closingBusinessDate").value=taipeiDateValue();
+$("closingBusinessDate").max=taipeiDateValue();
+$("closingFromDate").value=taipeiDateValue(-30);
+$("closingToDate").value=taipeiDateValue();
+$("closingToDate").max=taipeiDateValue();
+$("refreshDailyClosings").addEventListener("click",()=>loadDailyClosings().catch(e=>message("dailyClosingStatus",e.message,true)));
+$("dailyClosingList").addEventListener("click",async event=>{
+ const button=event.target.closest("[data-select-closing]");
+ if(!button)return;
+ const closing=dailyClosingsById.get(button.dataset.selectClosing);
+ if(closing){try{await openCashCount(closing);}catch(error){message("cashCountStatus",error.message,true);}}
+});
+$("dailyClosingForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!selectedSiteId){message("dailyClosingStatus","請先選擇公司與據點。",true);return;}
+ const payload={business_date:$("closingBusinessDate").value,note:$("closingNote").value.trim()||null};
+ const button=$("dailyClosingForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  const closing=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/daily-closings",{method:"POST",body:JSON.stringify(payload)});
+  $("closingNote").value="";
+  message("dailyClosingStatus","每日結帳已建立，歷史快照不會被覆寫。");
+  try{await loadDailyClosings();}catch(refreshError){message("globalStatus","結帳已建立，但清單重新載入失敗："+refreshError.message,true);}
+  try{await openCashCount(closing);}catch(countError){message("cashCountStatus",countError.message,true);}
+ }catch(error){message("dailyClosingStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("cashCountCreateForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!selectedClosing){message("cashCountStatus","請先選擇結帳紀錄。",true);return;}
+ const payload={opening_cash_float:$("openingCashFloat").value,counted_cash_amount:$("countedCashAmount").value,counted_by_name:$("countedByName").value.trim(),count_note:$("countNote").value.trim()||null};
+ const button=$("cashCountCreateForm").querySelector('button[type="submit"]');button.disabled=true;
+ const url="/companies/"+companyId+"/sites/"+selectedSiteId+"/daily-closings/"+selectedClosing.id+"/cash-count";
+ try{
+  const row=await api(url,{method:"POST",body:JSON.stringify(payload)});
+  message("cashCountStatus","現金盤點已儲存，請由不同人員覆核。");
+  renderCashCount(row);
+  try{await loadCashCount();}catch(refreshError){message("globalStatus","盤點已儲存，但畫面重新載入失敗："+refreshError.message,true);}
+ }catch(error){message("cashCountStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("cashCountReviewForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!selectedClosing){message("cashCountStatus","請先選擇結帳紀錄。",true);return;}
+ const payload={reviewed_by_name:$("reviewedByName").value.trim(),review_note:$("reviewNote").value.trim()||null};
+ const button=$("cashCountReviewForm").querySelector('button[type="submit"]');button.disabled=true;
+ const base="/companies/"+companyId+"/sites/"+selectedSiteId+"/daily-closings/"+selectedClosing.id+"/cash-count";
+ try{
+  const current=await api(base);
+  const row=await api(base+"/"+current.id+"/review",{method:"POST",body:JSON.stringify(payload)});
+  message("cashCountStatus","現金盤點覆核完成。");
+  renderCashCount(row);
+ }catch(error){message("cashCountStatus",error.message,true);}
+ finally{button.disabled=false;}
 });
 $("goldPriceEffectiveAt").value=taipeiDateTimeLocalValue();
 $("refreshGoldPrices").addEventListener("click",()=>loadGoldPrices().catch(e=>message("globalStatus",e.message,true)));
