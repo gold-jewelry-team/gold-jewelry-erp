@@ -14,6 +14,7 @@ from app.models.supplier_payable import SupplierPayment
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
+from app.models.operating_expense import OperatingExpense
 
 BUSINESS_TIMEZONE = ZoneInfo("Asia/Taipei")
 ZERO = Decimal("0")
@@ -104,6 +105,7 @@ def create_daily_closing(
         "collected_amount": ZERO,
         "refunded_amount": ZERO,
         "supplier_paid_amount": ZERO,
+        "expenses_paid_amount": ZERO,
     })
     for sale in sales:
         bucket = totals[sale.payment_method]
@@ -146,9 +148,22 @@ def create_daily_closing(
     for payment in supplier_payments:
         totals[payment.payment_method]["supplier_paid_amount"] += payment.total_amount
 
+    expenses = list(session.scalars(
+        select(OperatingExpense).where(
+            OperatingExpense.company_id == company_id,
+            OperatingExpense.site_id == site_id,
+            OperatingExpense.status == "PAID",
+            OperatingExpense.paid_at >= start_at,
+            OperatingExpense.paid_at < end_at,
+        )
+    ).all())
+    for expense in expenses:
+        totals[expense.payment_method]["expenses_paid_amount"] += expense.amount
+
     total_collected = sum((p.amount for p in payments if p.direction == "IN"), ZERO)
     total_refunded = sum((p.amount for p in payments if p.direction == "OUT"), ZERO)
     total_supplier_paid = sum((p.total_amount for p in supplier_payments), ZERO)
+    total_expenses_paid = sum((e.amount for e in expenses), ZERO)
 
     closing = DailyClosing(
         company_id=company_id,
@@ -170,7 +185,8 @@ def create_daily_closing(
         collected_amount=total_collected,
         refunded_amount=total_refunded,
         supplier_paid_amount=total_supplier_paid,
-        net_cash_flow=total_collected - total_refunded - total_supplier_paid,
+        expenses_paid_amount=total_expenses_paid,
+        net_cash_flow=total_collected - total_refunded - total_supplier_paid - total_expenses_paid,
         note=note,
     )
     session.add(closing)
@@ -193,10 +209,12 @@ def create_daily_closing(
             collected_amount=bucket["collected_amount"],
             refunded_amount=bucket["refunded_amount"],
             supplier_paid_amount=bucket["supplier_paid_amount"],
+            expenses_paid_amount=bucket["expenses_paid_amount"],
             net_cash_flow=(
                 bucket["collected_amount"]
                 - bucket["refunded_amount"]
                 - bucket["supplier_paid_amount"]
+                - bucket["expenses_paid_amount"]
             ),
         ))
     session.flush()
