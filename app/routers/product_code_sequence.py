@@ -101,7 +101,7 @@ def generate_product_code(
         for code, in db.query(Product.product_code).filter(
             Product.company_id == company_id
         ).all()
-        if (match := re.search(r"-(\\d+)$", code))
+        if (match := re.search(r"-(\d+)$", code))
     }
     while sequence.next_number in used_numbers:
         sequence.next_number += 1
