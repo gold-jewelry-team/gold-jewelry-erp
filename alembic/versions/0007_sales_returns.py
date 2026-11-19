@@ -52,7 +52,7 @@ def upgrade() -> None:
         sa.Column("product_name_snapshot", sa.String(length=200), nullable=False),
         sa.Column("net_weight", sa.Numeric(18, 4), nullable=False),
         sa.Column("weight_unit_code", sa.String(length=20), nullable=False),
-        sa.Column("refund_amount", sa.Numeric(18, 2), nullable=False),
+        sa.Column("settlement_reversal_amount", sa.Numeric(18, 2), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["return_id"], ["sale_returns.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["sale_line_id"], ["sale_lines.id"], ondelete="RESTRICT"),
