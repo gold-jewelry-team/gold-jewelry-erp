@@ -1,3 +1,4 @@
+import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.company import Company
 from app.models.product import Product, ProductCategory
+from app.models.product_code_sequence import ProductCodeSequence
 from app.routers.schemas.product_master import (
     ProductCategoryCreate, ProductCategoryRead, ProductCreate,
     ProductRead, ProductUpdate,
@@ -125,6 +127,15 @@ def create_product(
         raise HTTPException(status_code=422, detail="淨重不可大於總重。")
     product = Product(company_id=company_id, **payload.model_dump())
     db.add(product)
+    # Manual codes also advance the shared company sequence when they end in -digits.
+    sequence = db.scalar(
+        select(ProductCodeSequence)
+        .where(ProductCodeSequence.company_id == company_id)
+        .with_for_update()
+    )
+    match = re.search(r"-(\\d+)$", product.product_code)
+    if sequence is not None and match:
+        sequence.next_number = max(sequence.next_number, int(match.group(1)) + 1)
     try:
         db.commit()
         db.refresh(product)
