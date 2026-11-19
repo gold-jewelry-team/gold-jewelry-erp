@@ -8,17 +8,21 @@ import barcode as linear_barcode
 from barcode.writer import SVGWriter
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models.company import Company
+from app.models.inventory import InventoryMovement
+from app.models.purchase import Purchase, PurchaseLine
+from app.models.storage_location import StorageLocation
+from app.models.supplier import Supplier
 from app.models.product import Product, ProductCategory
 from app.models.product_code_sequence import ProductCodeSequence
 from app.routers.schemas.product_master import (
     ProductCategoryCreate, ProductCategoryRead, ProductCreate,
-    ProductRead, ProductUpdate,
+    ProductLabelDataRead, ProductRead, ProductUpdate,
 )
 
 router = APIRouter(tags=["product-master"])
@@ -237,6 +241,106 @@ def lookup_product_by_scan_code(
         raise HTTPException(status_code=404, detail="找不到此條碼／商品編號的有效商品。")
     return product
 
+
+
+@router.get(
+    "/companies/{company_id}/products/{product_id}/label-data",
+    response_model=ProductLabelDataRead,
+)
+def get_product_label_data(
+    company_id: UUID,
+    product_id: UUID,
+    db: Session = Depends(get_db),
+):
+    """Assemble label fields from product, latest received purchase and current stock."""
+    _require_company(db, company_id)
+    product = db.scalar(select(Product).where(
+        Product.id == product_id,
+        Product.company_id == company_id,
+    ))
+    if product is None:
+        raise HTTPException(status_code=404, detail="找不到指定商品。")
+
+    latest_receipt = db.execute(
+        select(PurchaseLine, Purchase, Supplier)
+        .join(Purchase, Purchase.id == PurchaseLine.purchase_id)
+        .join(Supplier, Supplier.id == Purchase.supplier_id)
+        .join(
+            InventoryMovement,
+            and_(
+                InventoryMovement.reference_type == "PURCHASE_LINE",
+                InventoryMovement.reference_id == PurchaseLine.id,
+                InventoryMovement.movement_type == "RECEIPT",
+                InventoryMovement.company_id == company_id,
+            ),
+        )
+        .where(
+            Purchase.company_id == company_id,
+            PurchaseLine.product_id == product_id,
+        )
+        .order_by(InventoryMovement.occurred_at.desc(), InventoryMovement.created_at.desc())
+        .limit(1)
+    ).first()
+
+    cost_labor_fee = None
+    supplier_code = None
+    supplier_name = None
+    purchase_date = None
+    if latest_receipt:
+        purchase_line, purchase, supplier = latest_receipt
+        cost_labor_fee = purchase_line.cost_labor_fee
+        supplier_code = supplier.code
+        supplier_name = supplier.name
+        purchase_date = purchase.order_date
+
+    balances: dict[UUID, Decimal] = {}
+    movements = db.scalars(select(InventoryMovement).where(
+        InventoryMovement.company_id == company_id,
+        InventoryMovement.product_id == product_id,
+    )).all()
+    for movement in movements:
+        if movement.to_location_id is not None:
+            balances[movement.to_location_id] = balances.get(
+                movement.to_location_id, Decimal("0")
+            ) + movement.quantity
+        if movement.from_location_id is not None:
+            balances[movement.from_location_id] = balances.get(
+                movement.from_location_id, Decimal("0")
+            ) - movement.quantity
+
+    positive_location_ids = [
+        location_id for location_id, quantity in balances.items() if quantity > 0
+    ]
+    locations = []
+    if positive_location_ids:
+        location_rows = db.scalars(select(StorageLocation).where(
+            StorageLocation.id.in_(positive_location_ids),
+            StorageLocation.site_id.in_(
+                select(StorageLocation.site_id).where(
+                    StorageLocation.id.in_(positive_location_ids)
+                )
+            ),
+        ).order_by(StorageLocation.code)).all()
+        locations = [
+            f"{location.code} {location.name}".strip()
+            for location in location_rows
+        ]
+
+    return ProductLabelDataRead(
+        product_id=product.id,
+        product_code=product.product_code,
+        barcode=product.barcode,
+        gross_weight=product.gross_weight,
+        weight_unit_code=product.weight_unit_code,
+        selling_labor_fee=product.labor_fee,
+        cost_labor_fee=cost_labor_fee,
+        chain_length=product.chain_length,
+        style_code=product.style_code,
+        supplier_code=supplier_code,
+        supplier_name=supplier_name,
+        purchase_date=purchase_date,
+        locations=locations,
+    )
 
 
 @router.get("/companies/{company_id}/products/{product_id}/qr.svg", include_in_schema=False)
