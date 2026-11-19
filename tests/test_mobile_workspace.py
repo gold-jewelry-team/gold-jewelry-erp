@@ -21,6 +21,11 @@ def test_mobile_workspace_serves_html():
     assert 'id="saleHeaderForm"' in response.text
     assert 'id="saleCartList"' in response.text
     assert 'id="saleBarcodeScan"' in response.text
+    assert 'id="scanInventoryButton"' in response.text
+    assert 'id="scanSaleButton"' in response.text
+    assert 'id="scanProductButton"' in response.text
+    assert 'id="scanModal"' in response.text
+    assert "BarcodeDetector" in response.text
     assert 'id="completeSale"' in response.text
     assert 'id="voidSale"' in response.text
     assert 'id="newSale"' in response.text
