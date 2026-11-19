@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.bank_statement import BankStatementImport, BankStatementLine
-from app.services.bank_reconciliation import import_bank_statement_csv, match_statement_line, ignore_statement_line
+from app.services.bank_reconciliation import import_bank_statement_csv, match_statement_line, ignore_statement_line, create_statement_adjustment
 
 router=APIRouter(prefix="/companies/{company_id}/bank-accounts/{account_id}/statement-imports",tags=["bank reconciliation"])
 def get_db():
@@ -100,5 +100,33 @@ def post_ignore(company_id:UUID,account_id:UUID,import_id:UUID,line_id:UUID,db:S
     try:
         row=ignore_statement_line(db,company_id=company_id,line_id=line_id)
         db.commit(); db.refresh(row); return row
+    except ValueError as exc:
+        db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc
+
+
+class StatementAdjustmentCreate(BaseModel):
+    transaction_type:str=Field(pattern="^(BANK_FEE|INTEREST_IN|OTHER_ADJUSTMENT)$")
+    created_by_name:str=Field(min_length=1,max_length=120)
+    reason:str=Field(min_length=1,max_length=500)
+    occurred_at:datetime|None=None
+
+@router.post("/{import_id}/lines/{line_id}/adjustment",status_code=201)
+def post_statement_adjustment(company_id:UUID,account_id:UUID,import_id:UUID,line_id:UUID,
+    payload:StatementAdjustmentCreate,db:Session=Depends(get_db)):
+    line=db.execute(select(BankStatementLine).where(
+        BankStatementLine.import_id==import_id,BankStatementLine.bank_account_id==account_id,
+        BankStatementLine.id==line_id,BankStatementLine.company_id==company_id
+    )).scalar_one_or_none()
+    if line is None:
+        raise HTTPException(status_code=404,detail="對帳單明細不存在。")
+    try:
+        row=create_statement_adjustment(db,company_id=company_id,import_id=import_id,
+            line_id=line_id,**payload.model_dump())
+        db.commit(); db.refresh(row)
+        return {"id":str(row.id),"bank_account_id":str(row.bank_account_id),
+            "statement_line_id":str(row.statement_line_id),"transaction_type":row.transaction_type,
+            "direction":row.direction,"amount":str(row.amount),"description":row.description,
+            "created_by_name":row.created_by_name,"occurred_at":row.occurred_at,
+            "note":row.note,"status":"MATCHED"}
     except ValueError as exc:
         db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc

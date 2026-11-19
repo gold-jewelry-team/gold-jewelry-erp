@@ -46,6 +46,7 @@ class BankTransactionRead(BaseModel):
     company_id:UUID
     bank_account_id:UUID
     site_id:UUID|None
+    statement_line_id:UUID|None
     transfer_group_id:UUID|None
     transaction_type:str
     direction:str

@@ -28,17 +28,19 @@ class BankTransaction(Base):
     __tablename__ = "bank_transactions"
     __table_args__ = (
         CheckConstraint("direction IN ('IN','OUT')", name="ck_bank_transactions_direction"),
-        CheckConstraint("transaction_type IN ('CASH_DEPOSIT','CASH_WITHDRAWAL','TRANSFER_IN','TRANSFER_OUT')", name="ck_bank_transactions_type"),
+        CheckConstraint("transaction_type IN ('CASH_DEPOSIT','CASH_WITHDRAWAL','TRANSFER_IN','TRANSFER_OUT','BANK_FEE','INTEREST_IN','OTHER_ADJUSTMENT')", name="ck_bank_transactions_type"),
         CheckConstraint("amount > 0", name="ck_bank_transactions_amount_positive"),
         CheckConstraint("currency_code = 'TWD'", name="ck_bank_transactions_currency_twd"),
-        CheckConstraint("(transaction_type IN ('CASH_DEPOSIT','TRANSFER_IN') AND direction = 'IN') OR (transaction_type IN ('CASH_WITHDRAWAL','TRANSFER_OUT') AND direction = 'OUT')", name="ck_bank_transactions_type_direction"),
+        CheckConstraint("(transaction_type IN ('CASH_DEPOSIT','TRANSFER_IN','INTEREST_IN') AND direction = 'IN') OR (transaction_type IN ('CASH_WITHDRAWAL','TRANSFER_OUT','BANK_FEE') AND direction = 'OUT') OR transaction_type = 'OTHER_ADJUSTMENT'", name="ck_bank_transactions_type_direction"),
         Index("ix_bank_transactions_account_occurred", "bank_account_id", "occurred_at"),
         Index("ix_bank_transactions_company_site_occurred", "company_id", "site_id", "occurred_at"),
+        Index("ix_bank_transactions_statement_line", "statement_line_id", unique=True),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
     bank_account_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("bank_accounts.id", ondelete="RESTRICT"), nullable=False)
     site_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=True)
+    statement_line_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("bank_statement_lines.id", ondelete="RESTRICT"), nullable=True)
     transfer_group_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     transaction_type: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(String(3), nullable=False)
