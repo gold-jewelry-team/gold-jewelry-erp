@@ -15,7 +15,7 @@ from app.models.daily_closing import DailyClosing
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.supplier_payable import SupplierBill, SupplierPayment
-from app.routers import daily_closing, supplier_payables
+from app.routers import daily_closing, supplier_payables, suppliers
 
 
 def _payable_context():
@@ -46,8 +46,30 @@ def _payable_context():
 
     app.dependency_overrides.clear()
     app.dependency_overrides[supplier_payables.get_db] = override_db
+    app.dependency_overrides[suppliers.get_db] = override_db
     app.dependency_overrides[daily_closing.get_db] = override_db
     return engine, TestSession, ids
+
+
+def test_supplier_master_create_and_list():
+    engine, _TestSession, (company_id, _site_id, _supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        response = client.post(f"/companies/{company_id}/suppliers", json={
+            "code": "SUP-02",
+            "name": "新增測試供應商",
+            "tax_id": "12345678",
+            "contact_name": "王小姐",
+            "phone": "02-12345678",
+        })
+        assert response.status_code == 201, response.text
+        assert response.json()["name"] == "新增測試供應商"
+        listed = client.get(f"/companies/{company_id}/suppliers")
+        assert listed.status_code == 200, listed.text
+        assert {row["code"] for row in listed.json()} == {"SUP-01", "SUP-02"}
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
 
 
 def test_supplier_bills_partial_payments_and_daily_cash_outflow():
