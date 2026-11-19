@@ -7,6 +7,7 @@ def test_alembic_history_is_a_single_linear_chain_through_sales_returns():
     assert script.get_heads() == ["0007_sales_returns"]
 
     expected = [
+        "0008_daily_closing",
         "0007_sales_returns",
         "0006_sales_inventory_links",
         "0005_suppliers_purchasing",
