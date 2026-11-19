@@ -208,7 +208,7 @@ def create_daily_closing(
         expenses_paid_amount=total_expenses_paid,
         cash_drawer_in_amount=total_drawer_in,
         cash_drawer_out_amount=total_drawer_out,
-        net_cash_flow=total_collected - total_refunded - total_supplier_paid - total_expenses_paid + total_drawer_in - total_drawer_out,
+        net_cash_flow=total_collected - total_refunded - total_supplier_paid - total_expenses_paid,
         note=note,
     )
     session.add(closing)
@@ -239,8 +239,6 @@ def create_daily_closing(
                 - bucket["refunded_amount"]
                 - bucket["supplier_paid_amount"]
                 - bucket["expenses_paid_amount"]
-                + bucket["cash_drawer_in_amount"]
-                - bucket["cash_drawer_out_amount"]
             ),
         ))
     session.flush()
