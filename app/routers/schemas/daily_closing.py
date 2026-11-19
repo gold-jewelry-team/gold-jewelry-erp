@@ -20,6 +20,9 @@ class DailyClosingPaymentSummaryRead(BaseModel):
     gross_sales_amount: Decimal
     return_reversal_amount: Decimal
     net_sales_amount: Decimal
+    collected_amount: Decimal
+    refunded_amount: Decimal
+    net_cash_flow: Decimal
 
 
 class DailyClosingRead(BaseModel):
@@ -34,6 +37,9 @@ class DailyClosingRead(BaseModel):
     gross_sales_amount: Decimal
     return_reversal_amount: Decimal
     net_sales_amount: Decimal
+    collected_amount: Decimal
+    refunded_amount: Decimal
+    net_cash_flow: Decimal
     closed_at: datetime
     note: str | None
     payment_summaries: list[DailyClosingPaymentSummaryRead]

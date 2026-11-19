@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
+from app.models.payment_transaction import PaymentTransaction
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
@@ -99,6 +100,8 @@ def create_daily_closing(
         "returns_count": 0,
         "gross_sales_amount": ZERO,
         "return_reversal_amount": ZERO,
+        "collected_amount": ZERO,
+        "refunded_amount": ZERO,
     })
     for sale in sales:
         bucket = totals[sale.payment_method]
@@ -114,6 +117,24 @@ def create_daily_closing(
         bucket = totals[original_sale.payment_method]
         bucket["returns_count"] += 1
         bucket["return_reversal_amount"] += returned.settlement_reversal_amount
+
+    payments = list(session.scalars(
+        select(PaymentTransaction).where(
+            PaymentTransaction.company_id == company_id,
+            PaymentTransaction.site_id == site_id,
+            PaymentTransaction.paid_at >= start_at,
+            PaymentTransaction.paid_at < end_at,
+        )
+    ).all())
+    for payment in payments:
+        bucket = totals[payment.payment_method]
+        if payment.direction == "IN":
+            bucket["collected_amount"] += payment.amount
+        else:
+            bucket["refunded_amount"] += payment.amount
+
+    total_collected = sum((p.amount for p in payments if p.direction == "IN"), ZERO)
+    total_refunded = sum((p.amount for p in payments if p.direction == "OUT"), ZERO)
 
     closing = DailyClosing(
         company_id=company_id,
@@ -132,6 +153,9 @@ def create_daily_closing(
             sum((sale.final_amount for sale in sales), ZERO)
             + sum((returned.settlement_reversal_amount for returned in returns), ZERO)
         ),
+        collected_amount=total_collected,
+        refunded_amount=total_refunded,
+        net_cash_flow=total_collected - total_refunded,
         note=note,
     )
     session.add(closing)
@@ -151,6 +175,9 @@ def create_daily_closing(
             gross_sales_amount=sales_amount,
             return_reversal_amount=reversal_amount,
             net_sales_amount=sales_amount + reversal_amount,
+            collected_amount=bucket["collected_amount"],
+            refunded_amount=bucket["refunded_amount"],
+            net_cash_flow=bucket["collected_amount"] - bucket["refunded_amount"],
         ))
     session.flush()
     return closing

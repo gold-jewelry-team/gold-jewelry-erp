@@ -94,6 +94,18 @@ The signed `settlement_reversal_amount` is the opposite of the original sale-lin
 - `GET /companies/{company_id}/sites/{site_id}/daily-closings` — list closing snapshots; optional `from_date` and `to_date` filters.
 - `GET /companies/{company_id}/sites/{site_id}/daily-closings/{closing_id}` — retrieve the snapshot and payment-method summaries.
 
-The snapshot includes completed sales, returns created on that business date, and signed net sales by the original sale's payment method. The business-day boundary is Asia/Taipei. A site may be closed only once per date. Once closed, new sale completions and returns for that business date are blocked to keep the snapshot stable.
+The snapshot includes completed sales, returns created on that business date, signed net sales by the original sale's payment method, and actual collections/refunds recorded on that business date. The business-day boundary is Asia/Taipei. A site may be closed only once per date. Once closed, new sale completions and returns for that business date are blocked to keep the snapshot stable.
 
 This is an operational sales/return summary, not a cash count, bank reconciliation, or proof that a card/bank settlement has arrived. Actual tender collection, cash drawer variance, refund execution, and bank settlement matching remain separate finance workflows. There is no reopen or edit endpoint in this phase; corrections require a controlled adjustment workflow rather than changing a historical snapshot.
+
+
+### Payment transactions
+
+- `POST /companies/{company_id}/sales/{sale_id}/payments` — record a partial or full payment/collection for a completed sale.
+- `GET /companies/{company_id}/sales/{sale_id}/payments` — list payment transactions for a sale.
+- `POST /companies/{company_id}/sales/returns/{return_id}/payments` — record the actual refund or additional collection for a return.
+- `GET /companies/{company_id}/sales/returns/{return_id}/payments` — list payment transactions for a return.
+
+Payment transactions are append-only, positive-amount entries with direction `IN` or `OUT`. Sale obligations with a positive final amount are collected (`IN`); negative sale amounts are paid to the customer (`OUT`). For returns, the signed settlement reversal determines the direction. Partial payments are supported, and the API rejects amounts above the remaining obligation. Payment method can be CASH, CARD, TRANSFER, or OTHER.
+
+Daily closing now separately reports expected sales/return totals and actual collections, refunds, and net cash flow by payment method. A recorded payment uses the actual payment date in Asia/Taipei for closing. This ledger records payment events but does not yet connect to a bank, card acquirer, or payment gateway. Payment entries are immutable; a controlled reversal/correction workflow is a later phase.
