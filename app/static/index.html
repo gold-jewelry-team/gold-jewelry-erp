@@ -148,6 +148,19 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div id="saleCartList" aria-live="polite"><div class="empty">尚未加入商品</div></div>
 <div class="actions"><button id="createSaleDraft" type="button">建立銷售草稿</button></div>
 <div id="saleStatus" class="status" role="status"></div>
+<section id="salesHistoryPanel" class="panel span2">
+<h3>歷史銷售查詢</h3>
+<p class="sub">可用銷售單號、商品編號、條碼或商品名稱查詢；選取紀錄可繼續查看收付款與退貨，已完成銷售可辦理退貨。</p>
+<div class="grid">
+<div class="field"><label for="salesHistoryQuery">銷售單號／商品編號／條碼／名稱</label><input id="salesHistoryQuery" placeholder="輸入關鍵字"></div>
+<div class="field"><label for="salesHistoryState">銷售狀態</label><select id="salesHistoryState"><option value="">全部狀態</option><option value="COMPLETED">已完成</option><option value="DRAFT">草稿</option><option value="VOID">已作廢</option></select></div>
+<div class="field"><label for="salesHistoryFrom">起始日期</label><input id="salesHistoryFrom" type="date"></div>
+<div class="field"><label for="salesHistoryTo">結束日期</label><input id="salesHistoryTo" type="date"></div>
+</div>
+<div class="actions"><button id="searchSalesHistory" type="button">查詢歷史銷售</button></div>
+<div id="salesHistoryStatus" class="status" role="status"></div>
+<div id="salesHistoryList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
+</section>
 <div id="saleDraftResult"></div>
 <div class="actions hidden" id="saleDraftActions"><button id="completeSale" type="button">完成銷售並扣庫存</button><button class="secondary" id="voidSale" type="button">作廢草稿</button></div><section id="salePaymentPanel" class="panel hidden">
 <h3 id="salePaymentHeading">收付款登錄</h3>
@@ -344,11 +357,11 @@ async function loadCompanies(selectId){
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 async function loadSites(selectId){
  const select=$("siteSelect");selectedSiteId="";selectedClosing=null;$("cashCountPanel").classList.add("hidden");
- if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();return;}
+ if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();return;}
  const rows=await api("/companies/"+companyId+"/sites");
  select.innerHTML='<option value="">請選擇據點</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId))select.value=selectId;else if(rows.length===1)select.value=rows[0].id;
- selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();
+ selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();
 }
 async function loadStorageLocations(){
  const box=$("locationList");if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';return;}
@@ -530,6 +543,8 @@ function renderSaleResult(sale){
  const lines=(sale.lines||[]).map(x=>'<article class="item"><strong>'+escapeHtml(x.product_code_snapshot||"商品")+' · '+escapeHtml(x.product_name_snapshot)+'</strong><span class="muted">商品金額：'+escapeHtml(x.subtotal)+' 元 · 刷卡手續費分攤：'+escapeHtml(x.card_fee)+' 元 · 本項應收：'+escapeHtml(x.final_amount)+' 元</span></article>').join("");
  $("saleDraftResult").innerHTML='<article class="item"><strong>銷售單 '+escapeHtml(sale.sale_no)+' · '+escapeHtml(sale.status)+'</strong><span class="muted">商品總額：'+escapeHtml(sale.subtotal)+' 元</span><span class="muted">刷卡本金：'+escapeHtml(sale.card_amount)+' 元 · 刷卡手續費（5%）：'+escapeHtml(sale.card_fee)+' 元</span><span class="muted">現金本金：'+escapeHtml(sale.cash_amount)+' 元</span><span class="pill">顧客應付總額：'+escapeHtml(sale.final_amount)+' 元</span></article>'+lines;
  const isDraft=sale.status==="DRAFT";
+ if(isDraft){selectedReturn=null;$("returnPaymentPanel").classList.add("hidden");}
+ $("newSaleActions").classList.toggle("hidden",isDraft);
  $("salePaymentPanel").classList.toggle("hidden",sale.status!=="COMPLETED");
  $("saleReturnPanel").classList.toggle("hidden",sale.status!=="COMPLETED");
  if(sale.status==="COMPLETED"){
@@ -557,7 +572,7 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
 $("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
@@ -718,6 +733,34 @@ $("returnPaymentForm").addEventListener("submit",async event=>{
   try{await loadReturnPayments(selectedReturn);}catch(refreshError){message("returnPaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
  }catch(error){message("returnPaymentStatus",error.message,true);}
  finally{button.disabled=false;}
+});
+async function loadSalesHistory(){
+ const box=$("salesHistoryList");
+ if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ box.innerHTML='<div class="empty">歷史銷售載入中…</div>';
+ const params=new URLSearchParams();
+ if(selectedSiteId)params.set("site_id",selectedSiteId);
+ if($("salesHistoryQuery").value.trim())params.set("q",$("salesHistoryQuery").value.trim());
+ if($("salesHistoryState").value)params.set("status",$("salesHistoryState").value);
+ if($("salesHistoryFrom").value)params.set("from_date",$("salesHistoryFrom").value);
+ if($("salesHistoryTo").value)params.set("to_date",$("salesHistoryTo").value);
+ const rows=await api("/companies/"+companyId+"/sales"+(params.toString()?"?"+params.toString():""));
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.sale_no)+'</strong><span class="pill">'+escapeHtml(row.status)+'</span><span class="muted">商品 '+escapeHtml(row.lines.length)+' 件 · 應收／應付 '+escapeHtml(row.final_amount)+' 元</span><span class="muted">建立時間：'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span><div class="actions"><button class="secondary" type="button" data-open-sale="'+escapeHtml(row.id)+'">開啟銷售紀錄</button></div></article>').join(""):'<div class="empty">查無符合條件的銷售紀錄</div>';
+}
+$("searchSalesHistory").addEventListener("click",()=>loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true)));
+$("salesHistoryQuery").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true));}});
+$("salesHistoryList").addEventListener("click",async event=>{
+ const button=event.target.closest("[data-open-sale]");
+ if(!button)return;
+ try{
+  if(currentSale&&currentSale.status==="DRAFT"&&currentSale.id!==button.dataset.openSale){
+   message("salesHistoryStatus","目前有尚未處理的銷售草稿，請先完成或作廢後再開啟其他銷售。",true);return;
+  }
+  const sale=await api("/companies/"+companyId+"/sales/"+button.dataset.openSale);
+  saleCartLines=[];renderSaleCart();renderSaleResult(sale);
+  $("saleDraftResult").scrollIntoView({behavior:"smooth",block:"start"});
+  message("saleStatus","已載入歷史銷售紀錄："+sale.sale_no);
+ }catch(error){message("salesHistoryStatus",error.message,true);}
 });
 async function loadSalePayments(sale){
  const panel=$("salePaymentPanel");
