@@ -89,6 +89,27 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </form>
 <div id="productStatus" class="status" role="status"></div>
 </section>
+<section id="productEditPanel" class="panel span2 hidden">
+<h2>編輯商品資料</h2>
+<p class="sub">修改後會重新檢查商品編號、流水號、條碼唯一性及重量規則。</p>
+<form id="productEditForm">
+<input id="editProductId" type="hidden">
+<div class="grid">
+<div class="field"><label for="editProductCode">商品編號</label><input id="editProductCode" required maxlength="50"></div>
+<div class="field"><label for="editBarcode">條碼</label><input id="editBarcode" maxlength="100"></div>
+<div class="field wide"><label for="editProductName">商品名稱</label><input id="editProductName" required maxlength="200"></div>
+<div class="field"><label for="editProductCategory">商品分類</label><select id="editProductCategory"><option value="">未分類</option></select></div>
+<div class="field"><label for="editMaterialCode">材質代碼</label><input id="editMaterialCode" maxlength="30"></div>
+<div class="field"><label for="editGrossWeight">總重</label><input id="editGrossWeight" type="number" min="0" step="0.0001" required></div>
+<div class="field"><label for="editNetWeight">淨重</label><input id="editNetWeight" type="number" min="0" step="0.0001" required></div>
+<div class="field"><label for="editWeightUnit">重量單位</label><select id="editWeightUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
+<div class="field"><label for="editLaborFee">工錢</label><input id="editLaborFee" type="number" min="0" step="0.01" required></div>
+<div class="field wide"><label for="editProductNote">備註</label><input id="editProductNote" maxlength="500"></div>
+</div>
+<div class="actions"><button type="submit">儲存修改</button><button class="secondary" id="cancelProductEdit" type="button">取消</button></div>
+</form>
+<div id="productEditStatus" class="status" role="status"></div>
+</section>
 <section class="panel products">
 <h2>商品清單</h2>
 <div class="toolbar"><input id="search" placeholder="搜尋編號、條碼或名稱" aria-label="搜尋商品"><button id="searchButton" type="button">搜尋</button></div>
@@ -100,6 +121,8 @@ const $=id=>document.getElementById(id);
 let companyId="";
 let selectedSiteId="";
 let categoryNames=new Map();
+let productsById=new Map();
+let editingProduct=null;
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -152,7 +175,8 @@ async function loadProducts(){
  box.innerHTML='<div class="empty">載入中…</div>';
  const q=$("search").value.trim();
  const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
- box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
+ productsById=new Map(rows.map(x=>[x.id,x]));
+ box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
 $("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
@@ -189,6 +213,70 @@ $("applyCategoryTemplates").addEventListener("click",async()=>{
 });
 $("categoryForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("categoryStatus","請先選擇公司",true);return;}try{await api("/companies/"+companyId+"/product-categories",{method:"POST",body:JSON.stringify({code:$("categoryCode").value.trim(),name:$("categoryName").value.trim(),parent_id:$("parentCategory").value||null})});$("categoryForm").reset();await loadCategories();message("categoryStatus","分類已新增");}catch(err){message("categoryStatus",err.message,true);}});
 $("productForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("productStatus","請先選擇公司",true);return;}try{const payload={product_code:$("productCode").value.trim(),barcode:$("barcode").value.trim()||null,name:$("productName").value.trim(),category_id:$("productCategory").value||null,material_code:$("materialCode").value.trim()||null,gross_weight:$("grossWeight").value,net_weight:$("netWeight").value,weight_unit_code:$("weightUnit").value,labor_fee:$("laborFee").value,note:$("productNote").value.trim()||null};await api("/companies/"+companyId+"/products",{method:"POST",body:JSON.stringify(payload)});$("productForm").reset();$("grossWeight").value="0";$("netWeight").value="0";$("laborFee").value="0";await loadProducts();await loadSequence();message("productStatus","商品已新增");}catch(err){message("productStatus",err.message,true);}});
+function openProductEditor(product){
+ editingProduct=product;
+ $("editProductId").value=product.id;
+ $("editProductCode").value=product.product_code;
+ $("editBarcode").value=product.barcode||"";
+ $("editProductName").value=product.name;
+ $("editMaterialCode").value=product.material_code||"";
+ $("editGrossWeight").value=product.gross_weight;
+ $("editNetWeight").value=product.net_weight;
+ $("editWeightUnit").value=product.weight_unit_code;
+ $("editLaborFee").value=product.labor_fee;
+ $("editProductNote").value=product.note||"";
+ const select=$("editProductCategory");
+ select.innerHTML=$("productCategory").innerHTML;
+ if(product.category_id&&!Array.from(select.options).some(o=>o.value===product.category_id)){
+  const option=document.createElement("option");
+  option.value=product.category_id;
+  option.textContent="原分類已停用或不存在（保留原值）";
+  option.disabled=true;
+  select.appendChild(option);
+ }
+ select.value=product.category_id||"";
+ $("productEditStatus").textContent="";
+ $("productEditPanel").classList.remove("hidden");
+ $("productEditPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("productList").addEventListener("click",event=>{
+ const button=event.target.closest("[data-edit-product]");
+ if(!button)return;
+ const product=productsById.get(button.dataset.editProduct);
+ if(product)openProductEditor(product);
+});
+$("cancelProductEdit").addEventListener("click",()=>{
+ $("productEditPanel").classList.add("hidden");
+ editingProduct=null;
+});
+$("productEditForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!editingProduct){message("productEditStatus","請重新選擇商品後再編輯。",true);return;}
+ const payload={
+  product_code:$("editProductCode").value.trim(),
+  barcode:$("editBarcode").value.trim()||null,
+  name:$("editProductName").value.trim(),
+  material_code:$("editMaterialCode").value.trim()||null,
+  gross_weight:$("editGrossWeight").value,
+  net_weight:$("editNetWeight").value,
+  weight_unit_code:$("editWeightUnit").value,
+  labor_fee:$("editLaborFee").value,
+  note:$("editProductNote").value.trim()||null
+ };
+ const newCategory=$("editProductCategory").value||null;
+ if(newCategory!==editingProduct.category_id)payload.category_id=newCategory;
+ const saveButton=$("productEditForm").querySelector('button[type="submit"]');
+ saveButton.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/products/"+editingProduct.id,{method:"PATCH",body:JSON.stringify(payload)});
+  $("productEditPanel").classList.add("hidden");
+  editingProduct=null;
+  await loadProducts();
+  message("productStatus","商品資料已更新。");
+ }catch(error){
+  message("productEditStatus",error.message,true);
+ }finally{saveButton.disabled=false;}
+});
 $("searchButton").addEventListener("click",()=>loadProducts().catch(e=>message("globalStatus",e.message,true)));
 $("search").addEventListener("keydown",e=>{if(e.key==="Enter")loadProducts().catch(err=>message("globalStatus",err.message,true));});
 loadCompanies().catch(e=>message("globalStatus",e.message,true));
