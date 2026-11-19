@@ -1,3 +1,5 @@
+from sqlalchemy.orm import configure_mappers
+
 from app.db.base import Base
 from app import models  # noqa: F401
 
@@ -10,3 +12,7 @@ def test_storage_location_codes_are_unique_per_site() -> None:
     table = Base.metadata.tables["storage_locations"]
     constraints = {constraint.name for constraint in table.constraints}
     assert "uq_storage_locations_site_code" in constraints
+
+
+def test_all_model_relationships_configure() -> None:
+    configure_mappers()
