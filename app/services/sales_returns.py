@@ -1,4 +1,5 @@
 """Item-level sales return and inventory restocking services."""
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.sale import Sale, SaleLine
 from app.models.sale_return import SaleReturn, SaleReturnLine
 from app.services.inventory import create_inventory_movement
+from app.services.daily_closing import assert_business_day_open
 
 
 def create_sale_return(
@@ -40,6 +42,8 @@ def create_sale_return(
         raise ValueError("找不到指定銷售單。")
     if sale.status != "COMPLETED":
         raise ValueError("只有已完成的銷售單可以退貨。")
+    returned_at = datetime.now(timezone.utc)
+    assert_business_day_open(session, site_id=sale.site_id, at=returned_at)
 
     lines = list(session.scalars(
         select(SaleLine)
@@ -68,6 +72,7 @@ def create_sale_return(
         return_no=return_no,
         settlement_reversal_amount=Decimal("0"),
         currency_code=sale.currency_code,
+        created_at=returned_at,
         reason=reason,
         note=note,
     )
