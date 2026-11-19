@@ -15,6 +15,7 @@ from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
 from app.models.operating_expense import OperatingExpense
+from app.models.cash_drawer_movement import CashDrawerMovement
 
 BUSINESS_TIMEZONE = ZoneInfo("Asia/Taipei")
 ZERO = Decimal("0")
@@ -106,6 +107,8 @@ def create_daily_closing(
         "refunded_amount": ZERO,
         "supplier_paid_amount": ZERO,
         "expenses_paid_amount": ZERO,
+        "cash_drawer_in_amount": ZERO,
+        "cash_drawer_out_amount": ZERO,
     })
     for sale in sales:
         bucket = totals[sale.payment_method]
@@ -160,10 +163,27 @@ def create_daily_closing(
     for expense in expenses:
         totals[expense.payment_method]["expenses_paid_amount"] += expense.amount
 
+    drawer_movements = list(session.scalars(
+        select(CashDrawerMovement).where(
+            CashDrawerMovement.company_id == company_id,
+            CashDrawerMovement.site_id == site_id,
+            CashDrawerMovement.created_at >= start_at,
+            CashDrawerMovement.created_at < end_at,
+        )
+    ).all())
+    cash_bucket = totals["CASH"]
+    for movement in drawer_movements:
+        if movement.direction == "IN":
+            cash_bucket["cash_drawer_in_amount"] += movement.amount
+        else:
+            cash_bucket["cash_drawer_out_amount"] += movement.amount
+
     total_collected = sum((p.amount for p in payments if p.direction == "IN"), ZERO)
     total_refunded = sum((p.amount for p in payments if p.direction == "OUT"), ZERO)
     total_supplier_paid = sum((p.total_amount for p in supplier_payments), ZERO)
     total_expenses_paid = sum((e.amount for e in expenses), ZERO)
+    total_drawer_in = sum((m.amount for m in drawer_movements if m.direction == "IN"), ZERO)
+    total_drawer_out = sum((m.amount for m in drawer_movements if m.direction == "OUT"), ZERO)
 
     closing = DailyClosing(
         company_id=company_id,
@@ -186,7 +206,9 @@ def create_daily_closing(
         refunded_amount=total_refunded,
         supplier_paid_amount=total_supplier_paid,
         expenses_paid_amount=total_expenses_paid,
-        net_cash_flow=total_collected - total_refunded - total_supplier_paid - total_expenses_paid,
+        cash_drawer_in_amount=total_drawer_in,
+        cash_drawer_out_amount=total_drawer_out,
+        net_cash_flow=total_collected - total_refunded - total_supplier_paid - total_expenses_paid + total_drawer_in - total_drawer_out,
         note=note,
     )
     session.add(closing)
@@ -210,11 +232,15 @@ def create_daily_closing(
             refunded_amount=bucket["refunded_amount"],
             supplier_paid_amount=bucket["supplier_paid_amount"],
             expenses_paid_amount=bucket["expenses_paid_amount"],
+            cash_drawer_in_amount=bucket["cash_drawer_in_amount"],
+            cash_drawer_out_amount=bucket["cash_drawer_out_amount"],
             net_cash_flow=(
                 bucket["collected_amount"]
                 - bucket["refunded_amount"]
                 - bucket["supplier_paid_amount"]
                 - bucket["expenses_paid_amount"]
+                + bucket["cash_drawer_in_amount"]
+                - bucket["cash_drawer_out_amount"]
             ),
         ))
     session.flush()
