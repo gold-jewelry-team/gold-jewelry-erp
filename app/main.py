@@ -15,6 +15,7 @@ from app.routers.expenses import router as expenses_router
 from app.routers.cash_counts import router as cash_counts_router
 from app.routers.cash_drawer_movements import router as cash_drawer_movements_router
 from app.routers.bank_accounts import router as bank_accounts_router
+from app.routers.bank_reconciliation import router as bank_reconciliation_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -35,6 +36,7 @@ app.include_router(expenses_router)
 app.include_router(cash_counts_router)
 app.include_router(cash_drawer_movements_router)
 app.include_router(bank_accounts_router)
+app.include_router(bank_reconciliation_router)
 
 
 @app.get("/", tags=["system"])
