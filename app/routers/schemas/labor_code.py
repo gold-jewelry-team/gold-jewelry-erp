@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class LaborCodeMapItem(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     digit: int = Field(ge=0, le=9)
-    code_char: str = Field(min_length=1, max_length=10)
+    code_char: str = Field(min_length=1, max_length=4)
 
 
 class LaborCodeConfigUpdate(BaseModel):
