@@ -2,7 +2,7 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Numeric, String, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
@@ -11,6 +11,8 @@ class BankStatementImport(Base):
     __table_args__ = (
         CheckConstraint("status IN ('IMPORTED','REVIEWED')", name="ck_bank_statement_imports_status"),
         Index("ix_bank_statement_imports_account_created", "bank_account_id", "created_at"),
+        UniqueConstraint("id", "company_id", "bank_account_id", name="uq_bank_statement_imports_id_scope"),
+        ForeignKeyConstraint(["bank_account_id", "company_id"], ["bank_accounts.id", "bank_accounts.company_id"], ondelete="RESTRICT", name="fk_bank_statement_imports_account_company"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
@@ -29,6 +31,11 @@ class BankStatementLine(Base):
         CheckConstraint("status IN ('UNMATCHED','MATCHED','DUPLICATE','IGNORED')", name="ck_bank_statement_lines_status"),
         Index("ix_bank_statement_lines_import_status", "import_id", "status"),
         Index("ix_bank_statement_lines_account_date_amount", "bank_account_id", "transaction_date", "amount"),
+        UniqueConstraint("id", "company_id", "bank_account_id", name="uq_bank_statement_lines_id_scope"),
+        ForeignKeyConstraint(["bank_account_id", "company_id"], ["bank_accounts.id", "bank_accounts.company_id"], ondelete="RESTRICT", name="fk_bank_statement_lines_account_company"),
+        ForeignKeyConstraint(["import_id", "company_id", "bank_account_id"], ["bank_statement_imports.id", "bank_statement_imports.company_id", "bank_statement_imports.bank_account_id"], ondelete="RESTRICT", name="fk_bank_statement_lines_import_scope"),
+        ForeignKeyConstraint(["duplicate_of_line_id", "company_id", "bank_account_id"], ["bank_statement_lines.id", "bank_statement_lines.company_id", "bank_statement_lines.bank_account_id"], ondelete="RESTRICT", name="fk_bank_statement_lines_duplicate_scope"),
+        ForeignKeyConstraint(["matched_bank_transaction_id", "company_id", "bank_account_id"], ["bank_transactions.id", "bank_transactions.company_id", "bank_transactions.bank_account_id"], ondelete="RESTRICT", name="fk_bank_statement_lines_matched_tx_scope"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     import_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("bank_statement_imports.id", ondelete="RESTRICT"), nullable=False)

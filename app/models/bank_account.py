@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Numeric, String, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
@@ -11,6 +11,7 @@ class BankAccount(Base):
     __table_args__ = (
         CheckConstraint("currency_code = 'TWD'", name="ck_bank_accounts_currency_twd"),
         CheckConstraint("opening_balance >= 0", name="ck_bank_accounts_opening_balance_nonnegative"),
+        UniqueConstraint("id", "company_id", name="uq_bank_accounts_id_company"),
         Index("ix_bank_accounts_company_active", "company_id", "is_active"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -35,6 +36,9 @@ class BankTransaction(Base):
         Index("ix_bank_transactions_account_occurred", "bank_account_id", "occurred_at"),
         Index("ix_bank_transactions_company_site_occurred", "company_id", "site_id", "occurred_at"),
         Index("ix_bank_transactions_statement_line", "statement_line_id", unique=True),
+        UniqueConstraint("id", "company_id", "bank_account_id", name="uq_bank_transactions_id_scope"),
+        ForeignKeyConstraint(["bank_account_id", "company_id"], ["bank_accounts.id", "bank_accounts.company_id"], ondelete="RESTRICT", name="fk_bank_transactions_account_company"),
+        ForeignKeyConstraint(["statement_line_id", "company_id", "bank_account_id"], ["bank_statement_lines.id", "bank_statement_lines.company_id", "bank_statement_lines.bank_account_id"], ondelete="RESTRICT", name="fk_bank_transactions_statement_line_scope"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
