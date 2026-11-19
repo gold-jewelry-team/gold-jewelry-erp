@@ -15,6 +15,16 @@ class SupplierCreate(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class SupplierUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=1, max_length=40)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    tax_id: str | None = Field(default=None, max_length=20)
+    contact_name: str | None = Field(default=None, max_length=80)
+    phone: str | None = Field(default=None, max_length=40)
+    address: str | None = Field(default=None, max_length=255)
+    note: str | None = Field(default=None, max_length=500)
+
+
 class SupplierRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
