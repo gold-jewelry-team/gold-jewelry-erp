@@ -7,7 +7,8 @@ from sqlalchemy.pool import StaticPool
 from app import models  # noqa: F401
 from app.db.base import Base
 from app.main import app
-from app.routers.product_master import get_db
+from app.routers.product_master import get_db as product_master_get_db
+from app.routers.company_setup import get_db as company_setup_get_db
 
 engine = create_engine(
     "sqlite+pysqlite:///:memory:",
@@ -30,17 +31,22 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def isolate_product_master_database():
-    previous = app.dependency_overrides.get(get_db)
-    app.dependency_overrides[get_db] = override_get_db
+    previous = {
+        company_setup_get_db: app.dependency_overrides.get(company_setup_get_db),
+        product_master_get_db: app.dependency_overrides.get(product_master_get_db),
+    }
+    app.dependency_overrides[company_setup_get_db] = override_get_db
+    app.dependency_overrides[product_master_get_db] = override_get_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     try:
         yield
     finally:
-        if previous is None:
-            app.dependency_overrides.pop(get_db, None)
-        else:
-            app.dependency_overrides[get_db] = previous
+        for dependency, old_override in previous.items():
+            if old_override is None:
+                app.dependency_overrides.pop(dependency, None)
+            else:
+                app.dependency_overrides[dependency] = old_override
 
 
 def teardown_module():
