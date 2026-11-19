@@ -61,6 +61,8 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="field"><label for="parentCategory">上層分類（選填）</label><select id="parentCategory"><option value="">無</option></select></div>
 <button type="submit">新增分類</button>
 </form>
+<div class="actions" style="margin-top:10px"><button class="secondary" id="applyCategoryTemplates" type="button">套用建議分類（4 項）</button></div>
+<p class="sub" style="margin-top:8px">只會補上尚未存在的分類代碼，不會刪除或修改既有分類；四項分類先以平行分類建立。</p>
 <div id="categoryStatus" class="status" role="status"></div>
 </section>
 <section class="panel span2">
@@ -158,6 +160,31 @@ $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
 $("companyForm").addEventListener("submit",async e=>{e.preventDefault();try{const x=await api("/companies",{method:"POST",body:JSON.stringify({code:$("companyCode").value.trim(),name:$("companyName").value.trim(),tax_id:$("companyTaxId").value.trim()||null})});$("companyForm").reset();await loadCompanies(x.id);message("companyStatus","公司已建立");}catch(err){message("companyStatus",err.message,true);}});
+$("applyCategoryTemplates").addEventListener("click",async()=>{
+ if(!companyId){message("categoryStatus","請先選擇公司",true);return;}
+ const templates=[
+  {code:"GOLD_INGOT",name:"黃金元寶"},
+  {code:"GOLD_BAR",name:"金條"},
+  {code:"DIAMOND_RING",name:"鑽戒"},
+  {code:"GEMSTONE",name:"寶石"}
+ ];
+ const button=$("applyCategoryTemplates");button.disabled=true;
+ try{
+  const existing=await api("/companies/"+companyId+"/product-categories?include_inactive=true");
+  const codes=new Set(existing.map(x=>String(x.code).trim().toUpperCase()));
+  const missing=templates.filter(x=>!codes.has(x.code));
+  let created=0;
+  for(const item of missing){
+   await api("/companies/"+companyId+"/product-categories",{method:"POST",body:JSON.stringify(item)});
+   created++;
+  }
+  await loadCategories();
+  message("categoryStatus",created?"已新增 "+created+" 項建議分類；原有分類均予保留。":"四項建議分類都已存在，沒有重複新增。");
+ }catch(err){
+  await loadCategories().catch(()=>{});
+  message("categoryStatus","套用未完整完成："+err.message+"。已成功建立的分類會保留，可再次按下按鈕補齊。",true);
+ }finally{button.disabled=false;}
+});
 $("categoryForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("categoryStatus","請先選擇公司",true);return;}try{await api("/companies/"+companyId+"/product-categories",{method:"POST",body:JSON.stringify({code:$("categoryCode").value.trim(),name:$("categoryName").value.trim(),parent_id:$("parentCategory").value||null})});$("categoryForm").reset();await loadCategories();message("categoryStatus","分類已新增");}catch(err){message("categoryStatus",err.message,true);}});
 $("productForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("productStatus","請先選擇公司",true);return;}try{const payload={product_code:$("productCode").value.trim(),barcode:$("barcode").value.trim()||null,name:$("productName").value.trim(),category_id:$("productCategory").value||null,material_code:$("materialCode").value.trim()||null,gross_weight:$("grossWeight").value,net_weight:$("netWeight").value,weight_unit_code:$("weightUnit").value,labor_fee:$("laborFee").value,note:$("productNote").value.trim()||null};await api("/companies/"+companyId+"/products",{method:"POST",body:JSON.stringify(payload)});$("productForm").reset();$("grossWeight").value="0";$("netWeight").value="0";$("laborFee").value="0";await loadProducts();await loadSequence();message("productStatus","商品已新增");}catch(err){message("productStatus",err.message,true);}});
 $("searchButton").addEventListener("click",()=>loadProducts().catch(e=>message("globalStatus",e.message,true)));
