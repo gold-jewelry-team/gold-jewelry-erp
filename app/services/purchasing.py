@@ -96,7 +96,9 @@ def receive_purchase_line(session: Session, *, purchase_id: UUID, purchase_line_
     supplier = session.get(Supplier, purchase.supplier_id)
     site = session.get(Site, purchase.site_id)
     company = session.get(Company, purchase.company_id)
-    product = session.get(Product, line.product_id)
+    product = session.execute(
+        select(Product).where(Product.id == line.product_id).with_for_update()
+    ).scalar_one_or_none()
     location = session.get(StorageLocation, location_id)
     if company is None or supplier is None or supplier.company_id != purchase.company_id:
         raise ValueError("供應商不存在或不屬於採購單公司。")

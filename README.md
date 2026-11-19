@@ -50,9 +50,13 @@ Alembic 版本鏈：
 - `GET/POST /companies/{company_id}/purchases`：採購單查詢與建立
 - `GET /companies/{company_id}/purchases/{purchase_id}`：採購單明細
 - `POST .../{purchase_id}/submit|cancel|receive`：送出、取消及驗收入庫
+- `GET /companies/{company_id}/inventory/stock`：依據點、儲存位置、商品及時間查詢庫存
+- `GET /companies/{company_id}/inventory/movements`：查詢異動流水
+- `POST /companies/{company_id}/inventory/adjustments`：盤點增減調整
+- `POST /companies/{company_id}/inventory/transfers`：儲存位置調撥；來源庫存不足會拒絕
 
 ## 尚待開發
-- 商品與儲存位置歸屬驗證、完整庫存查詢與異動 API
+- 銷售結帳與銷售出庫的原子化流程
 - 銷售結帳流程與庫存扣帳的原子性交易
 - 退貨、盤點、差異調整、送修流程
 - 權限、稽核、報表、備份與復原測試
