@@ -123,6 +123,33 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <h3>金價歷史紀錄</h3>
 <div id="goldPriceHistory" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 </section>
+<section class="panel span2" id="salesPanel">
+<h2>銷售結帳</h2>
+<p class="sub">每件商品以獨立條碼加入購物車。先建立銷售草稿，確認金額後再完成銷售並扣除庫存。</p>
+<form id="saleHeaderForm">
+<div class="grid">
+<div class="field"><label for="saleNo">銷售單號</label><input id="saleNo" maxlength="40" required placeholder="輸入門市銷售單號"></div>
+<div class="field"><label for="salePaymentMethod">付款方式</label><select id="salePaymentMethod"><option value="CASH">現金</option><option value="CARD">全額刷卡</option><option value="MIXED">部分刷卡＋現金</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option></select></div>
+<div class="field"><label for="saleCardAmount">刷卡本金（TWD，整數）</label><input id="saleCardAmount" type="number" min="0" step="1" placeholder="部分刷卡時輸入顧客指定金額"></div>
+<div class="field"><label for="saleNote">銷售備註</label><input id="saleNote" maxlength="500"></div>
+</div>
+</form>
+<h3>加入商品</h3>
+<div class="grid">
+<div class="field"><label for="saleProduct">商品（可依編號／名稱／條碼選擇）</label><select id="saleProduct"><option value="">請選擇商品</option></select></div>
+<div class="field"><label for="saleLocation">出貨位置</label><select id="saleLocation"><option value="">請選擇位置</option></select></div>
+<div class="field"><label for="saleLaborFee">本次工錢（留空使用商品主檔）</label><input id="saleLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
+<div class="field"><label for="saleOldGoldWeight">舊金折抵重量</label><input id="saleOldGoldWeight" type="number" min="0" step="0.0001" value="0"></div>
+<div class="field"><label for="saleTradeInSource">舊金來源</label><select id="saleTradeInSource"><option value="">無舊金折抵</option><option value="LOCAL">本店舊金（折抵比率 100%）</option><option value="EXTERNAL">外店舊金（預設折抵比率 95%）</option></select></div>
+<div class="field"><label for="saleTradeInRatio">折抵比率（外店適用）</label><input id="saleTradeInRatio" type="number" min="0.000001" max="1" step="0.000001" value="0.95"></div>
+</div>
+<div class="actions"><button id="addSaleLine" type="button">加入購物車</button></div>
+<div id="saleCartList" aria-live="polite"><div class="empty">尚未加入商品</div></div>
+<div class="actions"><button id="createSaleDraft" type="button">建立銷售草稿</button></div>
+<div id="saleStatus" class="status" role="status"></div>
+<div id="saleDraftResult"></div>
+<div class="actions hidden" id="saleDraftActions"><button id="completeSale" type="button">完成銷售並扣庫存</button><button class="secondary" id="voidSale" type="button">作廢草稿</button></div>
+</section>
 <section class="panel span2" id="dailyClosingPanel">
 <h2>每日結帳</h2>
 <p class="sub">每日結帳會建立該據點營業日的不可變快照。送出前請確認營業日期；同一據點同一營業日只能結帳一次。</p>
@@ -244,6 +271,8 @@ const movementTypeLabels={RECEIPT:"入庫",SALE:"銷售",TRANSFER:"櫃位調撥"
 const goldPriceSourceLabels={MANUAL:"手動",IMPORT:"匯入",SYSTEM:"系統"};
 let dailyClosingsById=new Map();
 let selectedClosing=null;
+let saleCartLines=[];
+let currentSale=null;
 const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"部分刷卡",TRANSFER:"轉帳",OTHER:"其他"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
@@ -286,8 +315,8 @@ async function loadCategories(){
  $("productCategory").insertAdjacentHTML("beforeend",opts);
 }
 async function loadInventoryOptions(){
- const productIds=["adjustmentProduct","transferProduct","movementProductFilter"];
- const locationIds=["stockLocationFilter","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter"];
+ const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct"];
+ const locationIds=["stockLocationFilter","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter","saleLocation"];
  if(!companyId||!selectedSiteId){
   inventoryProducts=[];inventoryLocations=[];
   $("stockList").innerHTML='<div class="empty">請先選擇公司與據點</div>';
@@ -317,6 +346,7 @@ async function loadInventoryOptions(){
  const allProductOptions=products.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
  $("adjustmentProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
  $("transferProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
+ $("saleProduct").innerHTML='<option value="">請選擇商品</option>'+productOptions;
  $("movementProductFilter").innerHTML='<option value="">全部商品</option>'+allProductOptions;
  const activeLocations=locations.filter(x=>x.is_active);
  const locationOptions=locations.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）'+(x.is_active?'':'（已停用）')+'</option>').join("");
@@ -325,6 +355,7 @@ async function loadInventoryOptions(){
  $("adjustmentLocation").innerHTML='<option value="">請選擇位置</option>'+activeLocationOptions;
  $("transferFromLocation").innerHTML='<option value="">請選擇來源</option>'+activeLocationOptions;
  $("transferToLocation").innerHTML='<option value="">請選擇目的</option>'+activeLocationOptions;
+ $("saleLocation").innerHTML='<option value="">請選擇位置</option>'+activeLocationOptions;
  $("movementLocationFilter").innerHTML='<option value="">全部位置</option>'+locationOptions;
  await loadInventoryStock();
  await loadInventoryMovements();
@@ -437,6 +468,21 @@ async function loadCashCount(){
    $("cashCountResult").innerHTML='<div class="empty">此結帳日尚未建立現金盤點。</div>';
   }else{message("cashCountStatus",error.message,true);}
  }
+}
+function renderSaleCart(){
+ const box=$("saleCartList");
+ box.innerHTML=saleCartLines.length?saleCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 出貨位置：'+escapeHtml(line.location.name)+'</span><span class="muted">淨重：'+escapeHtml(line.product.net_weight)+' '+escapeHtml(line.product.weight_unit_code)+' · 工錢：'+escapeHtml(line.labor_fee===null?"使用主檔":line.labor_fee)+'</span><span class="muted">舊金折抵：'+escapeHtml(line.old_gold_weight)+' '+escapeHtml(line.product.weight_unit_code)+(line.old_gold_weight>0?' · '+(line.trade_in_source==="LOCAL"?"本店 100%":"外店 "+line.trade_in_ratio*100+"%"):'')+'</span><div class="actions"><button class="secondary" type="button" data-remove-sale-line="'+index+'">移除此商品</button></div></article>').join(""):'<div class="empty">尚未加入商品</div>';
+ $("createSaleDraft").disabled=!saleCartLines.length||!!currentSale;
+}
+function renderSaleResult(sale){
+ currentSale=sale;
+ const lines=(sale.lines||[]).map(x=>'<article class="item"><strong>'+escapeHtml(x.product_code_snapshot||"商品")+' · '+escapeHtml(x.product_name_snapshot)+'</strong><span class="muted">商品金額：'+escapeHtml(x.subtotal)+' 元 · 刷卡手續費分攤：'+escapeHtml(x.card_fee)+' 元 · 本項應收：'+escapeHtml(x.final_amount)+' 元</span><span class="muted">刷卡本金分攤：'+escapeHtml(x.card_amount_allocated??"—")+'</span></article>').join("");
+ $("saleDraftResult").innerHTML='<article class="item"><strong>銷售單 '+escapeHtml(sale.sale_no)+' · '+escapeHtml(sale.status)+'</strong><span class="muted">商品總額：'+escapeHtml(sale.subtotal)+' 元</span><span class="muted">刷卡本金：'+escapeHtml(sale.card_amount)+' 元 · 刷卡手續費（5%）：'+escapeHtml(sale.card_fee)+' 元</span><span class="muted">現金本金：'+escapeHtml(sale.cash_amount)+' 元</span><span class="pill">顧客應付總額：'+escapeHtml(sale.final_amount)+' 元</span></article>'+lines;
+ const isDraft=sale.status==="DRAFT";
+ $("saleDraftActions").classList.toggle("hidden",!isDraft);
+ $("completeSale").disabled=!isDraft;
+ $("voidSale").disabled=!isDraft;
+ $("createSaleDraft").disabled=true;
 }
 async function loadSequence(){
  if(!companyId)return;
