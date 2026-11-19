@@ -31,10 +31,6 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def isolate_product_master_database():
-    previous = {
-        company_setup_get_db: app.dependency_overrides.get(company_setup_get_db),
-        product_master_get_db: app.dependency_overrides.get(product_master_get_db),
-    }
     app.dependency_overrides[company_setup_get_db] = override_get_db
     app.dependency_overrides[product_master_get_db] = override_get_db
     Base.metadata.drop_all(engine)
@@ -42,11 +38,8 @@ def isolate_product_master_database():
     try:
         yield
     finally:
-        for dependency, old_override in previous.items():
-            if old_override is None:
-                app.dependency_overrides.pop(dependency, None)
-            else:
-                app.dependency_overrides[dependency] = old_override
+        app.dependency_overrides.pop(company_setup_get_db, None)
+        app.dependency_overrides.pop(product_master_get_db, None)
 
 
 def teardown_module():
