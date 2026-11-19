@@ -155,7 +155,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div id="salePaymentSummary"></div>
 <form id="salePaymentForm">
 <div class="grid">
-<div class="field"><label for="salePaymentMethod">實際收付款方式</label><select id="salePaymentMethod"><option value="CASH">現金</option><option value="CARD">刷卡</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option></select></div>
+<div class="field"><label for="actualPaymentMethod">實際收付款方式</label><select id="actualPaymentMethod"><option value="CASH">現金</option><option value="CARD">刷卡</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option></select></div>
 <div class="field"><label for="salePaymentAmount">本次收付款金額（TWD）</label><input id="salePaymentAmount" type="number" min="0.01" step="0.01" required></div>
 <div class="field"><label for="salePaymentReference">交易／收據編號</label><input id="salePaymentReference" maxlength="100"></div>
 <div class="field"><label for="salePaymentNote">收付款備註</label><input id="salePaymentNote" maxlength="500"></div>
@@ -645,7 +645,7 @@ $("salePaymentForm").addEventListener("submit",async event=>{
  const amount=$("salePaymentAmount").value;
  if(!(Number(amount)>0)){message("salePaymentStatus","請輸入大於 0 的收付款金額。",true);return;}
  const button=$("salePaymentForm").querySelector('button[type="submit"]');button.disabled=true;
- const payload={payment_method:$("salePaymentMethod").value,amount,reference_no:$("salePaymentReference").value.trim()||null,note:$("salePaymentNote").value.trim()||null};
+ const payload={payment_method:$("actualPaymentMethod").value,amount,reference_no:$("salePaymentReference").value.trim()||null,note:$("salePaymentNote").value.trim()||null};
  try{
   await api("/companies/"+companyId+"/sales/"+currentSale.id+"/payments",{method:"POST",body:JSON.stringify(payload)});
   $("salePaymentReference").value="";$("salePaymentNote").value="";
