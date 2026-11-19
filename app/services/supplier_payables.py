@@ -129,6 +129,8 @@ def record_supplier_payment(
     currencies = {bill.currency_code for bill in bills}
     if len(currencies) != 1:
         raise ValueError("同一筆供應商付款不可混合不同幣別。")
+    if currencies != {"TWD"}:
+        raise ValueError("目前每日結帳僅支援新台幣付款；外幣帳單可建檔，但須待多幣別付款與匯率模組上線後才能付款。")
 
     site = session.get(Site, site_id)
     if site is None or site.company_id != company_id:
