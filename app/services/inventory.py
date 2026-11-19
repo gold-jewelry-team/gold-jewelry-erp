@@ -45,7 +45,9 @@ def create_inventory_movement(
 
     company = session.get(Company, company_id)
     site = session.get(Site, site_id)
-    product = session.get(Product, product_id)
+    product = session.execute(
+        select(Product).where(Product.id == product_id).with_for_update()
+    ).scalar_one_or_none()
     if company is None:
         raise ValueError("找不到指定公司。")
     if site is None or site.company_id != company_id:
@@ -67,8 +69,16 @@ def create_inventory_movement(
     for location_id in (from_location_id, to_location_id):
         if location_id is not None:
             location = session.get(StorageLocation, location_id)
-            if location is None or location.site_id != site_id:
-                raise ValueError("儲存位置不存在或不屬於指定據點。")
+            if location is None or location.site_id != site_id or not location.is_active:
+                raise ValueError("儲存位置不存在、未啟用或不屬於指定據點。")
+
+    # Serialize movements for one product in PostgreSQL and prevent negative stock.
+    if from_location_id is not None:
+        available = get_stock_balance(
+            session, product_id=product_id, location_id=from_location_id
+        )
+        if available < quantity:
+            raise ValueError(f"庫存不足，目前可用數量：{available}。")
 
     movement = InventoryMovement(
         company_id=company_id,

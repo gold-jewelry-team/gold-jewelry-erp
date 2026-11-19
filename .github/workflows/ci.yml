@@ -2,13 +2,28 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - "feature/**"
   pull_request:
-    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gold_jewelry_erp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gold_jewelry_erp"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,3 +36,106 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run tests
         run: pytest -q
+      - name: Upgrade PostgreSQL schema to head
+        run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+      - name: Run bank reconciliation scope tests on PostgreSQL
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+        run: pytest -q tests/test_postgres_bank_reconciliation_scope.py
+
+      - name: Verify PostgreSQL schema and reconciliation foreign keys
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+        run: |
+          python - <<'PY'
+          from sqlalchemy import create_engine, inspect
+          from app.core.config import settings
+
+          engine = create_engine(settings.database_url)
+          inspector = inspect(engine)
+          tables = set(inspector.get_table_names())
+
+          required_tables = {
+              "companies",
+              "sites",
+              "storage_locations",
+              "products",
+              "sales",
+              "sale_lines",
+              "bank_accounts",
+              "bank_transactions",
+              "bank_statement_imports",
+              "bank_statement_lines",
+              "bank_reconciliation_snapshots",
+          }
+          missing = sorted(required_tables - tables)
+          assert not missing, f"Missing PostgreSQL tables: {missing}"
+
+          bank_tx_fks = inspector.get_foreign_keys("bank_transactions")
+          statement_fks = inspector.get_foreign_keys("bank_statement_lines")
+          assert any(
+              fk.get("referred_table") == "bank_statement_lines"
+              and fk.get("constrained_columns") == ["statement_line_id"]
+              for fk in bank_tx_fks
+          ), "Missing bank_transactions.statement_line_id foreign key"
+          assert any(
+              fk.get("referred_table") == "bank_transactions"
+              and fk.get("constrained_columns") == ["matched_bank_transaction_id"]
+              for fk in statement_fks
+          ), "Missing bank_statement_lines.matched_bank_transaction_id foreign key"
+
+          unique_indexes = inspector.get_indexes("bank_transactions")
+          assert any(
+              index.get("name") == "ix_bank_transactions_statement_line"
+              and index.get("unique")
+              for index in unique_indexes
+          ), "Missing unique statement-line adjustment index"
+
+          check_names = {
+              item.get("name")
+              for item in inspector.get_check_constraints("bank_transactions")
+          }
+          assert {
+              "ck_bank_transactions_type",
+              "ck_bank_transactions_type_direction",
+          }.issubset(check_names), f"Missing bank transaction checks: {check_names}"
+
+          expected_scope_fks = {
+              ("bank_statement_imports", "fk_bank_statement_imports_account_company"),
+              ("bank_transactions", "fk_bank_transactions_account_company"),
+              ("bank_transactions", "fk_bank_transactions_statement_line_scope"),
+              ("bank_statement_lines", "fk_bank_statement_lines_account_company"),
+              ("bank_statement_lines", "fk_bank_statement_lines_import_scope"),
+              ("bank_statement_lines", "fk_bank_statement_lines_duplicate_scope"),
+              ("bank_statement_lines", "fk_bank_statement_lines_matched_tx_scope"),
+              ("bank_reconciliation_snapshots", "fk_bank_reconciliation_account_company"),
+              ("bank_reconciliation_snapshots", "fk_bank_reconciliation_import_scope"),
+          }
+          missing_scope_fks = []
+          for table, expected_name in expected_scope_fks:
+              actual_names = {
+                  fk.get("name") for fk in inspector.get_foreign_keys(table)
+              }
+              if expected_name not in actual_names:
+                  missing_scope_fks.append(f"{table}.{expected_name}")
+          assert not missing_scope_fks, f"Missing ownership-scope foreign keys: {missing_scope_fks}"
+
+          print("PostgreSQL schema verification passed.")
+          engine.dispose()
+          PY
+      - name: Verify full downgrade
+        run: alembic downgrade base
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+      - name: Verify clean re-upgrade
+        run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+      - name: Verify final Alembic revision
+        run: |
+          alembic current
+          alembic current | grep -q "0020_sales_card_tender"
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp

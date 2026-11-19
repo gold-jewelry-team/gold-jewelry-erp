@@ -6,7 +6,7 @@ from decimal import Decimal
 from sqlalchemy import (
     CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, UniqueConstraint, func
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -15,7 +15,7 @@ class Sale(Base):
     __tablename__ = "sales"
     __table_args__ = (
         CheckConstraint("status IN ('DRAFT', 'COMPLETED', 'VOID')", name="ck_sales_status"),
-        CheckConstraint("payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')", name="ck_sales_payment_method"),
+        CheckConstraint("payment_method IN ('CASH', 'CARD', 'MIXED', 'TRANSFER', 'OTHER')", name="ck_sales_payment_method"),
         CheckConstraint("length(currency_code) = 3", name="ck_sales_currency_code_length"),
         Index("ix_sales_company_site_created", "company_id", "site_id", "created_at"),
         UniqueConstraint("site_id", "sale_no", name="uq_sales_site_sale_no"),
@@ -29,6 +29,7 @@ class Sale(Base):
     payment_method: Mapped[str] = mapped_column(String(12), nullable=False, default="CASH", server_default="CASH")
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="TWD", server_default="TWD")
     subtotal: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
+    card_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"), server_default="0")
     card_fee: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
     final_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -36,6 +37,7 @@ class Sale(Base):
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    lines: Mapped[list["SaleLine"]] = relationship(back_populates="sale", order_by="SaleLine.line_no")
 
 
 class SaleLine(Base):
@@ -53,6 +55,9 @@ class SaleLine(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     sale_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sales.id", ondelete="RESTRICT"), nullable=False)
+    product_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("products.id", ondelete="RESTRICT"), nullable=True)
+    source_location_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("storage_locations.id", ondelete="RESTRICT"), nullable=True)
+    sale: Mapped["Sale"] = relationship(back_populates="lines")
     line_no: Mapped[int] = mapped_column(nullable=False)
     product_code_snapshot: Mapped[str | None] = mapped_column(String(50), nullable=True)
     barcode_snapshot: Mapped[str | None] = mapped_column(String(100), nullable=True)
