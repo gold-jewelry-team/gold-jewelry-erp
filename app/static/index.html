@@ -45,7 +45,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <section class="panel span2">
 <h2>新增單件商品</h2>
 <p class="sub">每筆資料代表一件獨立商品；商品編號可先手動輸入。</p><div class="grid"><div class="field wide"><label for="nextNumber">下一個流水號（可設定從 00001 或舊商品最後號碼之後開始）</label><input id="nextNumber" type="number" min="1" step="1" value="1"></div>
-<div class="field"><label for="numberWidth">流水號位數</label><select id="numberWidth"><option value="5">5 位</option><option value="6">6 位</option><option value="4">4 位</option></select></div>
+<div class="field"><label for="numberWidth">流水號位數（1～12 位）</label><input id="numberWidth" type="number" min="1" max="12" step="1" value="5"></div>
 <div class="field"><label>&nbsp;</label><button class="secondary" id="saveSequence" type="button">儲存編號設定</button></div></div><div id="sequenceStatus" class="status" role="status"></div>
 <form id="productForm">
 <div class="grid">
