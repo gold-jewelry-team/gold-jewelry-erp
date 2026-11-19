@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import Session
 
 from app import models  # noqa: F401
@@ -13,7 +14,7 @@ from app.routers.gold_prices import get_db
 
 
 def test_gold_price_api_create_history_and_effective_lookup():
-    engine = create_engine("sqlite+pysqlite:///:memory:")
+    engine = create_engine("sqlite+pysqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
 
     def override_get_db():
