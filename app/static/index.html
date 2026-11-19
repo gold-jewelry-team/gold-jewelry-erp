@@ -100,6 +100,28 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="actions"><button class="secondary" id="refreshMovements" type="button">重新載入異動紀錄</button></div>
 <div id="movementList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 </section>
+<section class="panel span2" id="goldPricePanel">
+<h2>每日金價設定</h2>
+<p class="sub">銷售會使用交易當下有效的買入價與賣出價。金價採新增歷史紀錄，不覆寫舊價格；計價單位必須與商品重量單位一致。</p>
+<div class="grid">
+<div class="field"><label>目前有效買入價</label><div id="effectiveBuyPrice" class="empty">尚未載入</div></div>
+<div class="field"><label>目前有效賣出價</label><div id="effectiveSellPrice" class="empty">尚未載入</div></div>
+</div>
+<form id="goldPriceForm">
+<h3>新增金價紀錄</h3>
+<div class="grid">
+<div class="field"><label for="goldPriceType">金價類型</label><select id="goldPriceType"><option value="BUY">買入價</option><option value="SELL">賣出價</option></select></div>
+<div class="field"><label for="goldPriceValue">每單位金價（TWD）</label><input id="goldPriceValue" type="number" min="0.0001" step="0.0001" required></div>
+<div class="field"><label for="goldPriceUnit">計價單位</label><select id="goldPriceUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
+<div class="field"><label for="goldPriceEffectiveAt">生效時間（台灣時間）</label><input id="goldPriceEffectiveAt" type="datetime-local" required></div>
+<div class="field wide"><label for="goldPriceNote">備註</label><input id="goldPriceNote" maxlength="500" placeholder="例如：今日牌價"></div>
+</div>
+<div class="actions"><button type="submit">新增金價</button><button class="secondary" id="refreshGoldPrices" type="button">重新整理</button></div>
+</form>
+<div id="goldPriceStatus" class="status" role="status"></div>
+<h3>金價歷史紀錄</h3>
+<div id="goldPriceHistory" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
+</section>
 <section class="panel">
 <h2>新增商品分類</h2>
 <form id="categoryForm">
@@ -173,6 +195,7 @@ let editingProduct=null;
 let inventoryProducts=[];
 let inventoryLocations=[];
 const movementTypeLabels={RECEIPT:"入庫",SALE:"銷售",TRANSFER:"櫃位調撥",ADJUSTMENT:"庫存調整",RETURN:"退貨",REPAIR_SEND:"送修",REPAIR_RETURN:"維修返還"};
+const goldPriceSourceLabels={MANUAL:"手動",IMPORT:"匯入",SYSTEM:"系統"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -192,11 +215,11 @@ async function loadCompanies(selectId){
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 async function loadSites(selectId){
  const select=$("siteSelect");selectedSiteId="";
- if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();return;}
+ if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();return;}
  const rows=await api("/companies/"+companyId+"/sites");
  select.innerHTML='<option value="">請選擇據點</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId))select.value=selectId;else if(rows.length===1)select.value=rows[0].id;
- selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();
+ selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();
 }
 async function loadStorageLocations(){
  const box=$("locationList");if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';return;}
@@ -282,6 +305,31 @@ async function loadInventoryMovements(){
  const productNames=new Map(inventoryProducts.map(x=>[x.id,x.product_code+" · "+x.name]));
  box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(productNames.get(x.product_id)||"商品資料不存在")+'</strong><span class="pill">'+escapeHtml(movementTypeLabels[x.movement_type]||x.movement_type)+'</span><span class="muted">來源：'+escapeHtml(x.from_location_id?(locationNames.get(x.from_location_id)||"位置資料不存在"):"—")+' → 目的：'+escapeHtml(x.to_location_id?(locationNames.get(x.to_location_id)||"位置資料不存在"):"—")+'</span><span class="muted">數量：'+escapeHtml(x.quantity)+(x.weight!==null&&x.weight!==undefined?' · 異動重量：'+escapeHtml(x.weight)+' '+escapeHtml(x.weight_unit_code||""):'')+' · 時間：'+escapeHtml(x.occurred_at?new Date(x.occurred_at).toLocaleString("zh-TW"):"—")+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">目前沒有符合條件的異動紀錄</div>';
 }
+function taipeiDateTimeLocalValue(){
+ return new Date(Date.now()+8*60*60*1000).toISOString().slice(0,16);
+}
+function formatGoldPriceDate(value){
+ return value?new Date(value).toLocaleString("zh-TW",{timeZone:"Asia/Taipei"}):"—";
+}
+async function loadGoldPrices(){
+ const buyBox=$("effectiveBuyPrice"),sellBox=$("effectiveSellPrice"),historyBox=$("goldPriceHistory");
+ if(!companyId||!selectedSiteId){
+  buyBox.innerHTML="請先選擇公司與據點";
+  sellBox.innerHTML="請先選擇公司與據點";
+  historyBox.innerHTML='<div class="empty">請先選擇公司與據點</div>';
+  return;
+ }
+ const scope="site_id="+encodeURIComponent(selectedSiteId);
+ const [buy,sell,history]=await Promise.all([
+  api("/companies/"+companyId+"/gold-prices/effective?price_type=BUY&"+scope),
+  api("/companies/"+companyId+"/gold-prices/effective?price_type=SELL&"+scope),
+  api("/companies/"+companyId+"/gold-prices?"+scope+"&limit=100")
+ ]);
+ const renderCurrent=(row,label)=>row?'<article class="item"><strong>'+label+'：'+escapeHtml(row.price_value)+' '+escapeHtml(row.currency_code)+' / '+escapeHtml(row.unit_code)+'</strong><span class="muted">生效時間：'+escapeHtml(formatGoldPriceDate(row.effective_at))+' · '+(row.site_id?"本據點":"全公司")+'</span></article>':'<div class="empty">尚未設定有效'+label+'</div>';
+ buyBox.innerHTML=renderCurrent(buy,"買入價");
+ sellBox.innerHTML=renderCurrent(sell,"賣出價");
+ historyBox.innerHTML=history.length?history.map(x=>'<article class="item"><strong>'+(x.price_type==="BUY"?"買入價":"賣出價")+'：'+escapeHtml(x.price_value)+' '+escapeHtml(x.currency_code)+' / '+escapeHtml(x.unit_code)+'</strong><span class="muted">生效：'+escapeHtml(formatGoldPriceDate(x.effective_at))+' · 來源：'+escapeHtml(goldPriceSourceLabels[x.source]||x.source)+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無金價歷史紀錄</div>';
+}
 async function loadSequence(){
  if(!companyId)return;
  const data=await api("/companies/"+companyId+"/product-code-sequence");
@@ -297,7 +345,7 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();await loadInventoryOptions();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
 $("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();}catch(e){message("globalStatus",e.message,true);}});
@@ -396,6 +444,24 @@ $("productEditForm").addEventListener("submit",async event=>{
  }catch(error){
   message("productEditStatus",error.message,true);
  }finally{saveButton.disabled=false;}
+});
+$("goldPriceEffectiveAt").value=taipeiDateTimeLocalValue();
+$("refreshGoldPrices").addEventListener("click",()=>loadGoldPrices().catch(e=>message("globalStatus",e.message,true)));
+$("goldPriceForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId||!selectedSiteId){message("goldPriceStatus","請先選擇公司與據點。",true);return;}
+ const value=$("goldPriceEffectiveAt").value;
+ if(!value){message("goldPriceStatus","請輸入金價生效時間。",true);return;}
+ const payload={site_id:selectedSiteId,price_type:$("goldPriceType").value,price_value:$("goldPriceValue").value,currency_code:"TWD",unit_code:$("goldPriceUnit").value,effective_at:value+":00+08:00",source:"MANUAL",note:$("goldPriceNote").value.trim()||null};
+ const button=$("goldPriceForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/gold-prices",{method:"POST",body:JSON.stringify(payload)});
+  $("goldPriceValue").value="";$("goldPriceNote").value="";
+  message("goldPriceStatus","金價紀錄已新增，舊紀錄已保留。");
+  try{await loadGoldPrices();}
+  catch(refreshError){message("globalStatus","金價已新增，但畫面重新載入失敗："+refreshError.message,true);}
+ }catch(error){message("goldPriceStatus",error.message,true);}
+ finally{button.disabled=false;}
 });
 $("refreshStock").addEventListener("click",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
 $("inventorySearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadInventoryStock().catch(err=>message("globalStatus",err.message,true));});
