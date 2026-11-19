@@ -105,6 +105,41 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert line["sell_gold_price_value"] == "12000.0000"
         assert line["pricing_rule_version"] == "legacy-v1"
 
+        mixed = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-API-MIXED-001",
+            "payment_method": "CASH",
+            "card_amount": "500",
+            "lines": [{
+                "product_id": str(product_id),
+                "source_location_id": str(location_id),
+            }],
+        })
+        assert mixed.status_code == 201, mixed.text
+        mixed_sale = mixed.json()
+        assert mixed_sale["payment_method"] == "MIXED"
+        assert mixed_sale["subtotal"] == "12300.00"
+        assert mixed_sale["card_amount"] == "500.00"
+        assert mixed_sale["card_fee"] == "25.00"
+        assert mixed_sale["final_amount"] == "12325.00"
+        assert mixed_sale["lines"][0]["card_fee"] == "25.00"
+        assert mixed_sale["lines"][0]["final_amount"] == "12325.00"
+
+        all_card = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-API-CARD-001",
+            "payment_method": "CARD",
+            "lines": [{
+                "product_id": str(product_id),
+                "source_location_id": str(location_id),
+            }],
+        })
+        assert all_card.status_code == 201, all_card.text
+        card_sale = all_card.json()
+        assert card_sale["card_amount"] == "12300.00"
+        assert card_sale["card_fee"] == "615.00"
+        assert card_sale["final_amount"] == "12915.00"
+
         completed = client.post(
             f"/companies/{company_id}/sales/{sale['id']}/complete"
         )
