@@ -414,6 +414,9 @@ async function openCashCount(closing){
  selectedClosing=closing;
  renderClosingSummary(closing);
  $("cashCountPanel").classList.remove("hidden");
+ $("cashCountCreateForm").reset();
+ $("openingCashFloat").value="0";
+ $("cashCountReviewForm").reset();
  $("cashCountCreateForm").classList.add("hidden");
  $("cashCountReviewForm").classList.add("hidden");
  $("cashCountResult").innerHTML="";
