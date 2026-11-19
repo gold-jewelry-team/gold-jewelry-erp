@@ -47,7 +47,17 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         weight_unit_code="QIAN",
         labor_fee=Decimal("300"),
     )
-    session.add_all([location, product])
+    product2 = Product(
+        company_id=company.id,
+        product_code="SALE-G-002",
+        barcode="SALE-BAR-002",
+        name="測試黃金項鍊",
+        gross_weight=Decimal("1.2000"),
+        net_weight=Decimal("1.0000"),
+        weight_unit_code="QIAN",
+        labor_fee=Decimal("300"),
+    )
+    session.add_all([location, product, product2])
     session.flush()
 
     effective_at = datetime.now(timezone.utc) - timedelta(days=1)
@@ -72,7 +82,9 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         reference_type="TEST",
     )
     session.commit()
-    company_id, site_id, product_id, location_id = company.id, site.id, product.id, location.id
+    company_id, site_id, product_id, product2_id, location_id = (
+        company.id, site.id, product.id, product2.id, location.id
+    )
     session.close()
 
     def override_db():
@@ -100,6 +112,7 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert sale["status"] == "DRAFT"
         assert sale["subtotal"] == "12300.00"
         assert sale["final_amount"] == "12300.00"
+        assert sale["cash_amount"] == "12300.00"
         line = sale["lines"][0]
         assert line["product_code_snapshot"] == "SALE-G-001"
         assert line["sell_gold_price_value"] == "12000.0000"
@@ -120,10 +133,31 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert mixed_sale["payment_method"] == "MIXED"
         assert mixed_sale["subtotal"] == "12300.00"
         assert mixed_sale["card_amount"] == "500.00"
+        assert mixed_sale["cash_amount"] == "11800.00"
         assert mixed_sale["card_fee"] == "25.00"
         assert mixed_sale["final_amount"] == "12325.00"
         assert mixed_sale["lines"][0]["card_fee"] == "25.00"
         assert mixed_sale["lines"][0]["final_amount"] == "12325.00"
+
+        multi = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-API-MULTI-001",
+            "payment_method": "MIXED",
+            "card_amount": "1010",
+            "lines": [
+                {"product_id": str(product_id), "source_location_id": str(location_id)},
+                {"product_id": str(product2_id), "source_location_id": str(location_id)},
+            ],
+        })
+        assert multi.status_code == 201, multi.text
+        multi_sale = multi.json()
+        assert multi_sale["subtotal"] == "24600.00"
+        assert multi_sale["card_amount"] == "1010.00"
+        assert multi_sale["cash_amount"] == "23590.00"
+        assert multi_sale["card_fee"] == "51.00"
+        assert multi_sale["final_amount"] == "24651.00"
+        assert [line["card_fee"] for line in multi_sale["lines"]] == ["26.00", "25.00"]
+        assert sum(Decimal(line["final_amount"]) for line in multi_sale["lines"]) == Decimal("24651.00")
 
         all_card = client.post(f"/companies/{company_id}/sales", json={
             "site_id": str(site_id),
@@ -137,6 +171,7 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert all_card.status_code == 201, all_card.text
         card_sale = all_card.json()
         assert card_sale["card_amount"] == "12300.00"
+        assert card_sale["cash_amount"] == "0.00"
         assert card_sale["card_fee"] == "615.00"
         assert card_sale["final_amount"] == "12915.00"
 
