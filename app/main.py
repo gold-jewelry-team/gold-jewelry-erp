@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 from app.routers.health import router as health_router
 from app.routers.company_setup import router as company_setup_router
+from app.routers.product_master import router as product_master_router
 from app.routers.gold_prices import router as gold_prices_router
 from app.routers.suppliers import router as suppliers_router
 from app.routers.purchases import router as purchases_router
@@ -27,6 +28,7 @@ app = FastAPI(
 )
 app.include_router(health_router)
 app.include_router(company_setup_router)
+app.include_router(product_master_router)
 app.include_router(gold_prices_router)
 app.include_router(suppliers_router)
 app.include_router(purchases_router)
