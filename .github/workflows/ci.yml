@@ -40,6 +40,11 @@ jobs:
         run: alembic upgrade head
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+      - name: Run bank reconciliation scope tests on PostgreSQL
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+        run: pytest -q tests/test_postgres_bank_reconciliation_scope.py
+
       - name: Verify PostgreSQL schema and reconciliation foreign keys
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
