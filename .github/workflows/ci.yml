@@ -111,6 +111,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0017_bank_reconciliation_adjustments"
+          alembic current | grep -q "0017_bank_recon_adjustments"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
