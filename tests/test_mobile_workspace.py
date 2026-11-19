@@ -16,6 +16,13 @@ def test_mobile_workspace_serves_html():
     assert "label-lots" in response.text
     assert "進貨成本工錢" in response.text
     assert "formatLaborDarkCode" in response.text
+    assert "formatRocStickerDate" in response.text
+    assert "銷售工錢" in response.text
+    assert "低於進貨成本工錢" in response.text
+    assert "廠商：" in response.text
+    assert "櫃位：" in response.text
+    assert "進貨日：" in response.text
+    assert "款式:" in response.text
     assert "labor-code-config" in response.text
     assert "暗碼：" in response.text
     assert 'id="labelCopyCount"' in response.text
