@@ -5,8 +5,11 @@ from app.models.gold_price import GoldPrice
 from app.models.sale import Sale, SaleLine
 from app.models.product import Product, ProductCategory
 from app.models.inventory import InventoryMovement
+from app.models.supplier import Supplier
+from app.models.purchase import Purchase, PurchaseLine
 
 __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
-    "Product", "ProductCategory", "InventoryMovement",
+    "Product", "ProductCategory", "InventoryMovement", "Supplier",
+    "Purchase", "PurchaseLine",
 ]
