@@ -4,6 +4,8 @@ from uuid import UUID
 from io import BytesIO
 
 import segno
+import barcode as linear_barcode
+from barcode.writer import SVGWriter
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import or_, select
@@ -250,6 +252,35 @@ def product_qr_label(company_id: UUID, product_id: UUID, db: Session = Depends(g
     qr = segno.make_qr(payload, error="m")
     output = BytesIO()
     qr.save(output, kind="svg", xmldecl=False, svgns=True, scale=5, border=2)
+    return Response(
+        content=output.getvalue().decode("utf-8"),
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "private, max-age=300"},
+    )
+
+
+
+@router.get("/companies/{company_id}/products/{product_id}/barcode.svg", include_in_schema=False)
+def product_linear_barcode(company_id: UUID, product_id: UUID, db: Session = Depends(get_db)):
+    """Render a Code 128 barcode using the item's barcode or product code."""
+    _require_company(db, company_id)
+    product = db.scalar(select(Product).where(
+        Product.id == product_id, Product.company_id == company_id
+    ))
+    if product is None:
+        raise HTTPException(status_code=404, detail="找不到指定商品。")
+    payload = (product.barcode or product.product_code).strip()
+    if not payload.isascii():
+        raise HTTPException(status_code=422, detail="條碼內容必須使用 ASCII 字元。")
+    try:
+        code = linear_barcode.Code128(payload, writer=SVGWriter())
+        output = BytesIO()
+        code.write(output, options={
+            "module_width": 0.18, "module_height": 9, "quiet_zone": 1,
+            "font_size": 0, "text_distance": 0, "write_text": False,
+        })
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="無法產生此商品的一維條碼。") from exc
     return Response(
         content=output.getvalue().decode("utf-8"),
         media_type="image/svg+xml",
