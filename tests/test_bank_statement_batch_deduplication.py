@@ -57,9 +57,9 @@ def _setup():
 def test_import_marks_repeated_rows_in_same_csv_as_duplicate_and_matches_once():
     engine, db, company, account, transaction = _setup()
     csv_content = (
-        "transaction_date,description,amount,direction,reference_no\\n"
-        "2026-11-19,活存利息,5.00,IN,INT-001\\n"
-        "2026-11-19,活存利息,5.00,IN,INT-001\\n"
+        "transaction_date,description,amount,direction,reference_no\n"
+        "2026-11-19,活存利息,5.00,IN,INT-001\n"
+        "2026-11-19,活存利息,5.00,IN,INT-001\n"
     )
 
     batch = import_bank_statement_csv(
@@ -88,7 +88,7 @@ def test_import_marks_repeated_rows_in_same_csv_as_duplicate_and_matches_once():
         db,
         company_id=company.id,
         bank_account_id=account.id,
-        csv_content=csv_content.splitlines()[0] + "\\n" + csv_content.splitlines()[1] + "\\n",
+        csv_content=csv_content.splitlines()[0] + "\n" + csv_content.splitlines()[1] + "\n",
         source_file_name="later-import.csv",
         imported_by_name="測試人員",
     )
