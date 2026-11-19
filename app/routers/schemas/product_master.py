@@ -36,6 +36,8 @@ class ProductCreate(BaseModel):
     net_weight: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=4)
     weight_unit_code: str = Field(default="QIAN", min_length=1, max_length=20)
     labor_fee: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
+    chain_length: str | None = Field(default=None, max_length=40)
+    style_code: str | None = Field(default=None, max_length=40)
     note: str | None = Field(default=None, max_length=500)
 
 
@@ -50,6 +52,8 @@ class ProductUpdate(BaseModel):
     net_weight: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=4)
     weight_unit_code: str | None = Field(default=None, min_length=1, max_length=20)
     labor_fee: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
+    chain_length: str | None = Field(default=None, max_length=40)
+    style_code: str | None = Field(default=None, max_length=40)
     note: str | None = Field(default=None, max_length=500)
     is_active: bool | None = None
 
@@ -67,6 +71,8 @@ class ProductRead(BaseModel):
     net_weight: Decimal
     weight_unit_code: str
     labor_fee: Decimal
+    chain_length: str | None
+    style_code: str | None
     note: str | None
     is_active: bool
     created_at: datetime
