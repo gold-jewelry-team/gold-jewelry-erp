@@ -2,7 +2,9 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+
+from app.services.pricing.rounding import round_twd_like_legacy
 
 
 class SaleLineCreate(BaseModel):
@@ -82,8 +84,11 @@ class SaleRead(BaseModel):
     updated_at: datetime
     lines: list[SaleLineRead]
 
-
-class SaleActionResult(BaseModel):
-    sale_id: UUID
-    status: str
-    message: str
+    @computed_field
+    @property
+    def cash_amount(self) -> Decimal:
+        """Cash principal only; card fees are displayed separately."""
+        if self.payment_method not in {"CASH", "MIXED"}:
+            return Decimal("0.00")
+        cash = round_twd_like_legacy(self.subtotal) - self.card_amount
+        return max(Decimal("0"), cash)
