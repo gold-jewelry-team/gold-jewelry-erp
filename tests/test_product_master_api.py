@@ -177,3 +177,31 @@ def test_product_code_and_barcode_are_unique_per_company():
         json={"product_code": "G00R-00002", "barcode": "471000000001", "name": "第三件戒指"},
     )
     assert duplicate_barcode.status_code == 409
+
+
+def test_product_label_lots_returns_empty_without_receipts_and_is_company_scoped():
+    company_id = setup_company()
+    product = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "LABEL-EMPTY-001", "barcode": "LABEL001", "name": "尚未收貨商品"},
+    )
+    assert product.status_code == 201, product.text
+
+    empty_lots = client.get(
+        f"/companies/{company_id}/products/{product.json()['id']}/label-lots"
+    )
+    assert empty_lots.status_code == 200
+    assert empty_lots.json() == []
+
+    other_company_id = client.post(
+        "/companies", json={"code": "OTHER-LABEL", "name": "其他銀樓"}
+    ).json()["id"]
+    foreign_product = client.post(
+        f"/companies/{other_company_id}/products",
+        json={"product_code": "LABEL-FOREIGN-001", "barcode": "LABELFOREIGN", "name": "他公司商品"},
+    )
+    assert foreign_product.status_code == 201
+    forbidden_lots = client.get(
+        f"/companies/{company_id}/products/{foreign_product.json()['id']}/label-lots"
+    )
+    assert forbidden_lots.status_code == 404
