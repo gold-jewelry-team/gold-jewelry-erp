@@ -66,6 +66,14 @@ def test_supplier_purchase_submit_and_receive_api():
         assert purchase_response.status_code == 201, purchase_response.text
         purchase = purchase_response.json()
         assert purchase["status"] == "DRAFT"
+
+        listed = client.get(
+            f"/companies/{company_id}/purchases",
+            params={"site_id": str(site_id), "status": "DRAFT"},
+        )
+        assert listed.status_code == 200, listed.text
+        assert len(listed.json()) == 1
+        assert listed.json()[0]["id"] == purchase["id"]
         purchase_id, line_id = purchase["id"], purchase["lines"][0]["id"]
 
         submitted = client.post(f"/companies/{company_id}/purchases/{purchase_id}/submit")
