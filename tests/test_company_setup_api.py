@@ -32,17 +32,14 @@ client = TestClient(app)
 def isolate_company_setup_database():
     # Other test modules also use the global FastAPI app and may clear overrides.
     # Reinstall this module's override for every test to prevent CI-order coupling.
-    previous = app.dependency_overrides.get(get_db)
     app.dependency_overrides[get_db] = override_get_db
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     try:
         yield
     finally:
-        if previous is None:
-            app.dependency_overrides.pop(get_db, None)
-        else:
-            app.dependency_overrides[get_db] = previous
+        # Never restore another module's stale override: all tests share app.
+        app.dependency_overrides.pop(get_db, None)
 
 
 def teardown_module():

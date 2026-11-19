@@ -9,6 +9,7 @@ from app.db.session import SessionLocal
 from app.models.company import Company
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
+from app.models.product_code_sequence import ProductCodeSequence
 from app.routers.schemas.company_setup import (
     CompanyCreate, CompanyRead, SiteCreate, SiteRead,
     StorageLocationCreate, StorageLocationRead,
@@ -38,6 +39,8 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
     company = Company(**payload.model_dump())
     db.add(company)
     try:
+        db.flush()
+        db.add(ProductCodeSequence(company_id=company.id, next_number=1, number_width=5))
         db.commit()
         db.refresh(company)
         return company

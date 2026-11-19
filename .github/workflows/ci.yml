@@ -136,6 +136,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0020_sales_card_tender"
+          alembic current | grep -q "0021_product_code_sequence"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
