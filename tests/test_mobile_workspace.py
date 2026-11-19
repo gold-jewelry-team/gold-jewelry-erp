@@ -12,6 +12,9 @@ def test_mobile_workspace_serves_html():
     assert "列印 3×10 貼紙" in response.text
     assert "@page{size:100mm 30mm;margin:0}" in response.text
     assert "grid-template-columns:49mm 49mm" in response.text
+    assert 'id="labelLotModal"' in response.text
+    assert "label-lots" in response.text
+    assert "進貨成本工錢" in response.text
     assert "/barcode.svg" in response.text
     assert "productBarcodeImage" in response.text
     assert "data-print-product-label" in response.text
