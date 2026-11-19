@@ -87,7 +87,7 @@ def test_completed_sale_return_restocks_item_and_records_signed_reversal():
         sale_response = client.post(f"/companies/{company_id}/sales", json={
             "site_id": str(site_id),
             "sale_no": "SO-RETURN-001",
-            "payment_method": "CASH",
+            "payment_method": "CARD",
             "lines": [{"product_id": str(product_id), "source_location_id": str(location_id)}],
         })
         assert sale_response.status_code == 201, sale_response.text
@@ -103,8 +103,9 @@ def test_completed_sale_return_restocks_item_and_records_signed_reversal():
         })
         assert returned.status_code == 201, returned.text
         record = returned.json()
-        assert record["settlement_reversal_amount"] == "-12300.00"
+        assert record["settlement_reversal_amount"] == "-12915.00"
         assert record["lines"][0]["product_code_snapshot"] == "RETURN-OK-G-001"
+        assert record["lines"][0]["settlement_reversal_amount"] == "-12915.00"
 
         check = TestSession()
         assert get_stock_balance(check, product_id=product_id, location_id=location_id) == Decimal("1")
