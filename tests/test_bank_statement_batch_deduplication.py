@@ -164,9 +164,9 @@ def test_new_duplicates_always_reference_original_root_even_when_history_is_chai
     db.commit()
 
     csv_content = (
-        "transaction_date,description,amount,direction,reference_no\\n"
-        "2026-11-19,歷史利息,5.00,IN,ROOT-001\\n"
-        "2026-11-19,歷史利息,5.00,IN,ROOT-001\\n"
+        "transaction_date,description,amount,direction,reference_no\n"
+        "2026-11-19,歷史利息,5.00,IN,ROOT-001\n"
+        "2026-11-19,歷史利息,5.00,IN,ROOT-001\n"
     )
     imported = import_bank_statement_csv(
         db,
