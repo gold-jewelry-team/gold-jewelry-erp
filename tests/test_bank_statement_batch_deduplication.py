@@ -241,8 +241,8 @@ def test_import_rejects_historical_duplicate_cycle():
     db.commit()
 
     csv_content = (
-        "transaction_date,description,amount,direction,reference_no\\n"
-        "2026-11-19,循環測試,8.00,IN,CYCLE-001\\n"
+        "transaction_date,description,amount,direction,reference_no\n"
+        "2026-11-19,循環測試,8.00,IN,CYCLE-001\n"
     )
     with pytest.raises(ValueError, match="歷史對帳單重複關聯存在循環"):
         import_bank_statement_csv(
