@@ -41,7 +41,7 @@ def test_statement_fee_adjustment_creates_linked_ledger_and_matches_line():
 
 def test_statement_adjustment_rejects_wrong_direction_and_duplicate():
     engine,db,company,account,batch,line=_setup()
-    with pytest.raises(ValueError,match="支出"):
+    with pytest.raises(ValueError,match="收入"):
         create_statement_adjustment(db,company_id=company.id,import_id=batch.id,line_id=line.id,
             transaction_type="INTEREST_IN",created_by_name="店員甲",reason="錯誤類型")
     tx=create_statement_adjustment(db,company_id=company.id,import_id=batch.id,line_id=line.id,
