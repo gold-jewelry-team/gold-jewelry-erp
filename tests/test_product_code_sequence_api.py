@@ -33,7 +33,6 @@ client = TestClient(app)
 @pytest.fixture(autouse=True)
 def isolate_database():
     dependencies = [company_setup_get_db, sequence_get_db, product_master_get_db]
-    previous = {dep: app.dependency_overrides.get(dep) for dep in dependencies}
     for dep in dependencies:
         app.dependency_overrides[dep] = override_get_db
     Base.metadata.drop_all(engine)
@@ -41,11 +40,9 @@ def isolate_database():
     try:
         yield
     finally:
-        for dep, old in previous.items():
-            if old is None:
-                app.dependency_overrides.pop(dep, None)
-            else:
-                app.dependency_overrides[dep] = old
+        # Do not restore stale overrides installed by other test modules.
+        for dep in dependencies:
+            app.dependency_overrides.pop(dep, None)
 
 
 def create_company():
