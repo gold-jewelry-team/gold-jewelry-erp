@@ -35,7 +35,7 @@ def test_mobile_workspace_serves_html():
     assert 'type="number" min="0" step="0.1"' in response.text
     assert "editChainLengthRaw" in response.text
     assert "/barcode.svg" in response.text
-    assert "productBarcodeImage" in response.text
+    assert 'class="barcode"' in response.text
     assert "data-print-product-label" in response.text
     assert 'id="companySelect"' in response.text
     assert 'id="inventoryStockPanel"' in response.text
