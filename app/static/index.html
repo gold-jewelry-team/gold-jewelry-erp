@@ -866,12 +866,40 @@ async function loadSequence(){
 }
 
 function printProductQrLabel(product){
- const printWindow=window.open("","_blank");
- if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
- const qrUrl="/companies/"+companyId+"/products/"+product.id+"/qr.svg";
- const qrValue=product.barcode||product.product_code;
- const html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>商品 QR 標籤</title><style>@page{size:50mm 30mm;margin:1mm}*{box-sizing:border-box}body{margin:0;font-family:Arial,"Noto Sans TC",sans-serif}.label{width:48mm;height:28mm;display:grid;grid-template-columns:1fr 16mm;grid-template-rows:1fr 10mm;gap:1mm;align-items:center;overflow:hidden}.info{grid-column:1;grid-row:1;min-width:0;display:grid;gap:1mm}.name{font-size:8pt;font-weight:700;line-height:1.15;max-height:8mm;overflow:hidden}.code{font-size:8pt;font-weight:700;overflow-wrap:anywhere}.meta{font-size:6.5pt;line-height:1.15}.qr{grid-column:2;grid-row:1 / span 2;width:16mm;height:16mm;object-fit:contain}.barcode{grid-column:1;grid-row:2;width:30mm;height:10mm;object-fit:fill}</style></head><body><div class="label"><div class="info"><div class="name">'+escapeHtml(product.name)+'</div><div class="code">'+escapeHtml(product.product_code)+'</div><div class="meta">條碼：'+escapeHtml(qrValue)+'</div><div class="meta">淨重：'+escapeHtml(product.net_weight)+' '+escapeHtml(product.weight_unit_code)+'</div></div><img id="productQrImage" class="qr" src="'+qrUrl+'" alt="商品 QR Code"><img id="productBarcodeImage" class="barcode" src="'+"/companies/"+companyId+"/products/"+product.id+"/barcode.svg"+'" alt="商品一維條碼"></div><script>const image=document.getElementById("productQrImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="QR Code 載入失敗，請關閉視窗後重試。";};<\/script></body></html>';
- printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
+  const companyId=state.companyId;
+  const barcodeValue=(product.barcode||product.product_code||"").trim();
+  if(!companyId||!product.id||!barcodeValue){setStatus("商品缺少公司、商品 ID 或條碼，無法列印。",true);return;}
+  const barcodeUrl="/companies/"+companyId+"/products/"+product.id+"/barcode.svg";
+  const weight=Number(product.gross_weight||0);
+  const weightText=Number.isFinite(weight)?weight.toFixed(2)+" "+(product.weight_unit_code||""):"—";
+  const labor=Number(product.labor_fee||0);
+  const laborText=Number.isFinite(labor)?Math.round(labor).toString():"—";
+  const html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>商品條碼貼紙</title><style>'+
+    '@page{size:100mm 30mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;width:100mm;height:30mm;font-family:Arial,"Noto Sans TC",sans-serif;color:#111}'+
+    '.label{width:100mm;height:30mm;padding:1mm;display:grid;grid-template-columns:49mm 49mm;column-gap:0;overflow:hidden;page-break-after:always}'+
+    '.left{width:49mm;height:28mm;display:grid;grid-template-rows:4mm 11mm 1fr;align-items:center;min-width:0}'+
+    '.product-code{text-align:center;font-size:9pt;font-weight:700;line-height:4mm;white-space:nowrap;overflow:hidden}'+
+    '.barcode{display:block;width:47mm;height:11mm;object-fit:fill;margin:0 auto}'+
+    '.source-row{display:flex;align-items:end;justify-content:space-between;gap:1mm;font-size:6pt;white-space:nowrap;overflow:hidden}'+
+    '.source-row span{overflow:hidden;text-overflow:clip}'+
+    '.right{width:49mm;height:28mm;padding:0 1mm 0 2mm;display:grid;grid-template-rows:12mm 5mm 5mm 6mm;align-items:center;min-width:0}'+
+    '.weight{font-size:20pt;font-weight:800;line-height:1;white-space:nowrap}'+
+    '.labor{font-size:9pt;font-weight:700;white-space:nowrap}'+
+    '.dark{font-size:8pt;font-weight:700;white-space:nowrap}'+
+    '.extra{display:flex;justify-content:space-between;gap:1mm;font-size:7pt;white-space:nowrap;overflow:hidden}'+
+    '@media screen{body{background:#eee}.label{background:#fff;margin:12px auto;box-shadow:0 1px 5px #999}}'+
+    '</style></head><body><div class="label">'+
+    '<section class="left"><div class="product-code">'+escapeHtml(product.product_code)+'</div>'+
+    '<img id="productBarcodeImage" class="barcode" src="'+barcodeUrl+'" alt="Code 128 條碼">'+
+    '<div class="source-row"><span>廠商：—</span><span>櫃位：—</span><span>進貨日：—</span></div></section>'+
+    '<section class="right"><div class="weight">'+escapeHtml(weightText)+'</div>'+
+    '<div class="labor">工錢：'+escapeHtml(laborText)+'</div>'+
+    '<div class="dark">暗碼：—</div>'+
+    '<div class="extra"><span>長度：—</span><span>款式：—</span></div></section></div>'+
+    '<script>const image=document.getElementById("productBarcodeImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};<\\/script></body></html>';
+  const printWindow=window.open("","_blank","width=800,height=400");
+  if(!printWindow){setStatus("瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗。",true);return;}
+  printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
 }
 async function loadProducts(){
  const box=$("productList");
@@ -880,7 +908,7 @@ async function loadProducts(){
  const q=$("search").value.trim();
  const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
  productsById=new Map(rows.map(x=>[x.id,x]));
- box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 QR 標籤</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
+ box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 10×3 貼紙</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
 $("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
