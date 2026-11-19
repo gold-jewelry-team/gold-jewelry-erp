@@ -866,10 +866,10 @@ async function loadSequence(){
 }
 
 function printProductQrLabel(product){
-  const companyId=state.companyId;
+  const selectedCompanyId=companyId;
   const barcodeValue=(product.barcode||product.product_code||"").trim();
-  if(!companyId||!product.id||!barcodeValue){setStatus("商品缺少公司、商品 ID 或條碼，無法列印。",true);return;}
-  const barcodeUrl="/companies/"+companyId+"/products/"+product.id+"/barcode.svg";
+  if(!selectedCompanyId||!product.id||!barcodeValue){message("globalStatus","商品缺少公司、商品 ID 或條碼，無法列印。",true);return;}
+  const barcodeUrl="/companies/"+selectedCompanyId+"/products/"+product.id+"/barcode.svg";
   const weight=Number(product.gross_weight||0);
   const weightText=Number.isFinite(weight)?weight.toFixed(2)+" "+(product.weight_unit_code||""):"—";
   const labor=Number(product.labor_fee||0);
@@ -898,7 +898,7 @@ function printProductQrLabel(product){
     '<div class="extra"><span>長度：—</span><span>款式：—</span></div></section></div>'+
     '<script>const image=document.getElementById("productBarcodeImage");image.onload=()=>{window.focus();window.print();};image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};<\\/script></body></html>';
   const printWindow=window.open("","_blank","width=800,height=400");
-  if(!printWindow){setStatus("瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗。",true);return;}
+  if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗。",true);return;}
   printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
 }
 async function loadProducts(){
