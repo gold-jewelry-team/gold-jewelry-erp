@@ -97,6 +97,42 @@ def test_category_and_product_create_list_update_flow():
     assert updated.json()["labor_fee"] == "900.00"
 
 
+def test_product_update_rejects_duplicate_code_suffix_and_barcode():
+    company_id = setup_company()
+    first = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00R-00001", "barcode": "471000000001", "name": "第一件戒指"},
+    )
+    second = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "G00E-00002", "barcode": "471000000002", "name": "第二件耳環"},
+    )
+    assert first.status_code == 201
+    assert second.status_code == 201
+    first_id = first.json()["id"]
+    second_barcode = second.json()["barcode"]
+
+    duplicate_suffix = client.patch(
+        f"/companies/{company_id}/products/{first_id}",
+        json={"product_code": "F00HF-00002"},
+    )
+    assert duplicate_suffix.status_code == 409
+
+    duplicate_barcode = client.patch(
+        f"/companies/{company_id}/products/{first_id}",
+        json={"barcode": second_barcode},
+    )
+    assert duplicate_barcode.status_code == 409
+
+    updated = client.patch(
+        f"/companies/{company_id}/products/{first_id}",
+        json={"product_code": "G00R-00003", "barcode": "471000000003"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["product_code"] == "G00R-00003"
+    assert updated.json()["barcode"] == "471000000003"
+
+
 def test_product_rejects_foreign_category_and_invalid_weights():
     company_a = setup_company()
     company_b = client.post("/companies", json={"code": "OTHER", "name": "另一家公司"}).json()["id"]
