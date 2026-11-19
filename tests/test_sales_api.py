@@ -18,6 +18,8 @@ from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.routers import sales
 from app.services.inventory import create_inventory_movement, get_stock_balance
+from app.services.daily_closing import create_daily_closing
+from zoneinfo import ZoneInfo
 
 
 def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
@@ -196,6 +198,41 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
             f"/companies/{company_id}/sales/{sale['id']}/complete"
         )
         assert duplicate_completion.status_code == 422
+
+        # Closing the Taipei business day must block both new drafts and
+        # completion of drafts created before the close.
+        closing_session = TestSession()
+        create_daily_closing(
+            closing_session,
+            company_id=company_id,
+            site_id=site_id,
+            business_date=datetime.now(ZoneInfo("Asia/Taipei")).date(),
+        )
+        closing_session.commit()
+        closing_session.close()
+
+        after_close = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-API-AFTER-CLOSE",
+            "payment_method": "CASH",
+            "lines": [{
+                "product_id": str(product_id),
+                "source_location_id": str(location_id),
+            }],
+        })
+        assert after_close.status_code == 422
+        assert "已結帳" in after_close.json()["detail"]
+
+        blocked_completion = client.post(
+            f"/companies/{company_id}/sales/{mixed_sale['id']}/complete"
+        )
+        assert blocked_completion.status_code == 422
+        assert "已結帳" in blocked_completion.json()["detail"]
+
+        final_check = TestSession()
+        assert final_check.query(InventoryMovement).filter_by(reference_type="SALE_LINE").count() == 1
+        assert final_check.query(Sale).filter_by(sale_no="SO-API-AFTER-CLOSE").count() == 0
+        final_check.close()
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
