@@ -78,9 +78,13 @@ def test_category_and_product_create_list_update_flow():
             "net_weight": "1.2000",
             "weight_unit_code": "QIAN",
             "labor_fee": "800",
+            "chain_length": "1.6尺",
+            "style_code": "NK-01",
         },
     )
     assert product.status_code == 201, product.text
+    assert product.json()["chain_length"] == "1.6尺"
+    assert product.json()["style_code"] == "NK-01"
     product_id = product.json()["id"]
 
     listed = client.get(f"/companies/{company_id}/products", params={"q": "22618"})
@@ -90,11 +94,13 @@ def test_category_and_product_create_list_update_flow():
 
     updated = client.patch(
         f"/companies/{company_id}/products/{product_id}",
-        json={"name": "黃金戒指（改款）", "labor_fee": "900"},
+        json={"name": "黃金戒指（改款）", "labor_fee": "900", "chain_length": "1.8尺", "style_code": "NK-02"},
     )
     assert updated.status_code == 200
     assert updated.json()["name"] == "黃金戒指（改款）"
     assert updated.json()["labor_fee"] == "900.00"
+    assert updated.json()["chain_length"] == "1.8尺"
+    assert updated.json()["style_code"] == "NK-02"
 
 
 def test_product_update_rejects_duplicate_code_suffix_and_barcode():
