@@ -102,3 +102,22 @@ def test_receiving_rejects_location_from_another_site():
     finally:
         session.close()
         engine.dispose()
+
+
+def test_partial_receiving_allocates_total_line_weight_without_double_counting():
+    engine, session, company, site, supplier, location, product, purchase, line = setup_purchase()
+    try:
+        receive_purchase_line(session, purchase_id=purchase.id, purchase_line_id=line.id,
+                              location_id=location.id, received_quantity=Decimal("1"))
+        receive_purchase_line(session, purchase_id=purchase.id, purchase_line_id=line.id,
+                              location_id=location.id, received_quantity=Decimal("2"))
+        session.commit()
+        movements = session.query(InventoryMovement).filter_by(
+            reference_type="PURCHASE_LINE", reference_id=line.id
+        ).all()
+        assert sum((m.weight for m in movements), Decimal("0")) == Decimal("1.1")
+        assert [m.weight for m in movements] == [Decimal("0.3667"), Decimal("0.7333")]
+        assert purchase.status == "RECEIVED"
+    finally:
+        session.close()
+        engine.dispose()
