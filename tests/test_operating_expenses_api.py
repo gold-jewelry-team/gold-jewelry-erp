@@ -32,6 +32,11 @@ def test_operating_expense_create_pay_and_daily_closing():
         paid=client.post(f"{base}/{created.json()['id']}/pay",json={"payment_method":"TRANSFER"})
         assert paid.status_code==200,paid.text
         assert paid.json()["status"]=="PAID"
+
+        listed = client.get(base, params={"site_id": str(sid), "status": "PAID"})
+        assert listed.status_code == 200, listed.text
+        assert len(listed.json()) == 1
+        assert listed.json()[0]["id"] == created.json()["id"]
         today=datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
         close=client.post(f"/companies/{cid}/sites/{sid}/daily-closings",json={"business_date":today.isoformat()})
         assert close.status_code==201,close.text
