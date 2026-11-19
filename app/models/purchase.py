@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Numeric, String, Uuid, UniqueConstraint, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -29,6 +29,8 @@ class Purchase(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
+    lines: Mapped[list["PurchaseLine"]] = relationship(back_populates="purchase", order_by="PurchaseLine.created_at")
+
 
 class PurchaseLine(Base):
     __tablename__ = "purchase_lines"
@@ -49,3 +51,5 @@ class PurchaseLine(Base):
     unit_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"))
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    purchase: Mapped["Purchase"] = relationship(back_populates="lines")
