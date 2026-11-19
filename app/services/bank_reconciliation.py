@@ -162,9 +162,13 @@ def create_statement_adjustment(session: Session, *, company_id: UUID, import_id
         direction=line.direction,amount=line.amount,currency_code="TWD",
         reference_no=line.reference_no,description=line.description[:200],
         created_by_name=actor,occurred_at=occurred_at or datetime.combine(
-            line.transaction_date,datetime.min.time(),tzinfo=TAIPEI),
+            line.transaction_date,datetime.min.time().replace(hour=12),tzinfo=TAIPEI),
         note=memo
     )
+    if tx.occurred_at.tzinfo is None:
+        raise ValueError("調整發生時間必須包含時區。")
+    if tx.occurred_at.astimezone(TAIPEI).date()!=line.transaction_date:
+        raise ValueError("調整發生日期必須與銀行對帳單明細日期相同。")
     session.add(tx)
     session.flush()
     line.status="MATCHED"
