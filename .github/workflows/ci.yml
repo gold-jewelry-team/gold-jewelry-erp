@@ -136,6 +136,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0018_recon_scope_constraints"
+          alembic current | grep -q "0019_daily_closing_mixed_payment"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
