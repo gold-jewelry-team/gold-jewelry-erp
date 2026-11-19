@@ -38,6 +38,20 @@ def _load_return(
     )
 
 
+@router.get("", response_model=list[SaleReturnRead])
+def list_sale_returns(
+    company_id: UUID,
+    sale_id: UUID,
+    db: Session = Depends(get_db),
+):
+    return list(db.scalars(
+        select(SaleReturn)
+        .options(selectinload(SaleReturn.lines))
+        .where(SaleReturn.company_id == company_id, SaleReturn.sale_id == sale_id)
+        .order_by(SaleReturn.created_at, SaleReturn.id)
+    ).all())
+
+
 @router.post("", response_model=SaleReturnRead, status_code=201)
 def post_sale_return(
     company_id: UUID,
