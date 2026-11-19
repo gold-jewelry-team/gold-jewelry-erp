@@ -24,8 +24,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    env:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +38,11 @@ jobs:
         run: pytest -q
       - name: Upgrade PostgreSQL schema to head
         run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
       - name: Verify PostgreSQL schema and reconciliation foreign keys
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
         run: |
           python - <<'PY'
           from sqlalchemy import create_engine, inspect
@@ -100,9 +102,15 @@ jobs:
           PY
       - name: Verify full downgrade
         run: alembic downgrade base
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
       - name: Verify clean re-upgrade
         run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
       - name: Verify final Alembic revision
         run: |
           alembic current
           alembic current | grep -q "0017_bank_reconciliation_adjustments"
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
