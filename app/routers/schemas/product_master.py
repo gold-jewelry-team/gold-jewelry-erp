@@ -77,3 +77,21 @@ class ProductRead(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class ProductLabelLotRead(BaseModel):
+    """Authoritative receiving details available for a product label."""
+    receipt_id: UUID
+    purchase_id: UUID
+    purchase_no: str
+    supplier_code: str
+    supplier_name: str
+    location_code: str
+    location_name: str
+    received_at: datetime
+    received_quantity: Decimal
+    weight: Decimal | None
+    weight_unit_code: str | None
+    unit_cost: Decimal
+    cost_labor_fee: Decimal
+    currency_code: str
