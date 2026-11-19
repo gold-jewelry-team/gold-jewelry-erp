@@ -11,6 +11,12 @@ def test_mobile_workspace_serves_html():
     assert 'id="productForm"' in response.text
     assert 'id="companySelect"' in response.text
     assert 'id="inventoryStockPanel"' in response.text
+    assert 'id="stocktakePanel"' in response.text
+    assert 'id="stocktakeLocation"' in response.text
+    assert 'id="stocktakeBarcode"' in response.text
+    assert 'id="scanStocktakeButton"' in response.text
+    assert 'id="applyStocktake"' in response.text
+    assert "persistStocktakeDraft" in response.text
     assert 'id="inventoryAdjustmentForm"' in response.text
     assert 'id="inventoryTransferForm"' in response.text
     assert 'id="inventoryMovementPanel"' in response.text
