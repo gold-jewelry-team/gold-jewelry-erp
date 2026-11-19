@@ -10,6 +10,8 @@ def test_mobile_workspace_serves_html():
     assert "黃金珠寶進銷存" in response.text
     assert 'id="productForm"' in response.text
     assert "列印 QR 標籤" in response.text
+    assert "/barcode.svg" in response.text
+    assert "productBarcodeImage" in response.text
     assert "data-print-product-label" in response.text
     assert 'id="companySelect"' in response.text
     assert 'id="inventoryStockPanel"' in response.text
