@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Uuid, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -10,6 +10,13 @@ from app.db.base import Base
 class ProductCodeSequence(Base):
     """One shared numeric sequence per company, regardless of product prefix."""
     __tablename__ = "product_code_sequences"
+    __table_args__ = (
+        CheckConstraint("next_number >= 1", name="ck_product_code_sequences_next_positive"),
+        CheckConstraint(
+            "number_width BETWEEN 1 AND 12",
+            name="ck_product_code_sequences_width_range",
+        ),
+    )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"),
