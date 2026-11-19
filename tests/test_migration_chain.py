@@ -8,6 +8,7 @@ def test_alembic_history_is_a_single_linear_chain_through_supplier_payables():
 
     expected = [
         "0010_supplier_payables",
+        "0010_supplier_payables",
         "0009_payment_transactions",
         "0008_daily_closing",
         "0007_sales_returns",
