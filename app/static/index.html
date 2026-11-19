@@ -463,6 +463,16 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </form>
 <div id="productStatus" class="status" role="status"></div>
 </section>
+<section class="panel span2" id="laborCodeSettingsPanel">
+<h2>工錢暗碼設定</h2>
+<p class="sub">可設定 0～9 各自對應的暗碼字元與前綴；貼紙暗碼格式為「前綴-轉換後工錢」。未設定的數字會沿用原數字。</p>
+<form id="laborCodeSettingsForm">
+<div class="field"><label for="laborCodePrefix">暗碼前綴（1～5 位英數字，預設 A）</label><input id="laborCodePrefix" maxlength="5" pattern="[A-Za-z0-9]{1,5}" value="A" required></div>
+<div id="laborCodesGrid" class="grid"></div>
+<div class="actions"><button type="submit">儲存暗碼設定</button></div>
+</form>
+<div id="laborCodeStatus" class="status" role="status"></div>
+</section>
 <section id="productEditPanel" class="panel span2 hidden">
 <h2>編輯商品資料</h2>
 <p class="sub">修改後會重新檢查商品編號、流水號、條碼唯一性及重量規則。</p>
@@ -606,13 +616,27 @@ async function handleScannedProductCode(code,target){
   }
  }catch(error){message(target==="sale"?"saleStatus":"globalStatus",error.message||"找不到此商品。",true);}
 }
+async function loadLaborCodeConfig(){
+ const grid=$("laborCodesGrid");
+ if(!grid)return;
+ grid.innerHTML=Array.from({length:10},(_,digit)=>'<div class="field"><label for="laborCode'+digit+'">數字 '+digit+' 對應暗碼</label><input id="laborCode'+digit+'" maxlength="10" autocomplete="off" placeholder="預設 '+digit+'"></div>').join("");
+ if(!companyId){
+  $("laborCodePrefix").value="A";
+  for(let digit=0;digit<=9;digit++)$("laborCode"+digit).value=String(digit);
+  return;
+ }
+ const config=await api("/companies/"+companyId+"/labor-code-config");
+ $("laborCodePrefix").value=config.prefix||"A";
+ const mappings=new Map((config.mappings||[]).map(item=>[Number(item.digit),item.code_char]));
+ for(let digit=0;digit<=9;digit++)$("laborCode"+digit).value=mappings.get(digit)||String(digit);
+}
 async function loadCompanies(selectId){
  const rows=await api("/companies");
  $("companySelect").innerHTML='<option value="">請選擇公司</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId)) $("companySelect").value=selectId;
  else if(rows.length===1) $("companySelect").value=rows[0].id;
  companyId=$("companySelect").value;
- await loadSites(); await loadCategories(); await loadSequence(); await loadProducts();
+ await loadSites(); await loadCategories(); await loadSequence(); await loadProducts(); await loadLaborCodeConfig();
 }
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 async function loadSites(selectId){
@@ -968,10 +992,24 @@ async function loadProducts(){
  productsById=new Map(rows.map(x=>[x.id,x]));
  box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+' · 長度 '+escapeHtml(x.chain_length||"—")+' · 款式 '+escapeHtml(x.style_code||"—")+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 3×10 貼紙</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
+$("laborCodeSettingsForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!companyId){message("laborCodeStatus","請先選擇公司。",true);return;}
+ const prefix=$("laborCodePrefix").value.trim().toUpperCase();
+ if(!/^[A-Z0-9]{1,5}$/.test(prefix)){message("laborCodeStatus","暗碼前綴限 1～5 位英數字，不可包含連字號。",true);return;}
+ const mappings=Array.from({length:10},(_,digit)=>({digit,code_char:$("laborCode"+digit).value.trim()||String(digit)}));
+ const button=$("laborCodeSettingsForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/labor-code-config",{method:"PUT",body:JSON.stringify({prefix,mappings})});
+  message("laborCodeStatus","工錢暗碼設定已儲存。");
+  await loadLaborCodeConfig();
+ }catch(error){message("laborCodeStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+\n$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});

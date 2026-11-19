@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.routers.health import router as health_router
 from app.routers.company_setup import router as company_setup_router
 from app.routers.product_master import router as product_master_router
+from app.routers.labor_code_settings import router as labor_code_settings_router
 from app.routers.product_code_sequence import router as product_code_sequence_router
 from app.routers.gold_prices import router as gold_prices_router
 from app.routers.suppliers import router as suppliers_router
@@ -33,6 +34,7 @@ app = FastAPI(
 app.include_router(health_router)
 app.include_router(company_setup_router)
 app.include_router(product_master_router)
+app.include_router(labor_code_settings_router)
 app.include_router(product_code_sequence_router)
 app.include_router(gold_prices_router)
 app.include_router(suppliers_router)
