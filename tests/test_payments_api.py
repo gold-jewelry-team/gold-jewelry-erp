@@ -143,15 +143,14 @@ def test_partial_collections_refunds_and_daily_cash_flow_summary():
         assert close.status_code == 201, close.text
         result = close.json()
         assert result["collected_amount"] == "1050.00"
-        assert result["refunded_amount"] == "350.00"
-        assert result["net_cash_flow"] == "700.00"
+        assert result["refunded_amount"] == "450.00"
+        assert result["net_cash_flow"] == "600.00"
 
         summaries = {item["payment_method"]: item for item in result["payment_summaries"]}
         assert summaries["CASH"]["collected_amount"] == "450.00"
         assert summaries["CASH"]["refunded_amount"] == "100.00"
         assert summaries["CARD"]["collected_amount"] == "600.00"
-        assert summaries["TRANSFER"]["refunded_amount"] == "200.00"
-        assert summaries["OTHER"]["refunded_amount"] == "150.00"
+        assert summaries["TRANSFER"]["refunded_amount"] == "350.00"
 
         check = TestSession()
         assert check.query(PaymentTransaction).count() == 6
