@@ -2,13 +2,14 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, Numeric, String, Uuid, func
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Index, Numeric, String, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 class OperatingExpense(Base):
     __tablename__ = "operating_expenses"
     __table_args__ = (
+        UniqueConstraint("site_id", "expense_no", name="uq_operating_expenses_site_expense_no"),
         CheckConstraint("amount > 0", name="ck_operating_expenses_amount_positive"),
         CheckConstraint("currency_code = 'TWD'", name="ck_operating_expenses_currency_twd"),
         CheckConstraint("category_code IN ('RENT','UTILITIES','SALARIES','SUPPLIES','SHIPPING','REPAIR','OTHER')", name="ck_operating_expenses_category"),
