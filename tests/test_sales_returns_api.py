@@ -118,6 +118,12 @@ def test_completed_sale_return_restocks_item_and_records_signed_reversal():
         assert record["lines"][0]["product_code_snapshot"] == "RETURN-OK-G-001"
         assert record["lines"][0]["settlement_reversal_amount"] == "-12915.00"
 
+        history = client.get(f"/companies/{company_id}/sales/{sale['id']}/returns")
+        assert history.status_code == 200, history.text
+        assert len(history.json()) == 1
+        assert history.json()[0]["id"] == record["id"]
+        assert history.json()[0]["lines"][0]["sale_line_id"] == line_id
+
         check = TestSession()
         assert get_stock_balance(check, product_id=product_id, location_id=location_id) == Decimal("1")
         movements = list(check.query(InventoryMovement).filter_by(
