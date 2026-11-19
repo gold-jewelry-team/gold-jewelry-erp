@@ -14,11 +14,15 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models.company import Company
+from app.models.inventory import InventoryMovement
+from app.models.purchase import Purchase, PurchaseLine
+from app.models.storage_location import StorageLocation
+from app.models.supplier import Supplier
 from app.models.product import Product, ProductCategory
 from app.models.product_code_sequence import ProductCodeSequence
 from app.routers.schemas.product_master import (
     ProductCategoryCreate, ProductCategoryRead, ProductCreate,
-    ProductRead, ProductUpdate,
+    ProductLabelLotRead, ProductRead, ProductUpdate,
 )
 
 router = APIRouter(tags=["product-master"])
@@ -286,3 +290,58 @@ def product_linear_barcode(company_id: UUID, product_id: UUID, db: Session = Dep
         media_type="image/svg+xml",
         headers={"Cache-Control": "private, max-age=300"},
     )
+
+
+@router.get(
+    "/companies/{company_id}/products/{product_id}/label-lots",
+    response_model=list[ProductLabelLotRead],
+)
+def list_product_label_lots(
+    company_id: UUID,
+    product_id: UUID,
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
+    """List actual receipt lots so label printing never guesses supplier or location."""
+    _require_company(db, company_id)
+    product = db.scalar(select(Product).where(
+        Product.id == product_id, Product.company_id == company_id
+    ))
+    if product is None:
+        raise HTTPException(status_code=404, detail="找不到指定商品。")
+
+    statement = (
+        select(InventoryMovement, PurchaseLine, Purchase, Supplier, StorageLocation)
+        .join(PurchaseLine, PurchaseLine.id == InventoryMovement.reference_id)
+        .join(Purchase, Purchase.id == PurchaseLine.purchase_id)
+        .join(Supplier, Supplier.id == Purchase.supplier_id)
+        .join(StorageLocation, StorageLocation.id == InventoryMovement.to_location_id)
+        .where(
+            InventoryMovement.company_id == company_id,
+            InventoryMovement.product_id == product_id,
+            InventoryMovement.movement_type == "RECEIPT",
+            InventoryMovement.reference_type == "PURCHASE_LINE",
+            Purchase.company_id == company_id,
+        )
+        .order_by(InventoryMovement.occurred_at.desc(), InventoryMovement.created_at.desc())
+        .limit(limit)
+    )
+    result = []
+    for movement, line, purchase, supplier, location in db.execute(statement).all():
+        result.append(ProductLabelLotRead(
+            receipt_id=movement.id,
+            purchase_id=purchase.id,
+            purchase_no=purchase.purchase_no,
+            supplier_code=supplier.code,
+            supplier_name=supplier.name,
+            location_code=location.code,
+            location_name=location.name,
+            received_at=movement.occurred_at,
+            received_quantity=movement.quantity,
+            weight=movement.weight,
+            weight_unit_code=movement.weight_unit_code,
+            unit_cost=line.unit_cost,
+            cost_labor_fee=line.cost_labor_fee,
+            currency_code=purchase.currency_code,
+        ))
+    return result
