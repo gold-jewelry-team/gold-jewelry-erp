@@ -46,7 +46,7 @@ class SaleLine(Base):
         CheckConstraint("labor_fee >= 0", name="ck_sale_lines_labor_fee_nonnegative"),
         CheckConstraint("trade_in_source IS NULL OR trade_in_source IN ('LOCAL', 'EXTERNAL')", name="ck_sale_lines_trade_in_source"),
         CheckConstraint("trade_in_ratio IS NULL OR (trade_in_ratio > 0 AND trade_in_ratio <= 1)", name="ck_sale_lines_trade_in_ratio"),
-        CheckConstraint("currency_code IS NULL OR length(currency_code) = 3", name="ck_sale_lines_currency_code_length"),
+        CheckConstraint("length(price_currency_code) = 3", name="ck_sale_lines_currency_code_length"),
         Index("ix_sale_lines_sale_id", "sale_id"),
         UniqueConstraint("sale_id", "line_no", name="uq_sale_lines_sale_line_no"),
     )
