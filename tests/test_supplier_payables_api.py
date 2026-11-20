@@ -248,7 +248,7 @@ def test_supplier_payment_is_blocked_after_daily_closing():
         refreshed = client.get(f"{base}/bills/{bill.json()['id']}")
         assert refreshed.status_code == 200, refreshed.text
         assert refreshed.json()["status"] == "OPEN"
-        assert refreshed.json()["paid_amount"] == "0.00"
+        assert Decimal(refreshed.json()["paid_amount"]) == Decimal("0.00")
         assert refreshed.json()["outstanding_amount"] == "1200.00"
 
         check = TestSession()
