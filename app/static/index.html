@@ -2743,7 +2743,7 @@ function renderQuoteSearchResults(){
  }
  box.innerHTML=rows.length?rows.slice(0,60).map(p=>{
   const stock=quoteStockSummary.get(p.id);
-  const stockText=stock===undefined?"庫存待查":stock>0?"有貨 "+stock+" 件":"目前無庫存";
+  const stockText=stock===undefined?"點選查庫存":stock>0?"有貨 "+stock+" 件":"目前無庫存";
   return '<button type="button" class="quote-product-result" data-quote-product="'+escapeHtml(p.id)+'"><span><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"未設定")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 淨重：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 工錢：'+escapeHtml(quoteMoney(p.labor_fee))+'</small></span><span class="quote-stock">'+escapeHtml(stockText)+'</span></button>';
  }).join(""):'<div class="empty">沒有找到符合商品。可改用款式編號、商品名稱或掃描商品條碼。</div>';
 }
@@ -2760,9 +2760,11 @@ async function selectQuoteProduct(product){
  const stockQty=stockRows.reduce((sum,row)=>sum+Number(row.quantity||0),0);
  quoteStockSummary.set(product.id,stockQty);
  quoteSelectedProducts.push({id:product.id,product,weight:String(product.net_weight??0),labor:String(product.labor_fee??0),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows});
+ /* 掃描後自動列出同款規格；沒有款式編號時以商品名稱列出候選，仍須人工確認。 */
+ $("quoteProductSearch").value=product.style_code||product.name||"";
  renderQuoteLines();renderQuoteSearchResults();
  $("quoteProductCode").value="";
- message("quoteSearchStatus","已帶入商品重量、預設工錢及庫存位置；可依客人需求調整報價參數。");
+ message("quoteSearchStatus",product.style_code?"已帶入商品資料，並列出相同款式編號的其他規格。":"此商品未設定款式編號，已用商品名稱尋找候選款式，請人工確認。");
 }
 function renderQuoteLines(){
  const box=$("quoteLines");if(!box)return;
