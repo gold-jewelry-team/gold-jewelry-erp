@@ -24,7 +24,13 @@ header{padding:14px 16px 10px}
 .company-bar label{flex:0 0 auto;margin:0;color:#e6eee8;font-size:12px;font-weight:700}
 .company-bar select{flex:1;min-width:0;min-height:36px;height:36px;padding:6px 10px;border-color:#ffffff55;border-radius:9px;font-size:13px}
 .company-bar .company-reload{flex:0 0 auto;min-height:36px;height:36px;padding:6px 10px;font-size:12px;background:#ffffffdf}
-.company-status{flex:0 0 100%;font-size:12px;min-height:0;color:#dce6df;margin:0}.company-status.error{color:#ffb4ab}
+.company-status{font-size:12px;min-height:0;color:#526257;margin:4px 0 0}.company-status.error{color:#b42318}
+.header-company-name{font-weight:700;color:#fff}
+.company-management-switch{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end;margin:0 0 16px;padding:12px;background:#f5f8f5;border:1px solid #e2e9e2;border-radius:12px}
+.company-management-switch .field{margin:0;min-width:0}
+.company-management-switch button{min-height:44px}
+.company-management-switch .company-status{grid-column:1/-1}
+@media(max-width:420px){.company-management-switch{grid-template-columns:1fr}.company-management-switch button{width:100%}}
 .quick-nav{display:flex;gap:7px;overflow-x:auto;overscroll-behavior-x:contain;white-space:nowrap;margin:12px -4px 0;padding:0 4px 5px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
 .quick-nav a{display:inline-flex;align-items:center;min-height:34px;padding:6px 11px;border:1px solid #ffffff35;border-radius:999px;color:#eef4ef;text-decoration:none;font-size:12px;font-weight:600;background:#ffffff12;flex:0 0 auto}
 .quick-nav a:hover,.quick-nav a:focus-visible{background:#ffffff2b;outline:2px solid #c7d8cb;outline-offset:1px}
@@ -103,13 +109,160 @@ main>section.panel[data-category]{min-width:0}
 .gold-closure-date button{min-height:30px;padding:4px 9px;font-size:11px}
 @media(max-width:520px){.gold-summary-foot{align-items:flex-start;flex-direction:column}.gold-summary-price{flex:1 1 100%;justify-content:space-between}.sale-gold-quote-head strong{flex-basis:100%}}
 
+/* 手機版：頁首與分類捷徑不固定，避免佔住可閱讀畫面 */
+@media(max-width:899px){header{position:static;top:auto}.category-shortcuts{position:static;top:auto;max-height:none;overflow:visible;z-index:auto}}
+
+
+
+/* 介面視覺更新：暖白底、墨綠主色、金色重點，並以分類色協助辨識 */
+:root{
+ --app-ink:#202923;--app-muted:#68746c;--app-bg:#f3f1eb;--app-panel:#fffefa;
+ --app-green:#234b3a;--app-green-dark:#193b2d;--app-gold:#c49a45;--app-line:#e6e0d3;
+ --app-shadow:0 5px 18px rgba(36,48,39,.07);
+}
+body{background:var(--app-bg);color:var(--app-ink)}
+main{gap:16px}
+.panel{background:var(--app-panel);border-color:var(--app-line);box-shadow:var(--app-shadow);border-radius:17px}
+main>section.panel[data-category]{border-top:3px solid var(--category-accent,var(--app-gold))}
+main>section.panel[data-category] h2{color:var(--app-ink);letter-spacing:.01em}
+main>section.panel[data-category] h2:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--category-accent,var(--app-gold));margin:0 9px 2px 0}
+main>section.panel[data-category="inventory"]{--category-accent:#43836a}
+main>section.panel[data-category="sales"]{--category-accent:#3976a8}
+main>section.panel[data-category="products"]{--category-accent:#9a7435}
+main>section.panel[data-category="purchasing"]{--category-accent:#8b6ca8}
+main>section.panel[data-category="finance"]{--category-accent:#398b8b}
+main>section.panel[data-category="pricing"]{--category-accent:#c18b2e}
+main>section.panel[data-category="settings"]{--category-accent:#77847b}
+main>section.panel[data-category="advanced"]{--category-accent:#9a6871}
+button{background:linear-gradient(180deg,var(--app-green),var(--app-green-dark));box-shadow:0 2px 5px rgba(25,59,45,.12);transition:filter .15s ease,transform .15s ease}
+button:hover{filter:brightness(1.08)}
+button:active{transform:translateY(1px)}
+button.secondary{background:#edf2ed;color:#294b39;border:1px solid #dce6dc;box-shadow:none}
+input,select,textarea{border-color:#d8ded6;background:#fffefa}
+input:focus,select:focus,textarea:focus{outline:2px solid #b8cbbd;border-color:#6e947b}
+label{color:#536158;font-weight:600}
+.sub,.muted{color:var(--app-muted)}
+.item{background:#fffefa;border-color:#e8e5dc}
+.pill{background:#f2ead8;color:#795b24;font-weight:700}
+.status{color:#2d7651}
+.status.error{color:#b42318}
+.category-nav button{border-color:#e3e2d9;background:#fffefa;color:#405247;box-shadow:0 2px 7px rgba(36,48,39,.04)}
+.category-nav button[aria-pressed="true"]{background:var(--app-green);border-color:var(--app-green);color:#fff;box-shadow:0 3px 10px rgba(35,75,58,.2)}
+.category-count{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 6px;border-radius:99px;background:#f0eee6;color:inherit;font-weight:700}
+.category-nav button[aria-pressed="true"] .category-count{background:#ffffff25;color:#fff}
+.category-shortcuts{background:#fbfaf5;border-color:#e9e2d4;box-shadow:none}
+.category-shortcuts-label,.panel-subnav-label{color:#7a6a4b;font-weight:800;letter-spacing:.02em}
+.category-shortcuts button{background:#fffefa;border-color:#e6dfd1;color:#4b5d50}
+.panel-subnav{display:flex;align-items:center;gap:7px;overflow-x:auto;white-space:nowrap;padding:9px 0 12px;margin:0 0 12px;border-bottom:1px solid #eee9de;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.panel-subnav-label{flex:0 0 auto;font-size:11px;margin-right:2px}
+.panel-subnav button{flex:0 0 auto;min-height:34px;padding:6px 10px;font-size:12px;border-radius:999px}
+.panel-subnav button:hover{background:#e5eee6}
+.panel-collapsible>.panel-heading-row{padding-bottom:2px}
+@media(max-width:899px){
+ main{padding:12px;gap:12px}
+ .panel{padding:14px;border-radius:15px}
+ .category-nav{padding-bottom:9px;scroll-snap-type:x proximity}
+ .category-nav button{scroll-snap-align:start}
+ .category-shortcuts{padding:9px 10px}
+ .panel-subnav{margin-left:-1px;margin-right:-1px}
+}
+@media(min-width:900px){
+ main{gap:14px 18px}
+ .category-nav{border-color:#e9e2d4;background:#fbfaf5}
+}
+
+ 
+/* 介面視覺整理：暖白底、深綠主色與香檳金點綴 */
+:root{
+ --app-bg:#f4f2ec;
+ --app-surface:#fffefa;
+ --app-ink:#25332b;
+ --app-muted:#707a72;
+ --app-green:#315b46;
+ --app-green-dark:#234332;
+ --app-gold:#b58a3b;
+}
+body{background:var(--app-bg);color:var(--app-ink)}
+.panel{
+ background:var(--app-surface);
+ border-color:#e8e2d5;
+ box-shadow:0 3px 14px rgba(47,57,45,.055);
+}
+main>section.panel[data-category]{
+ border-top:3px solid var(--category-accent,var(--app-gold));
+}
+main>section.panel[data-category] h2:before{
+ width:8px;height:8px;box-shadow:0 0 0 3px color-mix(in srgb,var(--category-accent,var(--app-gold)) 14%,transparent);
+}
+.category-nav button{
+ justify-content:flex-start;
+ gap:8px;
+ border-color:#e7e1d5;
+ background:#fffefa;
+ color:#405247;
+ transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.category-nav button[aria-pressed="true"]{
+ background:var(--category-accent,var(--app-green));
+ border-color:var(--category-accent,var(--app-green));
+ color:#fff;
+}
+.category-nav button[data-category="inventory"]{--category-accent:#43836a}
+.category-nav button[data-category="sales"]{--category-accent:#3976a8}
+.category-nav button[data-category="products"]{--category-accent:#a27a35}
+.category-nav button[data-category="purchasing"]{--category-accent:#8b6ca8}
+.category-nav button[data-category="finance"]{--category-accent:#398b8b}
+.category-nav button[data-category="pricing"]{--category-accent:#b58a3b}
+.category-nav button[data-category="settings"]{--category-accent:#77847b}
+.category-nav button[data-category="advanced"]{--category-accent:#9a6871}
+.category-count{margin-left:auto}
+.category-nav button[aria-pressed="true"] .category-count{background:#ffffff30;color:#fff}
+.category-shortcuts{
+ background:#fbfaf5;
+ border-color:#e8e0d0;
+}
+.category-shortcuts button.shortcut-action{
+ background:#e9efe9;
+ border-color:#d8e2d8;
+ color:#315b46;
+ font-weight:800;
+}
+.category-shortcuts button:not(.shortcut-action){
+ background:#fffefa;
+ border-color:#e5dfd2;
+}
+button{background:linear-gradient(180deg,#3c6b52,#2b503d)}
+button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
+.pill{background:#f4ead4;color:#805f24}
+.item{background:#fffefa;border-color:#e8e2d5}
+.status:not(.error){color:#28724d}
+@media(max-width:899px){
+ .category-nav button{min-height:44px;padding:9px 12px}
+ .category-shortcuts{
+  gap:6px;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  white-space:nowrap;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+ }
+ .category-shortcuts-label{flex:0 0 auto}
+ .category-shortcuts button{flex:0 0 auto;min-height:38px}
+}
+@media(prefers-reduced-motion:no-preference){
+ .panel{transition:box-shadow .18s ease,border-color .18s ease}
+ .panel:focus-within{border-color:#d6c49b;box-shadow:0 4px 18px rgba(47,57,45,.08)}
+}
+
 </style>
 </head>
 <body>
-<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><div class="company-bar" aria-label="全系統公司選擇"><label for="companySelect">目前公司</label><select id="companySelect"><option value="">載入中…</option></select><button class="company-reload secondary" id="reloadCompanies" type="button">重新載入</button><div id="globalStatus" class="company-status" role="status"></div></div><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
+<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
 <main>
 <section class="panel">
-<h2>新增公司</h2>
+<h2>公司管理</h2>
+<div class="company-management-switch"><div class="field"><label for="companySelect">目前使用公司</label><select id="companySelect"><option value="">載入中…</option></select></div><button class="secondary" id="reloadCompanies" type="button">重新載入公司</button><div id="globalStatus" class="company-status" role="status"></div></div>
+<h3>新增公司</h3>
 <form id="companyForm">
 <div class="field"><label for="companyCode">公司代碼</label><input id="companyCode" required maxlength="30" placeholder="例如 JEWEL"></div>
 <div class="field"><label for="companyName">公司名稱</label><input id="companyName" required maxlength="120" placeholder="銀樓名稱"></div>
@@ -812,12 +965,13 @@ async function loadLaborCodeConfig(){
  const mappings=new Map((config.mappings||[]).map(item=>[Number(item.digit),item.code_char]));
  for(let digit=0;digit<=9;digit++)$("laborCode"+digit).value=mappings.get(digit)||String(digit);
 }
+function renderHeaderCompanyName(){const select=$("companySelect");$("headerCompanyName").textContent=select?.selectedOptions?.[0]?.textContent||"尚未選擇";}
 async function loadCompanies(selectId){
  const rows=await api("/companies");
  $("companySelect").innerHTML='<option value="">請選擇公司</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId)) $("companySelect").value=selectId;
  else if(rows.length===1) $("companySelect").value=rows[0].id;
- companyId=$("companySelect").value;
+ companyId=$("companySelect").value;renderHeaderCompanyName();
  await loadSites(); await loadCategories(); await loadSequence(); await loadProducts(); await loadLaborCodeConfig();
 }
 function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -1322,7 +1476,7 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
 $("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
 $("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;renderHeaderCompanyName();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -2188,13 +2342,14 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  const main=document.querySelector("main");
  const panels=Array.from(main.querySelectorAll(":scope > section.panel"));
  const categories=[
-  {id:"products",label:"商品管理"},
-  {id:"inventory",label:"庫存管理"},
-  {id:"sales",label:"銷售交易"},
-  {id:"purchasing",label:"採購與供應商"},
-  {id:"finance",label:"財務管理"},
-  {id:"pricing",label:"金價管理"},
-  {id:"settings",label:"基本設定"}
+  {id:"inventory",label:"庫存管理",icon:"📦"},
+  {id:"sales",label:"銷售與退貨",icon:"🧾"},
+  {id:"products",label:"商品與條碼",icon:"🏷️"},
+  {id:"purchasing",label:"採購與供應商",icon:"🛒"},
+  {id:"finance",label:"財務與結帳",icon:"💰"},
+  {id:"pricing",label:"金價與牌價",icon:"🪙"},
+  {id:"settings",label:"公司／據點設定",icon:"🏬"},
+  {id:"advanced",label:"特殊設定",icon:"⚙️"}
  ];
  const titleOf=panel=>{
   const h2=panel.querySelector(":scope > h2");
@@ -2202,16 +2357,17 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  };
  const subTitlesOf=panel=>Array.from(panel.querySelectorAll("h3")).map(item=>item.textContent.trim()).filter(Boolean);
  const categoryOf=panel=>{
+  const id=panel.id||"";
   const title=titleOf(panel);
   const text=[title,...subTitlesOf(panel)].join(" ");
-  if(/目前公司/.test(text))return "global";
-  if(/新增公司|門市|據點|儲存位置|工錢暗碼/.test(text))return "settings";
-  if(/商品庫存|條碼盤點|庫存調整|櫃位調撥|庫存異動/.test(text))return "inventory";
-  if(/金價/.test(text))return "pricing";
-  if(/銷售結帳|歷史銷售|加入商品|收付款|退貨/.test(text))return "sales";
-  if(/供應商|應付帳款|採購|到貨驗收/.test(text))return "purchasing";
-  if(/營業費用|現金櫃|每日結帳|現金盤點/.test(text))return "finance";
-  if(/商品分類|單件商品|商品資料|商品清單|條碼貼紙/.test(text))return "products";
+  if(["inventoryStockPanel","stocktakePanel","inventoryAdjustmentPanel","inventoryTransferPanel","inventoryMovementPanel"].includes(id))return "inventory";
+  if(["salesPanel","salePaymentPanel","saleReturnPanel","returnPaymentPanel"].includes(id)||/銷售結帳|歷史銷售|收付款登錄|退貨與庫存回補|退貨退款/.test(text))return "sales";
+  if(["supplierPayablesPanel","supplierPaymentPanel","purchasingPanel","purchaseReceivePanel"].includes(id)||/供應商|應付帳款|採購|到貨驗收/.test(text))return "purchasing";
+  if(["operatingExpensesPanel","cashDrawerPanel","dailyClosingPanel","cashCountPanel"].includes(id)||/營業費用|現金櫃|每日結帳|現金盤點/.test(text))return "finance";
+  if(id==="goldPricePanel"||/金價/.test(text))return "pricing";
+  if(id==="laborCodeSettingsPanel"||/工錢暗碼/.test(text))return "advanced";
+  if(id==="productEditPanel"||/新增商品分類|新增單件商品|商品資料|商品清單|條碼貼紙/.test(text))return "products";
+  if(/公司管理|新增公司|門市|據點|儲存位置/.test(text))return "settings";
   return "settings";
  };
  panels.forEach(panel=>{
@@ -2232,7 +2388,8 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   button.type="button";
   button.dataset.category=category.id;
   const label=document.createElement("span");
-  label.textContent=category.label;
+  label.className="category-label";
+  label.textContent=category.icon+" "+category.label;
   const count=document.createElement("span");
   count.className="category-count";
   count.textContent=String(panels.filter(panel=>panel.dataset.category===category.id).length);
@@ -2314,6 +2471,30 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   const expanded=!panel.classList.contains("panel-collapsed");
   toggle.textContent=expanded?"收合":"展開";
   toggle.setAttribute("aria-expanded",String(expanded));
+  /* 長頁面提供頁內子標題捷徑，不改動表單或資料結構 */
+  if(!content.querySelector(":scope > .panel-subnav")){
+   const headings=Array.from(content.querySelectorAll("h3")).filter(item=>item.textContent.trim());
+   if(headings.length>=2){
+    const subnav=document.createElement("nav");
+    subnav.className="panel-subnav";
+    subnav.setAttribute("aria-label","本頁快速定位");
+    const caption=document.createElement("span");
+    caption.className="panel-subnav-label";
+    caption.textContent="本頁快速定位";
+    subnav.appendChild(caption);
+    headings.forEach((item,index)=>{
+     if(!item.id)item.id=(panel.id||"panel")+"-section-"+(index+1);
+     const jump=document.createElement("button");
+     jump.type="button";
+     jump.className="secondary";
+     jump.textContent=item.textContent.trim().replace(/\\s+/g," ").slice(0,18);
+     jump.title="跳至："+item.textContent.trim();
+     jump.addEventListener("click",()=>item.scrollIntoView({behavior:"smooth",block:"start"}));
+     subnav.appendChild(jump);
+    });
+    content.insertBefore(subnav,content.firstChild);
+   }
+  }
  };
  panels.filter(p=>p.dataset.category!=="global").forEach(panel=>{
   expandCollapse(panel);
@@ -2326,7 +2507,34 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  });
  const renderShortcuts=category=>{
   shortcuts.querySelectorAll("button").forEach(b=>b.remove());
-  panels.filter(p=>p.dataset.category===category).forEach(panel=>{
+  const categoryPanels=panels.filter(p=>p.dataset.category===category);
+  const expandAll=document.createElement("button");
+  expandAll.type="button";
+  expandAll.className="shortcut-action";
+  expandAll.textContent="全部展開";
+  expandAll.addEventListener("click",()=>{
+   categoryPanels.forEach(panel=>{
+    if(panel.classList.contains("panel-collapsed")){
+     const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+     if(toggle)toggle.click();
+    }
+   });
+  });
+  shortcuts.appendChild(expandAll);
+  const collapseAll=document.createElement("button");
+  collapseAll.type="button";
+  collapseAll.className="shortcut-action";
+  collapseAll.textContent="全部收合";
+  collapseAll.addEventListener("click",()=>{
+   categoryPanels.forEach(panel=>{
+    if(!panel.classList.contains("panel-collapsed")){
+     const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+     if(toggle)toggle.click();
+    }
+   });
+  });
+  shortcuts.appendChild(collapseAll);
+  categoryPanels.forEach(panel=>{
    const button=document.createElement("button");
    button.type="button";
    button.textContent=titleFor(panel);
