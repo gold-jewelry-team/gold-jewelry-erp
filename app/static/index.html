@@ -319,7 +319,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div id="quoteSearchStatus" class="status" role="status"></div>
 <div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div>
 <h3>無現貨規格預估（不建立商品）</h3>
-<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div>
+<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div><div id="quoteEstimatePreview" class="quote-note" aria-live="polite">輸入預估重量及工錢後，這裡會即時顯示試算金額；按「加入預估規格」才會加入下方報價清單。</div>
 <h3>已選商品／報價參考</h3>
 <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
 <div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇商品後，會依目前有效金價、商品重量、工錢及舊金折抵，套用系統既有銷售計價規則試算。</div><div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可修改重量作預估，但不會建立庫存商品。試算不扣庫存、不建立正式交易；實際成交仍以銷售結帳當下的有效金價為準。</div>
@@ -2827,18 +2827,44 @@ function renderQuoteLines(){
  renderQuoteCalculation();
 }
 
+function quoteSetStatus(text,isError=false){
+ const status=$("quoteSearchStatus");if(!status)return;
+ status.textContent=text;
+ status.style.color=isError?"#b42318":"#28724d";
+}
+function renderQuoteEstimatePreview(){
+ const box=$("quoteEstimatePreview");if(!box)return;
+ const name=$("quoteEstimateName").value.trim();
+ const weightText=$("quoteEstimateWeight").value;
+ const weight=Number(weightText),unit=$("quoteEstimateUnit").value;
+ const laborText=$("quoteEstimateLabor").value;
+ const labor=Number(laborText);
+ if(!name&&!weightText){box.textContent="輸入預估重量及工錢後，這裡會即時顯示試算金額；按「加入預估規格」才會加入下方報價清單。";return;}
+ if(!name){box.textContent="請先輸入商品／款式名稱。";return;}
+ if(!weightText||!Number.isFinite(weight)||weight<=0){box.textContent="請輸入大於 0 的預估重量。";return;}
+ if(!Number.isFinite(labor)||labor<0){box.textContent="預估工錢不可小於 0。";return;}
+ const sell=currentGoldPriceRows.SELL;
+ if(!sell){box.textContent="重量與工錢已填妥，但目前尚未載入有效賣出金價，暫時無法計算金額。";return;}
+ if(sell.currency_code!=="TWD"||sell.unit_code!==unit){box.textContent="重量單位與目前 TWD 賣出金價單位不同。請將重量單位改為 "+sell.unit_code+"，或先調整金價設定。";return;}
+ const amount=quoteRoundTwd(weight*Number(sell.price_value)+labor);
+ box.innerHTML="<strong>預估規格即時試算</strong><div>"+escapeHtml(name)+" · "+escapeHtml(weight)+" "+escapeHtml(unit)+" · 工錢 NT$ "+escapeHtml(quoteMoney(labor))+"</div><strong style='display:block;font-size:20px;margin-top:6px'>預估金額：NT$ "+escapeHtml(quoteMoney(amount))+"</strong><small>使用目前賣出金價；加入後仍可修改重量、工錢及舊金折抵。</small>";
+}
+["quoteEstimateName","quoteEstimateSize","quoteEstimateWeight","quoteEstimateLabor"].forEach(id=>$(id).addEventListener("input",renderQuoteEstimatePreview));
+$("quoteEstimateUnit").addEventListener("change",renderQuoteEstimatePreview);
 $("quoteAddEstimateButton").addEventListener("click",()=>{
  const name=$("quoteEstimateName").value.trim(),size=$("quoteEstimateSize").value.trim();
- const weight=Number($("quoteEstimateWeight").value),unit=$("quoteEstimateUnit").value,labor=Number($("quoteEstimateLabor").value);
- if(!name){message("quoteSearchStatus","請輸入預估商品／款式名稱。",true);return;}
- if(!Number.isFinite(weight)||weight<=0){message("quoteSearchStatus","預估重量必須大於 0。",true);return;}
- if(!Number.isFinite(labor)||labor<0){message("quoteSearchStatus","預估工錢不可小於 0。",true);return;}
+ const weightText=$("quoteEstimateWeight").value,weight=Number(weightText),unit=$("quoteEstimateUnit").value;
+ const laborText=$("quoteEstimateLabor").value,labor=Number(laborText);
+ if(!name){quoteSetStatus("尚未加入：請輸入預估商品／款式名稱。",true);$("quoteEstimateName").focus();return;}
+ if(!weightText||!Number.isFinite(weight)||weight<=0){quoteSetStatus("尚未加入：預估重量必須大於 0。",true);$("quoteEstimateWeight").focus();return;}
+ if(laborText===""||!Number.isFinite(labor)||labor<0){quoteSetStatus("尚未加入：預估工錢不可小於 0。",true);$("quoteEstimateLabor").focus();return;}
  const key="estimate-"+Date.now()+"-"+Math.random().toString(36).slice(2,7);
  const product={id:key,product_code:"預估規格",name,style_code:$("quoteProductSearch").value.trim()||"",chain_length:size,net_weight:weight,weight_unit_code:unit,labor_fee:labor};
  quoteSelectedProducts.push({id:key,product,weight:String(weight),labor:String(labor),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows:[],isEstimate:true});
  renderQuoteLines();
- message("quoteSearchStatus","已加入非庫存預估規格；此項目只用於報價，不會建立商品或庫存。");
- $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";
+ $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";$("quoteEstimateLabor").value="0";
+ renderQuoteEstimatePreview();
+ quoteSetStatus("已加入報價清單。這是非庫存預估規格，不會建立商品或庫存。");
 });
 
 $("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
@@ -2866,7 +2892,20 @@ $("quoteProductCode").addEventListener("keydown",event=>{
  handleScannedProductCode(code,"quote");
 });
 $("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
-$("quoteClearButton").addEventListener("click",()=>{quoteSelectedProducts=[];renderQuoteLines();message("quoteSearchStatus","已清空報價清單。");});
+$("quoteClearButton").addEventListener("click",()=>{
+ quoteSelectedProducts=[];
+ $("quoteProductCode").value="";
+ $("quoteProductSearch").value="";
+ $("quoteEstimateName").value="";
+ $("quoteEstimateSize").value="";
+ $("quoteEstimateWeight").value="";
+ $("quoteEstimateLabor").value="0";
+ $("quotePaymentMethod").value="CASH";
+ renderQuoteLines();
+ renderQuoteSearchResults();
+ renderQuoteEstimatePreview();
+ quoteSetStatus("已清空報價清單及預估規格輸入內容。");
+});
 (function(){
  const openQuote=()=>{
   const button=document.querySelector('.category-nav button[data-category="quote"]');if(button)button.click();
