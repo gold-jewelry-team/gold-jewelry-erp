@@ -621,7 +621,23 @@ const api=async(path,options={})=>{
  if(!response.ok){const error=new Error(data.detail||"操作失敗");error.status=response.status;throw error;}
  return data;
 };
-const message=(id,text,error=false)=>{$(id).textContent=text;$(id).classList.toggle("error",error)};
+const statusMessageTimers=new Map();
+const message=(id,text,error=false)=>{
+ const el=$(id);
+ if(!el)return;
+ const previous=statusMessageTimers.get(id);
+ if(previous)clearTimeout(previous);
+ el.textContent=text;
+ el.classList.toggle("error",error);
+ el.hidden=false;
+ const delay=error?8000:(/成功|已建立|已儲存|已完成|已新增|已更新|已找到|已產生|已保留|已作廢|已取消|已匯入|已調整|已結帳|已列印/.test(text)?4000:5000);
+ const timer=setTimeout(()=>{
+  el.textContent="";
+  el.classList.remove("error");
+  statusMessageTimers.delete(id);
+ },delay);
+ statusMessageTimers.set(id,timer);
+};
 const selectedCompany=()=>companyId;
 
 function stopCameraScanner(){
