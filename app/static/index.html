@@ -670,18 +670,18 @@ async function loadCategories(){
 function stocktakeStorageKey(){return "gold-erp-stocktake:"+companyId+":"+selectedSiteId;}
 function persistStocktakeDraft(){
  if(!companyId||!selectedSiteId)return;
- const draft={location_id:stocktakeLocationId,lines:stocktakeLines.map(x=>({product_id:x.product.id,expected:x.expected,counted:x.counted,applied:!!x.applied}))};
+ const draft={location_id:stocktakeLocationId,lines:stocktakeLines.map(x=>({product_id:x.product.id,expected:x.expected,counted:x.counted,applied:!!x.applied,verified:!!x.verified}))};
  try{localStorage.setItem(stocktakeStorageKey(),JSON.stringify(draft));}catch(error){message("stocktakeStatus","瀏覽器無法儲存盤點暫存，請勿關閉此頁面。",true);}
 }
 function renderStocktake(){
  const box=$("stocktakeList");
  if(!stocktakeLocationId){box.innerHTML='<div class="empty">請先選擇盤點位置</div>';$("applyStocktake").disabled=true;return;}
- if(!stocktakeLines.length){box.innerHTML='<div class="empty">尚未掃描商品</div>';$("applyStocktake").disabled=true;return;}
+ if(!stocktakeLines.length){box.innerHTML='<div class="empty">此位置目前沒有帳面庫存，請掃描現場商品</div>';$("applyStocktake").disabled=true;return;}
  box.innerHTML=stocktakeLines.map((line,index)=>{
   const variance=Number(line.counted)-Number(line.expected);
-  return '<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 帳面數量：'+escapeHtml(line.expected)+'</span><div class="grid"><div class="field"><label>實際盤點數量</label><input type="number" min="0" step="1" value="'+escapeHtml(line.counted)+'" data-stocktake-count="'+index+'" '+(line.applied?'disabled':'')+'></div><div class="field"><label>差異</label><div class="pill">'+(variance>0?"+":"")+escapeHtml(variance)+(line.applied?" · 已入帳":"")+'</div></div></div><div class="actions">'+(line.applied?'<span class="muted">已完成</span>':(Number(line.expected)===0?'<button class="secondary" type="button" data-remove-stocktake="'+index+'">移除此商品</button>':'<span class="muted">帳面商品請務必完成實際盤點</span>'))+'</div></article>';
+  return '<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 帳面數量：'+escapeHtml(line.expected)+' · '+(line.verified?'已確認實盤':'尚未確認實盤')+'</span><div class="grid"><div class="field"><label>實際盤點數量</label><input type="number" min="0" step="1" value="'+escapeHtml(line.counted)+'" data-stocktake-count="'+index+'" '+(line.applied?'disabled':'')+'></div><div class="field"><label>差異</label><div class="pill">'+(variance>0?"+":"")+escapeHtml(variance)+(line.applied?" · 已入帳":"")+'</div></div></div><div class="actions">'+(line.applied?'<span class="muted">已完成</span>':(Number(line.expected)===0?'<button class="secondary" type="button" data-remove-stocktake="'+index+'">移除此商品</button>':'<span class="muted">帳面商品請務必完成實際盤點</span>'))+'</div></article>';
  }).join("");
- $("applyStocktake").disabled=!stocktakeLines.some(x=>!x.applied);
+ $("applyStocktake").disabled=!stocktakeLines.some(x=>!x.applied)||stocktakeLines.some(x=>!x.applied&&!x.verified);
 }
 function mergeStocktakeBaseline(){
  const existingByProduct=new Map(stocktakeLines.map(line=>[line.product.id,line]));
@@ -697,7 +697,7 @@ function mergeStocktakeBaseline(){
   }else if(expected>0){
    // Include every item currently on the books, even if it has not been scanned.
    // Its counted quantity starts at zero so missing items become visible variances.
-   merged.push({product,expected,counted:0,applied:false});
+   merged.push({product,expected,counted:0,applied:false,verified:false});
   }
  }
  // Keep scanned products that have no current book balance (expected zero).
@@ -720,7 +720,7 @@ function restoreStocktakeDraft(){
   const raw=localStorage.getItem(stocktakeStorageKey());
   if(raw){
    const saved=JSON.parse(raw);stocktakeLocationId=saved.location_id||"";
-   stocktakeLines=(saved.lines||[]).map(line=>{const product=inventoryProducts.find(x=>x.id===line.product_id);return product?{product,expected:Number(line.expected)||0,counted:Number(line.counted)||0,applied:!!line.applied}:null;}).filter(Boolean);
+   stocktakeLines=(saved.lines||[]).map(line=>{const product=inventoryProducts.find(x=>x.id===line.product_id);return product?{product,expected:Number(line.expected)||0,counted:Number(line.counted)||0,applied:!!line.applied,verified:line.verified===undefined?true:!!line.verified}:null;}).filter(Boolean);
   }
  }catch(error){localStorage.removeItem(stocktakeStorageKey());stocktakeLines=[];stocktakeLocationId="";}
  const select=$("stocktakeLocation");
@@ -736,13 +736,13 @@ async function addStocktakeProduct(product){
  if(existing){
   if(existing.applied){message("stocktakeStatus","此商品的盤點差異已入帳，不能再次計數。",true);return;}
   if(Number(existing.counted)>0){message("stocktakeStatus","此商品已掃描過；同一商品條碼不會重複計數。若數量有差異，請直接修改實盤數量。",true);return;}
-  existing.counted=1;
+  existing.counted=1;existing.verified=true;
   persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
   message("stocktakeStatus","已確認在架："+product.product_code+" · "+product.name+"。");
   return;
  }
  const expected=stocktakeExpectedByProduct.get(product.id)||0;
- stocktakeLines.push({product,expected,counted:1,applied:false});
+ stocktakeLines.push({product,expected,counted:1,applied:false,verified:true});
  persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
  message("stocktakeStatus","已加入帳面外商品："+product.product_code+" · "+product.name+"；請確認是否為新增或漏登商品。");
 }
@@ -1730,9 +1730,9 @@ $("stocktakeLocation").addEventListener("change",async()=>{
  try{await loadStocktakeBaseline();persistStocktakeDraft();renderStocktake();message("stocktakeStatus",next?"已載入此位置的帳面庫存。":"請選擇盤點位置。");}catch(error){message("stocktakeStatus",error.message,true);}
 });
 $("stocktakeBarcode").addEventListener("keydown",async event=>{if(event.key!=="Enter")return;event.preventDefault();const code=$("stocktakeBarcode").value.trim();if(code)await handleScannedProductCode(code,"stocktake");});
-$("refreshStocktake").addEventListener("click",async()=>{try{await loadStocktakeBaseline();message("stocktakeStatus","帳面庫存已重新讀取；已掃描商品的原始帳面數量保留不變。");}catch(error){message("stocktakeStatus",error.message,true);}});
-$("resetStocktake").addEventListener("click",()=>{if(!window.confirm("確定將所有尚未入帳商品的實盤數量歸零？帳面商品會保留，以免漏掉未找到的商品。"))return;stocktakeLines=stocktakeLines.filter(line=>line.applied||Number(line.expected)>0);for(const line of stocktakeLines){if(!line.applied)line.counted=0;}persistStocktakeDraft();renderStocktake();message("stocktakeStatus","未入帳商品的實盤數量已歸零；帳面庫存清單已保留。");});
-$("stocktakeList").addEventListener("change",event=>{const input=event.target.closest("[data-stocktake-count]");if(!input)return;const line=stocktakeLines[Number(input.dataset.stocktakeCount)];const value=Number(input.value);if(!line||!Number.isInteger(value)||value<0){message("stocktakeStatus","實盤數量必須是大於或等於 0 的整數。",true);renderStocktake();return;}line.counted=value;persistStocktakeDraft();renderStocktake();});
+$("refreshStocktake").addEventListener("click",async()=>{try{await loadStocktakeBaseline();message("stocktakeStatus","帳面庫存已重新讀取；尚未入帳項目會更新帳面數量，請重新確認實際盤點。");}catch(error){message("stocktakeStatus",error.message,true);}});
+$("resetStocktake").addEventListener("click",()=>{if(!window.confirm("確定將所有尚未入帳商品的實盤數量歸零？帳面商品會保留，以免漏掉未找到的商品。"))return;stocktakeLines=stocktakeLines.filter(line=>line.applied||Number(line.expected)>0);for(const line of stocktakeLines){if(!line.applied){line.counted=0;line.verified=false;}}persistStocktakeDraft();renderStocktake();message("stocktakeStatus","未入帳商品的實盤數量已歸零；帳面庫存清單已保留。");});
+$("stocktakeList").addEventListener("change",event=>{const input=event.target.closest("[data-stocktake-count]");if(!input)return;const line=stocktakeLines[Number(input.dataset.stocktakeCount)];const value=Number(input.value);if(!line||!Number.isInteger(value)||value<0){message("stocktakeStatus","實盤數量必須是大於或等於 0 的整數。",true);renderStocktake();return;}line.counted=value;line.verified=true;persistStocktakeDraft();renderStocktake();});
 $("stocktakeList").addEventListener("click",event=>{const button=event.target.closest("[data-remove-stocktake]");if(!button)return;stocktakeLines.splice(Number(button.dataset.removeStocktake),1);persistStocktakeDraft();renderStocktake();});
 $("applyStocktake").addEventListener("click",async()=>{
  if(!stocktakeLocationId||!stocktakeLines.length)return;
