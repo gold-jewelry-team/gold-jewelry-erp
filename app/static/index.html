@@ -318,6 +318,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 </div>
 <div id="quoteSearchStatus" class="status" role="status"></div>
 <div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div>
+<h3>無現貨規格預估（不建立商品）</h3>
+<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div>
 <h3>已選商品／報價參考</h3>
 <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
 <div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇商品後，會依目前有效金價、商品重量、工錢及舊金折抵，套用系統既有銷售計價規則試算。</div><div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可修改重量作預估，但不會建立庫存商品。試算不扣庫存、不建立正式交易；實際成交仍以銷售結帳當下的有效金價為準。</div>
@@ -2774,17 +2776,29 @@ function renderQuoteSearchResults(){
 const quoteStockSummary=new Map();
 const quoteStockRowsByProduct=new Map();
 let quoteStockLoadedKey="";
+let quoteStockLoadingKey="";
+let quoteStockLoadingPromise=null;
 async function loadQuoteStockBalances(){
  if(!companyId||!selectedSiteId)return;
  const key=companyId+"|"+selectedSiteId;
  if(quoteStockLoadedKey===key)return;
- const rows=await api("/companies/"+companyId+"/inventory/stock?"+new URLSearchParams({site_id:selectedSiteId,include_zero:"true"}).toString());
+ if(quoteStockLoadingKey===key&&quoteStockLoadingPromise)return quoteStockLoadingPromise;
  quoteStockSummary.clear();quoteStockRowsByProduct.clear();
- for(const row of rows){
-  const list=quoteStockRowsByProduct.get(row.product_id)||[];list.push(row);quoteStockRowsByProduct.set(row.product_id,list);
-  quoteStockSummary.set(row.product_id,(quoteStockSummary.get(row.product_id)||0)+Number(row.quantity||0));
- }
- quoteStockLoadedKey=key;
+ quoteStockLoadingKey=key;
+ quoteStockLoadingPromise=(async()=>{
+  try{
+   const rows=await api("/companies/"+companyId+"/inventory/stock?"+new URLSearchParams({site_id:selectedSiteId,include_zero:"true"}).toString());
+   if(key!==companyId+"|"+selectedSiteId)return;
+   for(const row of rows){
+    const list=quoteStockRowsByProduct.get(row.product_id)||[];list.push(row);quoteStockRowsByProduct.set(row.product_id,list);
+    quoteStockSummary.set(row.product_id,(quoteStockSummary.get(row.product_id)||0)+Number(row.quantity||0));
+   }
+   quoteStockLoadedKey=key;
+  }finally{
+   if(quoteStockLoadingKey===key){quoteStockLoadingKey="";quoteStockLoadingPromise=null;}
+  }
+ })();
+ return quoteStockLoadingPromise;
 }
 async function selectQuoteProduct(product){
  if(!product)return;
@@ -2806,12 +2820,26 @@ function renderQuoteLines(){
  const box=$("quoteLines");if(!box)return;
  box.innerHTML=quoteSelectedProducts.length?quoteSelectedProducts.map((line,index)=>{
   const p=line.product;
-  const locations=line.stockRows.map(row=>escapeHtml(row.location_name||row.location_code||"位置")+"："+escapeHtml(row.quantity)+" 件").join("、")||"無庫存紀錄";
-  return '<article class="quote-line"><div class="quote-line-main"><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+'</small></div><div><label>報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><div><label>舊金重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.oldWeight)+'" data-quote-old-weight="'+index+'"></div><div><label>舊金來源</label><select data-quote-source="'+index+'"><option value="" '+(!line.tradeInSource?'selected':'')+'>不折抵</option><option value="LOCAL" '+(line.tradeInSource==="LOCAL"?'selected':'')+'>本店 100%</option><option value="EXTERNAL" '+(line.tradeInSource==="EXTERNAL"?'selected':'')+'>外店折抵</option></select></div><div><label>外店折抵比率</label><input type="number" min="0.000001" max="1" step="0.01" value="'+escapeHtml(line.tradeInRatio)+'" data-quote-ratio="'+index+'" '+(line.tradeInSource==="EXTERNAL"?'':'disabled')+'></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
+  const locations=line.isEstimate?"非庫存預估規格":line.stockRows.map(row=>escapeHtml(row.location_name||row.location_code||"位置")+"："+escapeHtml(row.quantity)+" 件").join("、")||"無庫存紀錄";
+  return '<article class="quote-line"><div class="quote-line-main"><strong>'+(line.isEstimate?'<span class="pill">預估</span> ':'')+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+'</small></div>'<div><label>報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><div><label>舊金重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.oldWeight)+'" data-quote-old-weight="'+index+'"></div><div><label>舊金來源</label><select data-quote-source="'+index+'"><option value="" '+(!line.tradeInSource?'selected':'')+'>不折抵</option><option value="LOCAL" '+(line.tradeInSource==="LOCAL"?'selected':'')+'>本店 100%</option><option value="EXTERNAL" '+(line.tradeInSource==="EXTERNAL"?'selected':'')+'>外店折抵</option></select></div><div><label>外店折抵比率</label><input type="number" min="0.000001" max="1" step="0.01" value="'+escapeHtml(line.tradeInRatio)+'" data-quote-ratio="'+index+'" '+(line.tradeInSource==="EXTERNAL"?'':'disabled')+'></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
  }).join(""):'<div class="empty">尚未選擇商品</div>';
  renderQuoteCalculation();
 }
-$("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
+
+$("quoteAddEstimateButton").addEventListener("click",()=>{
+ const name=$("quoteEstimateName").value.trim(),size=$("quoteEstimateSize").value.trim();
+ const weight=Number($("quoteEstimateWeight").value),unit=$("quoteEstimateUnit").value,labor=Number($("quoteEstimateLabor").value);
+ if(!name){message("quoteSearchStatus","請輸入預估商品／款式名稱。",true);return;}
+ if(!Number.isFinite(weight)||weight<=0){message("quoteSearchStatus","預估重量必須大於 0。",true);return;}
+ if(!Number.isFinite(labor)||labor<0){message("quoteSearchStatus","預估工錢不可小於 0。",true);return;}
+ const key="estimate-"+Date.now()+"-"+Math.random().toString(36).slice(2,7);
+ const product={id:key,product_code:"預估規格",name,style_code:$("quoteProductSearch").value.trim()||"",chain_length:size,net_weight:weight,weight_unit_code:unit,labor_fee:labor};
+ quoteSelectedProducts.push({id:key,product,weight:String(weight),labor:String(labor),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows:[],isEstimate:true});
+ renderQuoteLines();
+ message("quoteSearchStatus","已加入非庫存預估規格；此項目只用於報價，不會建立商品或庫存。");
+ $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";
+});
+\n$("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
 $("quoteSearchResults").addEventListener("click",event=>{
  const button=event.target.closest("[data-quote-product]");if(!button)return;
  const product=inventoryProducts.find(p=>p.id===button.dataset.quoteProduct);if(product)selectQuoteProduct(product);
