@@ -66,6 +66,7 @@ def record_gold_material_movement(
     ).scalar_one_or_none()
     if site is None:
         raise ValueError("據點不存在或不屬於指定公司。")
+    assert_business_day_open(session, site_id=site_id, at=datetime.now(timezone.utc))
 
     supplier = None
     if supplier_id is not None:
@@ -126,6 +127,7 @@ def record_gold_material_movement(
                 bill.company_id != company_id or bill.site_id != site_id
                 or bill.supplier_id != supplier_id or bill.currency_code != "TWD"
                 or bill.status == "VOID"
+                or (purchase_id is not None and bill.purchase_id != purchase_id)
             ):
                 raise ValueError("舊金折抵帳單必須屬於相同公司、據點、供應商且為有效新台幣帳單。")
             cash_paid = Decimal(session.scalar(
@@ -144,7 +146,6 @@ def record_gold_material_movement(
         raise ValueError("只有交付供應商折抵時才能指定帳單分攤。")
 
     if movement_type in OUTGOING_TYPES:
-        assert_business_day_open(session, site_id=site_id, at=datetime.now(timezone.utc))
         available = _balance(session, company_id=company_id, site_id=site_id)
         if fine_gold_weight_g > available:
             raise ValueError(f"金料庫存不足；目前足金換算餘額 {available} 公克，本次需要 {fine_gold_weight_g} 公克。")
