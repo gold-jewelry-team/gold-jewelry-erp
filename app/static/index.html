@@ -679,15 +679,39 @@ function renderStocktake(){
  if(!stocktakeLines.length){box.innerHTML='<div class="empty">尚未掃描商品</div>';$("applyStocktake").disabled=true;return;}
  box.innerHTML=stocktakeLines.map((line,index)=>{
   const variance=Number(line.counted)-Number(line.expected);
-  return '<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 帳面數量：'+escapeHtml(line.expected)+'</span><div class="grid"><div class="field"><label>實際盤點數量</label><input type="number" min="0" step="1" value="'+escapeHtml(line.counted)+'" data-stocktake-count="'+index+'" '+(line.applied?'disabled':'')+'></div><div class="field"><label>差異</label><div class="pill">'+(variance>0?"+":"")+escapeHtml(variance)+(line.applied?" · 已入帳":"")+'</div></div></div><div class="actions">'+(line.applied?'<span class="muted">已完成</span>':'<button class="secondary" type="button" data-remove-stocktake="'+index+'">移除此商品</button>')+'</div></article>';
+  return '<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 帳面數量：'+escapeHtml(line.expected)+'</span><div class="grid"><div class="field"><label>實際盤點數量</label><input type="number" min="0" step="1" value="'+escapeHtml(line.counted)+'" data-stocktake-count="'+index+'" '+(line.applied?'disabled':'')+'></div><div class="field"><label>差異</label><div class="pill">'+(variance>0?"+":"")+escapeHtml(variance)+(line.applied?" · 已入帳":"")+'</div></div></div><div class="actions">'+(line.applied?'<span class="muted">已完成</span>':(Number(line.expected)===0?'<button class="secondary" type="button" data-remove-stocktake="'+index+'">移除此商品</button>':'<span class="muted">帳面商品請務必完成實際盤點</span>'))+'</div></article>';
  }).join("");
  $("applyStocktake").disabled=!stocktakeLines.some(x=>!x.applied);
+}
+function mergeStocktakeBaseline(){
+ const existingByProduct=new Map(stocktakeLines.map(line=>[line.product.id,line]));
+ const merged=[];
+ for(const [productId,expected] of stocktakeExpectedByProduct){
+  const product=inventoryProducts.find(item=>item.id===productId);
+  if(!product)continue;
+  const existing=existingByProduct.get(productId);
+  if(existing){
+   if(!existing.applied)existing.expected=expected;
+   merged.push(existing);
+   existingByProduct.delete(productId);
+  }else if(expected>0){
+   // Include every item currently on the books, even if it has not been scanned.
+   // Its counted quantity starts at zero so missing items become visible variances.
+   merged.push({product,expected,counted:0,applied:false});
+  }
+ }
+ // Keep scanned products that have no current book balance (expected zero).
+ for(const line of existingByProduct.values())merged.push(line);
+ stocktakeLines=merged;
 }
 async function loadStocktakeBaseline(){
  if(!companyId||!selectedSiteId||!stocktakeLocationId){stocktakeExpectedByProduct=new Map();return;}
  const params=new URLSearchParams({site_id:selectedSiteId,location_id:stocktakeLocationId,include_zero:"true"});
  const rows=await api("/companies/"+companyId+"/inventory/stock?"+params.toString());
  stocktakeExpectedByProduct=new Map(rows.map(x=>[x.product_id,Number(x.quantity)]));
+ mergeStocktakeBaseline();
+ persistStocktakeDraft();
+ renderStocktake();
 }
 function restoreStocktakeDraft(){
  stocktakeLines=[];stocktakeLocationId="";
@@ -708,13 +732,19 @@ function restoreStocktakeDraft(){
 async function addStocktakeProduct(product){
  if(!stocktakeLocationId){message("stocktakeStatus","請先選擇盤點儲存位置。",true);return;}
  if(!product||!product.is_active){message("stocktakeStatus","找不到有效商品。",true);return;}
- if(stocktakeLines.some(x=>x.product.id===product.id)){
-  message("stocktakeStatus","此商品已掃描過；同一商品條碼不會重複計數。若數量有差異，請直接修改實盤數量。",true);return;
+ const existing=stocktakeLines.find(line=>line.product.id===product.id);
+ if(existing){
+  if(existing.applied){message("stocktakeStatus","此商品的盤點差異已入帳，不能再次計數。",true);return;}
+  if(Number(existing.counted)>0){message("stocktakeStatus","此商品已掃描過；同一商品條碼不會重複計數。若數量有差異，請直接修改實盤數量。",true);return;}
+  existing.counted=1;
+  persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
+  message("stocktakeStatus","已確認在架："+product.product_code+" · "+product.name+"。");
+  return;
  }
  const expected=stocktakeExpectedByProduct.get(product.id)||0;
  stocktakeLines.push({product,expected,counted:1,applied:false});
  persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
- message("stocktakeStatus","已加入："+product.product_code+" · "+product.name+"；請繼續掃描下一件。");
+ message("stocktakeStatus","已加入帳面外商品："+product.product_code+" · "+product.name+"；請確認是否為新增或漏登商品。");
 }
 async function loadInventoryOptions(){
  const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct","purchaseProduct"];
@@ -1701,7 +1731,7 @@ $("stocktakeLocation").addEventListener("change",async()=>{
 });
 $("stocktakeBarcode").addEventListener("keydown",async event=>{if(event.key!=="Enter")return;event.preventDefault();const code=$("stocktakeBarcode").value.trim();if(code)await handleScannedProductCode(code,"stocktake");});
 $("refreshStocktake").addEventListener("click",async()=>{try{await loadStocktakeBaseline();message("stocktakeStatus","帳面庫存已重新讀取；已掃描商品的原始帳面數量保留不變。");}catch(error){message("stocktakeStatus",error.message,true);}});
-$("resetStocktake").addEventListener("click",()=>{if(!window.confirm("確定清空本次尚未入帳的盤點清單？"))return;stocktakeLines=[];persistStocktakeDraft();renderStocktake();message("stocktakeStatus","未入帳的盤點清單已清空。");});
+$("resetStocktake").addEventListener("click",()=>{if(!window.confirm("確定將所有尚未入帳商品的實盤數量歸零？帳面商品會保留，以免漏掉未找到的商品。"))return;stocktakeLines=stocktakeLines.filter(line=>line.applied||Number(line.expected)>0);for(const line of stocktakeLines){if(!line.applied)line.counted=0;}persistStocktakeDraft();renderStocktake();message("stocktakeStatus","未入帳商品的實盤數量已歸零；帳面庫存清單已保留。");});
 $("stocktakeList").addEventListener("change",event=>{const input=event.target.closest("[data-stocktake-count]");if(!input)return;const line=stocktakeLines[Number(input.dataset.stocktakeCount)];const value=Number(input.value);if(!line||!Number.isInteger(value)||value<0){message("stocktakeStatus","實盤數量必須是大於或等於 0 的整數。",true);renderStocktake();return;}line.counted=value;persistStocktakeDraft();renderStocktake();});
 $("stocktakeList").addEventListener("click",event=>{const button=event.target.closest("[data-remove-stocktake]");if(!button)return;stocktakeLines.splice(Number(button.dataset.removeStocktake),1);persistStocktakeDraft();renderStocktake();});
 $("applyStocktake").addEventListener("click",async()=>{
