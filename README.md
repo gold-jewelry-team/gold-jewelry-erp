@@ -26,7 +26,7 @@ Alembic 版本鏈：
 4. `0004_products_inventory`：商品分類、商品主檔及庫存異動流水
 5. `0005_suppliers_purchasing`：供應商、採購單及採購明細
 
-以上僅代表程式碼與 Migration 檔案已建立；**尚未建立正式 Neon 資料庫，也尚未對任何正式資料庫執行 Migration**。
+以上為程式碼中的 Migration 版本鏈。正式 Neon production 資料庫已建立，並曾依使用者明確授權執行 Migration；部署與資料庫實際版本應以 Neon、Render 的即時狀態及部署紀錄為準。此文件不代表 production migration 可由 CI 或一般部署自動執行。
 
 ## 重要設計
 - 每筆商品資料代表一件可獨立追蹤的珠寶商品；條碼在同一公司內唯一。
@@ -54,6 +54,14 @@ Alembic 版本鏈：
 - `GET /companies/{company_id}/inventory/movements`：查詢異動流水
 - `POST /companies/{company_id}/inventory/adjustments`：盤點增減調整
 - `POST /companies/{company_id}/inventory/transfers`：儲存位置調撥；來源庫存不足會拒絕
+
+## 目前部署與資料安全狀態
+- Render 正式服務：`https://gold-jewelry-erp.onrender.com`
+- 使用者介面：`/app`；API 文件：`/docs`；健康檢查：`/health`
+- GitHub `main` 更新會依 Render 自動部署設定觸發部署；每次部署仍須確認 Render deploy 狀態及健康檢查。
+- 正式 Neon production 資料庫已存在；不可將本機測試、CI 測試資料庫與 production 混為一談。
+- 未經使用者明確授權，不得對 production 執行 Migration、資料寫入、刪除或重設。
+- 測試期間不建立虛構商品或交易資料；商品建檔及實際標籤列印須使用使用者提供的真實資料與設備驗證。
 
 ## 尚待開發
 - 銷售結帳與銷售出庫的原子化流程
