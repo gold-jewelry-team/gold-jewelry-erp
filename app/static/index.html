@@ -2871,7 +2871,7 @@ function quoteRoundTwd(value){return Math.floor(Number(value)+0.5);}
 function renderQuoteCalculation(){
  const box=$("quoteCalcSummary");if(!box)return;
  if(!quoteSelectedProducts.length){box.textContent="選擇商品後，會依目前有效金價試算。";return;}
- const lines=[];let subtotalTotal=0;
+ const lines=[];let subtotalTotal=0,grossSubtotalTotal=0,tradeInTotal=0;
  for(const line of quoteSelectedProducts){
   const p=line.product,weight=Number(line.weight),labor=Number(line.labor),oldWeight=Number(line.oldWeight||0),ratio=Number(line.tradeInRatio||0.95);
   const sell=currentGoldPriceRows.SELL,buy=currentGoldPriceRows.BUY;
@@ -2884,24 +2884,26 @@ function renderQuoteCalculation(){
   const sellRate=convertGoldPrice(sell.price_value,sell.unit_code,p.weight_unit_code);
   const buyRate=convertGoldPrice(buy.price_value,buy.unit_code,p.weight_unit_code);
   if(sellRate===null||buyRate===null){box.textContent="商品重量單位無法換算，請確認金價與商品單位設定。";return;}
-  let amount=weight*sellRate+labor;
+  const baseAmount=weight*sellRate+labor;
+  let amount=baseAmount,tradeInCredit=0,adjustedOldWeight=0;
   if(oldWeight>0){
    const effectiveRatio=line.tradeInSource==="LOCAL"?1:ratio;
-   const adjusted=Math.trunc(oldWeight*effectiveRatio*100)/100;
-   if(line.tradeInSource==="LOCAL"){
-    amount=adjusted<=weight?(weight-adjusted)*sellRate+labor:labor-(adjusted-weight)*buyRate;
-   }else{
-    amount=adjusted<=weight?(weight*sellRate+labor)-adjusted*sellRate:labor-(adjusted-weight)*buyRate;
-   }
+   adjustedOldWeight=Math.trunc(oldWeight*effectiveRatio*100)/100;
+   amount=adjustedOldWeight<=weight
+    ?(weight-adjustedOldWeight)*sellRate+labor
+    :labor-(adjustedOldWeight-weight)*buyRate;
+   tradeInCredit=baseAmount-amount;
   }
   subtotalTotal+=amount;
-  lines.push({code:p.product_code,amount});
+  grossSubtotalTotal+=baseAmount;
+  tradeInTotal+=tradeInCredit;
+  lines.push({code:p.product_code,amount,baseAmount,tradeInCredit,adjustedOldWeight,tradeInSource:line.tradeInSource});
  }
  const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
  const card=$("quotePaymentMethod").value==="CARD";
  const cardFee=card?quoteRoundTwd(positiveSubtotal*0.05):0;
  const final=quoteRoundTwd(subtotalTotal+cardFee);
- box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</div>').join("")+'</div><div style="margin-top:8px">商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+(card?' · 刷卡手續費 5%：NT$ '+escapeHtml(quoteMoney(cardFee)):'')+'</div><strong style="display:block;font-size:20px;margin-top:6px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>依現行銷售規則試算；刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
+ box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">商品原金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 舊金折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+'）':' · 未使用舊金折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">舊金折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>舊金折抵：NT$ 0</div>')+'<div>折抵後商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+(card?'<div>刷卡試算 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'')+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>舊金依各商品設定的重量、來源及折抵比率計算；刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
 }
 
 function renderQuoteSearchResults(){
