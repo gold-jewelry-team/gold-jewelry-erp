@@ -301,7 +301,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div>
 <h3>已選商品／報價參考</h3>
 <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
-<div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可先參考同款資料；預估規格不會建立庫存商品。正式售價仍須依門市確認的計價規則計算。</div>
+<div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇商品後，會依目前有效金價、商品重量、工錢及舊金折抵，套用系統既有銷售計價規則試算。</div><div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可修改重量作預估，但不會建立庫存商品。試算不扣庫存、不建立正式交易；實際成交仍以銷售結帳當下的有效金價為準。</div>
 <div class="actions"><button id="quoteClearButton" class="secondary" type="button">清空報價清單</button><button id="quoteGoSalesButton" type="button">前往銷售結帳</button></div>
 </section>
 
@@ -2689,6 +2689,42 @@ function quoteProductSearchText(product){
  const category=product.category_id?(categoryNames.get(product.category_id)||""):"";
  return [product.product_code,product.barcode,product.name,product.style_code,product.material_code,product.chain_length,category].filter(Boolean).join(" ").toLocaleLowerCase();
 }
+
+function quoteRoundTwd(value){return Math.floor(Number(value)+0.5);}
+function renderQuoteCalculation(){
+ const box=$("quoteCalcSummary");if(!box)return;
+ if(!quoteSelectedProducts.length){box.textContent="選擇商品後，會依目前有效金價試算。";return;}
+ const lines=[];let subtotalTotal=0;
+ for(const line of quoteSelectedProducts){
+  const p=line.product,weight=Number(line.weight),labor=Number(line.labor),oldWeight=Number(line.oldWeight||0),ratio=Number(line.tradeInRatio||0.95);
+  const sell=currentGoldPriceRows.SELL,buy=currentGoldPriceRows.BUY;
+  if(!Number.isFinite(weight)||weight<0||!Number.isFinite(labor)||labor<0||!Number.isFinite(oldWeight)||oldWeight<0){box.textContent="請確認重量、工錢及舊金重量均為有效的非負數值。";return;}
+  if(oldWeight>0&&!line.tradeInSource){box.textContent="輸入舊金重量時，請選擇本店或外店舊金來源。";return;}
+  if(oldWeight===0&&line.tradeInSource){box.textContent="選擇舊金來源時，請輸入大於 0 的舊金重量。";return;}
+  if(line.tradeInSource==="EXTERNAL"&&(!Number.isFinite(ratio)||ratio<=0||ratio>1)){box.textContent="外店舊金折抵比率須大於 0 且不得超過 1。";return;}
+  if(!sell||!buy){box.textContent="尚未設定有效買入價及賣出價，暫時無法計算。";return;}
+  if(sell.currency_code!=="TWD"||buy.currency_code!=="TWD"||sell.unit_code!==p.weight_unit_code||buy.unit_code!==p.weight_unit_code){box.textContent="商品重量單位必須與買入、賣出金價的 TWD 計價單位一致，請先確認金價設定。";return;}
+  const sellRate=Number(sell.price_value),buyRate=Number(buy.price_value);
+  let amount=weight*sellRate+labor;
+  if(oldWeight>0){
+   const effectiveRatio=line.tradeInSource==="LOCAL"?1:ratio;
+   const adjusted=Math.trunc(oldWeight*effectiveRatio*100)/100;
+   if(line.tradeInSource==="LOCAL"){
+    amount=adjusted<=weight?(weight-adjusted)*sellRate+labor:labor-(adjusted-weight)*buyRate;
+   }else{
+    amount=adjusted<=weight?(weight*sellRate+labor)-adjusted*sellRate:labor-(adjusted-weight)*buyRate;
+   }
+  }
+  subtotalTotal+=amount;
+  lines.push({code:p.product_code,amount});
+ }
+ const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
+ const card=$("quotePaymentMethod").value==="CARD";
+ const cardFee=card?quoteRoundTwd(positiveSubtotal*0.05):0;
+ const final=quoteRoundTwd(subtotalTotal+cardFee);
+ box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</div>').join("")+'</div><div style="margin-top:8px">商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+(card?' · 刷卡手續費 5%：NT$ '+escapeHtml(quoteMoney(cardFee)):'')+'</div><strong style="display:block;font-size:20px;margin-top:6px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>依現行銷售規則試算；刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
+}
+
 function renderQuoteSearchResults(){
  const box=$("quoteSearchResults");if(!box)return;
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點。</div>';return;}
@@ -2719,7 +2755,7 @@ async function selectQuoteProduct(product){
  }
  const stockQty=stockRows.reduce((sum,row)=>sum+Number(row.quantity||0),0);
  quoteStockSummary.set(product.id,stockQty);
- quoteSelectedProducts.push({id:product.id,product,weight:String(product.net_weight??0),labor:String(product.labor_fee??0),stockRows});
+ quoteSelectedProducts.push({id:product.id,product,weight:String(product.net_weight??0),labor:String(product.labor_fee??0),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows});
  renderQuoteLines();renderQuoteSearchResults();
  $("quoteProductCode").value="";
  message("quoteSearchStatus","已帶入商品重量、預設工錢及庫存位置；可依客人需求調整報價參數。");
@@ -2729,8 +2765,9 @@ function renderQuoteLines(){
  box.innerHTML=quoteSelectedProducts.length?quoteSelectedProducts.map((line,index)=>{
   const p=line.product;
   const locations=line.stockRows.map(row=>escapeHtml(row.location_name||row.location_code||"位置")+"："+escapeHtml(row.quantity)+" 件").join("、")||"無庫存紀錄";
-  return '<article class="quote-line"><div class="quote-line-main"><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+'</small></div><div><label for="quoteWeight'+index+'">報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input id="quoteWeight'+index+'" type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label for="quoteLabor'+index+'">工錢（元）</label><input id="quoteLabor'+index+'" type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
+  return '<article class="quote-line"><div class="quote-line-main"><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+'</small></div><div><label>報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><div><label>舊金重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.oldWeight)+'" data-quote-old-weight="'+index+'"></div><div><label>舊金來源</label><select data-quote-source="'+index+'"><option value="" '+(!line.tradeInSource?'selected':'')+'>不折抵</option><option value="LOCAL" '+(line.tradeInSource==="LOCAL"?'selected':'')+'>本店 100%</option><option value="EXTERNAL" '+(line.tradeInSource==="EXTERNAL"?'selected':'')+'>外店折抵</option></select></div><div><label>外店折抵比率</label><input type="number" min="0.000001" max="1" step="0.01" value="'+escapeHtml(line.tradeInRatio)+'" data-quote-ratio="'+index+'" '+(line.tradeInSource==="EXTERNAL"?'':'disabled')+'></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
  }).join(""):'<div class="empty">尚未選擇商品</div>';
+ renderQuoteCalculation();
 }
 $("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
 $("quoteSearchResults").addEventListener("click",event=>{
@@ -2741,7 +2778,12 @@ $("quoteLines").addEventListener("input",event=>{
  const wi=event.target.dataset.quoteWeight,li=event.target.dataset.quoteLabor;
  if(wi!==undefined&&quoteSelectedProducts[Number(wi)])quoteSelectedProducts[Number(wi)].weight=event.target.value;
  if(li!==undefined&&quoteSelectedProducts[Number(li)])quoteSelectedProducts[Number(li)].labor=event.target.value;
+ const oi=event.target.dataset.quoteOldWeight;if(oi!==undefined&&quoteSelectedProducts[Number(oi)])quoteSelectedProducts[Number(oi)].oldWeight=event.target.value;
+ const ri=event.target.dataset.quoteRatio;if(ri!==undefined&&quoteSelectedProducts[Number(ri)])quoteSelectedProducts[Number(ri)].tradeInRatio=event.target.value;
+ renderQuoteCalculation();
 });
+$("quoteLines").addEventListener("change",event=>{const si=event.target.dataset.quoteSource;if(si!==undefined&&quoteSelectedProducts[Number(si)]){quoteSelectedProducts[Number(si)].tradeInSource=event.target.value;renderQuoteLines();}});
+$("quotePaymentMethod").addEventListener("change",renderQuoteCalculation);
 $("quoteLines").addEventListener("click",event=>{
  const button=event.target.closest("[data-quote-remove]");if(!button)return;
  quoteSelectedProducts.splice(Number(button.dataset.quoteRemove),1);renderQuoteLines();
