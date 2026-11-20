@@ -2798,8 +2798,6 @@ $("quoteProductCode").addEventListener("keydown",event=>{
 });
 $("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
 $("quoteClearButton").addEventListener("click",()=>{quoteSelectedProducts=[];renderQuoteLines();message("quoteSearchStatus","已清空報價清單。");});
-}
-});
 (function(){
  const openQuote=()=>{
   const button=document.querySelector('.category-nav button[data-category="quote"]');if(button)button.click();
