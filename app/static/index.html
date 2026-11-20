@@ -238,8 +238,16 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 .status:not(.error){color:#28724d}
 @media(max-width:899px){
  .category-nav button{min-height:44px;padding:9px 12px}
- .category-shortcuts{gap:6px}
- .category-shortcuts button{min-height:38px}
+ .category-shortcuts{
+  gap:6px;
+  flex-wrap:nowrap;
+  overflow-x:auto;
+  white-space:nowrap;
+  overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+ }
+ .category-shortcuts-label{flex:0 0 auto}
+ .category-shortcuts button{flex:0 0 auto;min-height:38px}
 }
 @media(prefers-reduced-motion:no-preference){
  .panel{transition:box-shadow .18s ease,border-color .18s ease}
