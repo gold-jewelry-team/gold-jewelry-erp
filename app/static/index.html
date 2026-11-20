@@ -3042,7 +3042,7 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  if(laborText===""||!Number.isFinite(labor)||labor<0){quoteSetStatus("尚未加入：預估工錢不可小於 0。",true);$("quoteEstimateLabor").focus();return;}
  const key="estimate-"+Date.now()+"-"+Math.random().toString(36).slice(2,7);
  const product={id:key,product_code:"預估規格",name:name||"未命名預估規格",style_code:$("quoteProductSearch").value.trim()||"",chain_length:size,net_weight:weight,weight_unit_code:unit,labor_fee:labor};
- const oldWeight=Number($("quoteOldGoldWeight").value||0),source=$("quoteTradeInSource").value||null,ratio=$("quoteTradeInRatio").value||"0.95";
+ const oldWeight=Number($("quoteOldGoldWeight").value||0),source=$("quoteTradeInSource").value||null,ratio=String((Number($("quoteTradeInRatio").value||95))/100);
  if(!Number.isFinite(oldWeight)||oldWeight<0){quoteSetStatus("舊金折抵重量不可小於 0。",true);return;}
  if(oldWeight>0&&!source){quoteSetStatus("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。",true);return;}
  if(oldWeight===0&&source){quoteSetStatus("選擇舊金來源時，請輸入大於 0 的舊金重量。",true);return;}
@@ -3050,7 +3050,7 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  quoteSelectedProducts.push({id:key,product,weight:String(weight),labor:String(labor),oldWeight:String(oldWeight),tradeInSource:source,tradeInRatio:String(ratio),stockRows:[],isEstimate:true});
  renderQuoteLines();
  $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";$("quoteEstimateLabor").value="0";
- $("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="0.95";
+ $("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  renderQuoteEstimatePreview();
  quoteSetStatus("已加入報價清單。這是非庫存預估規格，不會建立商品或庫存。");
 });
@@ -3084,7 +3084,7 @@ $("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
 $("quoteClearButton").addEventListener("click",()=>{
  quoteSelectedProducts=[];
  $("quoteProductCode").value="";
- $("quoteProduct").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="0.95";
+ $("quoteProduct").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  $("quoteProductSearch").value="";
  $("quoteEstimateName").value="";
  $("quoteEstimateSize").value="";
