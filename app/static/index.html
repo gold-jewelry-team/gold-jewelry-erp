@@ -7,7 +7,7 @@
 <title>黃金珠寶進銷存</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202124;background:#f5f5f2;font-synthesis:none}
-*{box-sizing:border-box}body{margin:0;padding:0 0 env(safe-area-inset-bottom)}header{background:#202522;color:#fff;padding:20px 16px 16px;position:sticky;top:0;z-index:5}header h1{font-size:20px;margin:0 0 5px}header p{font-size:12px;color:#c8d0ca;margin:0}
+*{box-sizing:border-box}body{margin:0;padding:0 0 env(safe-area-inset-bottom)}header{background:#202522;color:#fff;padding:20px 16px 16px;position:sticky;top:0;z-index:5}header h1{font-size:20px;margin:0;white-space:nowrap}.header-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px;min-width:0}.header-title-row .quick-nav{flex:0 1 210px;min-width:130px;margin:0;padding:0;overflow:visible;white-space:normal;flex-wrap:wrap;justify-content:flex-end}.header-title-row #quickNavSearch{flex:1 1 100%;width:100%;min-width:0}header p{font-size:12px;color:#c8d0ca;margin:0}
 main{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:14px}.panel{background:#fff;border:1px solid #e5e7e3;border-radius:16px;padding:16px;box-shadow:0 2px 10px #1111}
 h2{font-size:16px;margin:0 0 14px}.sub{font-size:12px;color:#68716b;margin:-8px 0 12px}
 label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;background:#fff;color:#202124}input:focus,select:focus{outline:2px solid #899b8d;outline-offset:1px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;margin-bottom:10px}.wide{grid-column:1/-1}button{border:0;border-radius:11px;min-height:44px;padding:10px 15px;background:#263b30;color:#fff;font:inherit;font-weight:600;cursor:pointer}button.secondary{background:#edf1ed;color:#263b30}button:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:13px;min-height:20px;color:#526257;margin-top:8px}.status.error{color:#b42318}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}.item{border:1px solid #e7eae6;border-radius:12px;padding:12px;margin-top:9px;display:grid;gap:5px}.item strong{font-size:15px}.muted{font-size:12px;color:#6a746d}.pill{font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px;width:max-content}.empty{font-size:13px;color:#788079;padding:18px 0;text-align:center}.hidden{display:none}
@@ -31,7 +31,7 @@ header{padding:14px 16px 10px}
 .company-management-switch button{min-height:44px}
 .company-management-switch .company-status{grid-column:1/-1}
 @media(max-width:420px){.company-management-switch{grid-template-columns:1fr}.company-management-switch button{width:100%}}
-.quick-nav{display:flex;gap:7px;overflow-x:auto;overscroll-behavior-x:contain;white-space:nowrap;margin:12px -4px 0;padding:0 4px 5px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.quick-nav{display:flex;gap:7px;overflow-x:auto;overscroll-behavior-x:contain;white-space:nowrap;margin:0;padding:0;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
 .quick-nav a{display:inline-flex;align-items:center;min-height:34px;padding:6px 11px;border:1px solid #ffffff35;border-radius:999px;color:#eef4ef;text-decoration:none;font-size:12px;font-weight:600;background:#ffffff12;flex:0 0 auto}
 .quick-nav a:hover,.quick-nav a:focus-visible{background:#ffffff2b;outline:2px solid #c7d8cb;outline-offset:1px}
 #quickNavSearch{flex:0 0 150px;width:150px;min-height:34px;height:34px;padding:6px 10px;border:1px solid #ffffff55;border-radius:999px;background:#fff;color:#202124;font-size:12px}
@@ -44,7 +44,8 @@ header{padding:14px 16px 10px}
 main>section.panel[id]{scroll-margin-top:240px}
 #backToTop{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:15;display:none;min-height:44px;padding:10px 14px;border-radius:999px;box-shadow:0 3px 14px #0003}
 #backToTop.visible{display:block}
-@media(min-width:640px){header{padding-left:max(16px,calc((100vw - 760px)/2));padding-right:max(16px,calc((100vw - 760px)/2))}.quick-nav{margin-top:10px}}
+@media(max-width:420px){.header-title-row{gap:8px;align-items:center}.header-title-row h1{font-size:18px}.header-title-row .quick-nav{flex-basis:145px;min-width:120px}#quickNavSearch{font-size:12px;padding-left:8px;padding-right:8px}}@media(min-width:640px){header{padding-left:max(16px,calc((100vw - 760px)/2));padding-right:max(16px,calc((100vw - 760px)/2))}}
+.gold-price-entry-grid .field{margin-bottom:4px}.gold-price-entry-grid input{font-variant-numeric:tabular-nums}.gold-price-entry-grid .field:nth-child(1) label{color:#8b6a25;font-weight:700}.gold-price-entry-grid .field:nth-child(2) label{color:#28644d;font-weight:700}@media(max-width:520px){.gold-price-entry-grid{grid-template-columns:1fr 1fr;gap:8px}.gold-price-entry-grid .field{min-width:0}}
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 
 /* 分類式導覽：桌面側欄、手機橫向分類 */
@@ -257,7 +258,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 </style>
 </head>
 <body>
-<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
+<header><div class="header-title-row"><h1>黃金珠寶進銷存</h1><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></div><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section></header>
 <main>
 <section class="panel">
 <h2>公司管理</h2>
@@ -357,15 +358,16 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 </div>
 <form id="goldPriceForm">
 <h3>新增金價紀錄</h3>
-<div class="grid">
-<div class="field"><label for="goldPriceType">金價類型</label><select id="goldPriceType"><option value="BUY">買入價</option><option value="SELL">賣出價</option></select></div>
+<p class="muted">買入價與賣出價可一次填寫；只更新其中一項時，另一欄留白即可。適用範圍、單位及生效時間共用。</p>
+<div class="grid gold-price-entry-grid">
+<div class="field"><label for="goldPriceBuyValue">買入價（TWD）</label><input id="goldPriceBuyValue" type="number" min="0.0001" step="0.0001" inputmode="decimal" placeholder="輸入買入價"></div>
+<div class="field"><label for="goldPriceSellValue">賣出價（TWD）</label><input id="goldPriceSellValue" type="number" min="0.0001" step="0.0001" inputmode="decimal" placeholder="輸入賣出價"></div>
 <div class="field"><label for="goldPriceScope">適用範圍</label><select id="goldPriceScope"><option value="SITE">目前據點</option><option value="COMPANY">全公司所有據點</option></select></div>
-<div class="field"><label for="goldPriceValue">每單位金價（TWD）</label><input id="goldPriceValue" type="number" min="0.0001" step="0.0001" required></div>
 <div class="field"><label for="goldPriceUnit">計價單位</label><select id="goldPriceUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
 <div class="field"><label for="goldPriceEffectiveAt">生效時間（台灣時間）</label><input id="goldPriceEffectiveAt" type="datetime-local" required></div>
-<div class="field wide"><label for="goldPriceNote">備註</label><input id="goldPriceNote" maxlength="500" placeholder="例如：今日牌價"></div>
+<div class="field"><label for="goldPriceNote">備註（選填）</label><input id="goldPriceNote" maxlength="500" placeholder="例如：今日牌價"></div>
 </div>
-<div class="actions"><button type="submit">新增金價</button><button class="secondary" id="refreshGoldPrices" type="button">重新整理</button></div>
+<div class="actions"><button type="submit">儲存金價</button><button class="secondary" id="refreshGoldPrices" type="button">重新整理</button></div>
 </form>
 <div id="goldPriceStatus" class="status" role="status"></div>
 <details class="gold-closure-settings"><summary>設定休市日／國定假日（當日不提醒）</summary><p class="muted">週六、週日自動略過提醒；國定假日、臨時店休可加入日期。此清單保存在目前使用的瀏覽器。</p><div class="toolbar"><input id="goldClosureDate" type="date" aria-label="選擇休市日期"><button id="addGoldClosureDate" class="secondary" type="button">加入休市日</button></div><div id="goldClosureDates" class="muted">請先選擇公司與據點</div></details>
@@ -2148,18 +2150,40 @@ $("refreshGoldPrices").addEventListener("click",()=>loadGoldPrices().catch(e=>me
 $("goldPriceForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("goldPriceStatus","請先選擇公司與據點。",true);return;}
- const value=$("goldPriceEffectiveAt").value;
- if(!value){message("goldPriceStatus","請輸入金價生效時間。",true);return;}
- const payload={site_id:$("goldPriceScope").value==="COMPANY"?null:selectedSiteId,price_type:$("goldPriceType").value,price_value:$("goldPriceValue").value,currency_code:"TWD",unit_code:$("goldPriceUnit").value,effective_at:value+":00+08:00",source:"MANUAL",note:$("goldPriceNote").value.trim()||null};
+ const effectiveAt=$("goldPriceEffectiveAt").value;
+ if(!effectiveAt){message("goldPriceStatus","請輸入金價生效時間。",true);return;}
+ const prices=[
+  {type:"BUY",value:$("goldPriceBuyValue").value.trim(),field:"goldPriceBuyValue",label:"買入價"},
+  {type:"SELL",value:$("goldPriceSellValue").value.trim(),field:"goldPriceSellValue",label:"賣出價"}
+ ].filter(item=>item.value!=="");
+ if(!prices.length){message("goldPriceStatus","請至少輸入買入價或賣出價其中一項。",true);return;}
+ for(const item of prices){
+  if(!Number.isFinite(Number(item.value))||Number(item.value)<=0){message("goldPriceStatus",item.label+"必須大於 0。",true);return;}
+ }
+ const shared={site_id:$("goldPriceScope").value==="COMPANY"?null:selectedSiteId,currency_code:"TWD",unit_code:$("goldPriceUnit").value,effective_at:effectiveAt+":00+08:00",source:"MANUAL",note:$("goldPriceNote").value.trim()||null};
  const button=$("goldPriceForm").querySelector('button[type="submit"]');button.disabled=true;
+ const succeeded=[],failed=[];
  try{
-  await api("/companies/"+companyId+"/gold-prices",{method:"POST",body:JSON.stringify(payload)});
-  $("goldPriceValue").value="";$("goldPriceNote").value="";
-  message("goldPriceStatus","金價紀錄已新增，舊紀錄已保留。");
-  try{await loadGoldPrices();}
-  catch(refreshError){message("globalStatus","金價已新增，但畫面重新載入失敗："+refreshError.message,true);}
- }catch(error){message("goldPriceStatus",error.message,true);}
- finally{button.disabled=false;}
+  for(const item of prices){
+   try{
+    await api("/companies/"+companyId+"/gold-prices",{method:"POST",body:JSON.stringify({...shared,price_type:item.type,price_value:item.value})});
+    succeeded.push(item);
+    $(item.field).value="";
+   }catch(error){failed.push({item,error});}
+  }
+  if(succeeded.length){
+   if(!failed.length){
+    $("goldPriceNote").value="";
+    message("goldPriceStatus",succeeded.map(item=>item.label).join("、")+"已新增，舊紀錄已保留。");
+   }else{
+    message("goldPriceStatus",succeeded.map(item=>item.label).join("、")+"已新增；"+failed.map(row=>row.item.label+"失敗："+row.error.message).join("；")+"。可修正後再次送出。",true);
+   }
+   try{await loadGoldPrices();}
+   catch(refreshError){message("globalStatus","金價已新增，但畫面重新載入失敗："+refreshError.message,true);}
+  }else{
+   message("goldPriceStatus",failed.map(row=>row.item.label+"失敗："+row.error.message).join("；"),true);
+  }
+ }finally{button.disabled=false;}
 });
 $("refreshStock").addEventListener("click",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
 $("stocktakeLocation").addEventListener("change",async()=>{
