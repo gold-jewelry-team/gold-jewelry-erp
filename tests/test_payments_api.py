@@ -177,3 +177,41 @@ def test_payment_rejects_non_completed_sale_and_bad_amount():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_customer_collection_and_refund_are_blocked_after_daily_closing():
+    from zoneinfo import ZoneInfo
+
+    engine, TestSession, ids, now = _payment_context()
+    company_id, site_id, sale_id, _, return_id, _ = ids
+    try:
+        client = TestClient(app)
+        business_date = now.astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+
+        base = f"/companies/{company_id}"
+        collection = client.post(
+            f"{base}/sales/{sale_id}/payments",
+            json={"payment_method": "CASH", "amount": "100.00"},
+        )
+        assert collection.status_code == 422
+        assert "已結帳" in collection.json()["detail"]
+
+        refund = client.post(
+            f"{base}/sales/returns/{return_id}/payments",
+            json={"payment_method": "CASH", "amount": "100.00"},
+        )
+        assert refund.status_code == 422
+        assert "已結帳" in refund.json()["detail"]
+
+        check = TestSession()
+        assert check.query(PaymentTransaction).count() == 0
+        assert check.query(DailyClosing).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
