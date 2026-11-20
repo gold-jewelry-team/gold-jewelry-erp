@@ -73,10 +73,40 @@ main>section.panel[data-category]{min-width:0}
 @media(max-width:899px){.category-shortcuts{grid-column:1/-1;position:sticky;top:122px;z-index:4;max-height:112px;overflow:auto}}
 @media(min-width:900px){.category-shortcuts{position:sticky;top:154px;z-index:4}}
 
+
+/* PR #95：首頁金價摘要、單位換算與休市提醒 */
+.gold-summary{margin-top:10px;padding:10px 12px;border:1px solid #ffffff38;border-radius:13px;background:#ffffff12;max-width:760px}
+.gold-summary-head,.gold-summary-foot,.sale-gold-quote-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.gold-summary-head strong,.sale-gold-quote-head strong{font-size:13px;color:#fff;margin-right:auto}
+.gold-summary-head label,.sale-gold-quote-head label{font-size:11px;color:#dce6df;margin:0}
+.gold-summary-head select,.sale-gold-quote-head select{width:auto;min-width:92px;min-height:32px;height:32px;padding:4px 8px;font-size:12px;border-radius:8px}
+.gold-summary-values{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+.gold-summary-price{display:flex;align-items:baseline;gap:6px;padding:6px 9px;background:#ffffff15;border-radius:9px}
+.gold-summary-price span{font-size:11px;color:#dce6df}
+.gold-summary-price strong{font-size:17px;color:#fff}
+.gold-summary-price small{font-size:11px;color:#dce6df}
+.gold-summary-foot{justify-content:space-between;margin-top:7px;font-size:11px;color:#dce6df}
+.gold-summary-actions{display:flex;gap:6px;flex-wrap:wrap}
+.gold-summary-actions button,.sale-gold-quote-head button{min-height:30px;padding:5px 9px;font-size:11px}
+.gold-summary-reminder{font-size:12px;color:#ffe0a3;margin-top:6px}
+.sale-gold-quote{border:1px solid #dfe7df;background:#f7faf7;border-radius:12px;padding:11px;margin:10px 0 14px}
+.sale-gold-quote-head strong{color:#263b30}
+.sale-gold-quote-head label{color:#526257}
+.sale-gold-quote-values{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.sale-gold-quote-values .gold-summary-price{background:#eaf0ea}
+.sale-gold-quote-values .gold-summary-price span,.sale-gold-quote-values .gold-summary-price small{color:#526257}
+.sale-gold-quote-values .gold-summary-price strong{color:#263b30}
+.gold-closure-settings{margin:12px 0;padding:10px 12px;border:1px solid #e5e9e5;border-radius:11px;background:#fafcf9}
+.gold-closure-settings summary{font-size:13px;font-weight:700;cursor:pointer;color:#33443a}
+.gold-closure-settings .toolbar{margin:9px 0 4px}
+.gold-closure-date{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #edf0ed}
+.gold-closure-date button{min-height:30px;padding:4px 9px;font-size:11px}
+@media(max-width:520px){.gold-summary-foot{align-items:flex-start;flex-direction:column}.gold-summary-price{flex:1 1 100%;justify-content:space-between}.sale-gold-quote-head strong{flex-basis:100%}}
+
 </style>
 </head>
 <body>
-<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><div class="company-bar" aria-label="全系統公司選擇"><label for="companySelect">目前公司</label><select id="companySelect"><option value="">載入中…</option></select><button class="company-reload secondary" id="reloadCompanies" type="button">重新載入</button><div id="globalStatus" class="company-status" role="status"></div></div><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
+<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><div class="company-bar" aria-label="全系統公司選擇"><label for="companySelect">目前公司</label><select id="companySelect"><option value="">載入中…</option></select><button class="company-reload secondary" id="reloadCompanies" type="button">重新載入</button><div id="globalStatus" class="company-status" role="status"></div></div><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div></section><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
 <main>
 <section class="panel">
 <h2>新增公司</h2>
@@ -167,7 +197,7 @@ main>section.panel[data-category]{min-width:0}
 </section>
 <section class="panel span2" id="goldPricePanel">
 <h2>每日金價設定</h2>
-<p class="sub">銷售會使用交易當下有效的買入價與賣出價。本據點價格優先，全公司價格作為沒有據點價格時的備援。金價採新增歷史紀錄，不覆寫舊價格；計價單位必須與商品重量單位一致。</p>
+<p class="sub">銷售會使用交易當下有效的買入價與賣出價。本據點價格優先，全公司價格作為備援。金價採新增歷史紀錄，不覆寫舊價格；下方單位切換只換算顯示，不會新增或修改牌價，也不影響交易計價。</p>
 <div class="grid">
 <div class="field"><label>目前有效買入價</label><div id="effectiveBuyPrice" class="empty">尚未載入</div></div>
 <div class="field"><label>目前有效賣出價</label><div id="effectiveSellPrice" class="empty">尚未載入</div></div>
@@ -178,19 +208,21 @@ main>section.panel[data-category]{min-width:0}
 <div class="field"><label for="goldPriceType">金價類型</label><select id="goldPriceType"><option value="BUY">買入價</option><option value="SELL">賣出價</option></select></div>
 <div class="field"><label for="goldPriceScope">適用範圍</label><select id="goldPriceScope"><option value="SITE">目前據點</option><option value="COMPANY">全公司所有據點</option></select></div>
 <div class="field"><label for="goldPriceValue">每單位金價（TWD）</label><input id="goldPriceValue" type="number" min="0.0001" step="0.0001" required></div>
-<div class="field"><label for="goldPriceUnit">計價單位</label><select id="goldPriceUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
+<div class="field"><label for="goldPriceUnit">計價單位</label><select id="goldPriceUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
 <div class="field"><label for="goldPriceEffectiveAt">生效時間（台灣時間）</label><input id="goldPriceEffectiveAt" type="datetime-local" required></div>
 <div class="field wide"><label for="goldPriceNote">備註</label><input id="goldPriceNote" maxlength="500" placeholder="例如：今日牌價"></div>
 </div>
 <div class="actions"><button type="submit">新增金價</button><button class="secondary" id="refreshGoldPrices" type="button">重新整理</button></div>
 </form>
 <div id="goldPriceStatus" class="status" role="status"></div>
+<details class="gold-closure-settings"><summary>設定休市日／國定假日（當日不提醒）</summary><p class="muted">週六、週日自動略過提醒；國定假日、臨時店休可加入日期。此清單保存在目前使用的瀏覽器。</p><div class="toolbar"><input id="goldClosureDate" type="date" aria-label="選擇休市日期"><button id="addGoldClosureDate" class="secondary" type="button">加入休市日</button></div><div id="goldClosureDates" class="muted">請先選擇公司與據點</div></details>
 <h3>金價歷史紀錄</h3>
 <div id="goldPriceHistory" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 </section>
 <section class="panel span2" id="salesPanel">
 <h2>銷售結帳</h2>
 <p class="sub">每件商品以獨立條碼加入購物車。先建立銷售草稿，確認金額後再完成銷售並扣除庫存。</p>
+<div class="sale-gold-quote"><div class="sale-gold-quote-head"><strong>目前金價參考</strong><label for="saleGoldDisplayUnit">顯示單位</label><select id="saleGoldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select><button id="copySaleGoldQuote" class="secondary" type="button">複製報價</button></div><div id="saleGoldPriceValues" class="sale-gold-quote-values">請先選擇公司與據點</div><p class="muted">僅供詢價參考；切換單位不會改變商品重量、牌價紀錄或銷售成交金額。</p></div>
 <form id="saleHeaderForm">
 <div class="grid">
 <div class="field"><label for="saleNo">銷售單號</label><input id="saleNo" maxlength="40" required placeholder="輸入門市銷售單號"></div>
@@ -506,7 +538,7 @@ main>section.panel[data-category]{min-width:0}
 <div class="field"><label for="materialCode">材質代碼</label><input id="materialCode" maxlength="30" placeholder="例如 G"></div>
 <div class="field"><label for="grossWeight">總重</label><input id="grossWeight" type="number" min="0" step="0.0001" value="0" required></div>
 <div class="field"><label for="netWeight">淨重</label><input id="netWeight" type="number" min="0" step="0.0001" value="0" required></div>
-<div class="field"><label for="weightUnit">重量單位代碼</label><select id="weightUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
+<div class="field"><label for="weightUnit">重量單位代碼</label><select id="weightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
 <div class="field"><label for="laborFee">預設銷售工錢</label><input id="laborFee" type="number" min="0" step="0.01" value="0" required></div>
 <div class="field"><label for="chainLength">項鍊長度／手圍</label><input id="chainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
 <div class="field"><label for="chainLengthUnit">長度單位</label><select id="chainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
@@ -541,7 +573,7 @@ main>section.panel[data-category]{min-width:0}
 <div class="field"><label for="editMaterialCode">材質代碼</label><input id="editMaterialCode" maxlength="30"></div>
 <div class="field"><label for="editGrossWeight">總重</label><input id="editGrossWeight" type="number" min="0" step="0.0001" required></div>
 <div class="field"><label for="editNetWeight">淨重</label><input id="editNetWeight" type="number" min="0" step="0.0001" required></div>
-<div class="field"><label for="editWeightUnit">重量單位</label><select id="editWeightUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
+<div class="field"><label for="editWeightUnit">重量單位</label><select id="editWeightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
 <div class="field"><label for="editLaborFee">預設銷售工錢</label><input id="editLaborFee" type="number" min="0" step="0.01" required></div>
 <div class="field"><label for="editChainLength">項鍊長度／手圍</label><input id="editChainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
 <div class="field"><label for="editChainLengthUnit">長度單位</label><select id="editChainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
@@ -592,6 +624,8 @@ main>section.panel[data-category]{min-width:0}
 const $=id=>document.getElementById(id);
 let companyId="";
 let selectedSiteId="";
+let currentGoldPriceRows={BUY:null,SELL:null};
+let goldDisplayUnit=localStorage.getItem("goldDisplayUnit")||"QIAN";
 let categoryNames=new Map();
 let productsById=new Map();
 let editingProduct=null;
@@ -958,11 +992,111 @@ function taipeiDateTimeLocalValue(){
 function formatGoldPriceDate(value){
  return value?new Date(value).toLocaleString("zh-TW",{timeZone:"Asia/Taipei"}):"—";
 }
+
+const GOLD_UNIT_GRAMS={QIAN:3.75,GRAM:1,TAEL:37.5};
+const GOLD_UNIT_LABELS={QIAN:"錢",GRAM:"公克",TAEL:"兩"};
+function goldUnitLabel(unit){return GOLD_UNIT_LABELS[unit]||"單位";}
+function convertGoldPrice(value,fromUnit,toUnit){
+ const fromGrams=GOLD_UNIT_GRAMS[fromUnit],toGrams=GOLD_UNIT_GRAMS[toUnit];
+ if(!fromGrams||!toGrams)return null;
+ const amount=Number(value);
+ if(!Number.isFinite(amount))return null;
+ return amount*toGrams/fromGrams;
+}
+function formatGoldMoney(value){
+ return Number(value).toLocaleString("zh-TW",{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+function taipeiDateKey(value){
+ if(!value)return "";
+ const date=value instanceof Date?value:new Date(value);
+ if(Number.isNaN(date.getTime()))return "";
+ return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
+}
+function todayTaipeiDateKey(){return taipeiDateKey(new Date());}
+function goldClosureStorageKey(){return "goldClosureDates:"+companyId+":"+selectedSiteId;}
+function getGoldClosureDates(){
+ try{return JSON.parse(localStorage.getItem(goldClosureStorageKey())||"[]").filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x));}
+ catch(error){return [];}
+}
+function saveGoldClosureDates(values){localStorage.setItem(goldClosureStorageKey(),JSON.stringify(Array.from(new Set(values)).sort()));}
+function renderGoldClosureDates(){
+ const box=$("goldClosureDates");
+ if(!box)return;
+ if(!companyId||!selectedSiteId){box.textContent="請先選擇公司與據點";return;}
+ const dates=getGoldClosureDates();
+ box.innerHTML=dates.length?dates.map(date=>'<div class="gold-closure-date"><span>'+escapeHtml(date)+'</span><button class="secondary" type="button" data-remove-gold-closure="'+escapeHtml(date)+'">移除</button></div>').join(""):'尚未設定額外休市日期';
+}
+function isGoldPriceReminderBusinessDay(){
+ const today=todayTaipeiDateKey();
+ const weekday=new Date(today+"T12:00:00+08:00").getDay();
+ return weekday!==0&&weekday!==6&&!getGoldClosureDates().includes(today);
+}
+function renderGoldPriceViews(){
+ const unit=goldDisplayUnit;
+ const unitName=goldUnitLabel(unit);
+ const buy=currentGoldPriceRows.BUY,sell=currentGoldPriceRows.SELL;
+ const renderPrice=(row,label)=>{
+  if(!row)return '<div class="gold-summary-price"><span>'+label+'</span><strong>尚未設定</strong><small></small></div>';
+  const converted=convertGoldPrice(row.price_value,row.unit_code,unit);
+  if(converted===null)return '<div class="gold-summary-price"><span>'+label+'</span><strong>單位無法換算</strong><small></small></div>';
+  return '<div class="gold-summary-price"><span>'+label+'</span><strong>NT$ '+escapeHtml(formatGoldMoney(converted))+'</strong><small>／每'+unitName+'</small></div>';
+ };
+ const summary=$("goldSummaryValues");
+ const sale=$("saleGoldPriceValues");
+ if(summary)summary.innerHTML=buy||sell?renderPrice(buy,"買入價")+renderPrice(sell,"賣出價"):'請先選擇公司與據點，或尚未設定金價';
+ if(sale)sale.innerHTML=buy||sell?renderPrice(buy,"買入價")+renderPrice(sell,"賣出價"):'尚未設定有效金價';
+ const buyBox=$("effectiveBuyPrice"),sellBox=$("effectiveSellPrice");
+ const renderCurrent=(row,label)=>{
+  if(!row)return '<div class="empty">尚未設定有效'+label+'</div>';
+  const converted=convertGoldPrice(row.price_value,row.unit_code,unit);
+  if(converted===null)return '<div class="empty">'+label+'單位無法換算</div>';
+  return '<article class="item"><strong>'+label+'：NT$ '+escapeHtml(formatGoldMoney(converted))+'／每'+unitName+'</strong><span class="muted">原始牌價：'+escapeHtml(row.price_value)+' '+escapeHtml(row.currency_code)+'／每'+goldUnitLabel(row.unit_code)+' · 生效時間：'+escapeHtml(formatGoldPriceDate(row.effective_at))+' · '+(row.site_id?"本據點":"全公司")+'</span></article>';
+ };
+ if(buyBox)buyBox.innerHTML=renderCurrent(buy,"買入價");
+ if(sellBox)sellBox.innerHTML=renderCurrent(sell,"賣出價");
+ const latest=[buy,sell].filter(Boolean).sort((a,b)=>new Date(b.effective_at)-new Date(a.effective_at))[0];
+ const updated=$("goldSummaryUpdated");
+ if(updated)updated.textContent=latest?"最後生效時間："+formatGoldPriceDate(latest.effective_at):"尚未載入金價";
+ const reminder=$("goldPriceReminder");
+ if(reminder){
+  if(!companyId||!selectedSiteId)reminder.textContent="";
+  else if(!isGoldPriceReminderBusinessDay())reminder.textContent="";
+  else{
+   const today=todayTaipeiDateKey();
+   const missing=[];
+   if(!buy||taipeiDateKey(buy.effective_at)!==today)missing.push("買入價");
+   if(!sell||taipeiDateKey(sell.effective_at)!==today)missing.push("賣出價");
+   reminder.textContent=missing.length?"提醒：今日尚未更新"+missing.join("與")+"，請確認今日牌價。":"今日金價已更新。";
+  }
+ }
+ ["goldDisplayUnit","saleGoldDisplayUnit"].forEach(id=>{const select=$(id);if(select)select.value=unit;});
+}
+function setGoldDisplayUnit(unit){
+ if(!GOLD_UNIT_GRAMS[unit])return;
+ goldDisplayUnit=unit;
+ localStorage.setItem("goldDisplayUnit",unit);
+ renderGoldPriceViews();
+}
+async function copyGoldQuote(language){
+ const buy=currentGoldPriceRows.BUY,sell=currentGoldPriceRows.SELL;
+ if(!buy&&!sell){message("goldPriceStatus","目前沒有可複製的有效金價。",true);return;}
+ const unit=goldUnitLabel(goldDisplayUnit);
+ const englishUnit={QIAN:"qian",GRAM:"gram",TAEL:"tael"}[goldDisplayUnit];
+ const buyValue=buy?formatGoldMoney(convertGoldPrice(buy.price_value,buy.unit_code,goldDisplayUnit)):null;
+ const sellValue=sell?formatGoldMoney(convertGoldPrice(sell.price_value,sell.unit_code,goldDisplayUnit)):null;
+ const textValue=language==="en"
+  ?[(buyValue?"Gold buying price: TWD "+buyValue+" per "+englishUnit+".":""),(sellValue?"Gold selling price: TWD "+sellValue+" per "+englishUnit+".":"")].filter(Boolean).join(" ")
+  :[(buyValue?"黃金買入價：NT$ "+buyValue+"／每"+unit+"。":""),(sellValue?"黃金賣出價：NT$ "+sellValue+"／每"+unit+"。":"")].filter(Boolean).join("\n");
+ try{await navigator.clipboard.writeText(textValue);message("goldPriceStatus",language==="en"?"英文金價報價已複製。":"中文金價報價已複製。");}
+ catch(error){message("goldPriceStatus","無法存取剪貼簿，請確認瀏覽器權限。",true);}
+}
+
 async function loadGoldPrices(){
- const buyBox=$("effectiveBuyPrice"),sellBox=$("effectiveSellPrice"),historyBox=$("goldPriceHistory");
+ const historyBox=$("goldPriceHistory");
  if(!companyId||!selectedSiteId){
-  buyBox.innerHTML="請先選擇公司與據點";
-  sellBox.innerHTML="請先選擇公司與據點";
+  currentGoldPriceRows={BUY:null,SELL:null};
+  renderGoldPriceViews();
+  renderGoldClosureDates();
   historyBox.innerHTML='<div class="empty">請先選擇公司與據點</div>';
   return;
  }
@@ -972,10 +1106,10 @@ async function loadGoldPrices(){
   api("/companies/"+companyId+"/gold-prices/effective?price_type=SELL&"+scope),
   api("/companies/"+companyId+"/gold-prices?"+scope+"&limit=100")
  ]);
- const renderCurrent=(row,label)=>row?'<article class="item"><strong>'+label+'：'+escapeHtml(row.price_value)+' '+escapeHtml(row.currency_code)+' / '+escapeHtml(row.unit_code)+'</strong><span class="muted">生效時間：'+escapeHtml(formatGoldPriceDate(row.effective_at))+' · '+(row.site_id?"本據點":"全公司")+'</span></article>':'<div class="empty">尚未設定有效'+label+'</div>';
- buyBox.innerHTML=renderCurrent(buy,"買入價");
- sellBox.innerHTML=renderCurrent(sell,"賣出價");
- historyBox.innerHTML=history.length?history.map(x=>'<article class="item"><strong>'+(x.price_type==="BUY"?"買入價":"賣出價")+'：'+escapeHtml(x.price_value)+' '+escapeHtml(x.currency_code)+' / '+escapeHtml(x.unit_code)+'</strong><span class="muted">生效：'+escapeHtml(formatGoldPriceDate(x.effective_at))+' · 來源：'+escapeHtml(goldPriceSourceLabels[x.source]||x.source)+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無金價歷史紀錄</div>';
+ currentGoldPriceRows={BUY:buy,SELL:sell};
+ renderGoldPriceViews();
+ renderGoldClosureDates();
+ historyBox.innerHTML=history.length?history.map(x=>'<article class="item"><strong>'+(x.price_type==="BUY"?"買入價":"賣出價")+'：'+escapeHtml(x.price_value)+' '+escapeHtml(x.currency_code)+'／每'+goldUnitLabel(x.unit_code)+'</strong><span class="muted">生效：'+escapeHtml(formatGoldPriceDate(x.effective_at))+' · 來源：'+escapeHtml(goldPriceSourceLabels[x.source]||x.source)+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無金價歷史紀錄</div>';
 }
 function taipeiDateValue(offsetDays=0){
  return new Date(Date.now()+8*60*60*1000+offsetDays*24*60*60*1000).toISOString().slice(0,10);
@@ -1835,6 +1969,27 @@ $("cashCountReviewForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 $("goldPriceEffectiveAt").value=taipeiDateTimeLocalValue();
+$("goldDisplayUnit").value=goldDisplayUnit;
+$("saleGoldDisplayUnit").value=goldDisplayUnit;
+$("goldDisplayUnit").addEventListener("change",event=>setGoldDisplayUnit(event.target.value));
+$("saleGoldDisplayUnit").addEventListener("change",event=>setGoldDisplayUnit(event.target.value));
+$("copyGoldQuoteZh").addEventListener("click",()=>copyGoldQuote("zh"));
+$("copyGoldQuoteEn").addEventListener("click",()=>copyGoldQuote("en"));
+$("copySaleGoldQuote").addEventListener("click",()=>copyGoldQuote("en"));
+$("addGoldClosureDate").addEventListener("click",()=>{
+ const date=$("goldClosureDate").value;
+ if(!date||!companyId||!selectedSiteId){message("goldPriceStatus","請先選擇公司、據點及休市日期。",true);return;}
+ saveGoldClosureDates([...getGoldClosureDates(),date]);
+ $("goldClosureDate").value="";
+ renderGoldClosureDates();renderGoldPriceViews();
+ message("goldPriceStatus","休市日期已加入；該日不會顯示金價更新提醒。");
+});
+$("goldClosureDates").addEventListener("click",event=>{
+ const button=event.target.closest("[data-remove-gold-closure]");
+ if(!button)return;
+ saveGoldClosureDates(getGoldClosureDates().filter(date=>date!==button.dataset.removeGoldClosure));
+ renderGoldClosureDates();renderGoldPriceViews();
+});
 $("refreshGoldPrices").addEventListener("click",()=>loadGoldPrices().catch(e=>message("globalStatus",e.message,true)));
 $("goldPriceForm").addEventListener("submit",async event=>{
  event.preventDefault();
@@ -1938,6 +2093,8 @@ $("search").addEventListener("keydown",e=>{if(e.key==="Enter")loadProducts().cat
 loadCompanies().catch(e=>message("globalStatus",e.message,true));
 (function(){
  const nav=document.getElementById("quickNav");
+ const loading=nav.querySelector("[data-nav-loading]");
+ if(loading)loading.remove();
  const sections=Array.from(document.querySelectorAll("main > section.panel"));
  let count=0;
  sections.forEach((section,index)=>{
