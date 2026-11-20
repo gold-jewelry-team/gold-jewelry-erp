@@ -581,6 +581,7 @@ main>section.panel[data-category]{min-width:0}
  <div class="scan-feedback-message" id="scanFeedbackMessage"></div>
  <div class="scan-feedback-actions">
   <button id="copyScannedCode" class="secondary" type="button">複製條碼</button>
+  <button id="manualLookupCode" class="secondary" type="button">手動查詢</button>
   <button id="rescanCode" type="button">重新掃描</button>
   <button id="closeScanFeedback" class="secondary" type="button">關閉</button>
  </div>
@@ -692,7 +693,7 @@ function renderScanHistory(){
 function showScanFeedback(code,target,result,isError=false){
  lastScannedCode=String(code||"");lastScannedTarget=target||"";
  const panel=$("scanFeedback");if(!panel||!lastScannedCode)return;
- $("scanFeedbackTitle").textContent=isError?"掃描未完成":"掃描成功";
+ $("scanFeedbackTitle").textContent=isError?(String(result).includes("找不到")?"找不到商品":"掃描處理未完成"):"掃描成功";
  $("scanFeedbackCode").textContent=lastScannedCode;
  $("scanFeedbackMessage").textContent=result;
  panel.classList.toggle("error",Boolean(isError));panel.classList.remove("hidden");
@@ -707,6 +708,7 @@ async function copyLastScannedCode(){
  catch(error){$("scanFeedbackMessage").textContent="瀏覽器未允許自動複製，請直接選取上方條碼複製。";}
 }
 $("copyScannedCode").addEventListener("click",copyLastScannedCode);
+$("manualLookupCode").addEventListener("click",()=>{const code=lastScannedCode;$("scanFeedback").classList.add("hidden");$("search").value=code;const productCategory=document.querySelector('.category-nav button[data-category="products"]');if(productCategory)productCategory.click();$("search").scrollIntoView({behavior:"smooth",block:"center"});$("search").focus();});
 $("rescanCode").addEventListener("click",()=>{const target=lastScannedTarget;$("scanFeedback").classList.add("hidden");openCameraScanner(target);});
 $("closeScanFeedback").addEventListener("click",()=>$("scanFeedback").classList.add("hidden"));
 renderScanHistory();
@@ -742,7 +744,7 @@ async function handleScannedProductCode(code,target){
   const notFound=error.status===404;
   const result=notFound?"找不到對應商品":"查詢失敗："+(error.message||"請稍後再試");
   showScanFeedback(code,target,result,true);
-  const statusId=target==="sale"?"saleStatus":target==="adjustment"?"adjustmentStatus":target==="transfer"?"transferStatus":target==="purchase"||target==="purchaseReceive"?"purchaseStatus":target==="stocktake"?"stocktakeStatus":"globalStatus";
+  const statusId=target==="sale"?"saleStatus":target==="adjustment"?"adjustmentStatus":target==="transfer"?"transferStatus":target==="purchase"?"purchaseStatus":target==="purchaseReceive"?"purchaseReceiveStatus":target==="stocktake"?"stocktakeStatus":"globalStatus";
   message(statusId,"掃描到條碼："+code+"；"+result,true);
  }
 }
