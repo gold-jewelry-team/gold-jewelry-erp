@@ -2839,7 +2839,8 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  message("quoteSearchStatus","已加入非庫存預估規格；此項目只用於報價，不會建立商品或庫存。");
  $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";
 });
-\n$("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
+
+$("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
 $("quoteSearchResults").addEventListener("click",event=>{
  const button=event.target.closest("[data-quote-product]");if(!button)return;
  const product=inventoryProducts.find(p=>p.id===button.dataset.quoteProduct);if(product)selectQuoteProduct(product);
