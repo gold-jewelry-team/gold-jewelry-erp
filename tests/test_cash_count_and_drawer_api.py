@@ -11,7 +11,8 @@ from app import models  # noqa: F401
 from app.db.base import Base
 from app.main import app
 from app.models.company import Company
-from app.models.daily_closing import DailyCashCount, DailyClosing
+from app.models.cash_count import DailyCashCount
+from app.models.daily_closing import DailyClosing
 from app.models.site import Site
 from app.routers import cash_counts, cash_drawer_movements, daily_closing
 
