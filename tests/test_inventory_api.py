@@ -75,3 +75,80 @@ def test_inventory_adjustment_transfer_balance_and_negative_stock_guard():
     finally:
         app.dependency_overrides.pop(inventory.get_db, None)
         engine.dispose()
+
+
+def test_stock_endpoint_can_include_zero_balances_and_scopes_site_and_location():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = TestSession()
+    company = Company(code="INV-ZERO", name="零庫存測試銀樓")
+    db.add(company)
+    db.flush()
+    site = Site(company_id=company.id, code="MAIN", name="總店")
+    other_site = Site(company_id=company.id, code="BRANCH", name="分店")
+    db.add_all([site, other_site])
+    db.flush()
+    location = StorageLocation(
+        site_id=site.id, code="SHOW", name="展示櫃", location_type="STORE_FLOOR"
+    )
+    other_location = StorageLocation(
+        site_id=other_site.id, code="SHOW", name="分店展示櫃", location_type="STORE_FLOOR"
+    )
+    product = Product(
+        company_id=company.id, product_code="INV-ZERO-001", name="零庫存測試商品",
+        gross_weight=Decimal("1.0"), net_weight=Decimal("1.0"),
+    )
+    db.add_all([location, other_location, product])
+    db.commit()
+    company_id, site_id = company.id, site.id
+    location_id, other_location_id, product_id = location.id, other_location.id, product.id
+    db.close()
+
+    def override_db():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[inventory.get_db] = override_db
+    try:
+        client = TestClient(app)
+        base_url = f"/companies/{company_id}/inventory"
+        incoming = client.post(f"{base_url}/adjustments", json={
+            "site_id": str(site_id), "product_id": str(product_id),
+            "location_id": str(location_id), "direction": "IN", "quantity": "2",
+        })
+        assert incoming.status_code == 201, incoming.text
+        outgoing = client.post(f"{base_url}/adjustments", json={
+            "site_id": str(site_id), "product_id": str(product_id),
+            "location_id": str(location_id), "direction": "OUT", "quantity": "2",
+        })
+        assert outgoing.status_code == 201, outgoing.text
+
+        with_zero = client.get(f"{base_url}/stock", params={
+            "site_id": str(site_id), "location_id": str(location_id), "include_zero": "true",
+        })
+        assert with_zero.status_code == 200, with_zero.text
+        assert len(with_zero.json()) == 1
+        assert with_zero.json()[0]["quantity"] == "0.000"
+
+        without_zero = client.get(f"{base_url}/stock", params={
+            "site_id": str(site_id), "location_id": str(location_id),
+        })
+        assert without_zero.status_code == 200, without_zero.text
+        assert without_zero.json() == []
+
+        foreign_location = client.get(f"{base_url}/stock", params={
+            "site_id": str(site_id), "location_id": str(other_location_id), "include_zero": "true",
+        })
+        assert foreign_location.status_code == 200, foreign_location.text
+        assert foreign_location.json() == []
+    finally:
+        app.dependency_overrides.pop(inventory.get_db, None)
+        engine.dispose()
