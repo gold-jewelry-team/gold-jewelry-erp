@@ -2750,6 +2750,7 @@ function renderQuoteSearchResults(){
 const quoteStockSummary=new Map();
 async function selectQuoteProduct(product){
  if(!product)return;
+ if(!companyId||!selectedSiteId){message("quoteSearchStatus","請先選擇公司與據點，再查找商品。",true);return;}
  if(quoteSelectedProducts.some(x=>x.id===product.id)){message("quoteSearchStatus","這件商品已在報價清單。");return;}
  let stockRows=[];
  if(companyId&&selectedSiteId){
