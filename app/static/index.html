@@ -284,11 +284,48 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  .gold-history-unit{grid-column:1/-1}
  .gold-history-price strong{font-size:13px}
 }
+
+/* 現場報價工作台 */
+#quickQuote{flex:0 0 auto;min-height:34px;height:34px;padding:6px 11px;border:1px solid #9bb9a4;border-radius:999px;background:#dce9df;color:#263b30;font-size:12px;font-weight:800;white-space:nowrap}
+#quoteWorkbenchPanel .quote-search-results{display:grid;gap:8px;margin-top:10px}
+#quoteWorkbenchPanel .quote-product-result{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:58px;padding:10px 12px;border:1px solid #e1e6df;border-radius:12px;background:#fff;text-align:left;color:#202124}
+#quoteWorkbenchPanel .quote-product-result strong{display:block;font-size:14px}
+#quoteWorkbenchPanel .quote-product-result small{display:block;color:#68716b;font-size:11px;margin-top:3px;line-height:1.5}
+#quoteWorkbenchPanel .quote-product-result .quote-stock{white-space:nowrap;font-size:11px;color:#28724d}
+#quoteWorkbenchPanel .quote-line{display:grid;grid-template-columns:minmax(150px,1.5fr) repeat(5,minmax(82px,1fr)) auto;gap:8px;align-items:center;padding:10px;margin:8px 0;border:1px solid #e5e7e3;border-radius:12px;background:#fff}
+#quoteWorkbenchPanel .quote-line-main{min-width:0}
+#quoteWorkbenchPanel .quote-line-main strong{display:block;font-size:13px}
+#quoteWorkbenchPanel .quote-line-main small{display:block;color:#68716b;font-size:11px;margin-top:3px;line-height:1.5}
+#quoteWorkbenchPanel .quote-line input,#quoteWorkbenchPanel .quote-line select{width:100%;min-width:0;min-height:38px;padding:7px;font-size:14px}
+#quoteWorkbenchPanel .quote-line label{display:block;margin-bottom:4px;font-size:10px;color:#68716b}
+#quoteWorkbenchPanel .quote-line .quote-remove{white-space:nowrap}
+#quoteWorkbenchPanel .quote-note{padding:10px;margin-top:10px;border-radius:10px;background:#f5f6f2;color:#59635c;font-size:12px;line-height:1.6}
+#quoteCalcSummary strong{color:#263b30}
+@media(max-width:760px){#quoteWorkbenchPanel .quote-line{grid-template-columns:1fr 1fr;gap:8px}#quoteWorkbenchPanel .quote-line-main{grid-column:1/-1}#quoteWorkbenchPanel .quote-line .quote-remove{grid-column:1/-1;width:100%}#quoteWorkbenchPanel .quote-product-result{align-items:flex-start}#quoteWorkbenchPanel .quote-product-result .quote-stock{white-space:normal;text-align:right;min-width:65px}}
+
 </style>
 </head>
 <body>
-<header><div class="header-title-row"><h1>黃金珠寶進銷存</h1><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><button id="quickGoldPrice" class="quick-gold-price" type="button" title="快速調整今日金價（Alt+G）">🪙 金價</button><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></div><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section></header>
+<header><div class="header-title-row"><h1>黃金珠寶進銷存</h1><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><button id="quickQuote" type="button" title="快速開啟現場報價（Alt+Q）">🧮 報價</button><button id="quickGoldPrice" class="quick-gold-price" type="button" title="快速調整今日金價（Alt+G）">🪙 金價</button><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></div><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section></header>
 <main>
+
+<section class="panel span2" id="quoteWorkbenchPanel">
+<h2>現場報價／同款查找</h2>
+<p class="sub">掃描展示商品或搜尋款式，快速帶出商品重量、預設工錢及庫存位置。此工作區只供詢價，不會扣庫存或建立正式銷售。</p>
+<div class="grid">
+ <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 查找"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
+ <div class="field wide"><label for="quoteProductSearch">搜尋同款／不同尺寸</label><input id="quoteProductSearch" type="search" placeholder="商品名稱、款式編號、分類、材質或商品編號"></div>
+</div>
+<div id="quoteSearchStatus" class="status" role="status"></div>
+<div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div>
+<h3>無現貨規格預估（不建立商品）</h3>
+<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div>
+<h3>已選商品／報價參考</h3>
+<div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
+<div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇商品後，會依目前有效金價、商品重量、工錢及舊金折抵，套用系統既有銷售計價規則試算。</div><div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可修改重量作預估，但不會建立庫存商品。試算不扣庫存、不建立正式交易；實際成交仍以銷售結帳當下的有效金價為準。</div>
+<div class="actions"><button id="quoteClearButton" class="secondary" type="button">清空報價清單</button></div>
+</section>
+
 <section class="panel">
 <h2>公司管理</h2>
 <div class="company-management-switch"><div class="field"><label for="companySelect">目前使用公司</label><select id="companySelect"><option value="">載入中…</option></select></div><button class="secondary" id="reloadCompanies" type="button">重新載入公司</button><div id="globalStatus" class="company-status" role="status"></div></div>
@@ -955,6 +992,8 @@ async function handleScannedProductCode(code,target){
   if(target==="sale"){
    if(!selectedSiteId){message("saleStatus","請先選擇據點。",true);return;}
    $("saleProduct").value=product.id;$("saleBarcodeScan").value=code;await addSaleProduct();
+  }else if(target==="quote"){
+   selectQuoteProduct(product);
   }else if(target==="adjustment"){
    $("adjustmentProduct").value=product.id;$("adjustmentScanCode").value="";message("adjustmentStatus","已選取："+product.product_code+" · "+product.name);
   }else if(target==="transfer"){
@@ -1123,6 +1162,7 @@ async function loadInventoryOptions(){
  ]);
  inventoryProducts=products;
  inventoryLocations=locations;
+ if(typeof renderQuoteSearchResults==="function")renderQuoteSearchResults();
  const activeProducts=products.filter(x=>x.is_active);
  const productOptions=activeProducts.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
  const allProductOptions=products.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
@@ -1282,6 +1322,7 @@ async function loadGoldPrices(){
  if(!companyId||!selectedSiteId){
   currentGoldPriceRows={BUY:null,SELL:null};
   renderGoldPriceViews();
+  if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
   renderGoldClosureDates();
   historyBox.innerHTML='<div class="empty">請先選擇公司與據點</div>';
   return;
@@ -1294,6 +1335,7 @@ async function loadGoldPrices(){
  ]);
  currentGoldPriceRows={BUY:buy,SELL:sell};
  renderGoldPriceViews();
+ if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
  renderGoldClosureDates();
  if(history.length){
   const groups=new Map();
@@ -2423,6 +2465,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  const main=document.querySelector("main");
  const panels=Array.from(main.querySelectorAll(":scope > section.panel"));
  const categories=[
+  {id:"quote",label:"現場報價",icon:"🧮"},
   {id:"inventory",label:"庫存管理",icon:"📦"},
   {id:"sales",label:"銷售與退貨",icon:"🧾"},
   {id:"products",label:"商品與條碼",icon:"🏷️"},
@@ -2441,6 +2484,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   const id=panel.id||"";
   const title=titleOf(panel);
   const text=[title,...subTitlesOf(panel)].join(" ");
+  if(id==="quoteWorkbenchPanel")return "quote";
   if(["inventoryStockPanel","stocktakePanel","inventoryAdjustmentPanel","inventoryTransferPanel","inventoryMovementPanel"].includes(id))return "inventory";
   if(["salesPanel","salePaymentPanel","saleReturnPanel","returnPaymentPanel"].includes(id)||/銷售結帳|歷史銷售|收付款登錄|退貨與庫存回補|退貨退款/.test(text))return "sales";
   if(["supplierPayablesPanel","supplierPaymentPanel","purchasingPanel","purchaseReceivePanel"].includes(id)||/供應商|應付帳款|採購|到貨驗收/.test(text))return "purchasing";
@@ -2481,7 +2525,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  });
  const firstPanel=panels[0];
  main.insertBefore(nav,firstPanel||null);
- let activeCategory="inventory";
+ let activeCategory="quote";
  const activate=categoryId=>{
   if(!categories.some(category=>category.id===categoryId))return;
   activeCategory=categoryId;
@@ -2634,7 +2678,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  categoryNav.querySelectorAll("button[data-category]").forEach(button=>{
   button.addEventListener("click",()=>renderShortcuts(button.dataset.category));
  });
- renderShortcuts("inventory");
+ renderShortcuts("quote");
 })();
 
 
@@ -2661,5 +2705,182 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   }
  });
 })();
+
+/* 現場報價商品查找：沿用既有商品資料與共用掃描器，不建立交易 */
+let quoteSelectedProducts=[];
+const quoteMoney=value=>Number(value||0).toLocaleString("zh-TW",{minimumFractionDigits:0,maximumFractionDigits:2});
+function quoteProductSearchText(product){
+ const category=product.category_id?(categoryNames.get(product.category_id)||""):"";
+ return [product.product_code,product.barcode,product.name,product.style_code,product.material_code,product.chain_length,category].filter(Boolean).join(" ").toLocaleLowerCase();
+}
+
+function quoteRoundTwd(value){return Math.floor(Number(value)+0.5);}
+function renderQuoteCalculation(){
+ const box=$("quoteCalcSummary");if(!box)return;
+ if(!quoteSelectedProducts.length){box.textContent="選擇商品後，會依目前有效金價試算。";return;}
+ const lines=[];let subtotalTotal=0;
+ for(const line of quoteSelectedProducts){
+  const p=line.product,weight=Number(line.weight),labor=Number(line.labor),oldWeight=Number(line.oldWeight||0),ratio=Number(line.tradeInRatio||0.95);
+  const sell=currentGoldPriceRows.SELL,buy=currentGoldPriceRows.BUY;
+  if(!Number.isFinite(weight)||weight<0||!Number.isFinite(labor)||labor<0||!Number.isFinite(oldWeight)||oldWeight<0){box.textContent="請確認重量、工錢及舊金重量均為有效的非負數值。";return;}
+  if(oldWeight>0&&!line.tradeInSource){box.textContent="輸入舊金重量時，請選擇本店或外店舊金來源。";return;}
+  if(oldWeight===0&&line.tradeInSource){box.textContent="選擇舊金來源時，請輸入大於 0 的舊金重量。";return;}
+  if(line.tradeInSource==="EXTERNAL"&&(!Number.isFinite(ratio)||ratio<=0||ratio>1)){box.textContent="外店舊金折抵比率須大於 0 且不得超過 1。";return;}
+  if(!sell||!buy){box.textContent="尚未設定有效買入價及賣出價，暫時無法計算。";return;}
+  if(sell.currency_code!=="TWD"||buy.currency_code!=="TWD"||sell.unit_code!==p.weight_unit_code||buy.unit_code!==p.weight_unit_code){box.textContent="商品重量單位必須與買入、賣出金價的 TWD 計價單位一致，請先確認金價設定。";return;}
+  const sellRate=Number(sell.price_value),buyRate=Number(buy.price_value);
+  let amount=weight*sellRate+labor;
+  if(oldWeight>0){
+   const effectiveRatio=line.tradeInSource==="LOCAL"?1:ratio;
+   const adjusted=Math.trunc(oldWeight*effectiveRatio*100)/100;
+   if(line.tradeInSource==="LOCAL"){
+    amount=adjusted<=weight?(weight-adjusted)*sellRate+labor:labor-(adjusted-weight)*buyRate;
+   }else{
+    amount=adjusted<=weight?(weight*sellRate+labor)-adjusted*sellRate:labor-(adjusted-weight)*buyRate;
+   }
+  }
+  subtotalTotal+=amount;
+  lines.push({code:p.product_code,amount});
+ }
+ const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
+ const card=$("quotePaymentMethod").value==="CARD";
+ const cardFee=card?quoteRoundTwd(positiveSubtotal*0.05):0;
+ const final=quoteRoundTwd(subtotalTotal+cardFee);
+ box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</div>').join("")+'</div><div style="margin-top:8px">商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+(card?' · 刷卡手續費 5%：NT$ '+escapeHtml(quoteMoney(cardFee)):'')+'</div><strong style="display:block;font-size:20px;margin-top:6px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>依現行銷售規則試算；刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
+}
+
+function renderQuoteSearchResults(){
+ const box=$("quoteSearchResults");if(!box)return;
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點。</div>';return;}
+ const q=$("quoteProductSearch").value.trim().toLocaleLowerCase();
+ if(q&&companyId&&selectedSiteId&&quoteStockLoadedKey!==companyId+"|"+selectedSiteId){
+  loadQuoteStockBalances().then(renderQuoteSearchResults).catch(error=>message("quoteSearchStatus","庫存查詢失敗："+error.message,true));
+ }
+ const active=inventoryProducts.filter(p=>p.is_active);
+ let rows=[];
+ if(q){
+  rows=active.filter(p=>quoteProductSearchText(p).includes(q));
+  const exact=rows.filter(p=>[p.product_code,p.barcode,p.style_code].some(v=>v&&String(v).toLocaleLowerCase()===q));
+  if(exact.length)rows=[...exact,...rows.filter(p=>!exact.includes(p))];
+ }else{
+  box.innerHTML='<div class="empty">輸入款式、商品編號或掃描條碼，即可查找同款商品。</div>';return;
+ }
+ box.innerHTML=rows.length?rows.slice(0,60).map(p=>{
+  const stock=quoteStockSummary.get(p.id);
+  const stockRows=quoteStockRowsByProduct.get(p.id)||[];
+  const stockText=stock===undefined?(quoteStockErrorKey===companyId+"|"+selectedSiteId?"庫存查詢失敗":"庫存查詢中"):stock>0?"有貨 "+stock+" 件":"目前無庫存";
+  const stockLocations=stockRows.map(row=>(row.location_name||row.location_code)+ " "+row.quantity+"件").join("、");
+  return '<button type="button" class="quote-product-result" data-quote-product="'+escapeHtml(p.id)+'"><span><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"未設定")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 淨重：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 工錢：'+escapeHtml(quoteMoney(p.labor_fee))+'</small></span><span class="quote-stock">'+escapeHtml(stockText)+(stockLocations?'<small>'+escapeHtml(stockLocations)+'</small>':'')+'</span></button>';
+ }).join(""):'<div class="empty">沒有找到符合商品。可改用款式編號、商品名稱或掃描商品條碼。</div>';
+}
+const quoteStockSummary=new Map();
+const quoteStockRowsByProduct=new Map();
+let quoteStockLoadedKey="";
+let quoteStockLoadingKey="";
+let quoteStockLoadingPromise=null;
+let quoteStockErrorKey="";
+async function loadQuoteStockBalances(){
+ if(!companyId||!selectedSiteId)return;
+ const key=companyId+"|"+selectedSiteId;
+ if(quoteStockLoadedKey===key)return;
+ if(quoteStockLoadingKey===key&&quoteStockLoadingPromise)return quoteStockLoadingPromise;
+ quoteStockSummary.clear();quoteStockRowsByProduct.clear();
+ quoteStockLoadingKey=key;
+ quoteStockLoadingPromise=(async()=>{
+  try{
+   const rows=await api("/companies/"+companyId+"/inventory/stock?"+new URLSearchParams({site_id:selectedSiteId,include_zero:"true"}).toString());
+   if(key!==companyId+"|"+selectedSiteId)return;
+   for(const row of rows){
+    const list=quoteStockRowsByProduct.get(row.product_id)||[];list.push(row);quoteStockRowsByProduct.set(row.product_id,list);
+    quoteStockSummary.set(row.product_id,(quoteStockSummary.get(row.product_id)||0)+Number(row.quantity||0));
+   }
+   quoteStockLoadedKey=key;quoteStockErrorKey="";
+  }catch(error){quoteStockErrorKey=key;throw error;}finally{
+   if(quoteStockLoadingKey===key){quoteStockLoadingKey="";quoteStockLoadingPromise=null;}
+  }
+ })();
+ return quoteStockLoadingPromise;
+}
+async function selectQuoteProduct(product){
+ if(!product)return;
+ if(!companyId||!selectedSiteId){message("quoteSearchStatus","請先選擇公司與據點，再查找商品。",true);return;}
+ if(quoteSelectedProducts.some(x=>x.id===product.id)){message("quoteSearchStatus","這件商品已在報價清單。");return;}
+ let stockRows=[],stockLoaded=true;
+ try{await loadQuoteStockBalances();stockRows=quoteStockRowsByProduct.get(product.id)||[];}
+ catch(error){stockLoaded=false;message("quoteSearchStatus","商品已找到，但據點庫存查詢失敗："+error.message,true);}
+ const stockQty=stockRows.reduce((sum,row)=>sum+Number(row.quantity||0),0);
+ if(stockLoaded)quoteStockSummary.set(product.id,stockQty);
+ quoteSelectedProducts.push({id:product.id,product,weight:String(product.net_weight??0),labor:String(product.labor_fee??0),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows});
+ /* 掃描後自動列出同款規格；沒有款式編號時以商品名稱列出候選，仍須人工確認。 */
+ $("quoteProductSearch").value=product.style_code||product.name||"";
+ renderQuoteLines();renderQuoteSearchResults();
+ $("quoteProductCode").value="";
+ message("quoteSearchStatus",product.style_code?"已帶入商品資料，並列出相同款式編號的其他規格。":"此商品未設定款式編號，已用商品名稱尋找候選款式，請人工確認。");
+}
+function renderQuoteLines(){
+ const box=$("quoteLines");if(!box)return;
+ box.innerHTML=quoteSelectedProducts.length?quoteSelectedProducts.map((line,index)=>{
+  const p=line.product;
+  const locations=line.isEstimate?"非庫存預估規格":line.stockRows.map(row=>escapeHtml(row.location_name||row.location_code||"位置")+"："+escapeHtml(row.quantity)+" 件").join("、")||"無庫存紀錄";
+  return '<article class="quote-line"><div class="quote-line-main"><strong>'+(line.isEstimate?'<span class="pill">預估</span> ':'')+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+'</small></div><div><label>報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><div><label>舊金重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.oldWeight)+'" data-quote-old-weight="'+index+'"></div><div><label>舊金來源</label><select data-quote-source="'+index+'"><option value="" '+(!line.tradeInSource?'selected':'')+'>不折抵</option><option value="LOCAL" '+(line.tradeInSource==="LOCAL"?'selected':'')+'>本店 100%</option><option value="EXTERNAL" '+(line.tradeInSource==="EXTERNAL"?'selected':'')+'>外店折抵</option></select></div><div><label>外店折抵比率</label><input type="number" min="0.000001" max="1" step="0.01" value="'+escapeHtml(line.tradeInRatio)+'" data-quote-ratio="'+index+'" '+(line.tradeInSource==="EXTERNAL"?'':'disabled')+'></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
+ }).join(""):'<div class="empty">尚未選擇商品</div>';
+ renderQuoteCalculation();
+}
+
+$("quoteAddEstimateButton").addEventListener("click",()=>{
+ const name=$("quoteEstimateName").value.trim(),size=$("quoteEstimateSize").value.trim();
+ const weight=Number($("quoteEstimateWeight").value),unit=$("quoteEstimateUnit").value,labor=Number($("quoteEstimateLabor").value);
+ if(!name){message("quoteSearchStatus","請輸入預估商品／款式名稱。",true);return;}
+ if(!Number.isFinite(weight)||weight<=0){message("quoteSearchStatus","預估重量必須大於 0。",true);return;}
+ if(!Number.isFinite(labor)||labor<0){message("quoteSearchStatus","預估工錢不可小於 0。",true);return;}
+ const key="estimate-"+Date.now()+"-"+Math.random().toString(36).slice(2,7);
+ const product={id:key,product_code:"預估規格",name,style_code:$("quoteProductSearch").value.trim()||"",chain_length:size,net_weight:weight,weight_unit_code:unit,labor_fee:labor};
+ quoteSelectedProducts.push({id:key,product,weight:String(weight),labor:String(labor),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows:[],isEstimate:true});
+ renderQuoteLines();
+ message("quoteSearchStatus","已加入非庫存預估規格；此項目只用於報價，不會建立商品或庫存。");
+ $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";
+});
+
+$("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
+$("quoteSearchResults").addEventListener("click",event=>{
+ const button=event.target.closest("[data-quote-product]");if(!button)return;
+ const product=inventoryProducts.find(p=>p.id===button.dataset.quoteProduct);if(product)selectQuoteProduct(product);
+});
+$("quoteLines").addEventListener("input",event=>{
+ const wi=event.target.dataset.quoteWeight,li=event.target.dataset.quoteLabor;
+ if(wi!==undefined&&quoteSelectedProducts[Number(wi)])quoteSelectedProducts[Number(wi)].weight=event.target.value;
+ if(li!==undefined&&quoteSelectedProducts[Number(li)])quoteSelectedProducts[Number(li)].labor=event.target.value;
+ const oi=event.target.dataset.quoteOldWeight;if(oi!==undefined&&quoteSelectedProducts[Number(oi)])quoteSelectedProducts[Number(oi)].oldWeight=event.target.value;
+ const ri=event.target.dataset.quoteRatio;if(ri!==undefined&&quoteSelectedProducts[Number(ri)])quoteSelectedProducts[Number(ri)].tradeInRatio=event.target.value;
+ renderQuoteCalculation();
+});
+$("quoteLines").addEventListener("change",event=>{const si=event.target.dataset.quoteSource;if(si!==undefined&&quoteSelectedProducts[Number(si)]){quoteSelectedProducts[Number(si)].tradeInSource=event.target.value;renderQuoteLines();}});
+$("quotePaymentMethod").addEventListener("change",renderQuoteCalculation);
+$("quoteLines").addEventListener("click",event=>{
+ const button=event.target.closest("[data-quote-remove]");if(!button)return;
+ quoteSelectedProducts.splice(Number(button.dataset.quoteRemove),1);renderQuoteLines();
+});
+$("quoteProductCode").addEventListener("keydown",event=>{
+ if(event.key!=="Enter")return;event.preventDefault();
+ const code=event.target.value.trim();if(!code)return;
+ handleScannedProductCode(code,"quote");
+});
+$("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
+$("quoteClearButton").addEventListener("click",()=>{quoteSelectedProducts=[];renderQuoteLines();message("quoteSearchStatus","已清空報價清單。");});
+(function(){
+ const openQuote=()=>{
+  const button=document.querySelector('.category-nav button[data-category="quote"]');if(button)button.click();
+  const panel=$("quoteWorkbenchPanel");if(!panel)return;
+  if(panel.classList.contains("panel-collapsed"))panel.querySelector(":scope > h2 .panel-toggle")?.click();
+  panel.scrollIntoView({behavior:"smooth",block:"start"});
+  window.setTimeout(()=>$("quoteProductCode").focus({preventScroll:true}),200);
+ };
+ $("quickQuote").addEventListener("click",openQuote);
+ document.addEventListener("keydown",event=>{
+  const target=event.target;const typing=target&&(["INPUT","TEXTAREA","SELECT"].includes(target.tagName)||target.isContentEditable);
+  if(event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&event.key.toLowerCase()==="q"&&!typing){event.preventDefault();openQuote();}
+ });
+})();
+
 </script>
 </body></html>
