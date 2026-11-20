@@ -106,7 +106,7 @@ main>section.panel[data-category]{min-width:0}
 </style>
 </head>
 <body>
-<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><div class="company-bar" aria-label="全系統公司選擇"><label for="companySelect">目前公司</label><select id="companySelect"><option value="">載入中…</option></select><button class="company-reload secondary" id="reloadCompanies" type="button">重新載入</button><div id="globalStatus" class="company-status" role="status"></div></div><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div></section><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
+<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><div class="company-bar" aria-label="全系統公司選擇"><label for="companySelect">目前公司</label><select id="companySelect"><option value="">載入中…</option></select><button class="company-reload secondary" id="reloadCompanies" type="button">重新載入</button><div id="globalStatus" class="company-status" role="status"></div></div><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
 <main>
 <section class="panel">
 <h2>新增公司</h2>
@@ -538,7 +538,7 @@ main>section.panel[data-category]{min-width:0}
 <div class="field"><label for="materialCode">材質代碼</label><input id="materialCode" maxlength="30" placeholder="例如 G"></div>
 <div class="field"><label for="grossWeight">總重</label><input id="grossWeight" type="number" min="0" step="0.0001" value="0" required></div>
 <div class="field"><label for="netWeight">淨重</label><input id="netWeight" type="number" min="0" step="0.0001" value="0" required></div>
-<div class="field"><label for="weightUnit">重量單位代碼</label><select id="weightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
+<div class="field"><label for="weightUnit">重量單位</label><select id="weightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
 <div class="field"><label for="laborFee">預設銷售工錢</label><input id="laborFee" type="number" min="0" step="0.01" value="0" required></div>
 <div class="field"><label for="chainLength">項鍊長度／手圍</label><input id="chainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
 <div class="field"><label for="chainLengthUnit">長度單位</label><select id="chainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
@@ -1079,7 +1079,7 @@ function setGoldDisplayUnit(unit){
 }
 async function copyGoldQuote(language){
  const buy=currentGoldPriceRows.BUY,sell=currentGoldPriceRows.SELL;
- if(!buy&&!sell){message("goldPriceStatus","目前沒有可複製的有效金價。",true);return;}
+ if(!buy&&!sell){message("goldSummaryStatus","目前沒有可複製的有效金價。",true);return;}
  const unit=goldUnitLabel(goldDisplayUnit);
  const englishUnit={QIAN:"qian",GRAM:"gram",TAEL:"tael"}[goldDisplayUnit];
  const buyValue=buy?formatGoldMoney(convertGoldPrice(buy.price_value,buy.unit_code,goldDisplayUnit)):null;
@@ -1087,8 +1087,8 @@ async function copyGoldQuote(language){
  const textValue=language==="en"
   ?[(buyValue?"Gold buying price: TWD "+buyValue+" per "+englishUnit+".":""),(sellValue?"Gold selling price: TWD "+sellValue+" per "+englishUnit+".":"")].filter(Boolean).join(" ")
   :[(buyValue?"黃金買入價：NT$ "+buyValue+"／每"+unit+"。":""),(sellValue?"黃金賣出價：NT$ "+sellValue+"／每"+unit+"。":"")].filter(Boolean).join("\n");
- try{await navigator.clipboard.writeText(textValue);message("goldPriceStatus",language==="en"?"英文金價報價已複製。":"中文金價報價已複製。");}
- catch(error){message("goldPriceStatus","無法存取剪貼簿，請確認瀏覽器權限。",true);}
+ try{await navigator.clipboard.writeText(textValue);message("goldSummaryStatus",language==="en"?"英文金價報價已複製。":"中文金價報價已複製。");}
+ catch(error){message("goldSummaryStatus","無法存取剪貼簿，請確認瀏覽器權限。",true);}
 }
 
 async function loadGoldPrices(){
