@@ -24,6 +24,9 @@ header{padding:14px 16px 10px}
 #quickNavSearch::placeholder{color:#66716a}
 #quickNavSearch:focus{outline:2px solid #c7d8cb;outline-offset:1px}
 .quick-nav a[hidden]{display:none}
+.panel-collapsible>h2{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel-toggle{flex:0 0 auto;min-height:34px;padding:6px 12px;font-size:12px}
+.panel-collapsed>.panel-content{display:none}
 main>section.panel[id]{scroll-margin-top:150px}
 #backToTop{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:15;display:none;min-height:44px;padding:10px 14px;border-radius:999px;box-shadow:0 3px 14px #0003}
 #backToTop.visible{display:block}
@@ -1846,6 +1849,52 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  window.addEventListener("scroll",updateTopButton,{passive:true});
  updateTopButton();
  topButton.addEventListener("click",()=>window.scrollTo({top:0,behavior:"smooth"}));
+})();
+(function(){
+ const collapsibleTitles=new Set([
+  "新增公司",
+  "門市／據點設定",
+  "庫存儲存位置",
+  "新增商品分類",
+  "新增單件商品",
+  "銷售工錢暗碼設定"
+ ]);
+ document.querySelectorAll("main>section.panel").forEach(panel=>{
+  const heading=panel.querySelector(":scope>h2");
+  if(!heading||!collapsibleTitles.has(heading.textContent.trim()))return;
+  const content=document.createElement("div");
+  content.className="panel-content";
+  content.id=(panel.id||"panel")+"-content";
+  let node=heading.nextSibling;
+  while(node){
+   const next=node.nextSibling;
+   content.appendChild(node);
+   node=next;
+  }
+  panel.appendChild(content);
+  panel.classList.add("panel-collapsible","panel-collapsed");
+  const toggle=document.createElement("button");
+  toggle.type="button";
+  toggle.className="panel-toggle secondary";
+  toggle.textContent="展開";
+  toggle.setAttribute("aria-expanded","false");
+  toggle.setAttribute("aria-controls",content.id);
+  toggle.addEventListener("click",()=>{
+   const expanded=panel.classList.toggle("panel-collapsed")===false;
+   toggle.textContent=expanded?"收合":"展開";
+   toggle.setAttribute("aria-expanded",String(expanded));
+  });
+  heading.appendChild(toggle);
+ });
+ document.querySelectorAll("#quickNav a").forEach(link=>{
+  link.addEventListener("click",()=>{
+   const target=document.getElementById(link.hash.slice(1));
+   if(target&&target.classList.contains("panel-collapsed")){
+    const toggle=target.querySelector(":scope>h2 .panel-toggle");
+    if(toggle)toggle.click();
+   }
+  });
+ });
 })();
 </script>
 </body></html>
