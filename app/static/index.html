@@ -2751,6 +2751,9 @@ function renderQuoteSearchResults(){
  const box=$("quoteSearchResults");if(!box)return;
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點。</div>';return;}
  const q=$("quoteProductSearch").value.trim().toLocaleLowerCase();
+ if(q&&companyId&&selectedSiteId&&quoteStockLoadedKey!==companyId+"|"+selectedSiteId){
+  loadQuoteStockBalances().then(renderQuoteSearchResults).catch(error=>message("quoteSearchStatus","庫存查詢失敗："+error.message,true));
+ }
  const active=inventoryProducts.filter(p=>p.is_active);
  let rows=[];
  if(q){
@@ -2762,20 +2765,34 @@ function renderQuoteSearchResults(){
  }
  box.innerHTML=rows.length?rows.slice(0,60).map(p=>{
   const stock=quoteStockSummary.get(p.id);
-  const stockText=stock===undefined?"點選查庫存":stock>0?"有貨 "+stock+" 件":"目前無庫存";
-  return '<button type="button" class="quote-product-result" data-quote-product="'+escapeHtml(p.id)+'"><span><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"未設定")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 淨重：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 工錢：'+escapeHtml(quoteMoney(p.labor_fee))+'</small></span><span class="quote-stock">'+escapeHtml(stockText)+'</span></button>';
+  const stockRows=quoteStockRowsByProduct.get(p.id)||[];
+  const stockText=stock===undefined?"庫存查詢中":stock>0?"有貨 "+stock+" 件":"目前無庫存";
+  const stockLocations=stockRows.map(row=>(row.location_name||row.location_code)+ " "+row.quantity+"件").join("、");
+  return '<button type="button" class="quote-product-result" data-quote-product="'+escapeHtml(p.id)+'"><span><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"未設定")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 淨重：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 工錢：'+escapeHtml(quoteMoney(p.labor_fee))+'</small></span><span class="quote-stock">'+escapeHtml(stockText)+(stockLocations?'<small>'+escapeHtml(stockLocations)+'</small>':'')+'</span></button>';
  }).join(""):'<div class="empty">沒有找到符合商品。可改用款式編號、商品名稱或掃描商品條碼。</div>';
 }
 const quoteStockSummary=new Map();
+const quoteStockRowsByProduct=new Map();
+let quoteStockLoadedKey="";
+async function loadQuoteStockBalances(){
+ if(!companyId||!selectedSiteId)return;
+ const key=companyId+"|"+selectedSiteId;
+ if(quoteStockLoadedKey===key)return;
+ const rows=await api("/companies/"+companyId+"/inventory/stock?"+new URLSearchParams({site_id:selectedSiteId,include_zero:"true"}).toString());
+ quoteStockSummary.clear();quoteStockRowsByProduct.clear();
+ for(const row of rows){
+  const list=quoteStockRowsByProduct.get(row.product_id)||[];list.push(row);quoteStockRowsByProduct.set(row.product_id,list);
+  quoteStockSummary.set(row.product_id,(quoteStockSummary.get(row.product_id)||0)+Number(row.quantity||0));
+ }
+ quoteStockLoadedKey=key;
+}
 async function selectQuoteProduct(product){
  if(!product)return;
  if(!companyId||!selectedSiteId){message("quoteSearchStatus","請先選擇公司與據點，再查找商品。",true);return;}
  if(quoteSelectedProducts.some(x=>x.id===product.id)){message("quoteSearchStatus","這件商品已在報價清單。");return;}
  let stockRows=[];
- if(companyId&&selectedSiteId){
-  try{stockRows=await api("/companies/"+companyId+"/inventory/stock?"+new URLSearchParams({site_id:selectedSiteId,product_id:product.id,include_zero:"true"}).toString());}
-  catch(error){message("quoteSearchStatus","商品已找到，但庫存查詢失敗："+error.message,true);}
- }
+ try{await loadQuoteStockBalances();stockRows=quoteStockRowsByProduct.get(product.id)||[];}
+ catch(error){message("quoteSearchStatus","商品已找到，但據點庫存查詢失敗："+error.message,true);}
  const stockQty=stockRows.reduce((sum,row)=>sum+Number(row.quantity||0),0);
  quoteStockSummary.set(product.id,stockQty);
  quoteSelectedProducts.push({id:product.id,product,weight:String(product.net_weight??0),labor:String(product.labor_fee??0),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows});
