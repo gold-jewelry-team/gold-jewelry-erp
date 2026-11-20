@@ -35,11 +35,15 @@ class SupplierBill(Base):
     allocations: Mapped[list["SupplierPaymentAllocation"]] = relationship(
         back_populates="bill", order_by="SupplierPaymentAllocation.created_at"
     )
-
+    gold_allocations: Mapped[list["GoldMaterialSettlementAllocation"]] = relationship(
+        back_populates="bill", order_by="GoldMaterialSettlementAllocation.created_at"
+    )
 
     @property
     def paid_amount(self) -> Decimal:
-        return sum((item.amount for item in self.allocations), Decimal("0"))
+        cash_paid = sum((item.amount for item in self.allocations), Decimal("0"))
+        gold_paid = sum((item.amount for item in self.gold_allocations), Decimal("0"))
+        return cash_paid + gold_paid
 
     @property
     def outstanding_amount(self) -> Decimal:
