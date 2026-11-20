@@ -2880,8 +2880,10 @@ function renderQuoteCalculation(){
   if(oldWeight===0&&line.tradeInSource){box.textContent="選擇舊金來源時，請輸入大於 0 的舊金重量。";return;}
   if(line.tradeInSource==="EXTERNAL"&&(!Number.isFinite(ratio)||ratio<=0||ratio>1)){box.textContent="外店舊金折抵比率須大於 0 且不得超過 1。";return;}
   if(!sell||!buy){box.textContent="尚未設定有效買入價及賣出價，暫時無法計算。";return;}
-  if(sell.currency_code!=="TWD"||buy.currency_code!=="TWD"||sell.unit_code!==p.weight_unit_code||buy.unit_code!==p.weight_unit_code){box.textContent="商品重量單位必須與買入、賣出金價的 TWD 計價單位一致，請先確認金價設定。";return;}
-  const sellRate=Number(sell.price_value),buyRate=Number(buy.price_value);
+  if(sell.currency_code!=="TWD"||buy.currency_code!=="TWD"){box.textContent="商品報價目前僅支援 TWD 買入及賣出金價。";return;}
+  const sellRate=convertGoldPrice(sell.price_value,sell.unit_code,p.weight_unit_code);
+  const buyRate=convertGoldPrice(buy.price_value,buy.unit_code,p.weight_unit_code);
+  if(sellRate===null||buyRate===null){box.textContent="商品重量單位無法換算，請確認金價與商品單位設定。";return;}
   let amount=weight*sellRate+labor;
   if(oldWeight>0){
    const effectiveRatio=line.tradeInSource==="LOCAL"?1:ratio;
@@ -2992,15 +2994,16 @@ function renderQuoteEstimatePreview(){
  const weight=Number(weightText),unit=$("quoteEstimateUnit").value;
  const laborText=$("quoteEstimateLabor").value;
  const labor=Number(laborText);
- if(!name&&!weightText){box.textContent="輸入預估重量及工錢後，這裡會即時顯示試算金額；按「加入預估規格」才會加入下方報價清單。";return;}
- if(!name){box.textContent="請先輸入商品／款式名稱。";return;}
+ if(!weightText&&!laborText){box.textContent="輸入預估重量及工錢後，這裡會即時顯示試算金額；不必先選擇現有商品。";return;}
  if(!weightText||!Number.isFinite(weight)||weight<=0){box.textContent="請輸入大於 0 的預估重量。";return;}
- if(!Number.isFinite(labor)||labor<0){box.textContent="預估工錢不可小於 0。";return;}
+ if(laborText===""||!Number.isFinite(labor)||labor<0){box.textContent="請輸入有效的預估工錢（可填 0）。";return;}
  const sell=currentGoldPriceRows.SELL;
  if(!sell){box.textContent="重量與工錢已填妥，但目前尚未載入有效賣出金價，暫時無法計算金額。";return;}
- if(sell.currency_code!=="TWD"||sell.unit_code!==unit){box.textContent="重量單位與目前 TWD 賣出金價單位不同。請將重量單位改為 "+sell.unit_code+"，或先調整金價設定。";return;}
- const amount=quoteRoundTwd(weight*Number(sell.price_value)+labor);
- box.innerHTML="<strong>預估規格即時試算</strong><div>"+escapeHtml(name)+" · "+escapeHtml(weight)+" "+escapeHtml(unit)+" · 工錢 NT$ "+escapeHtml(quoteMoney(labor))+"</div><strong style='display:block;font-size:20px;margin-top:6px'>預估金額：NT$ "+escapeHtml(quoteMoney(amount))+"</strong><small>使用目前賣出金價；加入後仍可修改重量、工錢及舊金折抵。</small>";
+ if(sell.currency_code!=="TWD"){box.textContent="目前僅能使用 TWD 賣出金價試算。";return;}
+ const sellRate=convertGoldPrice(sell.price_value,sell.unit_code,unit);
+ if(sellRate===null){box.textContent="目前金價的重量單位無法換算，請確認金價設定。";return;}
+ const amount=quoteRoundTwd(weight*sellRate+labor);
+ box.innerHTML="<strong>預估規格即時試算</strong><div>"+escapeHtml(name||"未命名預估規格")+" · "+escapeHtml(weight)+" "+escapeHtml(unit)+" · 工錢 NT$ "+escapeHtml(quoteMoney(labor))+"</div><strong style='display:block;font-size:20px;margin-top:6px'>預估金額：NT$ "+escapeHtml(quoteMoney(amount))+"</strong><small>使用目前賣出金價換算至所選重量單位；不必先選商品或加入清單。</small>";
 }
 ["quoteEstimateName","quoteEstimateSize","quoteEstimateWeight","quoteEstimateLabor"].forEach(id=>$(id).addEventListener("input",renderQuoteEstimatePreview));
 $("quoteEstimateUnit").addEventListener("change",renderQuoteEstimatePreview);
@@ -3008,11 +3011,10 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  const name=$("quoteEstimateName").value.trim(),size=$("quoteEstimateSize").value.trim();
  const weightText=$("quoteEstimateWeight").value,weight=Number(weightText),unit=$("quoteEstimateUnit").value;
  const laborText=$("quoteEstimateLabor").value,labor=Number(laborText);
- if(!name){quoteSetStatus("尚未加入：請輸入預估商品／款式名稱。",true);$("quoteEstimateName").focus();return;}
  if(!weightText||!Number.isFinite(weight)||weight<=0){quoteSetStatus("尚未加入：預估重量必須大於 0。",true);$("quoteEstimateWeight").focus();return;}
  if(laborText===""||!Number.isFinite(labor)||labor<0){quoteSetStatus("尚未加入：預估工錢不可小於 0。",true);$("quoteEstimateLabor").focus();return;}
  const key="estimate-"+Date.now()+"-"+Math.random().toString(36).slice(2,7);
- const product={id:key,product_code:"預估規格",name,style_code:$("quoteProductSearch").value.trim()||"",chain_length:size,net_weight:weight,weight_unit_code:unit,labor_fee:labor};
+ const product={id:key,product_code:"預估規格",name:name||"未命名預估規格",style_code:$("quoteProductSearch").value.trim()||"",chain_length:size,net_weight:weight,weight_unit_code:unit,labor_fee:labor};
  quoteSelectedProducts.push({id:key,product,weight:String(weight),labor:String(labor),oldWeight:"0",tradeInSource:"",tradeInRatio:"0.95",stockRows:[],isEstimate:true});
  renderQuoteLines();
  $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";$("quoteEstimateLabor").value="0";
