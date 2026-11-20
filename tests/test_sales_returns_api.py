@@ -14,9 +14,10 @@ from app.models.gold_price import GoldPrice
 from app.models.inventory import InventoryMovement
 from app.models.product import Product
 from app.models.sale_return import SaleReturn
+from app.models.daily_closing import DailyClosing
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
-from app.routers import sales, sales_returns
+from app.routers import sales, sales_returns, daily_closing
 from app.services.inventory import create_inventory_movement, get_stock_balance
 
 
@@ -208,6 +209,53 @@ def test_draft_sale_cannot_be_returned():
         assert returned.status_code == 422
         check = TestSession()
         assert check.query(SaleReturn).count() == 0
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_sale_return_is_blocked_after_daily_closing_without_restocking():
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    engine, TestSession, (company_id, site_id, product_id, _product2_id, location_id) = _return_test_context("RETURN-CLOSED")
+    app.dependency_overrides[daily_closing.get_db] = app.dependency_overrides[sales.get_db]
+    try:
+        client = TestClient(app)
+        sale_response = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-RETURN-CLOSED",
+            "payment_method": "CASH",
+            "lines": [{"product_id": str(product_id), "source_location_id": str(location_id)}],
+        })
+        assert sale_response.status_code == 201, sale_response.text
+        sale = sale_response.json()
+        completed = client.post(f"/companies/{company_id}/sales/{sale['id']}/complete")
+        assert completed.status_code == 200, completed.text
+
+        business_date = datetime.now(timezone.utc).astimezone(
+            ZoneInfo("Asia/Taipei")
+        ).date()
+        closing = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+
+        returned = client.post(f"/companies/{company_id}/sales/{sale['id']}/returns", json={
+            "return_no": "RT-RETURN-CLOSED",
+            "sale_line_ids": [sale["lines"][0]["id"]],
+            "reason": "結帳後測試退貨",
+        })
+        assert returned.status_code == 422
+        assert "已結帳" in returned.json()["detail"]
+
+        check = TestSession()
+        assert check.query(SaleReturn).count() == 0
+        assert check.query(DailyClosing).count() == 1
+        assert get_stock_balance(check, product_id=product_id, location_id=location_id) == Decimal("0")
+        assert check.query(InventoryMovement).filter_by(reference_type="SALE_RETURN_LINE").count() == 0
         check.close()
     finally:
         app.dependency_overrides.clear()
