@@ -109,6 +109,9 @@ main>section.panel[data-category]{min-width:0}
 .gold-closure-date button{min-height:30px;padding:4px 9px;font-size:11px}
 @media(max-width:520px){.gold-summary-foot{align-items:flex-start;flex-direction:column}.gold-summary-price{flex:1 1 100%;justify-content:space-between}.sale-gold-quote-head strong{flex-basis:100%}}
 
+/* 手機版：頁首與分類捷徑不固定，避免佔住可閱讀畫面 */
+@media(max-width:899px){header{position:static;top:auto}.category-shortcuts{position:static;top:auto;max-height:none;overflow:visible;z-index:auto}}
+
 </style>
 </head>
 <body>
