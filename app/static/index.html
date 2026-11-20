@@ -302,7 +302,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <h3>已選商品／報價參考</h3>
 <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
 <div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇商品後，會依目前有效金價、商品重量、工錢及舊金折抵，套用系統既有銷售計價規則試算。</div><div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可修改重量作預估，但不會建立庫存商品。試算不扣庫存、不建立正式交易；實際成交仍以銷售結帳當下的有效金價為準。</div>
-<div class="actions"><button id="quoteClearButton" class="secondary" type="button">清空報價清單</button><button id="quoteGoSalesButton" type="button">前往銷售結帳</button></div>
+<div class="actions"><button id="quoteClearButton" class="secondary" type="button">清空報價清單</button></div>
 </section>
 
 <section class="panel">
@@ -1141,6 +1141,7 @@ async function loadInventoryOptions(){
  ]);
  inventoryProducts=products;
  inventoryLocations=locations;
+ if(typeof renderQuoteSearchResults==="function")renderQuoteSearchResults();
  const activeProducts=products.filter(x=>x.is_active);
  const productOptions=activeProducts.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
  const allProductOptions=products.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.product_code)+' · '+escapeHtml(x.name)+(x.barcode?' · '+escapeHtml(x.barcode):'')+'</option>').join("");
@@ -1300,6 +1301,7 @@ async function loadGoldPrices(){
  if(!companyId||!selectedSiteId){
   currentGoldPriceRows={BUY:null,SELL:null};
   renderGoldPriceViews();
+  if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
   renderGoldClosureDates();
   historyBox.innerHTML='<div class="empty">請先選擇公司與據點</div>';
   return;
@@ -1312,6 +1314,7 @@ async function loadGoldPrices(){
  ]);
  currentGoldPriceRows={BUY:buy,SELL:sell};
  renderGoldPriceViews();
+ if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
  renderGoldClosureDates();
  if(history.length){
   const groups=new Map();
@@ -2795,9 +2798,7 @@ $("quoteProductCode").addEventListener("keydown",event=>{
 });
 $("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
 $("quoteClearButton").addEventListener("click",()=>{quoteSelectedProducts=[];renderQuoteLines();message("quoteSearchStatus","已清空報價清單。");});
-$("quoteGoSalesButton").addEventListener("click",()=>{
- const categoryButton=document.querySelector('.category-nav button[data-category="sales"]');if(categoryButton)categoryButton.click();
- const panel=document.getElementById("salesPanel");if(panel){if(panel.classList.contains("panel-collapsed"))panel.querySelector(":scope > h2 .panel-toggle")?.click();panel.scrollIntoView({behavior:"smooth",block:"start"});}
+}
 });
 (function(){
  const openQuote=()=>{
