@@ -10,6 +10,7 @@ from app.models.purchase import Purchase
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
+from app.models.gold_material import GoldMaterialSettlementAllocation
 from app.services.daily_closing import assert_business_day_open
 
 CENT = Decimal("0.01")
@@ -140,10 +141,15 @@ def record_supplier_payment(
 
     remaining_by_bill = {}
     for bill in bills:
-        already_paid = Decimal(session.scalar(
+        cash_paid = Decimal(session.scalar(
             select(func.coalesce(func.sum(SupplierPaymentAllocation.amount), 0))
             .where(SupplierPaymentAllocation.bill_id == bill.id)
         ) or 0)
+        gold_paid = Decimal(session.scalar(
+            select(func.coalesce(func.sum(GoldMaterialSettlementAllocation.amount), 0))
+            .where(GoldMaterialSettlementAllocation.bill_id == bill.id)
+        ) or 0)
+        already_paid = cash_paid + gold_paid
         remaining = bill.total_amount - already_paid
         requested = allocation_amounts[bill.id]
         if requested > remaining:
