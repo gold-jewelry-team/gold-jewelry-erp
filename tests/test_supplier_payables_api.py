@@ -206,3 +206,55 @@ def test_supplier_payment_rejects_mixed_currency_and_duplicate_bill_allocation()
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_supplier_payment_is_blocked_after_daily_closing():
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        bill = client.post(f"{base}/bills", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "bill_no": "INV-CLOSED-001",
+            "bill_date": "2026-11-20",
+            "currency_code": "TWD",
+            "total_amount": "1200.00",
+        })
+        assert bill.status_code == 201, bill.text
+
+        business_date = datetime.now(timezone.utc).astimezone(
+            ZoneInfo("Asia/Taipei")
+        ).date()
+        closing = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+
+        payment = client.post(f"{base}/payments", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "payment_no": "SP-CLOSED-001",
+            "payment_method": "TRANSFER",
+            "allocations": [{
+                "bill_id": bill.json()["id"],
+                "amount": "500.00",
+            }],
+        })
+        assert payment.status_code == 422
+        assert "已結帳" in payment.json()["detail"]
+
+        refreshed = client.get(f"{base}/bills/{bill.json()['id']}")
+        assert refreshed.status_code == 200, refreshed.text
+        assert refreshed.json()["status"] == "OPEN"
+        assert refreshed.json()["paid_amount"] == "0.00"
+        assert refreshed.json()["outstanding_amount"] == "1200.00"
+
+        check = TestSession()
+        assert check.query(SupplierPayment).count() == 0
+        assert check.query(DailyClosing).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
