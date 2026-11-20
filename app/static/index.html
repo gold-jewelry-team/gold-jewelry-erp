@@ -151,7 +151,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="grid">
 <div class="field"><label for="saleProduct">商品（可依編號／名稱／條碼選擇）</label><select id="saleProduct"><option value="">請選擇商品</option></select></div>
 <div class="field"><label for="saleLocation">出貨位置</label><select id="saleLocation"><option value="">請選擇位置</option></select></div>
-<div class="field"><label for="saleLaborFee">本次工錢（留空使用商品主檔）</label><input id="saleLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
+<div class="field"><label for="saleLaborFee">本次銷售工錢（留空使用商品預設）</label><input id="saleLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
 <div class="field"><label for="saleOldGoldWeight">舊金折抵重量</label><input id="saleOldGoldWeight" type="number" min="0" step="0.0001" value="0"></div>
 <div class="field"><label for="saleTradeInSource">舊金來源</label><select id="saleTradeInSource"><option value="">無舊金折抵</option><option value="LOCAL">本店舊金（折抵比率 100%）</option><option value="EXTERNAL">外店舊金（預設折抵比率 95%）</option></select></div>
 <div class="field"><label for="saleTradeInRatio">折抵比率（外店適用）</label><input id="saleTradeInRatio" type="number" min="0.000001" max="1" step="0.000001" value="0.95"></div>
@@ -439,7 +439,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </section>
 <section class="panel span2">
 <h2>新增單件商品</h2>
-<p class="sub">每筆資料代表一件獨立商品；商品編號可先手動輸入。</p><div class="grid"><div class="field wide"><label for="nextNumber">下一個流水號（可設定從 00001 或舊商品最後號碼之後開始）</label><input id="nextNumber" type="number" min="1" step="1" value="1"></div>
+<p class="sub">每筆資料代表一件獨立商品；商品編號可先手動輸入。此處設定的是預設銷售工錢；採購時另填進貨成本工錢，兩者分開記錄。</p><div class="grid"><div class="field wide"><label for="nextNumber">下一個流水號（可設定從 00001 或舊商品最後號碼之後開始）</label><input id="nextNumber" type="number" min="1" step="1" value="1"></div>
 <div class="field"><label for="numberWidth">流水號位數（1～12 位）</label><input id="numberWidth" type="number" min="1" max="12" step="1" value="5"></div>
 <div class="field"><label>&nbsp;</label><button class="secondary" id="saveSequence" type="button">儲存編號設定</button></div></div><div id="sequenceStatus" class="status" role="status"></div>
 <form id="productForm">
@@ -454,7 +454,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="field"><label for="grossWeight">總重</label><input id="grossWeight" type="number" min="0" step="0.0001" value="0" required></div>
 <div class="field"><label for="netWeight">淨重</label><input id="netWeight" type="number" min="0" step="0.0001" value="0" required></div>
 <div class="field"><label for="weightUnit">重量單位代碼</label><select id="weightUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
-<div class="field"><label for="laborFee">工錢</label><input id="laborFee" type="number" min="0" step="0.01" value="0" required></div>
+<div class="field"><label for="laborFee">預設銷售工錢</label><input id="laborFee" type="number" min="0" step="0.01" value="0" required></div>
 <div class="field"><label for="chainLength">項鍊長度／手圍</label><input id="chainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
 <div class="field"><label for="chainLengthUnit">長度單位</label><select id="chainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
 <div class="field"><label for="styleCode">款式代碼</label><input id="styleCode" maxlength="40" placeholder="選填"></div>
@@ -465,8 +465,8 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div id="productStatus" class="status" role="status"></div>
 </section>
 <section class="panel span2" id="laborCodeSettingsPanel">
-<h2>工錢暗碼設定</h2>
-<p class="sub">可設定 0～9 各自對應的暗碼字元與前綴；貼紙暗碼格式為「前綴-轉換後工錢」。未設定的數字會沿用原數字。</p>
+<h2>銷售工錢暗碼設定</h2>
+<p class="sub">可設定 0～9 各自對應的暗碼字元與前綴；貼紙暗碼格式為「前綴-轉換後銷售工錢」。未設定的數字會沿用原數字。</p>
 <form id="laborCodeSettingsForm">
 <div class="field"><label for="laborCodePrefix">暗碼前綴（1～5 位英數字，預設 A）</label><input id="laborCodePrefix" maxlength="5" pattern="[A-Za-z0-9]{1,5}" value="A" required></div>
 <div id="laborCodesGrid" class="grid"></div>
@@ -476,7 +476,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </section>
 <section id="productEditPanel" class="panel span2 hidden">
 <h2>編輯商品資料</h2>
-<p class="sub">修改後會重新檢查商品編號、流水號、條碼唯一性及重量規則。</p>
+<p class="sub">修改後會重新檢查商品編號、流水號、條碼唯一性及重量規則。此處工錢是預設銷售工錢，不會改動採購明細中的進貨成本工錢。</p>
 <form id="productEditForm">
 <input id="editProductId" type="hidden">
 <input id="editChainLengthRaw" type="hidden">
@@ -489,7 +489,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 <div class="field"><label for="editGrossWeight">總重</label><input id="editGrossWeight" type="number" min="0" step="0.0001" required></div>
 <div class="field"><label for="editNetWeight">淨重</label><input id="editNetWeight" type="number" min="0" step="0.0001" required></div>
 <div class="field"><label for="editWeightUnit">重量單位</label><select id="editWeightUnit"><option value="QIAN">錢（QIAN）</option><option value="GRAM">公克（GRAM）</option><option value="TAEL">兩（TAEL）</option></select></div>
-<div class="field"><label for="editLaborFee">工錢</label><input id="editLaborFee" type="number" min="0" step="0.01" required></div>
+<div class="field"><label for="editLaborFee">預設銷售工錢</label><input id="editLaborFee" type="number" min="0" step="0.01" required></div>
 <div class="field"><label for="editChainLength">項鍊長度／手圍</label><input id="editChainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
 <div class="field"><label for="editChainLengthUnit">長度單位</label><select id="editChainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
 <div class="field"><label for="editStyleCode">款式代碼</label><input id="editStyleCode" maxlength="40" placeholder="選填"></div>
@@ -878,7 +878,7 @@ async function loadCashCount(){
 }
 function renderSaleCart(){
  const box=$("saleCartList");
- box.innerHTML=saleCartLines.length?saleCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 出貨位置：'+escapeHtml(line.location.name)+'</span><span class="muted">淨重：'+escapeHtml(line.product.net_weight)+' '+escapeHtml(line.product.weight_unit_code)+' · 工錢：'+escapeHtml(line.labor_fee===null?"使用主檔":line.labor_fee)+'</span><span class="muted">舊金折抵：'+escapeHtml(line.old_gold_weight)+' '+escapeHtml(line.product.weight_unit_code)+(line.old_gold_weight>0?' · '+(line.trade_in_source==="LOCAL"?"本店 100%":"外店 "+line.trade_in_ratio*100+"%"):'')+'</span><div class="actions"><button class="secondary" type="button" data-remove-sale-line="'+index+'">移除此商品</button></div></article>').join(""):'<div class="empty">尚未加入商品</div>';
+ box.innerHTML=saleCartLines.length?saleCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 出貨位置：'+escapeHtml(line.location.name)+'</span><span class="muted">淨重：'+escapeHtml(line.product.net_weight)+' '+escapeHtml(line.product.weight_unit_code)+' · 銷售工錢：'+escapeHtml(line.labor_fee===null?"使用商品預設":line.labor_fee)+'</span><span class="muted">舊金折抵：'+escapeHtml(line.old_gold_weight)+' '+escapeHtml(line.product.weight_unit_code)+(line.old_gold_weight>0?' · '+(line.trade_in_source==="LOCAL"?"本店 100%":"外店 "+line.trade_in_ratio*100+"%"):'')+'</span><div class="actions"><button class="secondary" type="button" data-remove-sale-line="'+index+'">移除此商品</button></div></article>').join(""):'<div class="empty">尚未加入商品</div>';
  $("createSaleDraft").disabled=!saleCartLines.length||!!currentSale;
 }
 function renderSaleResult(sale){
@@ -945,7 +945,7 @@ function printProductQrLabel(product,lot,printWindow,config,copies=1){
   '<img class="barcode" src="'+barcodeUrl+'" alt="Code 128 條碼">'+
   '<div class="source-row"><span>廠商：'+escapeHtml(supplier)+'</span><span>櫃位：'+escapeHtml(location)+'</span><span>進貨日：'+escapeHtml(receiptDate)+'</span></div></section>'+
   '<section class="right"><div class="weight">'+escapeHtml(weightText)+'</div>'+
-  '<div class="labor">工錢：'+escapeHtml(laborText)+'</div>'+
+  '<div class="labor">銷售工錢：'+escapeHtml(laborText)+'</div>'+
   '<div class="dark">暗碼：'+escapeHtml(darkCode)+'</div>'+
   '<div class="extra"><span>長度：'+escapeHtml(product.chain_length||"—")+'</span><span>款式：'+escapeHtml(product.style_code?("款式:"+product.style_code):"—")+'</span></div></section></div>';
  const html='<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>3×10 cm 商品貼紙</title><style>'+
@@ -1008,7 +1008,7 @@ async function loadProducts(){
  const q=$("search").value.trim();
  const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
  productsById=new Map(rows.map(x=>[x.id,x]));
- box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 工錢 '+escapeHtml(x.labor_fee)+' · 長度 '+escapeHtml(x.chain_length||"—")+' · 款式 '+escapeHtml(x.style_code||"—")+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 3×10 貼紙</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
+ box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 預設銷售工錢 '+escapeHtml(x.labor_fee)+' · 長度 '+escapeHtml(x.chain_length||"—")+' · 款式 '+escapeHtml(x.style_code||"—")+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 3×10 貼紙</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
 $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  event.preventDefault();
@@ -1019,7 +1019,7 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  const button=$("laborCodeSettingsForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
   await api("/companies/"+companyId+"/labor-code-config",{method:"PUT",body:JSON.stringify({prefix,mappings})});
-  message("laborCodeStatus","工錢暗碼設定已儲存。");
+  message("laborCodeStatus","銷售工錢暗碼設定已儲存。");
   await loadLaborCodeConfig();
  }catch(error){message("laborCodeStatus",error.message,true);}
  finally{button.disabled=false;}
