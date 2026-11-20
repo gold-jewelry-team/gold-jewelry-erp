@@ -17,6 +17,11 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 
 /* 全站快速導覽與頁面定位 */
 header{padding:14px 16px 10px}
+.company-bar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:#ffffff12;border:1px solid #ffffff30;border-radius:12px;max-width:620px}
+.company-bar label{flex:0 0 auto;margin:0;color:#e6eee8;font-size:12px;font-weight:700}
+.company-bar select{flex:1;min-width:0;min-height:36px;height:36px;padding:6px 10px;border-color:#ffffff55;border-radius:9px;font-size:13px}
+.company-bar .company-reload{flex:0 0 auto;min-height:36px;height:36px;padding:6px 10px;font-size:12px;background:#ffffffdf}
+.company-status{display:none}
 .quick-nav{display:flex;gap:7px;overflow-x:auto;overscroll-behavior-x:contain;white-space:nowrap;margin:12px -4px 0;padding:0 4px 5px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
 .quick-nav a{display:inline-flex;align-items:center;min-height:34px;padding:6px 11px;border:1px solid #ffffff35;border-radius:999px;color:#eef4ef;text-decoration:none;font-size:12px;font-weight:600;background:#ffffff12;flex:0 0 auto}
 .quick-nav a:hover,.quick-nav a:focus-visible{background:#ffffff2b;outline:2px solid #c7d8cb;outline-offset:1px}
@@ -68,14 +73,8 @@ main>section.panel[data-category]{min-width:0}
 </style>
 </head>
 <body>
-<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
+<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><div class="company-bar" aria-label="全系統公司選擇"><label for="companySelect">目前公司</label><select id="companySelect"><option value="">載入中…</option></select><button class="company-reload secondary" id="reloadCompanies" type="button">重新載入</button><div id="globalStatus" class="company-status" role="status"></div></div><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
 <main>
-<section class="panel span2">
-<h2>目前公司</h2>
-<div class="grid"><div class="field wide"><label for="companySelect">公司／銀樓</label><select id="companySelect"><option value="">載入中…</option></select></div></div>
-<div class="actions"><button class="secondary" id="reloadCompanies" type="button">重新載入</button></div>
-<div id="globalStatus" class="status" role="status"></div>
-</section>
 <section class="panel">
 <h2>新增公司</h2>
 <form id="companyForm">
