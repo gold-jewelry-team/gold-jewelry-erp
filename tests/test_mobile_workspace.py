@@ -96,3 +96,9 @@ def test_mobile_workspace_serves_html():
     assert 'id="cashCountReviewForm"' in response.text
     assert 'id="productEditForm"' in response.text
     assert 'data-edit-product="' in response.text
+
+    assert "帳面庫存商品" in response.text
+    assert 'data-stocktake-verified="' in response.text
+    assert "尚有" in response.text and "件商品未核對" in response.text
+    assert "verified:!!x.verified" in response.text
+    assert "已載入帳面庫存清單" in response.text

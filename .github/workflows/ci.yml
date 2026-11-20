@@ -34,6 +34,22 @@ jobs:
           cache: pip
       - name: Install dependencies
         run: pip install -r requirements.txt
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check inline browser JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          html = Path("app/static/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script\b[^>]*>(.*?)</script>", html, re.DOTALL | re.IGNORECASE)
+          assert scripts, "No inline browser script found in app/static/index.html"
+          Path("/tmp/gold-erp-inline.js").write_text("\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/gold-erp-inline.js
       - name: Run tests
         run: pytest -q
       - name: Upgrade PostgreSQL schema to head
