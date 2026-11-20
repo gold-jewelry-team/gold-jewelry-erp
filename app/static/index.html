@@ -68,7 +68,7 @@ label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,tex
 </section>
 <section class="panel span2" id="stocktakePanel">
  <h2>條碼盤點</h2>
- <p class="sub">選擇儲存位置後逐件掃描商品；每個商品條碼在同一盤點批次只計一次。可手動修正實盤數量，確認差異後才寫入庫存異動。</p>
+ <p class="sub">系統會先列出該位置的帳面庫存。掃碼確認在架商品；未掃到的帳面商品，請手動確認實盤數量為 0。全部商品確認後，才可一次入帳差異。</p>
  <div class="grid"><div class="field"><label for="stocktakeLocation">盤點儲存位置</label><select id="stocktakeLocation"><option value="">請選擇位置</option></select></div>
  <div class="field"><label for="stocktakeBarcode">掃描／輸入商品條碼（Enter）</label><input id="stocktakeBarcode" autocomplete="off" inputmode="numeric" placeholder="掃描器輸入後按 Enter"></div></div>
  <div class="actions"><button id="scanStocktakeButton" class="secondary" type="button">相機掃描</button><button id="refreshStocktake" class="secondary" type="button">重新讀取帳面庫存</button><button id="resetStocktake" class="secondary" type="button">清空本次盤點</button></div>
@@ -691,7 +691,7 @@ function mergeStocktakeBaseline(){
   if(!product)continue;
   const existing=existingByProduct.get(productId);
   if(existing){
-   if(!existing.applied)existing.expected=expected;
+   if(!existing.applied){if(Number(existing.expected)!==expected)existing.verified=false;existing.expected=expected;}
    merged.push(existing);
    existingByProduct.delete(productId);
   }else if(expected>0){
@@ -1736,6 +1736,7 @@ $("stocktakeList").addEventListener("change",event=>{const input=event.target.cl
 $("stocktakeList").addEventListener("click",event=>{const button=event.target.closest("[data-remove-stocktake]");if(!button)return;stocktakeLines.splice(Number(button.dataset.removeStocktake),1);persistStocktakeDraft();renderStocktake();});
 $("applyStocktake").addEventListener("click",async()=>{
  if(!stocktakeLocationId||!stocktakeLines.length)return;
+ if(stocktakeLines.some(line=>!line.applied&&!line.verified)){message("stocktakeStatus","尚有商品未確認實盤數量，請完成所有商品盤點後再入帳。",true);return;}
  const button=$("applyStocktake");button.disabled=true;let applied=0;
  try{
   for(const line of stocktakeLines){if(line.applied)continue;const variance=Number(line.counted)-Number(line.expected);
