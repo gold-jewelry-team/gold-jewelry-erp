@@ -708,12 +708,12 @@ async function copyLastScannedCode(){
  catch(error){$("scanFeedbackMessage").textContent="瀏覽器未允許自動複製，請直接選取上方條碼複製。";}
 }
 $("copyScannedCode").addEventListener("click",copyLastScannedCode);
-$("manualLookupCode").addEventListener("click",()=>{const code=lastScannedCode;$("scanFeedback").classList.add("hidden");$("search").value=code;const productCategory=document.querySelector('.category-nav button[data-category="products"]');if(productCategory)productCategory.click();$("search").scrollIntoView({behavior:"smooth",block:"center"});$("search").focus();});
+$("manualLookupCode").addEventListener("click",()=>{const code=lastScannedCode;$("scanFeedback").classList.add("hidden");$("search").value=code;const productCategory=document.querySelector('.category-nav button[data-category="products"]');if(productCategory)productCategory.click();$("searchButton").click();$("search").scrollIntoView({behavior:"smooth",block:"center"});$("search").focus();});
 $("rescanCode").addEventListener("click",()=>{const target=lastScannedTarget;$("scanFeedback").classList.add("hidden");openCameraScanner(target);});
 $("closeScanFeedback").addEventListener("click",()=>$("scanFeedback").classList.add("hidden"));
 renderScanHistory();
 async function handleScannedProductCode(code,target){
- if(!companyId){message("globalStatus","請先選擇公司。",true);return;}
+ if(!companyId){showScanFeedback(code,target,"已讀取條碼，請先選擇公司後再查詢。",true);message("globalStatus","掃描到條碼："+code+"；請先選擇公司。",true);return;}
  try{
   const product=await api("/companies/"+companyId+"/products/lookup?code="+encodeURIComponent(code));
   showScanFeedback(code,target,"已找到商品："+(product.product_code||"")+" · "+(product.name||""));
