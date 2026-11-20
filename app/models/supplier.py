@@ -10,7 +10,10 @@ from app.db.base import Base
 
 class Supplier(Base):
     __tablename__ = "suppliers"
-    __table_args__ = (UniqueConstraint("company_id", "code", name="uq_suppliers_company_code"),)
+    __table_args__ = (
+        UniqueConstraint("company_id", "code", name="uq_suppliers_company_code"),
+        UniqueConstraint("id", "company_id", name="uq_suppliers_id_company"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False, index=True)

@@ -550,6 +550,56 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div id="supplierStatus" class="status" role="status"></div>
 <div id="supplierList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
 </section>
+<section class="panel" id="supplierOfferingPanel">
+<h3>廠商供貨商品管理</h3>
+<p class="sub">先記錄廠商供應哪些分類；有建立實際商品後，再連結款式、廠商貨號與報價。可從分類找廠商，也可從廠商找供貨商品。</p>
+<h4>設定廠商供應分類</h4>
+<form id="supplierCategoryOfferingForm">
+<div class="grid">
+<div class="field"><label for="supplierOfferingSupplier">供應商</label><select id="supplierOfferingSupplier" required><option value="">請選擇供應商</option></select></div>
+<div class="field"><label for="supplierOfferingCategory">商品分類</label><select id="supplierOfferingCategory" required><option value="">請選擇分類</option></select></div>
+<div class="field"><label for="supplierOfferingStatus">供應狀態</label><select id="supplierOfferingStatus"><option value="ACTIVE">供應中</option><option value="PAUSED">暫停供應</option><option value="STOPPED">停止供應</option></select></div>
+<div class="field"><label for="supplierOfferingAlias">廠商分類名稱（選填）</label><input id="supplierOfferingAlias" maxlength="120" placeholder="廠商自己的分類名稱"></div>
+<div class="field wide"><label><input id="supplierOfferingPreferred" type="checkbox" style="width:auto;min-height:0;margin-right:6px">設為此分類主要供應廠商</label></div>
+<div class="field wide"><label for="supplierOfferingNote">備註</label><input id="supplierOfferingNote" maxlength="500"></div>
+</div>
+<button type="submit">新增供貨分類</button>
+</form>
+<div id="supplierOfferingStatus" class="status" role="status"></div>
+<h4>分類供應商查詢</h4>
+<div class="grid">
+<div class="field"><label for="supplierOfferingFilterCategory">依商品分類查廠商</label><select id="supplierOfferingFilterCategory"><option value="">全部分類</option></select></div>
+<div class="field"><label for="supplierOfferingFilterSupplier">依廠商查供應分類</label><select id="supplierOfferingFilterSupplier"><option value="">全部廠商</option></select></div>
+</div>
+<div class="actions"><button id="refreshSupplierOfferings" class="secondary" type="button">查詢供貨分類</button></div>
+<div id="supplierOfferingList"><div class="empty">請先選擇公司</div></div>
+<hr>
+<h4>指定實際商品供應廠商</h4>
+<form id="supplierProductOfferingForm">
+<div class="grid">
+<div class="field"><label for="supplierProductSupplier">供應商</label><select id="supplierProductSupplier" required><option value="">請選擇供應商</option></select></div>
+<div class="field"><label for="supplierProductProduct">實際商品款式</label><select id="supplierProductProduct" required><option value="">請選擇商品</option></select></div>
+<div class="field"><label for="supplierProductCode">廠商商品貨號</label><input id="supplierProductCode" maxlength="80"></div>
+<div class="field"><label for="supplierProductCost">廠商報價／單位成本</label><input id="supplierProductCost" type="number" min="0" step="0.01"></div>
+<div class="field"><label for="supplierProductCurrency">報價幣別</label><select id="supplierProductCurrency"><option value="TWD">TWD 新台幣</option><option value="USD">USD 美元</option><option value="JPY">JPY 日圓</option><option value="CNY">CNY 人民幣</option></select></div>
+<div class="field"><label for="supplierProductMinQty">最低訂購量</label><input id="supplierProductMinQty" type="number" min="0.001" step="0.001"></div>
+<div class="field"><label for="supplierProductLeadTime">交貨天數</label><input id="supplierProductLeadTime" type="number" min="0" step="1"></div>
+<div class="field"><label for="supplierProductStatus">供應狀態</label><select id="supplierProductStatus"><option value="ACTIVE">供應中</option><option value="PAUSED">暫停供應</option><option value="STOPPED">停止供應</option></select></div>
+<div class="field wide"><label><input id="supplierProductPreferred" type="checkbox" style="width:auto;min-height:0;margin-right:6px">設為此商品主要供應廠商</label></div>
+<div class="field wide"><label for="supplierProductNote">備註</label><input id="supplierProductNote" maxlength="500"></div>
+</div>
+<button type="submit">連結商品與供應商</button>
+</form>
+<div id="supplierProductOfferingStatus" class="status" role="status"></div>
+<h4>實際商品供應商查詢</h4>
+<div class="grid">
+<div class="field"><label for="supplierProductFilterSupplier">依廠商查商品</label><select id="supplierProductFilterSupplier"><option value="">全部廠商</option></select></div>
+<div class="field"><label for="supplierProductFilterCategory">依商品分類篩選</label><select id="supplierProductFilterCategory"><option value="">全部分類</option></select></div>
+<div class="field wide"><label for="supplierProductFilterProduct">依實際商品查供應廠商</label><select id="supplierProductFilterProduct"><option value="">全部商品</option></select></div>
+</div>
+<div class="actions"><button id="refreshSupplierProductOfferings" class="secondary" type="button">查詢實際商品供應關係</button></div>
+<div id="supplierProductOfferingList"><div class="empty">請先選擇公司</div></div>
+</section>
 <section class="panel">
 <h3>新增供應商帳單</h3>
 <form id="supplierBillForm">
@@ -862,6 +912,7 @@ let currentSale=null;
 let saleReturns=[];
 let selectedReturn=null;
 let suppliersById=new Map();
+let supplierCatalogProductsById=new Map();
 let supplierBillsById=new Map();
 let selectedSupplierBill=null;
 let purchaseCartLines=[];
@@ -1062,12 +1113,35 @@ async function loadStorageLocations(){
 async function loadCategories(){
  $("parentCategory").innerHTML='<option value="">無</option>';
  $("productCategory").innerHTML='<option value="">未分類</option>';
- if(!companyId)return;
+ for(const id of ["supplierOfferingCategory","supplierOfferingFilterCategory","supplierProductFilterCategory"]){
+  if($(id))$(id).innerHTML='<option value="">'+(id==="supplierOfferingCategory"?"請選擇分類":"全部分類")+'</option>';
+ }
+ if(!companyId){categoryNames=new Map();supplierCatalogProductsById=new Map();return;}
  const rows=await api("/companies/"+companyId+"/product-categories");
  categoryNames=new Map(rows.map(x=>[x.id,x.name+"（"+x.code+"）"]));
- const opts=rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ const opts=rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("parentCategory").insertAdjacentHTML("beforeend",opts);
  $("productCategory").insertAdjacentHTML("beforeend",opts);
+ for(const id of ["supplierOfferingCategory","supplierOfferingFilterCategory","supplierProductFilterCategory"]){
+  if($(id))$(id).insertAdjacentHTML("beforeend",opts);
+ }
+ await loadSupplierCatalogProducts();
+ await loadSupplierOfferings();
+ await loadSupplierProductOfferings();
+}
+async function loadSupplierCatalogProducts(){
+ const select=$("supplierProductProduct");
+ if(!select)return;
+ if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';if($("supplierProductFilterProduct"))$("supplierProductFilterProduct").innerHTML='<option value="">全部商品</option>';supplierCatalogProductsById=new Map();return;}
+ const all=[];let offset=0;
+ while(true){
+  const page=await api("/companies/"+companyId+"/products?limit=500&offset="+offset+"&include_inactive=true");
+  all.push(...page);if(page.length<500)break;offset+=500;
+ }
+ supplierCatalogProductsById=new Map(all.map(item=>[item.id,item]));
+ const options=all.filter(item=>item.is_active).map(item=>'<option value="'+escapeHtml(item.id)+'">'+escapeHtml(item.product_code)+' · '+escapeHtml(item.name)+' · '+escapeHtml(categoryNames.get(item.category_id)||"未分類")+'</option>').join("");
+ select.innerHTML='<option value="">請選擇商品</option>'+options;
+ $("supplierProductFilterProduct").innerHTML='<option value="">全部商品</option>'+options;
 }
 
 function stocktakeStorageKey(){return "gold-erp-stocktake:"+companyId+":"+selectedSiteId;}
@@ -1753,11 +1827,13 @@ $("returnPaymentForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 async function loadSuppliers(){
- const supplierSelects=["billSupplier","billFilterSupplier","purchaseSupplier"];
+ const supplierSelects=["billSupplier","billFilterSupplier","purchaseSupplier","supplierOfferingSupplier","supplierProductSupplier","supplierOfferingFilterSupplier","supplierProductFilterSupplier"];
  if(!companyId){
   suppliersById=new Map();
   $("supplierList").innerHTML='<div class="empty">請先選擇公司</div>';
-  for(const id of supplierSelects)$(id).innerHTML=id==="billFilterSupplier"?'<option value="">全部供應商</option>':'<option value="">請選擇供應商</option>';
+  for(const id of supplierSelects)$(id).innerHTML=(id==="billFilterSupplier"||id==="supplierOfferingFilterSupplier"||id==="supplierProductFilterSupplier")?'<option value="">全部供應商</option>':'<option value="">請選擇供應商</option>';
+  $("supplierOfferingList").innerHTML='<div class="empty">請先選擇公司</div>';
+  $("supplierProductOfferingList").innerHTML='<div class="empty">請先選擇公司</div>';
   return;
  }
  const rows=await api("/companies/"+companyId+"/suppliers");
@@ -1765,7 +1841,13 @@ async function loadSuppliers(){
  const options=rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("billSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
  $("purchaseSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
+ $("supplierOfferingSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
+ $("supplierProductSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
  $("billFilterSupplier").innerHTML='<option value="">全部供應商</option>'+options;
+ $("supplierOfferingFilterSupplier").innerHTML='<option value="">全部供應商</option>'+options;
+ $("supplierProductFilterSupplier").innerHTML='<option value="">全部供應商</option>'+options;
+ await loadSupplierOfferings().catch(error=>message("supplierOfferingStatus",error.message,true));
+ await loadSupplierProductOfferings().catch(error=>message("supplierProductOfferingStatus",error.message,true));
  $("supplierList").innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span><span class="muted">統編：'+escapeHtml(x.tax_id||"未填")+' · 聯絡人：'+escapeHtml(x.contact_name||"未填")+' · 電話：'+escapeHtml(x.phone||"未填")+'</span>'+(x.address?'<span class="muted">'+escapeHtml(x.address)+'</span>':'')+'</article>').join(""):'<div class="empty">尚未建立供應商</div>';
 }
 async function loadSupplierBills(){
@@ -1784,6 +1866,55 @@ async function loadSupplierPayments(){
  const rows=await api("/companies/"+companyId+"/supplier-payables/payments"+(params.toString()?"?"+params.toString():""));
  $("supplierPaymentHistory").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.payment_no)+' · '+escapeHtml(row.payment_method)+'</strong><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 付款時間：'+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</span><span class="pill">付款總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+'</span><span class="muted">分攤：'+(row.allocations||[]).map(a=>escapeHtml(supplierBillsById.get(a.bill_id)?.bill_no||"帳單")+" "+escapeHtml(a.amount)).join("、")+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無供應商付款紀錄</div>';
 }
+async function loadSupplierOfferings(){
+ const box=$("supplierOfferingList");if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ const params=new URLSearchParams();
+ if($("supplierOfferingFilterCategory").value)params.set("category_id",$("supplierOfferingFilterCategory").value);
+ if($("supplierOfferingFilterSupplier").value)params.set("supplier_id",$("supplierOfferingFilterSupplier").value);
+ const rows=await api("/companies/"+companyId+"/supplier-category-offerings"+(params.toString()?"?"+params.toString():""));
+ const labels={ACTIVE:"供應中",PAUSED:"暫停供應",STOPPED:"停止供應"};
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(categoryNames.get(row.category_id)||"商品分類")+' · '+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+'</strong><span class="pill">'+(row.is_preferred?"主要供應商 · ":"")+escapeHtml(labels[row.status]||row.status)+'</span>'+(row.supplier_category_name?'<span class="muted">廠商分類名稱：'+escapeHtml(row.supplier_category_name)+'</span>':'')+(row.note?'<span class="muted">備註：'+escapeHtml(row.note)+'</span>':'')+'</article>').join(""):'<div class="empty">沒有符合條件的分類供貨紀錄</div>';
+}
+async function loadSupplierProductOfferings(){
+ const box=$("supplierProductOfferingList");if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ const params=new URLSearchParams();
+ if($("supplierProductFilterSupplier").value)params.set("supplier_id",$("supplierProductFilterSupplier").value);
+ if($("supplierProductFilterCategory").value)params.set("category_id",$("supplierProductFilterCategory").value);
+ if($("supplierProductFilterProduct").value)params.set("product_id",$("supplierProductFilterProduct").value);
+ const rows=await api("/companies/"+companyId+"/supplier-product-offerings"+(params.toString()?"?"+params.toString():""));
+ const labels={ACTIVE:"供應中",PAUSED:"暫停供應",STOPPED:"停止供應"};
+ box.innerHTML=rows.length?rows.map(row=>{
+  const product=supplierCatalogProductsById.get(row.product_id);
+  return '<article class="item"><strong>'+escapeHtml(product?.name||"商品")+' · '+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+'</strong><span class="pill">'+(row.is_preferred?"主要供應商 · ":"")+escapeHtml(labels[row.status]||row.status)+'</span><span class="muted">商品編號：'+escapeHtml(product?.product_code||"—")+' · 廠商貨號：'+escapeHtml(row.supplier_product_code||"未設定")+'</span><span class="muted">報價：'+(row.quoted_unit_cost===null?"未報價":escapeHtml(row.quoted_unit_cost)+" "+escapeHtml(row.currency_code))+' · 最低訂購量：'+escapeHtml(row.min_order_quantity??"未設定")+' · 交貨：'+escapeHtml(row.lead_time_days===null?"未設定":row.lead_time_days+" 天")+'</span>'+(row.note?'<span class="muted">備註：'+escapeHtml(row.note)+'</span>':'')+'</article>';
+ }).join(""):'<div class="empty">沒有符合條件的實際商品供貨紀錄</div>';
+}
+$("supplierCategoryOfferingForm").addEventListener("submit",async event=>{
+ event.preventDefault();if(!companyId)return;
+ const button=$("supplierCategoryOfferingForm").querySelector('button[type="submit"]');button.disabled=true;
+ const payload={category_id:$("supplierOfferingCategory").value,status:$("supplierOfferingStatus").value,is_preferred:$("supplierOfferingPreferred").checked,supplier_category_name:$("supplierOfferingAlias").value.trim()||null,note:$("supplierOfferingNote").value.trim()||null};
+ try{
+  await api("/companies/"+companyId+"/suppliers/"+$("supplierOfferingSupplier").value+"/category-offerings",{method:"POST",body:JSON.stringify(payload)});
+  $("supplierOfferingAlias").value="";$("supplierOfferingNote").value="";$("supplierOfferingPreferred").checked=false;
+  message("supplierOfferingStatus","廠商供應分類已新增。");await loadSupplierOfferings();
+ }catch(error){message("supplierOfferingStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("supplierProductOfferingForm").addEventListener("submit",async event=>{
+ event.preventDefault();if(!companyId)return;
+ const cost=$("supplierProductCost").value,minQty=$("supplierProductMinQty").value,lead=$("supplierProductLeadTime").value;
+ const payload={product_id:$("supplierProductProduct").value,supplier_product_code:$("supplierProductCode").value.trim()||null,quoted_unit_cost:cost===""?null:cost,currency_code:$("supplierProductCurrency").value,min_order_quantity:minQty===""?null:minQty,lead_time_days:lead===""?null:Number(lead),status:$("supplierProductStatus").value,is_preferred:$("supplierProductPreferred").checked,note:$("supplierProductNote").value.trim()||null};
+ const button=$("supplierProductOfferingForm").querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/suppliers/"+$("supplierProductSupplier").value+"/product-offerings",{method:"POST",body:JSON.stringify(payload)});
+  $("supplierProductCode").value="";$("supplierProductCost").value="";$("supplierProductMinQty").value="";$("supplierProductLeadTime").value="";$("supplierProductNote").value="";$("supplierProductPreferred").checked=false;
+  message("supplierProductOfferingStatus","商品與供應廠商已連結。");await loadSupplierOfferings();await loadSupplierProductOfferings();
+ }catch(error){message("supplierProductOfferingStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("refreshSupplierOfferings").addEventListener("click",()=>loadSupplierOfferings().catch(error=>message("supplierOfferingStatus",error.message,true)));
+$("refreshSupplierProductOfferings").addEventListener("click",()=>loadSupplierProductOfferings().catch(error=>message("supplierProductOfferingStatus",error.message,true)));
+["supplierOfferingFilterCategory","supplierOfferingFilterSupplier"].forEach(id=>$(id).addEventListener("change",()=>loadSupplierOfferings().catch(error=>message("supplierOfferingStatus",error.message,true))));
+["supplierProductFilterSupplier","supplierProductFilterCategory","supplierProductFilterProduct"].forEach(id=>$(id).addEventListener("change",()=>loadSupplierProductOfferings().catch(error=>message("supplierProductOfferingStatus",error.message,true))));
 $("supplierForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId)return;
