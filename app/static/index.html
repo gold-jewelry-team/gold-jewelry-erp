@@ -171,6 +171,81 @@ label{color:#536158;font-weight:600}
  .category-nav{border-color:#e9e2d4;background:#fbfaf5}
 }
 
+ 
+/* 介面視覺整理：暖白底、深綠主色與香檳金點綴 */
+:root{
+ --app-bg:#f4f2ec;
+ --app-surface:#fffefa;
+ --app-ink:#25332b;
+ --app-muted:#707a72;
+ --app-green:#315b46;
+ --app-green-dark:#234332;
+ --app-gold:#b58a3b;
+}
+body{background:var(--app-bg);color:var(--app-ink)}
+.panel{
+ background:var(--app-surface);
+ border-color:#e8e2d5;
+ box-shadow:0 3px 14px rgba(47,57,45,.055);
+}
+main>section.panel[data-category]{
+ border-top:3px solid var(--category-accent,var(--app-gold));
+}
+main>section.panel[data-category] h2:before{
+ width:8px;height:8px;box-shadow:0 0 0 3px color-mix(in srgb,var(--category-accent,var(--app-gold)) 14%,transparent);
+}
+.category-nav button{
+ justify-content:flex-start;
+ gap:8px;
+ border-color:#e7e1d5;
+ background:#fffefa;
+ color:#405247;
+ transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.category-nav button[aria-pressed="true"]{
+ background:var(--category-accent,var(--app-green));
+ border-color:var(--category-accent,var(--app-green));
+ color:#fff;
+}
+.category-nav button[data-category="inventory"]{--category-accent:#43836a}
+.category-nav button[data-category="sales"]{--category-accent:#3976a8}
+.category-nav button[data-category="products"]{--category-accent:#a27a35}
+.category-nav button[data-category="purchasing"]{--category-accent:#8b6ca8}
+.category-nav button[data-category="finance"]{--category-accent:#398b8b}
+.category-nav button[data-category="pricing"]{--category-accent:#b58a3b}
+.category-nav button[data-category="settings"]{--category-accent:#77847b}
+.category-nav button[data-category="advanced"]{--category-accent:#9a6871}
+.category-count{margin-left:auto}
+.category-nav button[aria-pressed="true"] .category-count{background:#ffffff30;color:#fff}
+.category-shortcuts{
+ background:#fbfaf5;
+ border-color:#e8e0d0;
+}
+.category-shortcuts button.shortcut-action{
+ background:#e9efe9;
+ border-color:#d8e2d8;
+ color:#315b46;
+ font-weight:800;
+}
+.category-shortcuts button:not(.shortcut-action){
+ background:#fffefa;
+ border-color:#e5dfd2;
+}
+button{background:linear-gradient(180deg,#3c6b52,#2b503d)}
+button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
+.pill{background:#f4ead4;color:#805f24}
+.item{background:#fffefa;border-color:#e8e2d5}
+.status:not(.error){color:#28724d}
+@media(max-width:899px){
+ .category-nav button{min-height:44px;padding:9px 12px}
+ .category-shortcuts{gap:6px}
+ .category-shortcuts button{min-height:38px}
+}
+@media(prefers-reduced-motion:no-preference){
+ .panel{transition:box-shadow .18s ease,border-color .18s ease}
+ .panel:focus-within{border-color:#d6c49b;box-shadow:0 4px 18px rgba(47,57,45,.08)}
+}
+
 </style>
 </head>
 <body>
@@ -2259,14 +2334,14 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  const main=document.querySelector("main");
  const panels=Array.from(main.querySelectorAll(":scope > section.panel"));
  const categories=[
-  {id:"inventory",label:"庫存作業"},
-  {id:"sales",label:"銷售與退貨"},
-  {id:"products",label:"商品管理"},
-  {id:"purchasing",label:"採購與供應商"},
-  {id:"finance",label:"財務與結帳"},
-  {id:"pricing",label:"金價牌價"},
-  {id:"settings",label:"公司與門市"},
-  {id:"advanced",label:"進階設定"}
+  {id:"inventory",label:"庫存管理",icon:"📦"},
+  {id:"sales",label:"銷售與退貨",icon:"🧾"},
+  {id:"products",label:"商品與條碼",icon:"🏷️"},
+  {id:"purchasing",label:"採購與供應商",icon:"🛒"},
+  {id:"finance",label:"財務與結帳",icon:"💰"},
+  {id:"pricing",label:"金價與牌價",icon:"🪙"},
+  {id:"settings",label:"公司／據點設定",icon:"🏬"},
+  {id:"advanced",label:"特殊設定",icon:"⚙️"}
  ];
  const titleOf=panel=>{
   const h2=panel.querySelector(":scope > h2");
@@ -2305,7 +2380,8 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   button.type="button";
   button.dataset.category=category.id;
   const label=document.createElement("span");
-  label.textContent=category.label;
+  label.className="category-label";
+  label.textContent=category.icon+" "+category.label;
   const count=document.createElement("span");
   count.className="category-count";
   count.textContent=String(panels.filter(panel=>panel.dataset.category===category.id).length);
@@ -2423,7 +2499,34 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  });
  const renderShortcuts=category=>{
   shortcuts.querySelectorAll("button").forEach(b=>b.remove());
-  panels.filter(p=>p.dataset.category===category).forEach(panel=>{
+  const categoryPanels=panels.filter(p=>p.dataset.category===category);
+  const expandAll=document.createElement("button");
+  expandAll.type="button";
+  expandAll.className="shortcut-action";
+  expandAll.textContent="全部展開";
+  expandAll.addEventListener("click",()=>{
+   categoryPanels.forEach(panel=>{
+    if(panel.classList.contains("panel-collapsed")){
+     const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+     if(toggle)toggle.click();
+    }
+   });
+  });
+  shortcuts.appendChild(expandAll);
+  const collapseAll=document.createElement("button");
+  collapseAll.type="button";
+  collapseAll.className="shortcut-action";
+  collapseAll.textContent="全部收合";
+  collapseAll.addEventListener("click",()=>{
+   categoryPanels.forEach(panel=>{
+    if(!panel.classList.contains("panel-collapsed")){
+     const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+     if(toggle)toggle.click();
+    }
+   });
+  });
+  shortcuts.appendChild(collapseAll);
+  categoryPanels.forEach(panel=>{
    const button=document.createElement("button");
    button.type="button";
    button.textContent=titleFor(panel);
