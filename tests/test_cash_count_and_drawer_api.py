@@ -165,3 +165,99 @@ def test_cash_drawer_movement_is_rejected_after_daily_closing():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_cash_count_and_review_are_scoped_to_the_exact_site_and_closing():
+    engine, TestSession, (company_id, site_id) = _cash_context()
+    try:
+        db = TestSession()
+        company = db.get(Company, company_id)
+        other_site = Site(company_id=company_id, code="BRANCH", name="分店")
+        other_company = Company(code="CASH-OTHER", name="其他公司")
+        db.add_all([other_site, other_company])
+        db.flush()
+        foreign_site_id = other_site.id
+        foreign_company_site = Site(
+            company_id=other_company.id, code="MAIN", name="其他公司總店"
+        )
+        db.add(foreign_company_site)
+        db.commit()
+        foreign_company_id = other_company.id
+        foreign_company_site_id = foreign_company_site.id
+        db.close()
+
+        client = TestClient(app)
+        business_date = datetime.now(timezone.utc).astimezone(
+            ZoneInfo("Asia/Taipei")
+        ).date()
+        primary_close = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert primary_close.status_code == 201, primary_close.text
+        primary_closing_id = primary_close.json()["id"]
+
+        other_site_close = client.post(
+            f"/companies/{company_id}/sites/{foreign_site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert other_site_close.status_code == 201, other_site_close.text
+        other_closing_id = other_site_close.json()["id"]
+
+        foreign_company_close = client.post(
+            f"/companies/{foreign_company_id}/sites/{foreign_company_site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert foreign_company_close.status_code == 201, foreign_company_close.text
+
+        primary_url = (
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/"
+            f"{primary_closing_id}/cash-count"
+        )
+        count = client.post(primary_url, json={
+            "opening_cash_float": "500.00",
+            "counted_cash_amount": "500.00",
+            "counted_by_name": "店員甲",
+        })
+        assert count.status_code == 201, count.text
+        count_id = count.json()["id"]
+
+        wrong_closing_review = client.post(
+            f"{primary_url.replace(str(primary_closing_id), str(other_closing_id))}/"
+            f"{count_id}/review",
+            json={"reviewed_by_name": "主管乙"},
+        )
+        assert wrong_closing_review.status_code == 422
+
+        wrong_site_count = client.post(
+            f"/companies/{company_id}/sites/{foreign_site_id}/daily-closings/"
+            f"{primary_closing_id}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "500.00",
+                "counted_by_name": "店員甲",
+            },
+        )
+        assert wrong_site_count.status_code == 422
+
+        wrong_company_count = client.post(
+            f"/companies/{foreign_company_id}/sites/{foreign_company_site_id}/"
+            f"daily-closings/{primary_closing_id}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "500.00",
+                "counted_by_name": "店員甲",
+            },
+        )
+        assert wrong_company_count.status_code == 422
+
+        check = TestSession()
+        from uuid import UUID
+        saved = check.get(DailyCashCount, UUID(count_id))
+        assert saved is not None
+        assert saved.reviewed_at is None
+        assert check.query(DailyCashCount).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
