@@ -1,0 +1,62 @@
+name: Manual Production Alembic Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: "Type RUN PRODUCTION MIGRATION to authorize this run"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gold-jewelry-erp-production-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Upgrade Neon production schema
+    if: ${{ inputs.confirm_production == 'RUN PRODUCTION MIGRATION' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check production database secret
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::GitHub Actions secret DATABASE_URL is not configured."
+            exit 1
+          fi
+
+      - name: Show current Alembic revision
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: alembic current
+
+      - name: Upgrade production database to head
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: alembic upgrade head
+
+      - name: Verify final Alembic revision
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          alembic current
+          alembic current | grep -q "0024_labor_code_settings"
