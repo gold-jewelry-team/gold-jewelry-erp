@@ -292,7 +292,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 #quoteWorkbenchPanel .quote-product-result strong{display:block;font-size:14px}
 #quoteWorkbenchPanel .quote-product-result small{display:block;color:#68716b;font-size:11px;margin-top:3px;line-height:1.5}
 #quoteWorkbenchPanel .quote-product-result .quote-stock{white-space:nowrap;font-size:11px;color:#28724d}
-#quoteWorkbenchPanel .quote-line{display:grid;grid-template-columns:minmax(150px,1.5fr) repeat(5,minmax(82px,1fr)) auto;gap:8px;align-items:center;padding:10px;margin:8px 0;border:1px solid #e5e7e3;border-radius:12px;background:#fff}
+#quoteWorkbenchPanel .quote-line{display:grid;grid-template-columns:minmax(150px,1.5fr) repeat(2,minmax(82px,1fr)) auto;gap:8px;align-items:center;padding:10px;margin:8px 0;border:1px solid #e5e7e3;border-radius:12px;background:#fff}
 #quoteWorkbenchPanel .quote-line-main{min-width:0}
 #quoteWorkbenchPanel .quote-line-main strong{display:block;font-size:13px}
 #quoteWorkbenchPanel .quote-line-main small{display:block;color:#68716b;font-size:11px;margin-top:3px;line-height:1.5}
@@ -3043,6 +3043,7 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  const key="estimate-"+Date.now()+"-"+Math.random().toString(36).slice(2,7);
  const product={id:key,product_code:"預估規格",name:name||"未命名預估規格",style_code:$("quoteProductSearch").value.trim()||"",chain_length:size,net_weight:weight,weight_unit_code:unit,labor_fee:labor};
  const oldWeight=Number($("quoteOldGoldWeight").value||0),source=$("quoteTradeInSource").value||null,ratio=$("quoteTradeInRatio").value||"0.95";
+ if(!Number.isFinite(oldWeight)||oldWeight<0){quoteSetStatus("舊金折抵重量不可小於 0。",true);return;}
  if(oldWeight>0&&!source){quoteSetStatus("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。",true);return;}
  if(oldWeight===0&&source){quoteSetStatus("選擇舊金來源時，請輸入大於 0 的舊金重量。",true);return;}
  if(source==="EXTERNAL"&&(!Number.isFinite(Number(ratio))||Number(ratio)<=0||Number(ratio)>1)){quoteSetStatus("外店折抵比率須大於 0 且不得超過 1。",true);return;}
