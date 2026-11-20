@@ -13,6 +13,7 @@ class ProductCategory(Base):
     __tablename__ = "product_categories"
     __table_args__ = (
         UniqueConstraint("company_id", "code", name="uq_product_categories_company_code"),
+        UniqueConstraint("id", "company_id", name="uq_product_categories_id_company"),
         CheckConstraint("length(code) > 0", name="ck_product_categories_code_nonempty"),
     )
 
@@ -31,6 +32,7 @@ class Product(Base):
     __tablename__ = "products"
     __table_args__ = (
         UniqueConstraint("company_id", "product_code", name="uq_products_company_code"),
+        UniqueConstraint("id", "company_id", name="uq_products_id_company"),
         UniqueConstraint("company_id", "barcode", name="uq_products_company_barcode"),
         CheckConstraint("length(product_code) > 0", name="ck_products_code_nonempty"),
         CheckConstraint("length(name) > 0", name="ck_products_name_nonempty"),

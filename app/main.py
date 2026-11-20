@@ -11,6 +11,7 @@ from app.routers.labor_code_settings import router as labor_code_settings_router
 from app.routers.product_code_sequence import router as product_code_sequence_router
 from app.routers.gold_prices import router as gold_prices_router
 from app.routers.gold_material import router as gold_material_router
+from app.routers.supplier_offerings import router as supplier_offerings_router
 from app.routers.suppliers import router as suppliers_router
 from app.routers.purchases import router as purchases_router
 from app.routers.inventory import router as inventory_router
@@ -39,6 +40,7 @@ app.include_router(labor_code_settings_router)
 app.include_router(product_code_sequence_router)
 app.include_router(gold_prices_router)
 app.include_router(gold_material_router)
+app.include_router(supplier_offerings_router)
 app.include_router(suppliers_router)
 app.include_router(purchases_router)
 app.include_router(inventory_router)

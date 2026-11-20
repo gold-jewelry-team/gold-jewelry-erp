@@ -9,12 +9,13 @@ from app.models.inventory import InventoryMovement
 from app.models.supplier import Supplier
 from app.models.purchase import Purchase, PurchaseLine
 from app.models.gold_material import GoldMaterialMovement, GoldMaterialSettlementAllocation
+from app.models.supplier_offering import SupplierCategoryOffering, SupplierProductOffering
 
 __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "ProductCodeSequence", "InventoryMovement", "Supplier",
     "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary", "PaymentTransaction", "SupplierBill", "SupplierPayment", "SupplierPaymentAllocation", "OperatingExpense", "DailyCashCount", "CashDrawerMovement", "BankAccount", "BankTransaction", "BankStatementImport", "BankStatementLine", "BankReconciliationSnapshot", "LaborCodeSetting", "LaborCodeMapping",
-    "GoldMaterialMovement", "GoldMaterialSettlementAllocation",
+    "GoldMaterialMovement", "GoldMaterialSettlementAllocation", "SupplierCategoryOffering", "SupplierProductOffering",
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine

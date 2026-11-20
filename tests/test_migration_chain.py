@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_supplier_gold_material():
+def test_alembic_history_is_a_single_linear_chain_through_supplier_product_catalog():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0025_supplier_gold_material"]
+    assert script.get_heads() == ["0026_supplier_product_catalog"]
 
     expected = [
+        "0026_supplier_product_catalog",
         "0025_supplier_gold_material",
         "0024_labor_code_settings",
         "0023_purchase_labor_cost",
