@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -132,7 +133,7 @@ def test_supplier_gold_delivery_reduces_fine_gold_stock_and_supplier_payable():
         check = TestSession()
         assert check.query(GoldMaterialMovement).count() == 2
         assert check.query(GoldMaterialSettlementAllocation).count() == 1
-        stored_bill = check.get(SupplierBill, bill.json()["id"])
+        stored_bill = check.get(SupplierBill, UUID(bill.json()["id"]))
         assert stored_bill.paid_amount == Decimal("14998.50")
         check.close()
     finally:
