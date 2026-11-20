@@ -284,6 +284,25 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  .gold-history-unit{grid-column:1/-1}
  .gold-history-price strong{font-size:13px}
 }
+
+/* 現場報價工作台 */
+#quickQuote{flex:0 0 auto;min-height:34px;height:34px;padding:6px 11px;border:1px solid #9bb9a4;border-radius:999px;background:#dce9df;color:#263b30;font-size:12px;font-weight:800;white-space:nowrap}
+#quoteWorkbenchPanel .quote-search-results{display:grid;gap:8px;margin-top:10px}
+#quoteWorkbenchPanel .quote-product-result{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:58px;padding:10px 12px;border:1px solid #e1e6df;border-radius:12px;background:#fff;text-align:left;color:#202124}
+#quoteWorkbenchPanel .quote-product-result strong{display:block;font-size:14px}
+#quoteWorkbenchPanel .quote-product-result small{display:block;color:#68716b;font-size:11px;margin-top:3px;line-height:1.5}
+#quoteWorkbenchPanel .quote-product-result .quote-stock{white-space:nowrap;font-size:11px;color:#28724d}
+#quoteWorkbenchPanel .quote-line{display:grid;grid-template-columns:minmax(150px,1.5fr) repeat(5,minmax(82px,1fr)) auto;gap:8px;align-items:center;padding:10px;margin:8px 0;border:1px solid #e5e7e3;border-radius:12px;background:#fff}
+#quoteWorkbenchPanel .quote-line-main{min-width:0}
+#quoteWorkbenchPanel .quote-line-main strong{display:block;font-size:13px}
+#quoteWorkbenchPanel .quote-line-main small{display:block;color:#68716b;font-size:11px;margin-top:3px;line-height:1.5}
+#quoteWorkbenchPanel .quote-line input,#quoteWorkbenchPanel .quote-line select{width:100%;min-width:0;min-height:38px;padding:7px;font-size:14px}
+#quoteWorkbenchPanel .quote-line label{display:block;margin-bottom:4px;font-size:10px;color:#68716b}
+#quoteWorkbenchPanel .quote-line .quote-remove{white-space:nowrap}
+#quoteWorkbenchPanel .quote-note{padding:10px;margin-top:10px;border-radius:10px;background:#f5f6f2;color:#59635c;font-size:12px;line-height:1.6}
+#quoteCalcSummary strong{color:#263b30}
+@media(max-width:760px){#quoteWorkbenchPanel .quote-line{grid-template-columns:1fr 1fr;gap:8px}#quoteWorkbenchPanel .quote-line-main{grid-column:1/-1}#quoteWorkbenchPanel .quote-line .quote-remove{grid-column:1/-1;width:100%}#quoteWorkbenchPanel .quote-product-result{align-items:flex-start}#quoteWorkbenchPanel .quote-product-result .quote-stock{white-space:normal;text-align:right;min-width:65px}}
+
 </style>
 </head>
 <body>
