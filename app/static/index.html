@@ -12,7 +12,7 @@ main{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:14px}.panel{bac
 h2{font-size:16px;margin:0 0 14px}.sub{font-size:12px;color:#68716b;margin:-8px 0 12px}
 label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;background:#fff;color:#202124}input:focus,select:focus{outline:2px solid #899b8d;outline-offset:1px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;margin-bottom:10px}.wide{grid-column:1/-1}button{border:0;border-radius:11px;min-height:44px;padding:10px 15px;background:#263b30;color:#fff;font:inherit;font-weight:600;cursor:pointer}button.secondary{background:#edf1ed;color:#263b30}button:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:13px;min-height:20px;color:#526257;margin-top:8px}.status.error{color:#b42318}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}.item{border:1px solid #e7eae6;border-radius:12px;padding:12px;margin-top:9px;display:grid;gap:5px}.item strong{font-size:15px}.muted{font-size:12px;color:#6a746d}.pill{font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px;width:max-content}.empty{font-size:13px;color:#788079;padding:18px 0;text-align:center}.hidden{display:none}
 @media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
- .label-lot-modal.hidden{display:none}.label-lot-modal{position:fixed;inset:0;background:#101512dd;z-index:25;display:flex;align-items:center;justify-content:center;padding:16px}.label-lot-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px;max-height:90vh;overflow:auto}.scan-modal.hidden{display:none}.scan-modal{position:fixed;inset:0;background:#101512dd;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}.scan-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px}.scan-dialog video{display:block;width:100%;max-height:58vh;object-fit:cover;background:#111;border-radius:12px}.scan-hint{font-size:13px;color:#59635c;margin:10px 0}.scan-actions{display:flex;gap:8px;margin-top:12px}.scan-actions button{flex:1}
+ .label-lot-modal.hidden{display:none}.label-lot-modal{position:fixed;inset:0;background:#101512dd;z-index:25;display:flex;align-items:center;justify-content:center;padding:16px}.label-lot-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px;max-height:90vh;overflow:auto}.scan-modal.hidden{display:none}.scan-modal{position:fixed;inset:0;background:#101512dd;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}.scan-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px}.scan-dialog video{display:block;width:100%;max-height:58vh;object-fit:cover;background:#111;border-radius:12px}.scan-camera-wrap{position:relative}.scan-frame{position:absolute;left:15%;right:15%;top:30%;height:40%;border:2px solid #8ee0a8;border-radius:12px;box-shadow:0 0 0 999px #0003;pointer-events:none}.scan-settings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.scan-settings label{font-size:12px}.scan-settings select{min-height:38px;font-size:13px}.scan-results{display:grid;gap:7px;margin-top:8px}.scan-results button{width:100%;text-align:left;overflow-wrap:anywhere}.scan-hint{font-size:13px;color:#59635c;margin:10px 0}.scan-actions{display:flex;gap:8px;margin-top:12px}.scan-actions button{flex:1}
 @media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
 
 /* 全站快速導覽與頁面定位 */
@@ -567,7 +567,7 @@ main>section.panel[data-category]{min-width:0}
 </div>
 <div id="scanModal" class="scan-modal hidden" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
  <div class="scan-dialog"><h2 id="scanTitle">掃描商品條碼／QR Code</h2>
-  <video id="scanVideo" autoplay muted playsinline></video>
+  <div class="scan-settings"><div><label for="scanFormatMode">辨識格式</label><select id="scanFormatMode"><option value="linear">只掃一維條碼（預設）</option><option value="qr">只掃 QR Code</option><option value="both">一維條碼＋QR Code</option></select></div><div><label for="scanMultipleMode">多碼處理</label><select id="scanMultipleMode"><option value="block">多個條碼時停止並提示</option><option value="select">顯示結果讓我選擇</option></select></div></div><div class="scan-camera-wrap"><video id="scanVideo" autoplay muted playsinline></video><div class="scan-frame" aria-hidden="true"></div></div><div id="scanResults" class="scan-results" hidden></div>
   <p id="scanHint" class="scan-hint" role="status">將商品條碼或 QR Code 對準鏡頭，辨識成功後會自動帶入商品。</p>
   <div class="scan-actions"><button id="closeScanner" class="secondary" type="button">關閉相機</button><button id="switchScannerCamera" class="secondary" type="button">切換鏡頭</button></div>
  </div>
@@ -597,7 +597,7 @@ let purchaseCartLines=[];
 let purchasesById=new Map();
 let selectedPurchase=null;
 let selectedPurchaseLine=null;
-let scanStream=null,scanFrameHandle=null,scanDetector=null,scanTarget="",scanFacingMode="environment",scanBusy=false;
+let scanStream=null,scanFrameHandle=null,scanDetector=null,scanTarget="",scanFacingMode="environment",scanBusy=false,scanFormatMode=localStorage.getItem("scanFormatMode")||"linear",scanMultipleMode=localStorage.getItem("scanMultipleMode")||"block";
 let stocktakeLines=[],stocktakeLocationId="",stocktakeExpectedByProduct=new Map();
 const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"部分刷卡",TRANSFER:"轉帳",OTHER:"其他"};
 const api=async(path,options={})=>{
@@ -616,26 +616,47 @@ function stopCameraScanner(){
  scanDetector=null;scanBusy=false;
 }
 async function closeCameraScanner(){stopCameraScanner();$("scanModal").classList.add("hidden");}
+function scannerFormats(supported){
+ const linear=["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar"];
+ const selected=scanFormatMode==="qr"?["qr_code"]:scanFormatMode==="both"?[...linear,"qr_code"]:linear;
+ return selected.filter(format=>supported.includes(format));
+}
+function scanResultInCenter(item,video){
+ const box=item.boundingBox;if(!box||!video.videoWidth||!video.videoHeight)return false;
+ const x=(box.x+box.width/2)/video.videoWidth,y=(box.y+box.height/2)/video.videoHeight;
+ return x>=0.15&&x<=0.85&&y>=0.30&&y<=0.70;
+}
+async function chooseScannedCode(item){
+ const code=String(item.rawValue||"").trim();if(!code)return;
+ const targetNow=scanTarget;await closeCameraScanner();await handleScannedProductCode(code,targetNow);
+}
+function showScanChoices(codes){
+ scanBusy=true;const results=$("scanResults");results.replaceChildren();results.hidden=false;
+ $("scanHint").textContent="中央掃描框內有多個條碼，請選擇正確的商品碼。";
+ codes.forEach(item=>{const button=document.createElement("button");button.type="button";button.className="secondary";button.textContent=(item.format==="qr_code"?"QR Code":"一維條碼")+"："+String(item.rawValue).slice(0,80);button.addEventListener("click",()=>chooseScannedCode(item));results.appendChild(button);});
+}
 async function openCameraScanner(target){
  scanTarget=target;
  if(!("BarcodeDetector" in window)){message("globalStatus","此瀏覽器尚未支援相機條碼辨識；可使用外接條碼槍或手動輸入條碼。",true);return;}
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){message("globalStatus","瀏覽器無法使用相機，請確認使用 HTTPS 並允許相機權限。",true);return;}
  try{
   stopCameraScanner();
+  $("scanFormatMode").value=scanFormatMode;$("scanMultipleMode").value=scanMultipleMode;$("scanResults").replaceChildren();$("scanResults").hidden=true;
   const supported=await window.BarcodeDetector.getSupportedFormats();
-  const preferred=["qr_code","ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar","data_matrix","pdf417","aztec"];
-  const formats=preferred.filter(format=>supported.includes(format));
-  if(!formats.length)throw new Error("此瀏覽器沒有可用的條碼格式。");
+  const formats=scannerFormats(supported);
+  if(!formats.length)throw new Error("此裝置不支援所選的條碼格式，請切換辨識模式。");
   scanDetector=new window.BarcodeDetector({formats});
   scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:scanFacingMode},width:{ideal:1280},height:{ideal:720}},audio:false});
   const video=$("scanVideo");video.srcObject=scanStream;await video.play();
-  $("scanHint").textContent="辨識中…請將條碼完整對準畫面中央。";$("scanModal").classList.remove("hidden");
+  $("scanHint").textContent="辨識中…請將單一條碼完整放入畫面中央框線內。";$("scanModal").classList.remove("hidden");
   const detect=async()=>{
    if(!scanStream||!scanDetector||scanBusy)return;
    try{
-    const codes=await scanDetector.detect(video);
-    const value=codes.find(item=>item.rawValue&&String(item.rawValue).trim())?.rawValue;
-    if(value){scanBusy=true;const targetNow=scanTarget;await closeCameraScanner();await handleScannedProductCode(String(value).trim(),targetNow);return;}
+    const codes=(await scanDetector.detect(video)).filter(item=>item.rawValue&&String(item.rawValue).trim()&&scanResultInCenter(item,video));
+    if(codes.length>1){
+     if(scanMultipleMode==="select"){showScanChoices(codes);return;}
+     $("scanHint").textContent="偵測到多個條碼！請只將一個條碼放入中央框線，系統不會自動挑選。";
+    }else if(codes.length===1){scanBusy=true;await chooseScannedCode(codes[0]);return;}
    }catch(error){$("scanHint").textContent="相機辨識中，請調整距離與角度。";}
    if(scanStream)scanFrameHandle=requestAnimationFrame(detect);
   };
@@ -1799,6 +1820,8 @@ $("scanPurchaseReceiveButton").addEventListener("click",()=>openCameraScanner("p
 [["adjustmentScanCode","adjustment"],["transferScanCode","transfer"],["purchaseScanCode","purchase"],["purchaseReceiveScanCode","purchaseReceive"]].forEach(([id,target])=>$(id).addEventListener("keydown",event=>{if(event.key!=="Enter")return;event.preventDefault();const code=$(id).value.trim();if(code)handleScannedProductCode(code,target);}));
 $("scanSaleButton").addEventListener("click",()=>openCameraScanner("sale"));
 $("scanProductButton").addEventListener("click",()=>openCameraScanner("product"));
+$("scanFormatMode").addEventListener("change",event=>{scanFormatMode=event.target.value;localStorage.setItem("scanFormatMode",scanFormatMode);});
+$("scanMultipleMode").addEventListener("change",event=>{scanMultipleMode=event.target.value;localStorage.setItem("scanMultipleMode",scanMultipleMode);});
 $("closeScanner").addEventListener("click",closeCameraScanner);
 $("switchScannerCamera").addEventListener("click",async()=>{scanFacingMode=scanFacingMode==="environment"?"user":"environment";await openCameraScanner(scanTarget);});
 $("scanModal").addEventListener("click",event=>{if(event.target===$("scanModal"))closeCameraScanner();});
