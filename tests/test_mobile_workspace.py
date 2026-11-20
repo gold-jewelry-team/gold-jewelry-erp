@@ -102,3 +102,14 @@ def test_mobile_workspace_serves_html():
     assert "尚有" in response.text and "件商品未核對" in response.text
     assert "verified:!!x.verified" in response.text
     assert "已載入帳面庫存清單" in response.text
+
+    assert 'id="quoteWorkbenchPanel"' in response.text
+    assert 'id="quoteProduct"' in response.text
+    assert 'id="quoteLaborFee"' in response.text
+    assert 'id="quoteOldGoldWeight"' in response.text
+    assert 'id="quoteTradeInSource"' in response.text
+    assert 'id="quoteTradeInRatio"' in response.text
+    assert 'id="quoteAddProductButton"' in response.text
+    assert "async function addQuoteProduct()" in response.text
+    assert "已加入報價清單；此操作不扣庫存、不建立正式銷售。" in response.text
+    assert 'id="saleOldGoldWeight"' in response.text
