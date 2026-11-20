@@ -319,7 +319,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  <div class="field"><label for="quoteLaborFee">本次報價工錢（留空使用商品預設）</label><input id="quoteLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
  <div class="field"><label for="quoteOldGoldWeight">舊金折抵重量</label><input id="quoteOldGoldWeight" type="number" min="0" step="0.0001" value="0"></div>
  <div class="field"><label for="quoteTradeInSource">舊金來源</label><select id="quoteTradeInSource"><option value="">無舊金折抵</option><option value="LOCAL">本店舊金（折抵比率 100%）</option><option value="EXTERNAL">外店舊金（預設折抵比率 95%）</option></select></div>
- <div class="field"><label for="quoteTradeInRatio">折抵比率（外店適用）</label><input id="quoteTradeInRatio" type="number" min="0.000001" max="1" step="0.000001" value="0.95"></div>
+ <div class="field hidden" id="quoteTradeInRatioField"><label for="quoteTradeInRatio">外店折抵比率（%）</label><input id="quoteTradeInRatio" type="number" min="0.01" max="100" step="0.01" value="95" inputmode="decimal" placeholder="例如 95"></div>
 </div>
 <div class="actions"><button id="quoteAddProductButton" type="button">加入報價清單</button></div>
 <div class="field"><label for="quoteProductSearch">搜尋同款／不同尺寸</label><input id="quoteProductSearch" type="search" placeholder="商品名稱、款式編號、分類、材質或商品編號"></div>
@@ -2985,7 +2985,7 @@ async function addQuoteProduct(){
  const product=inventoryProducts.find(x=>x.id===productId&&x.is_active);
  if(!product){quoteSetStatus("請先選擇有效商品。",true);return;}
  if(quoteSelectedProducts.some(x=>x.id===product.id)){quoteSetStatus("這件商品已在報價清單。",true);return;}
- const oldWeight=Number($("quoteOldGoldWeight").value||0),source=$("quoteTradeInSource").value||null,ratio=$("quoteTradeInRatio").value||"0.95";
+ const oldWeight=Number($("quoteOldGoldWeight").value||0),source=$("quoteTradeInSource").value||null,ratio=String((Number($("quoteTradeInRatio").value||95))/100);
  if(!Number.isFinite(oldWeight)||oldWeight<0){quoteSetStatus("舊金折抵重量不可小於 0。",true);return;}
  if(oldWeight>0&&!source){quoteSetStatus("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。",true);return;}
  if(oldWeight===0&&source){quoteSetStatus("選擇舊金來源時，請輸入大於 0 的舊金重量。",true);return;}
@@ -2995,7 +2995,7 @@ async function addQuoteProduct(){
  try{await loadQuoteStockBalances();stockRows=quoteStockRowsByProduct.get(product.id)||[];}catch(error){message("quoteSearchStatus","商品已加入報價，但庫存查詢失敗："+error.message,true);}
  quoteSelectedProducts.push({id:product.id,product,weight:String(product.net_weight??0),labor:labor===""?String(product.labor_fee??0):labor,oldWeight:String(oldWeight),tradeInSource:source,tradeInRatio:String(ratio),stockRows});
  renderQuoteLines();
- $("quoteProduct").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="0.95";
+ $("quoteProduct").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  quoteSetStatus("已加入報價清單；此操作不扣庫存、不建立正式銷售。");
 }
 function renderQuoteLines(){
@@ -3055,6 +3055,9 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  quoteSetStatus("已加入報價清單。這是非庫存預估規格，不會建立商品或庫存。");
 });
 
+function updateQuoteTradeInRatioVisibility(){const field=$("quoteTradeInRatioField");if(!field)return;field.classList.toggle("hidden",$("quoteTradeInSource").value!=="EXTERNAL");}
+$("quoteTradeInSource").addEventListener("change",updateQuoteTradeInRatioVisibility);
+updateQuoteTradeInRatioVisibility();
 $("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
 $("quoteAddProductButton").addEventListener("click",addQuoteProduct);
 $("quoteSearchResults").addEventListener("click",event=>{
