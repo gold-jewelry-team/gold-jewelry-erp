@@ -35,7 +35,7 @@ header{padding:14px 16px 10px}
 .panel-collapsible>h2{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .panel-toggle{flex:0 0 auto;min-height:34px;padding:6px 12px;font-size:12px}
 .panel-collapsed>.panel-content{display:none}
-main>section.panel[id]{scroll-margin-top:150px}
+main>section.panel[id]{scroll-margin-top:240px}
 #backToTop{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:15;display:none;min-height:44px;padding:10px 14px;border-radius:999px;box-shadow:0 3px 14px #0003}
 #backToTop.visible{display:block}
 @media(min-width:640px){header{padding-left:max(16px,calc((100vw - 760px)/2));padding-right:max(16px,calc((100vw - 760px)/2))}.quick-nav{margin-top:10px}}
@@ -55,7 +55,7 @@ main>section.panel[data-category]{min-width:0}
 @media(min-width:900px){
  main{max-width:1180px;grid-template-columns:220px minmax(0,1fr);align-items:start}
  header{padding-left:max(16px,calc((100vw - 1180px)/2));padding-right:max(16px,calc((100vw - 1180px)/2))}
- .category-nav{grid-column:1;grid-row:1 / span 50;position:sticky;top:154px;display:flex;flex-direction:column;align-self:start;gap:7px;overflow:visible;white-space:normal;padding:12px;background:#fff;border:1px solid #e5e7e3;border-radius:16px;box-shadow:0 2px 10px #1111}
+ .category-nav{grid-column:1;grid-row:1 / span 50;position:sticky;top:240px;display:flex;flex-direction:column;align-self:start;gap:7px;overflow:visible;white-space:normal;padding:12px;background:#fff;border:1px solid #e5e7e3;border-radius:16px;box-shadow:0 2px 10px #1111}
  .category-nav-title{display:block;padding:2px 5px 7px;color:#68716b;font-size:12px;font-weight:700}
  .category-nav button{width:100%;justify-content:space-between;text-align:left}
  main>section.panel[data-category],main>section.panel.span2,main>section.panel.products{grid-column:2}
@@ -70,8 +70,8 @@ main>section.panel[data-category]{min-width:0}
 .panel-heading-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .panel-heading-row h2{margin:0}
 .panel-toggle{white-space:nowrap}
-@media(max-width:899px){.category-shortcuts{grid-column:1/-1;position:sticky;top:122px;z-index:4;max-height:112px;overflow:auto}}
-@media(min-width:900px){.category-shortcuts{position:sticky;top:154px;z-index:4}}
+@media(max-width:899px){.category-shortcuts{grid-column:1/-1;position:sticky;top:240px;z-index:4;max-height:112px;overflow:auto}}
+@media(min-width:900px){.category-shortcuts{position:sticky;top:240px;z-index:4}}
 
 
 /* PR #95：首頁金價摘要、單位換算與休市提醒 */
