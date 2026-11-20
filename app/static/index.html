@@ -20,6 +20,10 @@ header{padding:14px 16px 10px}
 .quick-nav{display:flex;gap:7px;overflow-x:auto;overscroll-behavior-x:contain;white-space:nowrap;margin:12px -4px 0;padding:0 4px 5px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
 .quick-nav a{display:inline-flex;align-items:center;min-height:34px;padding:6px 11px;border:1px solid #ffffff35;border-radius:999px;color:#eef4ef;text-decoration:none;font-size:12px;font-weight:600;background:#ffffff12;flex:0 0 auto}
 .quick-nav a:hover,.quick-nav a:focus-visible{background:#ffffff2b;outline:2px solid #c7d8cb;outline-offset:1px}
+#quickNavSearch{flex:0 0 150px;width:150px;min-height:34px;height:34px;padding:6px 10px;border:1px solid #ffffff55;border-radius:999px;background:#fff;color:#202124;font-size:12px}
+#quickNavSearch::placeholder{color:#66716a}
+#quickNavSearch:focus{outline:2px solid #c7d8cb;outline-offset:1px}
+.quick-nav a[hidden]{display:none}
 main>section.panel[id]{scroll-margin-top:150px}
 #backToTop{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:15;display:none;min-height:44px;padding:10px 14px;border-radius:999px;box-shadow:0 3px 14px #0003}
 #backToTop.visible{display:block}
@@ -28,7 +32,7 @@ main>section.panel[id]{scroll-margin-top:150px}
 </style>
 </head>
 <body>
-<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><span style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
+<header><h1>黃金珠寶進銷存</h1><p>門市工作區 · 快速導覽可直接跳至各項功能</p><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span style="font-size:12px;color:#dce6df">功能載入中…</span></nav></header>
 <main>
 <section class="panel span2">
 <h2>目前公司</h2>
@@ -1817,6 +1821,25 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   nav.appendChild(link);
   count++;
  });
+ const search=document.getElementById("quickNavSearch");
+ const filterLinks=()=>{
+  const query=search.value.trim().toLocaleLowerCase();
+  let visible=0;
+  nav.querySelectorAll("a").forEach(link=>{
+   const match=!query||link.textContent.toLocaleLowerCase().includes(query);
+   link.hidden=!match;
+   if(match)visible++;
+  });
+  search.setAttribute("aria-label",query&&visible===0?"沒有符合的功能，請更換關鍵字":"搜尋功能並快速跳轉");
+ };
+ search.addEventListener("input",filterLinks);
+ search.addEventListener("keydown",event=>{
+  if(event.key==="Enter"){
+   const first=Array.from(nav.querySelectorAll("a")).find(link=>!link.hidden);
+   if(first){event.preventDefault();first.click();}
+  }else if(event.key==="Escape"){search.value="";filterLinks();}
+ });
+ filterLinks();
  if(!count)nav.textContent="目前沒有可導覽的功能";
  const topButton=document.getElementById("backToTop");
  const updateTopButton=()=>topButton.classList.toggle("visible",window.scrollY>500);
