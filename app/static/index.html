@@ -53,6 +53,18 @@ main>section.panel[data-category]{min-width:0}
  main>section.panel[data-category],main>section.panel.span2,main>section.panel.products{grid-column:2}
 }
 
+
+/* 分類內快速入口與區塊收合 */
+.category-shortcuts{grid-column:2;display:flex;flex-wrap:wrap;gap:7px;padding:10px 12px;background:#fff;border:1px solid #e5e7e3;border-radius:14px;box-shadow:0 2px 8px #1111;align-self:start}
+.category-shortcuts-label{flex:0 0 100%;font-size:12px;font-weight:700;color:#68716b}
+.category-shortcuts button{min-height:36px;padding:7px 11px;border:1px solid #dce3dc;border-radius:999px;background:#f7f9f7;color:#33443a;font-size:12px;font-weight:600}
+.category-shortcuts button:active{background:#263b30;color:#fff}
+.panel-heading-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.panel-heading-row h2{margin:0}
+.panel-toggle{white-space:nowrap}
+@media(max-width:899px){.category-shortcuts{grid-column:1/-1;position:sticky;top:122px;z-index:4;max-height:112px;overflow:auto}}
+@media(min-width:900px){.category-shortcuts{position:sticky;top:154px;z-index:4}}
+
 </style>
 </head>
 <body>
@@ -2005,5 +2017,85 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  });
  activate(activeCategory);
 })();
+
+/* 分類內快速定位：避免長頁面反覆捲動 */
+(function(){
+ const main=document.querySelector("main");
+ const categoryNav=main.querySelector(".category-nav");
+ if(!categoryNav)return;
+ const panels=Array.from(main.querySelectorAll(":scope > section.panel[data-category]"));
+ const shortcuts=document.createElement("div");
+ shortcuts.className="category-shortcuts";
+ shortcuts.setAttribute("aria-label","本分類快速功能");
+ const label=document.createElement("div");
+ label.className="category-shortcuts-label";
+ label.textContent="本分類快速功能（點選直接定位）";
+ shortcuts.appendChild(label);
+ categoryNav.after(shortcuts);
+ const titleFor=panel=>{
+  const h=panel.querySelector(":scope > h2");
+  return h?(h.textContent||"").replace(/\\s*(展開|收合)\\s*$/,"").trim():"其他功能";
+ };
+ const expandCollapse=panel=>{
+  let content=panel.querySelector(":scope > .panel-content");
+  let heading=panel.querySelector(":scope > h2");
+  if(!content){
+   content=document.createElement("div");
+   content.className="panel-content";
+   content.id=(panel.id||"section")+"-content";
+   let node=heading.nextSibling;
+   while(node){const next=node.nextSibling;content.appendChild(node);node=next;}
+   panel.appendChild(content);
+  }
+  panel.classList.add("panel-collapsible");
+  let toggle=heading.querySelector(":scope > .panel-toggle");
+  if(!toggle){
+   toggle=document.createElement("button");
+   toggle.type="button";toggle.className="panel-toggle secondary";
+   toggle.setAttribute("aria-controls",content.id);
+   heading.appendChild(toggle);
+   toggle.addEventListener("click",()=>{
+    const expanded=panel.classList.toggle("panel-collapsed")===false;
+    toggle.textContent=expanded?"收合":"展開";
+    toggle.setAttribute("aria-expanded",String(expanded));
+   });
+  }
+  const expanded=!panel.classList.contains("panel-collapsed");
+  toggle.textContent=expanded?"收合":"展開";
+  toggle.setAttribute("aria-expanded",String(expanded));
+ };
+ panels.filter(p=>p.dataset.category!=="global").forEach(panel=>{
+  expandCollapse(panel);
+  const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+  if(panel!==panels.find(p=>p.dataset.category===panel.dataset.category)){
+   panel.classList.add("panel-collapsed");
+   toggle.textContent="展開";
+   toggle.setAttribute("aria-expanded","false");
+  }
+ });
+ const renderShortcuts=category=>{
+  shortcuts.querySelectorAll("button").forEach(b=>b.remove());
+  panels.filter(p=>p.dataset.category===category).forEach(panel=>{
+   const button=document.createElement("button");
+   button.type="button";
+   button.textContent=titleFor(panel);
+   button.title="定位到："+titleFor(panel);
+   button.addEventListener("click",()=>{
+    if(panel.classList.contains("panel-collapsed")){
+     const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+     if(toggle)toggle.click();
+    }
+    panel.scrollIntoView({behavior:"smooth",block:"start"});
+   });
+   shortcuts.appendChild(button);
+  });
+  shortcuts.hidden=!panels.some(p=>p.dataset.category===category);
+ };
+ categoryNav.querySelectorAll("button[data-category]").forEach(button=>{
+  button.addEventListener("click",()=>renderShortcuts(button.dataset.category));
+ });
+ renderShortcuts("inventory");
+})();
+
 </script>
 </body></html>
