@@ -32,6 +32,27 @@ main>section.panel[id]{scroll-margin-top:150px}
 #backToTop.visible{display:block}
 @media(min-width:640px){header{padding-left:max(16px,calc((100vw - 760px)/2));padding-right:max(16px,calc((100vw - 760px)/2))}.quick-nav{margin-top:10px}}
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+
+/* 分類式導覽：桌面側欄、手機橫向分類 */
+.category-nav{display:flex;gap:8px;align-items:stretch;overflow-x:auto;overscroll-behavior-x:contain;white-space:nowrap;padding:2px 0 8px;margin:0 0 2px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.category-nav-title{display:none}
+.category-nav button{display:flex;align-items:center;justify-content:center;gap:8px;flex:0 0 auto;min-height:42px;padding:8px 13px;border:1px solid #dce3dc;border-radius:12px;background:#fff;color:#33443a;font-size:13px}
+.category-nav button[aria-pressed="true"]{background:#263b30;color:#fff;border-color:#263b30}
+.category-count{font-size:11px;opacity:.75}
+.category-hidden{display:none!important}
+.quick-nav a{display:none}
+.quick-nav.searching a:not([hidden]){display:inline-flex}
+main>section.panel[data-category]{min-width:0}
+@media(min-width:640px) and (max-width:899px){main{grid-template-columns:minmax(0,1fr)}main>section.panel[data-category]{grid-column:1/-1}}
+@media(min-width:900px){
+ main{max-width:1180px;grid-template-columns:220px minmax(0,1fr);align-items:start}
+ header{padding-left:max(16px,calc((100vw - 1180px)/2));padding-right:max(16px,calc((100vw - 1180px)/2))}
+ .category-nav{grid-column:1;grid-row:1 / span 50;position:sticky;top:154px;display:flex;flex-direction:column;align-self:start;gap:7px;overflow:visible;white-space:normal;padding:12px;background:#fff;border:1px solid #e5e7e3;border-radius:16px;box-shadow:0 2px 10px #1111}
+ .category-nav-title{display:block;padding:2px 5px 7px;color:#68716b;font-size:12px;font-weight:700}
+ .category-nav button{width:100%;justify-content:space-between;text-align:left}
+ main>section.panel[data-category],main>section.panel.span2,main>section.panel.products{grid-column:2}
+}
+
 </style>
 </head>
 <body>
@@ -1814,22 +1835,26 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  const sections=Array.from(document.querySelectorAll("main > section.panel"));
  let count=0;
  sections.forEach((section,index)=>{
-  const heading=section.querySelector("h2");
+  const heading=section.querySelector(":scope > h2");
   if(!heading)return;
   if(!section.id)section.id="quick-section-"+(index+1);
+  const title=heading.textContent.trim()||Array.from(section.querySelectorAll("h3")).map(item=>item.textContent.trim()).find(Boolean)||"其他功能";
+  const searchable=[title,...Array.from(section.querySelectorAll("h3")).map(item=>item.textContent.trim())].filter(Boolean).join(" ");
   const link=document.createElement("a");
   link.href="#"+section.id;
-  link.textContent=heading.textContent.trim().replace(/設定$/,"");
-  link.title="跳至"+heading.textContent.trim();
+  link.textContent=title.replace(/設定$/,"");
+  link.dataset.searchText=searchable.toLocaleLowerCase();
+  link.title="跳至"+searchable;
   nav.appendChild(link);
   count++;
  });
  const search=document.getElementById("quickNavSearch");
  const filterLinks=()=>{
   const query=search.value.trim().toLocaleLowerCase();
+  nav.classList.toggle("searching",Boolean(query));
   let visible=0;
   nav.querySelectorAll("a").forEach(link=>{
-   const match=!query||link.textContent.toLocaleLowerCase().includes(query);
+   const match=!query||link.dataset.searchText.includes(query);
    link.hidden=!match;
    if(match)visible++;
   });
@@ -1895,6 +1920,90 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
    }
   });
  });
+})();
+(function(){
+ const main=document.querySelector("main");
+ const panels=Array.from(main.querySelectorAll(":scope > section.panel"));
+ const categories=[
+  {id:"products",label:"商品管理"},
+  {id:"inventory",label:"庫存管理"},
+  {id:"sales",label:"銷售交易"},
+  {id:"purchasing",label:"採購與供應商"},
+  {id:"finance",label:"財務管理"},
+  {id:"pricing",label:"金價管理"},
+  {id:"settings",label:"基本設定"}
+ ];
+ const titleOf=panel=>{
+  const h2=panel.querySelector(":scope > h2");
+  return h2?h2.textContent.trim():"";
+ };
+ const subTitlesOf=panel=>Array.from(panel.querySelectorAll("h3")).map(item=>item.textContent.trim()).filter(Boolean);
+ const categoryOf=panel=>{
+  const title=titleOf(panel);
+  const text=[title,...subTitlesOf(panel)].join(" ");
+  if(/目前公司/.test(text))return "global";
+  if(/新增公司|門市|據點|儲存位置|工錢暗碼/.test(text))return "settings";
+  if(/商品庫存|條碼盤點|庫存調整|櫃位調撥|庫存異動/.test(text))return "inventory";
+  if(/金價/.test(text))return "pricing";
+  if(/銷售結帳|歷史銷售|加入商品|收付款|退貨/.test(text))return "sales";
+  if(/供應商|應付帳款|採購|到貨驗收/.test(text))return "purchasing";
+  if(/營業費用|現金櫃|每日結帳|現金盤點/.test(text))return "finance";
+  if(/商品分類|單件商品|商品資料|商品清單|條碼貼紙/.test(text))return "products";
+  return "settings";
+ };
+ panels.forEach(panel=>{
+  const category=categoryOf(panel);
+  panel.dataset.category=category;
+  if(category!=="global")panel.classList.add("category-hidden");
+ });
+ const nav=document.createElement("nav");
+ nav.className="category-nav";
+ nav.setAttribute("aria-label","功能分類");
+ const title=document.createElement("div");
+ title.className="category-nav-title";
+ title.textContent="功能分類";
+ nav.appendChild(title);
+ const buttons=new Map();
+ categories.forEach(category=>{
+  const button=document.createElement("button");
+  button.type="button";
+  button.dataset.category=category.id;
+  const label=document.createElement("span");
+  label.textContent=category.label;
+  const count=document.createElement("span");
+  count.className="category-count";
+  count.textContent=String(panels.filter(panel=>panel.dataset.category===category.id).length);
+  button.append(label,count);
+  button.setAttribute("aria-pressed","false");
+  nav.appendChild(button);
+  buttons.set(category.id,button);
+ });
+ const firstPanel=panels[0];
+ main.insertBefore(nav,firstPanel||null);
+ let activeCategory="inventory";
+ const activate=categoryId=>{
+  if(!categories.some(category=>category.id===categoryId))return;
+  activeCategory=categoryId;
+  panels.forEach(panel=>{
+   const visible=panel.dataset.category==="global"||panel.dataset.category===activeCategory;
+   panel.classList.toggle("category-hidden",!visible);
+  });
+  buttons.forEach((button,id)=>button.setAttribute("aria-pressed",String(id===activeCategory)));
+ };
+ buttons.forEach((button,id)=>button.addEventListener("click",()=>activate(id)));
+ document.querySelectorAll("#quickNav a").forEach(link=>{
+  link.addEventListener("click",()=>{
+   const target=document.getElementById(link.hash.slice(1));
+   if(!target)return;
+   const category=target.dataset.category;
+   if(category&&category!=="global")activate(category);
+   if(target.classList.contains("panel-collapsed")){
+    const toggle=target.querySelector(":scope > h2 .panel-toggle");
+    if(toggle)toggle.click();
+   }
+  });
+ });
+ activate(activeCategory);
 })();
 </script>
 </body></html>
