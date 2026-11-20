@@ -533,6 +533,7 @@ main>section.panel[id]{scroll-margin-top:150px}
   <div class="scan-actions"><button id="closeScanner" class="secondary" type="button">關閉相機</button><button id="switchScannerCamera" class="secondary" type="button">切換鏡頭</button></div>
  </div>
 </div>
+<button id="backToTop" class="secondary" type="button" aria-label="回到頁面頂端">↑ 回到頂端</button>
 <script>
 const $=id=>document.getElementById(id);
 let companyId="";
@@ -992,7 +993,7 @@ function printProductQrLabel(product,lot,printWindow,config,copies=1){
   '@media print{html,body{width:100mm;margin:0;padding:0}.label{margin:0;box-shadow:none}}'+
   '@media screen{body{background:#eee}.label{background:#fff;margin:12px auto;box-shadow:0 1px 5px #999}}'+
   '</style></head><body>'+Array.from({length:copies},()=>labelMarkup).join("")+
-  '<script>const images=[...document.querySelectorAll(".barcode")];let loaded=0;const done=()=>{loaded++;if(loaded===images.length){window.focus();window.print();}};images.forEach(image=>{image.onload=done;image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};});<\/script><button id="backToTop" class="secondary" type="button" aria-label="回到頁面頂端">↑ 回到頂端</button>
+  '<scr'+'ipt>const images=[...document.querySelectorAll(".barcode")];let loaded=0;const done=()=>{loaded++;if(loaded===images.length){window.focus();window.print();}};images.forEach(image=>{image.onload=done;image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};});<\/script>'
 <script>
 (function(){
  const nav=document.getElementById("quickNav");
