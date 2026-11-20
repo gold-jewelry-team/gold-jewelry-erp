@@ -252,7 +252,8 @@ def test_cash_count_and_review_are_scoped_to_the_exact_site_and_closing():
         assert wrong_company_count.status_code == 422
 
         check = TestSession()
-        saved = check.get(DailyCashCount, count_id)
+        from uuid import UUID
+        saved = check.get(DailyCashCount, UUID(count_id))
         assert saved is not None
         assert saved.reviewed_at is None
         assert check.query(DailyCashCount).count() == 1
