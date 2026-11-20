@@ -312,13 +312,13 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <section class="panel span2" id="quoteWorkbenchPanel">
 <h2>現場報價／同款查找</h2>
 <p class="sub">掃描展示商品或搜尋款式，快速帶出商品重量、預設工錢及庫存位置。此工作區只供詢價，不會扣庫存或建立正式銷售。</p>
-<h3>加入商品</h3>
+<h3>新商品報價</h3>
 <div class="grid">
  <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 選取商品"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
  <div class="field wide"><label for="quoteProduct">商品（可依編號／名稱／條碼選擇）</label><select id="quoteProduct"><option value="">請選擇商品</option></select></div>
  <div class="field"><label for="quoteLaborFee">本次報價工錢（留空使用商品預設）</label><input id="quoteLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
- <div class="field"><label for="quoteOldGoldWeight">舊金折抵重量</label><input id="quoteOldGoldWeight" type="number" min="0" step="0.0001" value="0"></div>
- <div class="field"><label for="quoteTradeInSource">舊金來源</label><select id="quoteTradeInSource"><option value="">無舊金折抵</option><option value="LOCAL">本店舊金（折抵比率 100%）</option><option value="EXTERNAL">外店舊金（預設折抵比率 95%）</option></select></div>
+ <div class="field"><label for="quoteOldGoldWeight">客戶折抵重量（選填）</label><input id="quoteOldGoldWeight" type="number" min="0" step="0.0001" value="0"></div>
+ <div class="field"><label for="quoteTradeInSource">折抵來源</label><select id="quoteTradeInSource"><option value="">不使用折抵</option><option value="LOCAL">客戶提供本店舊金（100%）</option><option value="EXTERNAL">客戶提供外店舊金（預設 95%）</option></select></div>
  <div class="field hidden" id="quoteTradeInRatioField"><label for="quoteTradeInRatio">外店折抵比率（%）</label><input id="quoteTradeInRatio" type="number" min="0.01" max="100" step="0.01" value="95" inputmode="decimal" placeholder="例如 95"></div>
 </div>
 <div class="actions"><button id="quoteAddProductButton" type="button">加入報價清單</button></div>
@@ -460,14 +460,14 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="field"><label for="saleNote">銷售備註</label><input id="saleNote" maxlength="500"></div>
 </div>
 </form>
-<h3>加入商品</h3>
+<h3>新商品報價</h3>
 <div class="field"><label for="saleBarcodeScan">掃描／輸入商品條碼（按 Enter 加入）</label><div class="toolbar"><input id="saleBarcodeScan" autocomplete="off" inputmode="numeric" placeholder="掃描器可直接輸入條碼"><button id="scanSaleButton" class="secondary" type="button">相機掃描</button></div></div>
 <div class="grid">
 <div class="field"><label for="saleProduct">商品（可依編號／名稱／條碼選擇）</label><select id="saleProduct"><option value="">請選擇商品</option></select></div>
 <div class="field"><label for="saleLocation">出貨位置</label><select id="saleLocation"><option value="">請選擇位置</option></select></div>
 <div class="field"><label for="saleLaborFee">本次銷售工錢（留空使用商品預設）</label><input id="saleLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
 <div class="field"><label for="saleOldGoldWeight">舊金折抵重量</label><input id="saleOldGoldWeight" type="number" min="0" step="0.0001" value="0"></div>
-<div class="field"><label for="saleTradeInSource">舊金來源</label><select id="saleTradeInSource"><option value="">無舊金折抵</option><option value="LOCAL">本店舊金（折抵比率 100%）</option><option value="EXTERNAL">外店舊金（預設折抵比率 95%）</option></select></div>
+<div class="field"><label for="saleTradeInSource">舊金來源</label><select id="saleTradeInSource"><option value="">不使用折抵</option><option value="LOCAL">客戶提供本店舊金（100%）</option><option value="EXTERNAL">客戶提供外店舊金（預設 95%）</option></select></div>
 <div class="field"><label for="saleTradeInRatio">折抵比率（外店適用）</label><input id="saleTradeInRatio" type="number" min="0.000001" max="1" step="0.000001" value="0.95"></div>
 </div>
 <div class="actions"><button id="addSaleLine" type="button">加入購物車</button></div>
@@ -2235,7 +2235,7 @@ async function addSaleProduct(){
   const oldWeight=Number($("saleOldGoldWeight").value||0);
   const source=$("saleTradeInSource").value||null;
   if(oldWeight>0&&!source)throw new Error("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。");
-  if(oldWeight===0&&source)throw new Error("選擇舊金來源時，請輸入大於 0 的舊金重量。");
+  if(oldWeight===0&&source)throw new Error("選擇折抵來源時，請輸入大於 0 的折抵重量。");
   const labor=$("saleLaborFee").value.trim();
   saleCartLines.push({product,location,labor_fee:labor===""?null:labor,old_gold_weight:String(oldWeight),trade_in_source:source,trade_in_ratio:$("saleTradeInRatio").value||"0.95"});
   renderSaleCart();
@@ -2883,10 +2883,10 @@ function renderQuoteCalculation(){
  for(const line of quoteSelectedProducts){
   const p=line.product,weight=Number(line.weight),labor=Number(line.labor),oldWeight=Number(line.oldWeight||0),ratio=Number(line.tradeInRatio||0.95);
   const sell=currentGoldPriceRows.SELL,buy=currentGoldPriceRows.BUY;
-  if(!Number.isFinite(weight)||weight<0||!Number.isFinite(labor)||labor<0||!Number.isFinite(oldWeight)||oldWeight<0){box.textContent="請確認重量、工錢及舊金重量均為有效的非負數值。";return;}
-  if(oldWeight>0&&!line.tradeInSource){box.textContent="輸入舊金重量時，請選擇本店或外店舊金來源。";return;}
-  if(oldWeight===0&&line.tradeInSource){box.textContent="選擇舊金來源時，請輸入大於 0 的舊金重量。";return;}
-  if(line.tradeInSource==="EXTERNAL"&&(!Number.isFinite(ratio)||ratio<=0||ratio>1)){box.textContent="外店舊金折抵比率須大於 0 且不得超過 1。";return;}
+  if(!Number.isFinite(weight)||weight<0||!Number.isFinite(labor)||labor<0||!Number.isFinite(oldWeight)||oldWeight<0){box.textContent="請確認新商品重量、工錢及客戶折抵重量均為有效的非負數值。";return;}
+  if(oldWeight>0&&!line.tradeInSource){box.textContent="輸入客戶折抵重量時，請選擇折抵來源。";return;}
+  if(oldWeight===0&&line.tradeInSource){box.textContent="選擇折抵來源時，請輸入大於 0 的折抵重量。";return;}
+  if(line.tradeInSource==="EXTERNAL"&&(!Number.isFinite(ratio)||ratio<=0||ratio>1)){box.textContent="外店折抵比率須大於 0 且不得超過 100%。";return;}
   if(!sell||!buy){box.textContent="尚未設定有效買入價及賣出價，暫時無法計算。";return;}
   if(sell.currency_code!=="TWD"||buy.currency_code!=="TWD"){box.textContent="商品報價目前僅支援 TWD 買入及賣出金價。";return;}
   const sellRate=convertGoldPrice(sell.price_value,sell.unit_code,p.weight_unit_code);
@@ -2911,7 +2911,7 @@ function renderQuoteCalculation(){
  const card=$("quotePaymentMethod").value==="CARD";
  const cardFee=card?quoteRoundTwd(positiveSubtotal*0.05):0;
  const final=quoteRoundTwd(subtotalTotal+cardFee);
- box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">商品原金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 舊金折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+'）':' · 未使用舊金折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">舊金折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>舊金折抵：NT$ 0</div>')+'<div>折抵後商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+(card?'<div>刷卡試算 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'')+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>舊金依各商品設定的重量、來源及折抵比率計算；刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
+ box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">新商品金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 客戶折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+'）':' · 未使用舊金折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">客戶折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>客戶折抵：NT$ 0</div>')+'<div>折抵後應付商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+(card?'<div>刷卡試算 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'')+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>新商品金額先依商品重量與工錢計算；客戶提供舊金時，再依重量、來源及折抵比率扣抵。刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
 }
 
 function renderQuoteSearchResults(){
@@ -2976,7 +2976,7 @@ async function selectQuoteProduct(product){
   await loadQuoteStockBalances();
   const stockRows=quoteStockRowsByProduct.get(product.id)||[];
   quoteStockSummary.set(product.id,stockRows.reduce((sum,row)=>sum+Number(row.quantity||0),0));
-  message("quoteSearchStatus","已選取："+product.product_code+" · "+product.name+"；請設定工錢及舊金折抵，再加入報價清單。");
+  message("quoteSearchStatus","已選取："+product.product_code+" · "+product.name+"；請設定新商品工錢及客戶折抵（如有），再加入報價清單。");
  }catch(error){message("quoteSearchStatus","商品已選取，但庫存查詢失敗："+error.message,true);}
 }
 async function addQuoteProduct(){
@@ -2988,7 +2988,7 @@ async function addQuoteProduct(){
  const oldWeight=Number($("quoteOldGoldWeight").value||0),source=$("quoteTradeInSource").value||null,ratio=String((Number($("quoteTradeInRatio").value||95))/100);
  if(!Number.isFinite(oldWeight)||oldWeight<0){quoteSetStatus("舊金折抵重量不可小於 0。",true);return;}
  if(oldWeight>0&&!source){quoteSetStatus("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。",true);return;}
- if(oldWeight===0&&source){quoteSetStatus("選擇舊金來源時，請輸入大於 0 的舊金重量。",true);return;}
+ if(oldWeight===0&&source){quoteSetStatus("選擇折抵來源時，請輸入大於 0 的折抵重量。",true);return;}
  if(source==="EXTERNAL"&&(!Number.isFinite(Number(ratio))||Number(ratio)<=0||Number(ratio)>1)){quoteSetStatus("外店折抵比率須大於 0 且不得超過 1。",true);return;}
  const labor=$("quoteLaborFee").value.trim();
  let stockRows=[];
@@ -3004,7 +3004,7 @@ function renderQuoteLines(){
   const p=line.product;
   const locations=line.isEstimate?"非庫存預估規格":line.stockRows.map(row=>escapeHtml(row.location_name||row.location_code||"位置")+"："+escapeHtml(row.quantity)+" 件").join("、")||"無庫存紀錄";
   const tradeInLabel=Number(line.oldWeight||0)>0?(line.tradeInSource==="LOCAL"?"本店 100%":"外店 "+(Number(line.tradeInRatio||0.95)*100)+"%"):"無舊金折抵";
-  return '<article class="quote-line"><div class="quote-line-main"><strong>'+(line.isEstimate?'<span class="pill">預估</span> ':'')+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+' · 舊金：'+escapeHtml(line.oldWeight||0)+' '+escapeHtml(p.weight_unit_code)+'（'+escapeHtml(tradeInLabel)+'）</small></div><div><label>報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
+  return '<article class="quote-line"><div class="quote-line-main"><strong>'+(line.isEstimate?'<span class="pill">預估</span> ':'')+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+' · 客戶折抵：'+escapeHtml(line.oldWeight||0)+' '+escapeHtml(p.weight_unit_code)+'（'+escapeHtml(tradeInLabel)+'）</small></div><div><label>報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
  }).join(""):'<div class="empty">尚未選擇商品</div>';
  renderQuoteCalculation();
 }
@@ -3045,7 +3045,7 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  const oldWeight=Number($("quoteOldGoldWeight").value||0),source=$("quoteTradeInSource").value||null,ratio=String((Number($("quoteTradeInRatio").value||95))/100);
  if(!Number.isFinite(oldWeight)||oldWeight<0){quoteSetStatus("舊金折抵重量不可小於 0。",true);return;}
  if(oldWeight>0&&!source){quoteSetStatus("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。",true);return;}
- if(oldWeight===0&&source){quoteSetStatus("選擇舊金來源時，請輸入大於 0 的舊金重量。",true);return;}
+ if(oldWeight===0&&source){quoteSetStatus("選擇折抵來源時，請輸入大於 0 的折抵重量。",true);return;}
  if(source==="EXTERNAL"&&(!Number.isFinite(Number(ratio))||Number(ratio)<=0||Number(ratio)>1)){quoteSetStatus("外店折抵比率須大於 0 且不得超過 1。",true);return;}
  quoteSelectedProducts.push({id:key,product,weight:String(weight),labor:String(labor),oldWeight:String(oldWeight),tradeInSource:source,tradeInRatio:String(ratio),stockRows:[],isEstimate:true});
  renderQuoteLines();
