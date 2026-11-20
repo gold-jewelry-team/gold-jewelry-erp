@@ -8,30 +8,23 @@ from app.models.product_code_sequence import ProductCodeSequence
 from app.models.inventory import InventoryMovement
 from app.models.supplier import Supplier
 from app.models.purchase import Purchase, PurchaseLine
+from app.models.gold_material import GoldMaterialMovement, GoldMaterialSettlementAllocation
 
 __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "ProductCodeSequence", "InventoryMovement", "Supplier",
     "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary", "PaymentTransaction", "SupplierBill", "SupplierPayment", "SupplierPaymentAllocation", "OperatingExpense", "DailyCashCount", "CashDrawerMovement", "BankAccount", "BankTransaction", "BankStatementImport", "BankStatementLine", "BankReconciliationSnapshot", "LaborCodeSetting", "LaborCodeMapping",
+    "GoldMaterialMovement", "GoldMaterialSettlementAllocation",
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine
-
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
-
 from app.models.payment_transaction import PaymentTransaction
-
 from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
-
 from app.models.operating_expense import OperatingExpense
-
 from app.models.cash_count import DailyCashCount
-
 from app.models.cash_drawer_movement import CashDrawerMovement
-
 from app.models.bank_account import BankAccount, BankTransaction
-
 from app.models.bank_statement import BankStatementImport, BankStatementLine
-
 from app.models.bank_reconciliation import BankReconciliationSnapshot
 from app.models.labor_code import LaborCodeSetting, LaborCodeMapping
