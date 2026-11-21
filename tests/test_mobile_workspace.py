@@ -110,8 +110,14 @@ def test_mobile_workspace_serves_html():
     assert 'id="quoteTradeInSource"' in response.text
     assert 'id="quoteTradeInRatio"' in response.text
     assert 'id="quoteTradeInRatioField"' in response.text
-    assert "新商品報價" in response.text
+    assert "商品報價（有現貨／無現貨共用）" in response.text
     assert "客戶折抵（選填，沒有折抵可不填）" in response.text
+    assert "新增商品規格（找不到現有商品時）" in response.text
+    assert "無現貨／需訂製：建立客戶訂購單" in response.text
+    assert 'id="quoteOrderCustomerName"' in response.text
+    assert 'id="quoteOrderDeposit"' in response.text
+    assert "建立客訂單並收訂金" in response.text
+    assert "訂購單不扣庫存" in response.text
     assert "折抵後應付商品金額" in response.text
     assert "客戶折抵合計" in response.text
     assert 'max="100" step="0.01" value="95"' in response.text
