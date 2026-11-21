@@ -359,6 +359,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <section class="panel span2" id="quoteWorkbenchPanel">
 <h2>現場報價／同款查找</h2>
 <p class="sub">掃描展示商品或搜尋款式，快速帶出商品重量、預設工錢及庫存位置。此工作區只供詢價，不會扣庫存或建立正式銷售。</p>
+<h3>找不到現有商品？臨時估價（不建立正式商品）</h3>
+<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div><div id="quoteEstimatePreview" class="quote-note" aria-live="polite">輸入商品規格及重量、工錢後即時試算；加入後與現有商品使用相同報價明細。</div>
 <h3>商品報價（有現貨／無現貨共用）</h3>
 <div class="grid">
  <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 選取商品"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
@@ -375,8 +377,6 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="field"><label for="quoteProductSearch">搜尋同款／不同尺寸</label><input id="quoteProductSearch" type="search" placeholder="商品名稱、款式編號、分類、材質或商品編號"></div>
 <div id="quoteSearchStatus" class="status" role="status"></div>
 <div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div>
-<h3>找不到現有商品？臨時估價（不建立正式商品）</h3>
-<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div><div id="quoteEstimatePreview" class="quote-note" aria-live="polite">輸入商品規格及重量、工錢後即時試算；加入後與現有商品使用相同報價明細。</div>
 <h3>已選商品／報價參考</h3>
 <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
 <div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇或新增商品後，會依目前有效金價、商品重量、工錢及客戶折抵，使用同一套規則試算。</div>
@@ -1487,6 +1487,8 @@ async function loadGoldPrices(){
   currentGoldPriceRows={BUY:null,SELL:null};
   renderGoldPriceViews();
   if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
+  if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
+  if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();
   renderGoldClosureDates();
   historyBox.innerHTML='<div class="empty">請先選擇公司與據點</div>';
   return;
@@ -1500,6 +1502,8 @@ async function loadGoldPrices(){
  currentGoldPriceRows={BUY:buy,SELL:sell};
  renderGoldPriceViews();
  if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
+ if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
+ if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();
  renderGoldClosureDates();
  if(history.length){
   const groups=new Map();

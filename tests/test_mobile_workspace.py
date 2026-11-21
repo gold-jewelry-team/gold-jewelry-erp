@@ -123,6 +123,11 @@ def test_mobile_workspace_serves_html():
     assert "找不到現有商品？臨時估價（不建立正式商品）" in response.text
     assert 'id="quoteEntryPreview"' in response.text
     assert "function renderQuoteEntryPreview()" in response.text
+    assert "function renderQuoteEstimatePreview()" in response.text
+    assert '["quoteEstimateName","quoteEstimateSize","quoteEstimateWeight","quoteEstimateLabor"].forEach(id=>$(id).addEventListener("input",renderQuoteEstimatePreview))' in response.text
+    assert '["quoteWeight","quoteLaborFee","quoteOldGoldWeight","quoteTradeInRatio"].forEach(id=>$(id).addEventListener("input",renderQuoteEntryPreview))' in response.text
+    assert response.text.count('if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();') >= 2
+    assert response.text.count('if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();') >= 2
     assert "無現貨／需訂製：建立客戶訂購單" in response.text
     assert 'id="quoteOrderCustomerName"' in response.text
     assert 'id="quoteOrderDeposit"' in response.text
