@@ -120,17 +120,17 @@ def add_customer_order_payment(company_id: UUID, order_id: UUID, payload: Custom
 @router.patch("/{order_id}/status", response_model=CustomerOrderRead)
 def update_customer_order_status(
     company_id: UUID, order_id: UUID,
-    status: str = Query(pattern="^(IN_PROGRESS|ARRIVED|READY|COMPLETED|CANCELLED)$"),
+    status: str = Query(pattern="^(IN_PROGRESS|ARRIVED|READY)$"),
     db: Session = Depends(get_db),
 ):
     order = _load(db, company_id, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="找不到指定客訂單。")
     allowed = {
-        "PENDING_DEPOSIT": {"IN_PROGRESS", "CANCELLED"},
-        "IN_PROGRESS": {"ARRIVED", "CANCELLED"},
-        "ARRIVED": {"READY", "CANCELLED"},
-        "READY": {"COMPLETED", "CANCELLED"},
+        "PENDING_DEPOSIT": {"IN_PROGRESS"},
+        "IN_PROGRESS": {"ARRIVED"},
+        "ARRIVED": {"READY"},
+        "READY": set(),
     }
     if status not in allowed.get(order.status, set()):
         raise HTTPException(status_code=409, detail=f"不可由 {order.status} 變更為 {status}。")
