@@ -109,7 +109,7 @@ def test_customer_order_deposit_ledger_and_status_flow():
         duplicate_overpayment = client.post(f"/companies/{company_id}/customer-orders/{order['id']}/payments", json={
             "amount": "1", "payment_method": "CASH",
         })
-        assert duplicate_overpayment.status_code == 409
+        assert duplicate_overpayment.status_code == 422
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)
