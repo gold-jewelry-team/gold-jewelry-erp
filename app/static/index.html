@@ -531,6 +531,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="field"><label for="saleNote">銷售備註</label><input id="saleNote" maxlength="500"></div>
 </div>
 </form>
+<p class="sub">商品掃碼、臨時估價及舊金折抵都從上方「現場報價／同款查找」共用工作區帶入，這裡只負責確認付款方式、建立銷售草稿及完成成交。</p>
+<div class="hidden">
 <h3>新商品報價</h3>
 <div class="field"><label for="saleBarcodeScan">掃描／輸入商品條碼（按 Enter 加入）</label><div class="toolbar"><input id="saleBarcodeScan" autocomplete="off" inputmode="numeric" placeholder="掃描器可直接輸入條碼"><button id="scanSaleButton" class="secondary" type="button">相機掃描</button></div></div>
 <div class="grid">
@@ -542,6 +544,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="field"><label for="saleTradeInRatio">折抵比率（外店適用）</label><input id="saleTradeInRatio" type="number" min="0.000001" max="1" step="0.000001" value="0.95"></div>
 </div>
 <div class="actions"><button id="addSaleLine" type="button">加入購物車</button></div>
+</div>
 <div id="saleCartList" aria-live="polite"><div class="empty">尚未加入商品</div></div>
 <div class="actions"><button id="createSaleDraft" type="button">建立銷售草稿</button></div>
 <div id="saleStatus" class="status" role="status"></div>
@@ -1602,7 +1605,11 @@ async function loadCashCount(){
 }
 function renderSaleCart(){
  const box=$("saleCartList");
- box.innerHTML=saleCartLines.length?saleCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 出貨位置：'+escapeHtml(line.location.name)+'</span><span class="muted">淨重：'+escapeHtml(line.product.net_weight)+' '+escapeHtml(line.product.weight_unit_code)+' · 銷售工錢：'+escapeHtml(line.labor_fee===null?"使用商品預設":line.labor_fee)+'</span><span class="muted">舊金折抵：'+escapeHtml(line.old_gold_weight)+' '+escapeHtml(line.product.weight_unit_code)+(line.old_gold_weight>0?' · '+(line.trade_in_source==="LOCAL"?"本店 100%":"外店 "+line.trade_in_ratio*100+"%"):'')+'</span><div class="actions"><button class="secondary" type="button" data-remove-sale-line="'+index+'">移除此商品</button></div></article>').join(""):'<div class="empty">尚未加入商品</div>';
+ box.innerHTML=saleCartLines.length?saleCartLines.map((line,index)=>{
+  const unit=line.product.weight_unit_code||"QIAN";
+  const locationText=line.isEstimate?"臨時估價／不扣庫存":(line.location?.name||"未指定出貨位置");
+  return '<article class="item"><strong>'+(line.isEstimate?'<span class="pill">臨時估價</span> ':'')+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 出貨位置：'+escapeHtml(locationText)+'</span><span class="muted">淨重：'+escapeHtml(line.net_weight??line.product.net_weight)+' '+escapeHtml(goldUnitLabel(unit))+' · 銷售工錢：'+escapeHtml(line.labor_fee===null?"使用商品預設":line.labor_fee)+'</span><span class="muted">舊金折抵：'+escapeHtml(line.old_gold_weight)+' '+escapeHtml(goldUnitLabel(unit))+(line.old_gold_weight>0?' · '+(line.trade_in_source==="LOCAL"?"本店 100%":"外店 "+line.trade_in_ratio*100+"%"):'')+'</span><div class="actions"><button class="secondary" type="button" data-remove-sale-line="'+index+'">移除此商品</button></div></article>';
+ }).join(""):'<div class="empty">尚未加入商品</div>';
  $("createSaleDraft").disabled=!saleCartLines.length||!!currentSale;
 }
 function renderSaleResult(sale){
@@ -2331,6 +2338,37 @@ $("salePaymentForm").addEventListener("submit",async event=>{
  }catch(error){message("salePaymentStatus",error.message,true);}
  finally{button.disabled=false;}
 });
+function transferQuoteToSale(){
+ if(!companyId||!selectedSiteId){quoteSetStatus("請先選擇公司與據點。",true);return;}
+ if(!quoteSelectedProducts.length){quoteSetStatus("請先加入至少一項商品。",true);return;}
+ if(currentSale){quoteSetStatus("目前已有尚未處理的銷售單，請先完成或作廢。",true);return;}
+ if(saleCartLines.length){quoteSetStatus("銷售區已有商品，請先清空或完成目前銷售，避免覆蓋。",true);return;}
+ const converted=[];
+ for(const line of quoteSelectedProducts){
+  if(line.isEstimate){
+   converted.push({product:line.product,location:null,isEstimate:true,net_weight:Number(line.weight),labor_fee:String(line.labor),old_gold_weight:String(line.oldWeight||0),trade_in_source:line.tradeInSource||null,trade_in_ratio:String(line.tradeInRatio||0.95)});
+   continue;
+  }
+  const stockRows=(line.stockRows||[]).filter(row=>Number(row.quantity||0)>=1);
+  const stockRow=stockRows[0];
+  if(!stockRow){quoteSetStatus("正式商品 "+line.product.product_code+" 沒有可銷售庫存；請改走客訂／調貨流程，不能直接成交。",true);return;}
+  const location=inventoryLocations.find(item=>item.id===stockRow.location_id&&item.is_active);
+  if(!location){quoteSetStatus("找不到商品 "+line.product.product_code+" 的有效出貨位置，請重新載入庫存。",true);return;}
+  converted.push({product:line.product,location,isEstimate:false,net_weight:Number(line.weight),labor_fee:String(line.labor),old_gold_weight:String(line.oldWeight||0),trade_in_source:line.tradeInSource||null,trade_in_ratio:String(line.tradeInRatio||0.95)});
+ }
+ saleCartLines=converted;
+ renderSaleCart();
+ const quoteMethod=$("quotePaymentMethod").value;
+ $("salePaymentMethod").value=quoteMethod==="CARD"?"CARD":quoteMethod==="MIXED"?"MIXED":"CASH";
+ $("saleCardAmount").disabled=quoteMethod!=="MIXED";
+ $("saleCardAmount").value=quoteMethod==="MIXED"?$("quoteCardAmount").value:"";
+ if(!$("saleNo").value.trim())$("saleNo").value="SO-"+Date.now().toString();
+ const panel=$("salesPanel");
+ const categoryButton=document.querySelector('.category-nav button[data-category="sales"]');if(categoryButton)categoryButton.click();
+ panel.scrollIntoView({behavior:"smooth",block:"start"});
+ message("saleStatus","已將共用報價明細帶入銷售購物車。請確認付款方式與單號，再建立銷售草稿。");
+}
+$("quoteTransferToSaleButton").addEventListener("click",transferQuoteToSale);
 async function addSaleProduct(){
  if(!companyId||!selectedSiteId){message("saleStatus","請先選擇公司與據點。",true);return;}
  if(currentSale){message("saleStatus","目前銷售單已建立，請先完成或作廢後再建立下一筆。",true);return;}
@@ -2389,7 +2427,9 @@ $("createSaleDraft").addEventListener("click",async()=>{
   site_id:selectedSiteId,sale_no:$("saleNo").value.trim(),payment_method:method,
   card_amount:method==="MIXED"?cardText:null,
   note:$("saleNote").value.trim()||null,
-  lines:saleCartLines.map(x=>({product_id:x.product.id,source_location_id:x.location.id,labor_fee:x.labor_fee,old_gold_weight:x.old_gold_weight,trade_in_source:x.trade_in_source,trade_in_ratio:x.trade_in_ratio}))
+  lines:saleCartLines.map(x=>x.isEstimate
+   ?({product_id:null,source_location_id:null,product_code:x.product.product_code,barcode:x.product.barcode||null,product_name:x.product.name,net_weight:String(x.net_weight),weight_unit_code:x.product.weight_unit_code,labor_fee:x.labor_fee,old_gold_weight:x.old_gold_weight,trade_in_source:x.trade_in_source,trade_in_ratio:x.trade_in_ratio})
+   :({product_id:x.product.id,source_location_id:x.location.id,net_weight:String(x.net_weight??x.product.net_weight),weight_unit_code:x.product.weight_unit_code,labor_fee:x.labor_fee,old_gold_weight:x.old_gold_weight,trade_in_source:x.trade_in_source,trade_in_ratio:x.trade_in_ratio}))
  };
  const button=$("createSaleDraft");button.disabled=true;
  try{
@@ -2406,7 +2446,7 @@ $("completeSale").addEventListener("click",async()=>{
   renderSaleResult(sale);
   $("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
   $("newSaleActions").classList.remove("hidden");
-  message("saleStatus","銷售已完成，庫存已扣除。");
+  message("saleStatus","銷售已完成；正式商品已扣除庫存，臨時估價明細不會扣除庫存。");
   try{await loadInventoryOptions();}catch(refreshError){message("globalStatus","銷售已完成，但庫存畫面重新載入失敗："+refreshError.message,true);}
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
@@ -3092,7 +3132,7 @@ function renderQuoteEntryPreview(){
  const baseAmount=weight*sellRate+labor;let amount=baseAmount,credit=0,adjustedOldWeight=0;
  if(trade.enabled){adjustedOldWeight=Math.trunc(oldWeight*(source==="LOCAL"?1:ratio)*100)/100;amount=adjustedOldWeight<=weight?(weight-adjustedOldWeight)*sellRate+labor:labor-(adjustedOldWeight-weight)*buyRate;credit=baseAmount-amount;}
  const rounded=quoteRoundTwd(amount),card=$("quotePaymentMethod").value==="CARD",cardFee=card&&rounded>0?quoteRoundTwd(rounded*0.05):0,final=quoteRoundTwd(amount+cardFee);
- box.innerHTML="<strong>"+(product?"正式商品即時試算":"臨時估價即時試算")+"</strong><div>"+escapeHtml(product?product.product_code:"臨時估價")+" · "+escapeHtml(name)+" · "+escapeHtml(weight)+" "+escapeHtml(goldUnitLabel(unit))+"</div><div>新商品金額：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(baseAmount)))+"</div>"+(trade.enabled?"<div>舊金折抵（"+(source==="LOCAL"?"本店100%":"外店"+quoteMoney(ratio*100)+"%")+"；折算 "+escapeHtml(adjustedOldWeight)+" "+escapeHtml(goldUnitLabel(unit))+"）：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(credit)))+"</div>":"<div>未使用舊金折抵</div>")+"<strong style='display:block;font-size:20px;margin-top:6px'>"+(rounded<0?"本店應付客人":"預估應收")：NT$ "+escapeHtml(quoteMoney(Math.abs(final)))+"</strong>"+(card&&final>0?"<small>含刷卡 5% 手續費 NT$ "+escapeHtml(quoteMoney(cardFee))+"</small>":"");
+ box.innerHTML="<strong>"+(product?"正式商品即時試算":"臨時估價即時試算")+"</strong><div>"+escapeHtml(product?product.product_code:"臨時估價")+" · "+escapeHtml(name)+" · "+escapeHtml(weight)+" "+escapeHtml(goldUnitLabel(unit))+"</div><div>新商品金額：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(baseAmount)))+"</div>"+(trade.enabled?"<div>舊金折抵（"+(source==="LOCAL"?"本店100%":"外店"+quoteMoney(ratio*100)+"%")+"；折算 "+escapeHtml(adjustedOldWeight)+" "+escapeHtml(goldUnitLabel(unit))+"）：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(credit)))+"</div>":"<div>未使用舊金折抵</div>")+"<strong style='display:block;font-size:20px;margin-top:6px'>"+(rounded<0?"本店應付客人":"預估應收")+"：NT$ "+escapeHtml(quoteMoney(Math.abs(final)))+"</strong>"+(card&&final>0?"<small>含刷卡 5% 手續費 NT$ "+escapeHtml(quoteMoney(cardFee))+"</small>":"");
 }
 async function addQuoteProduct(){
  if(!companyId||!selectedSiteId){quoteSetStatus("請先選擇公司與據點。",true);return;}
