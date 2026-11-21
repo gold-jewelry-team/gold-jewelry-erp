@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
 from app.models.customer_order import CustomerOrder, CustomerOrderPayment
+from app.models.site import Site
 from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead
 
 
@@ -55,6 +56,9 @@ def list_customer_orders(
 
 @router.post("", response_model=CustomerOrderRead, status_code=201)
 def create_customer_order(company_id: UUID, payload: CustomerOrderCreate, db: Session = Depends(get_db)):
+    site = db.scalar(select(Site).where(Site.id == payload.site_id, Site.company_id == company_id))
+    if site is None:
+        raise HTTPException(status_code=422, detail="指定據點不屬於目前公司。")
     order = CustomerOrder(
         company_id=company_id,
         site_id=payload.site_id,
