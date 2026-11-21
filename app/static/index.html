@@ -2942,6 +2942,8 @@ async function createCustomerOrderFromQuote(){
  if(!customerName){fail("請輸入客戶姓名。");$("quoteOrderCustomerName").focus();return;}
  if(!Number.isFinite(deposit)||deposit<=0){fail("建立客訂單時必須收取大於 0 的訂金。");$("quoteOrderDeposit").focus();return;}
  if(deposit>quoteCurrentTotal){fail("訂金不可超過報價總額。");return;}
+ const hasCatalogLines=quoteSelectedProducts.some(line=>!line.isEstimate);
+ if(hasCatalogLines&&quoteStockLoadedKey!==companyId+"|"+selectedSiteId){fail("尚未成功確認商品庫存，請重新查詢庫存後再建立客訂單。");return;}
  const hasNoStock=quoteSelectedProducts.some(line=>line.isEstimate||!line.stockRows||line.stockRows.reduce((sum,row)=>sum+Number(row.quantity||0),0)<=0);
  if(!hasNoStock){fail("目前選取商品皆有現貨，請使用正式銷售結帳；若客人要訂製或需調貨，請先確認商品狀態。");return;}
  const items=quoteSelectedProducts.map(line=>({
