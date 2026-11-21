@@ -1487,6 +1487,8 @@ async function loadGoldPrices(){
   currentGoldPriceRows={BUY:null,SELL:null};
   renderGoldPriceViews();
   if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
+  if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
+  if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();
   renderGoldClosureDates();
   historyBox.innerHTML='<div class="empty">請先選擇公司與據點</div>';
   return;
@@ -1500,6 +1502,8 @@ async function loadGoldPrices(){
  currentGoldPriceRows={BUY:buy,SELL:sell};
  renderGoldPriceViews();
  if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
+ if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
+ if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();
  renderGoldClosureDates();
  if(history.length){
   const groups=new Map();
