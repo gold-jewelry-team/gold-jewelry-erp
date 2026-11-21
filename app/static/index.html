@@ -2921,6 +2921,7 @@ function renderQuoteCalculation(){
   lines.push({code:p.product_code,amount,baseAmount,tradeInCredit,adjustedOldWeight,tradeInSource:line.tradeInSource});
  }
  const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
+ quoteCurrentTotal=positiveSubtotal;
  const card=$("quotePaymentMethod").value==="CARD";
  const cardFee=card?quoteRoundTwd(positiveSubtotal*0.05):0;
  const final=quoteRoundTwd(subtotalTotal+cardFee);
@@ -2956,7 +2957,7 @@ async function createCustomerOrderFromQuote(){
  const date=$("quoteOrderDeliveryDate").value;
  const payload={
   site_id:selectedSiteId,
-  order_no:"CO-"+new Date().toISOString().replace(/[-:TZ.]/g,"").slice(0,14),
+  order_no:"CO-"+Date.now().toString(),
   customer_name:customerName,
   customer_phone:$("quoteOrderCustomerPhone").value.trim()||null,
   expected_delivery_date:date?date+"T12:00:00+08:00":null,
