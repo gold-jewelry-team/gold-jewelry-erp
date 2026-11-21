@@ -1,4 +1,4 @@
-"""Add customer special orders and separate deposit payment ledger.
+"""Add customer special orders and shared payment-ledger support for deposits.
 
 Revision ID: 0027_customer_orders_deposits
 Revises: 0026_supplier_product_catalog
@@ -35,7 +35,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.CheckConstraint("status IN ('PENDING_DEPOSIT', 'IN_PROGRESS', 'ARRIVED', 'READY', 'COMPLETED', 'CANCELLED')", name="ck_customer_orders_status"),
-        sa.CheckConstraint("total_amount >= 0 AND deposit_amount >= 0 AND deposit_amount <= total_amount", name="ck_customer_orders_amounts"),
+        sa.CheckConstraint("total_amount > 0 AND deposit_amount >= 0 AND deposit_amount <= total_amount", name="ck_customer_orders_amounts"),
         sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["site_id"], ["sites.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
