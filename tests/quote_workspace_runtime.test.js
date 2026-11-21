@@ -79,7 +79,7 @@ function setup(values = {}) {
   vm.runInContext(extract("function quoteCalculateLineAmount(", "\nfunction renderQuoteEntryPreview(){"), context);
   vm.runInContext(extract("function renderQuoteEntryPreview(){", "\nasync function addQuoteProduct(){"), context);
   vm.runInContext(extract("async function addQuoteProduct(){", "\nasync function createCustomerOrderFromQuote(){"), context);
-  vm.runInContext(extract("function transferQuoteToSale(){", "\nfunction addSaleProduct(){"), context);
+  vm.runInContext(extract("function transferQuoteToSale(){", "\nasync function addSaleProduct(){"), context);
   get("salesPanel").scrollIntoView = () => {};
   return { context, get };
 }
