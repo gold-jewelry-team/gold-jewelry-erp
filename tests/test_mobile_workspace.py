@@ -114,8 +114,8 @@ def test_mobile_workspace_serves_html():
     assert "商品報價（有現貨／無現貨共用）" in response.text
     assert "客戶折抵（選填，沒有折抵可不填）" in response.text
     assert "找不到現有商品？臨時估價（不建立正式商品）" in response.text
-        assert 'id="quoteEntryPreview"' in response.text
-        assert "function renderQuoteEntryPreview()" in response.text
+assert 'id="quoteEntryPreview"' in response.text
+assert "function renderQuoteEntryPreview()" in response.text
     assert "無現貨／需訂製：建立客戶訂購單" in response.text
     assert 'id="quoteOrderCustomerName"' in response.text
     assert 'id="quoteOrderDeposit"' in response.text
