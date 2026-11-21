@@ -74,8 +74,6 @@ def record_sale_payment(
     )
     existing = _existing_amount(session, sale_id=sale.id, direction=direction)
     remaining = abs(obligation) - existing
-    if amount > remaining:
-        raise ValueError(f"收付款金額超過未結清餘額，目前尚可登錄：{remaining}。")
 
     # A mixed sale has a fixed tender plan: card principal plus its 5% fee
     # must be collected by card, and the remaining principal must be cash.
@@ -105,6 +103,9 @@ def record_sale_payment(
             raise ValueError(
                 f"{label}收款超過此付款方式應收餘額，目前尚可登錄：{method_remaining}。"
             )
+
+    if amount > remaining:
+        raise ValueError(f"收付款金額超過未結清餘額，目前尚可登錄：{remaining}。")
 
     transaction = PaymentTransaction(
         company_id=company_id,
