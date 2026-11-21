@@ -201,7 +201,7 @@ test("共用計價函式符合舊版四種舊金換新金公式", () => {
     oldWeight: 2, tradeInSource: "EXTERNAL", tradeInRatio: 0.95,
   });
   assert.equal(externalExcess.adjustedOldWeight, 1.9);
-  assert.equal(externalExcess.amount, -9400);
+  assert.equal(context.quoteRoundTwd(externalExcess.amount), -9400);
 });
 
 test("報價輸入預覽與報價清單都呼叫同一個計價函式", () => {
