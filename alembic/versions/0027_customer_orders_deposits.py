@@ -42,24 +42,33 @@ def upgrade() -> None:
         sa.UniqueConstraint("site_id", "order_no", name="uq_customer_orders_site_order_no"),
     )
     op.create_index("ix_customer_orders_company_site_created", "customer_orders", ["company_id", "site_id", "created_at"])
-    op.create_table(
-        "customer_order_payments",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("order_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("amount", sa.Numeric(18, 2), nullable=False),
-        sa.Column("payment_method", sa.String(12), nullable=False),
-        sa.Column("note", sa.String(500), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.CheckConstraint("amount > 0", name="ck_customer_order_payments_amount_positive"),
-        sa.CheckConstraint("payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')", name="ck_customer_order_payments_method"),
-        sa.ForeignKeyConstraint(["order_id"], ["customer_orders.id"], ondelete="RESTRICT"),
-        sa.PrimaryKeyConstraint("id"),
+    op.add_column("payment_transactions", sa.Column("customer_order_id", postgresql.UUID(as_uuid=True), nullable=True))
+    op.create_foreign_key(
+        "fk_payment_transactions_customer_order_id_customer_orders",
+        "payment_transactions", "customer_orders", ["customer_order_id"], ["id"],
+        ondelete="RESTRICT",
     )
-    op.create_index("ix_customer_order_payments_order_created", "customer_order_payments", ["order_id", "created_at"])
+    op.create_index("ix_payment_transactions_customer_order_id", "payment_transactions", ["customer_order_id"])
+    op.drop_constraint("ck_payment_transactions_exactly_one_source", "payment_transactions", type_="check")
+    op.create_check_constraint(
+        "ck_payment_transactions_exactly_one_source",
+        "payment_transactions",
+        "(sale_id IS NOT NULL AND sale_return_id IS NULL AND customer_order_id IS NULL) OR "
+        "(sale_id IS NULL AND sale_return_id IS NOT NULL AND customer_order_id IS NULL) OR "
+        "(sale_id IS NULL AND sale_return_id IS NULL AND customer_order_id IS NOT NULL)",
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_customer_order_payments_order_created", table_name="customer_order_payments")
-    op.drop_table("customer_order_payments")
+    op.drop_constraint("ck_payment_transactions_exactly_one_source", "payment_transactions", type_="check")
+    op.drop_index("ix_payment_transactions_customer_order_id", table_name="payment_transactions")
+    op.drop_constraint("fk_payment_transactions_customer_order_id_customer_orders", "payment_transactions", type_="foreignkey")
+    op.drop_column("payment_transactions", "customer_order_id")
+    op.create_check_constraint(
+        "ck_payment_transactions_exactly_one_source",
+        "payment_transactions",
+        "(sale_id IS NOT NULL AND sale_return_id IS NULL) OR "
+        "(sale_id IS NULL AND sale_return_id IS NOT NULL)",
+    )
     op.drop_index("ix_customer_orders_company_site_created", table_name="customer_orders")
     op.drop_table("customer_orders")
