@@ -119,7 +119,7 @@ def create_sale_draft(
             location = session.get(StorageLocation, item.get("source_location_id"))
             if location is None or location.site_id != site_id or not location.is_active:
                 raise ValueError("出貨儲存位置不存在、未啟用或不屬於銷售據點。")
-            weight = product.net_weight
+            weight = item.get("net_weight") or product.net_weight
             gross_weight = product.gross_weight
             weight_unit_code = product.weight_unit_code
             labor = item.get("labor_fee")
