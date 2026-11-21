@@ -63,6 +63,7 @@ function setup(values = {}) {
   context.quoteTradeInInput = undefined;
   vm.createContext(context);
   vm.runInContext(extract("function quoteTradeInInput(){", "\nfunction renderQuoteEntryPreview(){"), context);
+  vm.runInContext(extract("function quoteCalculateLineAmount(", "\nfunction renderQuoteEntryPreview(){"), context);
   vm.runInContext(extract("function renderQuoteEntryPreview(){", "\nasync function addQuoteProduct(){"), context);
   vm.runInContext(extract("async function addQuoteProduct(){", "\nasync function createCustomerOrderFromQuote(){"), context);
   return { context, get };
@@ -170,4 +171,42 @@ test("缺少重量時阻止加入並聚焦重量欄位", async () => {
   assert.equal(context.quoteSelectedProducts.length, 0);
   assert.equal(get("quoteWeight").focused, true);
   assert.match(get("quoteStatus").textContent, /重量必須大於 0/);
+});
+
+test("共用計價函式符合舊版四種舊金換新金公式", () => {
+  const { context } = setup();
+  const calculate = context.quoteCalculateLineAmount;
+
+  const noTradeIn = calculate({
+    newWeight: 2, sellRate: 12000, buyRate: 11000, laborFee: 800,
+  });
+  assert.equal(noTradeIn.amount, 24800);
+
+  const localLess = calculate({
+    newWeight: 2, sellRate: 12000, buyRate: 11000, laborFee: 800,
+    oldWeight: 1.25, tradeInSource: "LOCAL",
+  });
+  assert.equal(localLess.adjustedOldWeight, 1.25);
+  assert.equal(localLess.amount, 9800);
+
+  const externalLess = calculate({
+    newWeight: 2, sellRate: 12000, buyRate: 11000, laborFee: 800,
+    oldWeight: 1.333, tradeInSource: "EXTERNAL", tradeInRatio: 0.95,
+  });
+  assert.equal(externalLess.adjustedOldWeight, 1.26);
+  assert.equal(externalLess.amount, 9680);
+
+  const externalExcess = calculate({
+    newWeight: 1, sellRate: 12000, buyRate: 11000, laborFee: 500,
+    oldWeight: 2, tradeInSource: "EXTERNAL", tradeInRatio: 0.95,
+  });
+  assert.equal(externalExcess.adjustedOldWeight, 1.9);
+  assert.equal(externalExcess.amount, -9400);
+});
+
+test("報價輸入預覽與報價清單都呼叫同一個計價函式", () => {
+  const cartCalculation = extract("function renderQuoteCalculation(){", "\nfunction quoteTradeInInput(){");
+  const entryPreview = extract("function renderQuoteEntryPreview(){", "\nasync function addQuoteProduct(){");
+  assert.match(cartCalculation, /quoteCalculateLineAmount\(/);
+  assert.match(entryPreview, /quoteCalculateLineAmount\(/);
 });
