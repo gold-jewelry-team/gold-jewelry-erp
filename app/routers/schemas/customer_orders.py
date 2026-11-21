@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 class CustomerOrderPaymentCreate(BaseModel):
@@ -19,7 +19,7 @@ class CustomerOrderCreate(BaseModel):
     expected_delivery_date: datetime | None = None
     items: list[dict] = Field(min_length=1, max_length=100)
     total_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
-    initial_deposit: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=2)
+    initial_deposit: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     payment_method: str = Field(default="CASH", pattern="^(CASH|CARD|TRANSFER|OTHER)$")
     note: str | None = Field(default=None, max_length=1000)
 
