@@ -2891,6 +2891,7 @@ function quoteProductSearchText(product){
 function quoteRoundTwd(value){return Math.floor(Number(value)+0.5);}
 function renderQuoteCalculation(){
  const box=$("quoteCalcSummary");if(!box)return;
+ quoteCurrentTotal=null;
  if(!quoteSelectedProducts.length){quoteCurrentTotal=null;box.textContent="選擇商品後，會依目前有效金價試算。";return;}
  const lines=[];let subtotalTotal=0,grossSubtotalTotal=0,tradeInTotal=0;
  for(const line of quoteSelectedProducts){
@@ -2918,6 +2919,7 @@ function renderQuoteCalculation(){
   subtotalTotal+=amount;
   grossSubtotalTotal+=baseAmount;
   tradeInTotal+=tradeInCredit;
+  line.quotedAmount=quoteRoundTwd(amount);
   lines.push({code:p.product_code,amount,baseAmount,tradeInCredit,adjustedOldWeight,tradeInSource:line.tradeInSource});
  }
  const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
@@ -2952,7 +2954,7 @@ async function createCustomerOrderFromQuote(){
   trade_in_source:line.tradeInSource||null,
   old_gold_weight:Number(line.oldWeight||0),
   trade_in_ratio:Number(line.tradeInRatio||0.95),
-  estimated_line_amount:null
+  estimated_line_amount:Number(line.quotedAmount||0)
  }));
  const date=$("quoteOrderDeliveryDate").value;
  const payload={
