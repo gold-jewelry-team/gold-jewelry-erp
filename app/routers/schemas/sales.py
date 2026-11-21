@@ -8,12 +8,33 @@ from app.services.pricing.rounding import round_twd_like_legacy
 
 
 class SaleLineCreate(BaseModel):
-    product_id: UUID
-    source_location_id: UUID
+    # Catalog items require product/location IDs; temporary estimates carry immutable snapshots only.
+    product_id: UUID | None = None
+    source_location_id: UUID | None = None
+    product_code: str | None = Field(default=None, max_length=50)
+    barcode: str | None = Field(default=None, max_length=100)
+    product_name: str | None = Field(default=None, min_length=1, max_length=200)
+    net_weight: Decimal | None = Field(default=None, gt=0, max_digits=18, decimal_places=4)
+    weight_unit_code: str | None = Field(default=None, pattern="^(QIAN|GRAM|TAEL)$")
     labor_fee: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
     old_gold_weight: Decimal = Field(default=Decimal("0"), ge=0, max_digits=18, decimal_places=4)
     trade_in_source: str | None = Field(default=None, pattern="^(LOCAL|EXTERNAL)$")
     trade_in_ratio: Decimal = Field(default=Decimal("0.95"), gt=0, le=1, max_digits=8, decimal_places=6)
+
+    @model_validator(mode="after")
+    def validate_catalog_or_estimate(self):
+        if self.product_id is None:
+            if self.source_location_id is not None:
+                raise ValueError("臨時估價商品不可指定庫存出貨位置。")
+            if not self.product_name or self.net_weight is None or not self.weight_unit_code:
+                raise ValueError("臨時估價成交需提供商品名稱、重量及重量單位。")
+        elif self.source_location_id is None:
+            raise ValueError("正式商品成交必須指定出貨儲存位置。")
+        if self.old_gold_weight > 0 and self.trade_in_source is None:
+            raise ValueError("輸入舊金折抵重量時，必須指定本店或外店來源。")
+        if self.old_gold_weight == 0 and self.trade_in_source is not None:
+            raise ValueError("沒有舊金折抵重量時，不可指定折抵來源。")
+        return self
 
 
 class SaleCreate(BaseModel):
