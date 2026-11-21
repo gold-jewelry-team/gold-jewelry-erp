@@ -1,0 +1,95 @@
+from decimal import Decimal
+
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app import models  # noqa: F401
+from app.db.base import Base
+from app.main import app
+from app.models.company import Company
+from app.models.site import Site
+from app.routers import customer_orders
+
+
+def test_customer_order_deposit_ledger_and_status_flow():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = TestSession()
+    company = Company(code="ORDER-STORE", name="客訂單測試銀樓")
+    db.add(company)
+    db.flush()
+    site = Site(company_id=company.id, code="MAIN", name="總店")
+    db.add(site)
+    db.commit()
+    company_id, site_id = company.id, site.id
+    db.close()
+
+    def override_db():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides[customer_orders.get_db] = override_db
+    try:
+        client = TestClient(app)
+        created = client.post(f"/companies/{company_id}/customer-orders", json={
+            "site_id": str(site_id),
+            "order_no": "CO-TEST-001",
+            "customer_name": "王小姐",
+            "customer_phone": "0912000000",
+            "items": [{"product_name": "客訂黃金戒指", "weight": 1.2, "weight_unit_code": "QIAN"}],
+            "total_amount": "30000",
+            "initial_deposit": "5000",
+            "payment_method": "CASH",
+        })
+        assert created.status_code == 201, created.text
+        order = created.json()
+        assert order["status"] == "IN_PROGRESS"
+        assert order["deposit_amount"] == "5000.00"
+        assert order["balance_amount"] == "25000.00"
+        assert len(order["payments"]) == 1
+
+        paid = client.post(f"/companies/{company_id}/customer-orders/{order['id']}/payments", json={
+            "amount": "25000",
+            "payment_method": "TRANSFER",
+            "note": "交貨前尾款",
+        })
+        assert paid.status_code == 200, paid.text
+        assert paid.json()["deposit_amount"] == "30000.00"
+        assert paid.json()["balance_amount"] == "0.00"
+        assert len(paid.json()["payments"]) == 2
+
+        arrived = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "ARRIVED"},
+        )
+        assert arrived.status_code == 200, arrived.text
+        ready = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "READY"},
+        )
+        assert ready.status_code == 200, ready.text
+        completed = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "COMPLETED"},
+        )
+        assert completed.status_code == 200, completed.text
+        assert completed.json()["status"] == "COMPLETED"
+
+        duplicate_overpayment = client.post(f"/companies/{company_id}/customer-orders/{order['id']}/payments", json={
+            "amount": "1", "payment_method": "CASH",
+        })
+        assert duplicate_overpayment.status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(engine)
