@@ -359,8 +359,6 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <section class="panel span2" id="quoteWorkbenchPanel">
 <h2>現場報價／同款查找</h2>
 <p class="sub">掃描展示商品或搜尋款式，快速帶出商品重量、預設工錢及庫存位置。此工作區只供詢價，不會扣庫存或建立正式銷售。</p>
-<h3>找不到現有商品？臨時估價（不建立正式商品）</h3>
-<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div><div id="quoteEstimatePreview" class="quote-note" aria-live="polite">輸入商品規格及重量、工錢後即時試算；加入後與現有商品使用相同報價明細。</div>
 <h3>商品報價（有現貨／無現貨共用）</h3>
 <div class="grid">
  <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 選取商品"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
@@ -380,6 +378,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <h3>已選商品／報價參考</h3>
 <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
 <div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇或新增商品後，會依目前有效金價、商品重量、工錢及客戶折抵，使用同一套規則試算。</div>
+<h3>找不到現有商品？臨時估價（不建立正式商品）</h3>
+<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div><div id="quoteEstimatePreview" class="quote-note" aria-live="polite">輸入商品規格及重量、工錢後即時試算；加入後與現有商品使用相同報價明細。</div>
 <h3>無現貨／需訂製：建立客戶訂購單</h3>
 <p class="sub">有現貨請直接進入銷售結帳；無現貨或需訂製時，使用同一份報價明細建立訂購單並收取訂金。訂購單不扣庫存，訂金獨立記錄。</p>
 <div class="grid">
@@ -3007,14 +3007,14 @@ function renderQuoteCalculation(){
   grossSubtotalTotal+=baseAmount;
   tradeInTotal+=tradeInCredit;
   line.quotedAmount=quoteRoundTwd(amount);
-  lines.push({code:p.product_code,amount,baseAmount,tradeInCredit,adjustedOldWeight,tradeInSource:line.tradeInSource});
+  lines.push({code:p.product_code,amount,baseAmount,tradeInCredit,adjustedOldWeight,tradeInSource:line.tradeInSource,sellRate,weightUnit:p.weight_unit_code});
  }
  const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
  quoteCurrentTotal=positiveSubtotal;
  const card=$("quotePaymentMethod").value==="CARD";
  const cardFee=card?quoteRoundTwd(positiveSubtotal*0.05):0;
  const final=quoteRoundTwd(subtotalTotal+cardFee);
- box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">新商品金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 客戶折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+'）':' · 未使用客戶折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>新商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">客戶折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>客戶折抵：NT$ 0</div>')+'<div>折抵後應付商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+(card?'<div>刷卡試算 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'')+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>新商品金額先依商品重量與工錢計算；客戶提供舊金時，再依重量、來源及折抵比率扣抵。刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
+ box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">重量單位：'+escapeHtml(goldUnitLabel(x.weightUnit))+' · 賣出金價：NT$ '+escapeHtml(quoteMoney(x.sellRate))+'／'+escapeHtml(goldUnitLabel(x.weightUnit))+'<br>新商品金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 客戶折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+' '+escapeHtml(goldUnitLabel(x.weightUnit))+'）':' · 未使用客戶折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>新商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">客戶折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>客戶折抵：NT$ 0</div>')+'<div>折抵後應付商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+(card?'<div>刷卡試算 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'')+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>新商品金額先依商品重量與工錢計算；客戶提供舊金時，再依重量、來源及折抵比率扣抵。刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
 }
 
 function renderQuoteEntryPreview(){
@@ -3040,7 +3040,7 @@ function renderQuoteEntryPreview(){
  const baseAmount=weight*sellRate+labor;let amount=baseAmount,credit=0,adjustedOldWeight=0;
  if(oldWeight>0){adjustedOldWeight=Math.trunc(oldWeight*(source==="LOCAL"?1:ratio)*100)/100;amount=adjustedOldWeight<=weight?(weight-adjustedOldWeight)*sellRate+labor:labor-(adjustedOldWeight-weight)*buyRate;credit=baseAmount-amount;}
  const rounded=quoteRoundTwd(amount),card=$("quotePaymentMethod").value==="CARD",cardFee=card&&rounded>0?quoteRoundTwd(rounded*0.05):0,final=quoteRoundTwd(amount+cardFee);
- box.innerHTML="<strong>本次商品即時試算</strong><div>"+escapeHtml(product.product_code)+" · "+escapeHtml(product.name)+"</div><div>重量 "+escapeHtml(weight)+" "+escapeHtml(product.weight_unit_code)+" × 賣出金價 + 工錢 NT$ "+escapeHtml(quoteMoney(labor))+"</div><div>新商品金額：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(baseAmount)))+"</div>"+(credit>0?"<div>客戶折抵（"+(source==="LOCAL"?"本店 100%":"外店 "+quoteMoney(ratio*100)+"%")+"；折算 "+escapeHtml(adjustedOldWeight)+" "+escapeHtml(product.weight_unit_code)+"）：－ NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(credit)))+"</div>":"<div>客戶折抵：NT$ 0</div>")+"<strong style='display:block;font-size:20px;margin-top:6px'>預估應收：NT$ "+escapeHtml(quoteMoney(final))+"</strong>"+(card?"<small>含全額刷卡 5% 試算 NT$ "+escapeHtml(quoteMoney(cardFee))+"</small>":"");
+ box.innerHTML="<strong>本次商品即時試算</strong><div>"+escapeHtml(product.product_code)+" · "+escapeHtml(product.name)+"</div><div>重量 "+escapeHtml(weight)+" "+escapeHtml(goldUnitLabel(product.weight_unit_code))+" × 賣出金價 NT$ "+escapeHtml(quoteMoney(sellRate))+"／"+escapeHtml(goldUnitLabel(product.weight_unit_code))+" + 工錢 NT$ "+escapeHtml(quoteMoney(labor))+"</div><div>新商品金額：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(baseAmount)))+"</div>"+(credit>0?"<div>客戶折抵（"+(source==="LOCAL"?"本店 100%":"外店 "+quoteMoney(ratio*100)+"%")+"；折算 "+escapeHtml(adjustedOldWeight)+" "+escapeHtml(goldUnitLabel(product.weight_unit_code))+"）：－ NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(credit)))+"</div>":"<div>客戶折抵：NT$ 0</div>")+"<strong style='display:block;font-size:20px;margin-top:6px'>預估應收：NT$ "+escapeHtml(quoteMoney(final))+"</strong>"+(card?"<small>含全額刷卡 5% 試算 NT$ "+escapeHtml(quoteMoney(cardFee))+"</small>":"");
 }
 async function createCustomerOrderFromQuote(){
  const status=$("quoteOrderStatus");
@@ -3126,7 +3126,7 @@ function renderQuoteSearchResults(){
   const stockRows=quoteStockRowsByProduct.get(p.id)||[];
   const stockText=stock===undefined?(quoteStockErrorKey===companyId+"|"+selectedSiteId?"庫存查詢失敗":"庫存查詢中"):stock>0?"有貨 "+stock+" 件":"目前無庫存";
   const stockLocations=stockRows.map(row=>(row.location_name||row.location_code)+ " "+row.quantity+"件").join("、");
-  return '<button type="button" class="quote-product-result" data-quote-product="'+escapeHtml(p.id)+'"><span><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"未設定")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 淨重：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 工錢：'+escapeHtml(quoteMoney(p.labor_fee))+'</small></span><span class="quote-stock">'+escapeHtml(stockText)+(stockLocations?'<small>'+escapeHtml(stockLocations)+'</small>':'')+'</span></button>';
+  return '<button type="button" class="quote-product-result" data-quote-product="'+escapeHtml(p.id)+'"><span><strong>'+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"未設定")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 淨重：'+escapeHtml(p.net_weight)+' '+escapeHtml(goldUnitLabel(p.weight_unit_code))+' · 工錢：'+escapeHtml(quoteMoney(p.labor_fee))+'</small></span><span class="quote-stock">'+escapeHtml(stockText)+(stockLocations?'<small>'+escapeHtml(stockLocations)+'</small>':'')+'</span></button>';
  }).join(""):'<div class="empty">沒有找到符合商品。可改用款式編號、商品名稱或掃描商品條碼。</div>';
 }
 const quoteStockSummary=new Map();
@@ -3201,7 +3201,7 @@ function renderQuoteLines(){
   const p=line.product;
   const locations=line.isEstimate?"非庫存預估規格":line.stockRows.map(row=>escapeHtml(row.location_name||row.location_code||"位置")+"："+escapeHtml(row.quantity)+" 件").join("、")||"無庫存紀錄";
   const tradeInLabel=Number(line.oldWeight||0)>0?(line.tradeInSource==="LOCAL"?"本店 100%":"外店 "+(Number(line.tradeInRatio||0.95)*100)+"%"):"未使用客戶折抵";
-  return '<article class="quote-line"><div class="quote-line-main"><strong>'+(line.isEstimate?'<span class="pill">預估</span> ':'')+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(p.weight_unit_code)+' · 庫存：'+locations+' · 客戶折抵：'+escapeHtml(line.oldWeight||0)+' '+escapeHtml(p.weight_unit_code)+'（'+escapeHtml(tradeInLabel)+'）</small></div><div><label>報價重量（'+escapeHtml(p.weight_unit_code)+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
+  return '<article class="quote-line"><div class="quote-line-main"><strong>'+(line.isEstimate?'<span class="pill">預估</span> ':'')+escapeHtml(p.product_code)+' · '+escapeHtml(p.name)+'</strong><small>款式：'+escapeHtml(p.style_code||"—")+' · 尺寸／長度：'+escapeHtml(p.chain_length||"—")+' · 原始重量：'+escapeHtml(p.net_weight)+' '+escapeHtml(goldUnitLabel(p.weight_unit_code))+' · 庫存：'+locations+' · 客戶折抵：'+escapeHtml(line.oldWeight||0)+' '+escapeHtml(goldUnitLabel(p.weight_unit_code))+'（'+escapeHtml(tradeInLabel)+'）</small></div><div><label>報價重量（'+escapeHtml(goldUnitLabel(p.weight_unit_code))+'）</label><input type="number" min="0" step="0.0001" value="'+escapeHtml(line.weight)+'" data-quote-weight="'+index+'"></div><div><label>工錢（元）</label><input type="number" min="0" step="0.01" value="'+escapeHtml(line.labor)+'" data-quote-labor="'+index+'"></div><button type="button" class="secondary quote-remove" data-quote-remove="'+index+'">移除</button></article>';
  }).join(""):'<div class="empty">尚未選擇商品</div>';
  renderQuoteCalculation();
 }
@@ -3318,9 +3318,20 @@ document.addEventListener("click",function(event){
  if(!shortcut)return;
  const target=document.getElementById(shortcut.getAttribute("data-home-target"));
  if(!target)return;
- target.scrollIntoView({behavior:"smooth",block:"start"});
- target.setAttribute("tabindex","-1");
- window.setTimeout(function(){try{target.focus({preventScroll:true});}catch(_){target.focus();}},350);
+ const category=target.dataset.category;
+ if(category&&category!=="global"){
+  const categoryButton=document.querySelector('.category-nav button[data-category="'+category+'"]');
+  if(categoryButton)categoryButton.click();
+ }
+ if(target.classList.contains("panel-collapsed")){
+  const toggle=target.querySelector(":scope > h2 .panel-toggle");
+  if(toggle)toggle.click();
+ }
+ window.requestAnimationFrame(()=>{
+  target.scrollIntoView({behavior:"smooth",block:"start"});
+  target.setAttribute("tabindex","-1");
+  window.setTimeout(function(){try{target.focus({preventScroll:true});}catch(_){target.focus();}},350);
+ });
 });
 </script>
 </body></html>
