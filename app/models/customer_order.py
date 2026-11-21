@@ -5,6 +5,7 @@ from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, JSON, Numeric, String, Uuid, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db.base import Base
 
@@ -13,7 +14,7 @@ class CustomerOrder(Base):
     __tablename__ = "customer_orders"
     __table_args__ = (
         CheckConstraint("status IN ('PENDING_DEPOSIT', 'IN_PROGRESS', 'ARRIVED', 'READY', 'COMPLETED', 'CANCELLED')", name="ck_customer_orders_status"),
-        CheckConstraint("total_amount >= 0 AND deposit_amount >= 0 AND deposit_amount <= total_amount", name="ck_customer_orders_amounts"),
+        CheckConstraint("total_amount > 0 AND deposit_amount >= 0 AND deposit_amount <= total_amount", name="ck_customer_orders_amounts"),
         Index("ix_customer_orders_company_site_created", "company_id", "site_id", "created_at"),
         UniqueConstraint("site_id", "order_no", name="uq_customer_orders_site_order_no"),
     )
@@ -27,7 +28,7 @@ class CustomerOrder(Base):
     customer_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     expected_delivery_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="TWD", server_default="TWD")
-    items: Mapped[list] = mapped_column(JSON, nullable=False)
+    items: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False)
     total_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     deposit_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False, default=Decimal("0"), server_default="0")
     note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
