@@ -4,6 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 
 const html = fs.readFileSync("app/static/index.html", "utf8");
+const legacyPricingCases = JSON.parse(fs.readFileSync("tests/fixtures/legacy_pricing_cases.json", "utf8"));
 
 function extract(startMarker, endMarker) {
   const start = html.indexOf(startMarker);
@@ -227,4 +228,25 @@ test("混合付款時單件輸入預覽不會把未計算刷卡費的金額誤�
   assert.match(preview, /商品金額（未含刷卡手續費）：NT\$ 18,500/);
   assert.match(preview, /加入報價清單並配平刷卡／現金金額後，會依刷卡部分加收 5%/);
   assert.doesNotMatch(preview, /預估應收：NT\$ 18,500/);
+});
+
+
+test("browser quote pricing matches the shared legacy golden cases", () => {
+  const { context } = setup();
+
+  for (const item of legacyPricingCases) {
+    const result = context.quoteCalculateLineAmount({
+      newWeight: Number(item.new_weight),
+      sellRate: Number(item.sell_gold_price),
+      buyRate: Number(item.buy_gold_price),
+      laborFee: Number(item.labor_fee),
+      oldWeight: Number(item.old_weight),
+      tradeInSource: item.trade_in_source,
+      tradeInRatio: Number(item.trade_in_ratio),
+    });
+
+    assert.equal(result.adjustedOldWeight, Number(item.adjusted_old_weight), item.name);
+    assert.ok(Math.abs(result.amount - Number(item.subtotal)) < 1e-8, `${item.name}: unrounded amount differs beyond floating-point tolerance`);
+    assert.equal(context.quoteRoundTwd(result.amount), Number(item.final_amount), item.name);
+  }
 });

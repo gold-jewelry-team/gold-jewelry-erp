@@ -1,4 +1,6 @@
+import json
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -111,3 +113,26 @@ def test_invalid_trade_in_is_rejected():
             buy_gold_price=D("9000"), has_trade_in=True,
             trade_in_source="LOCAL", old_weight=D("0"),
         ))
+
+
+LEGACY_PRICING_CASES = json.loads(
+    (Path(__file__).parent / "fixtures" / "legacy_pricing_cases.json").read_text(encoding="utf-8")
+)
+
+
+@pytest.mark.parametrize("case", LEGACY_PRICING_CASES, ids=lambda case: case["name"])
+def test_python_pricing_matches_legacy_golden_cases(case):
+    result = calculate_sale_amount(SalePricingInput(
+        new_weight=D(case["new_weight"]),
+        sell_gold_price=D(case["sell_gold_price"]),
+        buy_gold_price=D(case["buy_gold_price"]),
+        labor_fee=D(case["labor_fee"]),
+        has_trade_in=D(case["old_weight"]) > 0,
+        trade_in_source=case["trade_in_source"],
+        old_weight=D(case["old_weight"]),
+        trade_in_ratio=D(case["trade_in_ratio"]),
+    ))
+
+    assert result.adjusted_old_weight == D(case["adjusted_old_weight"])
+    assert result.subtotal == D(case["subtotal"])
+    assert result.final_amount == D(case["final_amount"])
