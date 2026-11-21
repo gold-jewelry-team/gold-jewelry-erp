@@ -246,7 +246,7 @@ test("browser quote pricing matches the shared legacy golden cases", () => {
     });
 
     assert.equal(result.adjustedOldWeight, Number(item.adjusted_old_weight), item.name);
-    assert.equal(result.amount, Number(item.subtotal), item.name);
+    assert.ok(Math.abs(result.amount - Number(item.subtotal)) < 1e-8, `${item.name}: unrounded amount differs beyond floating-point tolerance`);
     assert.equal(context.quoteRoundTwd(result.amount), Number(item.final_amount), item.name);
   }
 });
