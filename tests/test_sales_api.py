@@ -59,7 +59,17 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         weight_unit_code="QIAN",
         labor_fee=Decimal("300"),
     )
-    session.add_all([location, product, product2])
+    product3 = Product(
+        company_id=company.id,
+        product_code="SALE-G-003",
+        barcode="SALE-BAR-003",
+        name="測試黃金手環",
+        gross_weight=Decimal("1.2000"),
+        net_weight=Decimal("1.0000"),
+        weight_unit_code="QIAN",
+        labor_fee=Decimal("300"),
+    )
+    session.add_all([location, product, product2, product3])
     session.flush()
 
     effective_at = datetime.now(timezone.utc) - timedelta(days=1)
@@ -189,6 +199,64 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert card_sale["cash_amount"] == "0.00"
         assert card_sale["card_fee"] == "615.00"
         assert card_sale["final_amount"] == "12915.00"
+
+        # Point-of-sale tender matrix: card fee applies only to card principal,
+        # while the remaining principal is cash and is never surcharged.
+        three_items = [
+            {"product_id": str(product_id), "source_location_id": str(location_id)},
+            {"product_id": str(product2_id), "source_location_id": str(location_id)},
+            {"product_id": str(product3_id), "source_location_id": str(location_id)},
+        ]
+        tender_cases = [
+            # label, method, card principal, expected subtotal, card fee, cash principal, final
+            ("3 items cash", "CASH", None, "36900.00", "0.00", "36900.00", "36900.00"),
+            ("3 items card 1", "MIXED", "1", "36900.00", "0.00", "36899.00", "36900.00"),
+            ("3 items card 11", "MIXED", "11", "36900.00", "1.00", "36889.00", "36901.00"),
+            ("3 items card 10000", "MIXED", "10000", "36900.00", "500.00", "26900.00", "37400.00"),
+            ("3 items half card", "MIXED", "18450", "36900.00", "923.00", "18450.00", "37823.00"),
+            ("3 items almost all card", "MIXED", "36899", "36900.00", "1845.00", "1.00", "38745.00"),
+            ("3 items full card", "CARD", None, "36900.00", "1845.00", "0.00", "38745.00"),
+            ("2 items half card", "MIXED", "12300", "24600.00", "615.00", "12300.00", "25215.00"),
+            ("1 item card 1000", "MIXED", "1000", "12300.00", "50.00", "11300.00", "12350.00"),
+            ("1 item card 9999", "MIXED", "9999", "12300.00", "500.00", "2301.00", "12800.00"),
+        ]
+        for index, (label, method, card_principal, subtotal, fee, cash, final) in enumerate(tender_cases):
+            line_count = 1 if label.startswith("1 item") else 2 if label.startswith("2 items") else 3
+            payload = {
+                "site_id": str(site_id),
+                "sale_no": f"SO-TENDER-MATRIX-{index:02d}",
+                "payment_method": method,
+                "lines": three_items[:line_count],
+            }
+            if card_principal is not None:
+                payload["card_amount"] = card_principal
+            result = client.post(f"/companies/{company_id}/sales", json=payload)
+            assert result.status_code == 201, f"{label}: {result.text}"
+            data = result.json()
+            assert data["subtotal"] == subtotal, label
+            assert data["card_fee"] == fee, label
+            assert data["cash_amount"] == cash, label
+            assert data["final_amount"] == final, label
+            assert sum(Decimal(line["final_amount"]) for line in data["lines"]) == Decimal(final), label
+
+        # Invalid tenders must be rejected before a draft can be created.
+        invalid_tenders = [
+            ("over subtotal", "MIXED", "36901", three_items),
+            ("fractional card principal", "MIXED", "1000.50", three_items),
+            ("missing mixed card principal", "MIXED", None, three_items),
+            ("transfer plus card principal", "TRANSFER", "100", three_items),
+        ]
+        for index, (label, method, card_principal, lines) in enumerate(invalid_tenders):
+            payload = {
+                "site_id": str(site_id),
+                "sale_no": f"SO-TENDER-INVALID-{index:02d}",
+                "payment_method": method,
+                "lines": lines,
+            }
+            if card_principal is not None:
+                payload["card_amount"] = card_principal
+            rejected = client.post(f"/companies/{company_id}/sales", json=payload)
+            assert rejected.status_code == 422, f"{label}: {rejected.text}"
 
         completed = client.post(
             f"/companies/{company_id}/sales/{sale['id']}/complete"
