@@ -111,6 +111,13 @@ def test_mobile_workspace_serves_html():
     assert "已載入帳面庫存清單" in response.text
 
     assert 'id="quoteWorkbenchPanel"' in response.text
+    assert response.text.index("商品報價（有現貨／無現貨共用）") < response.text.index("找不到現有商品？臨時估價（不建立正式商品）")
+    assert "goldUnitLabel(p.weight_unit_code)" in response.text
+    assert "goldUnitLabel(product.weight_unit_code)" in response.text
+    assert "賣出金價：NT$ " in response.text
+    assert "重量單位：" in response.text
+    assert "const category=target.dataset.category" in response.text
+    assert "categoryButton.click()" in response.text
     assert 'id="quoteProduct"' in response.text
     assert 'id="quoteWeight"' in response.text
     assert 'id="quoteLaborFee"' in response.text
