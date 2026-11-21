@@ -59,6 +59,7 @@ class CustomerOrderRead(BaseModel):
     updated_at: datetime
     payments: list[CustomerOrderPaymentRead]
 
+    @computed_field
     @property
     def balance_amount(self) -> Decimal:
         return self.total_amount - self.deposit_amount
