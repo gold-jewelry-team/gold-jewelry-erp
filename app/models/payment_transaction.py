@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -16,13 +16,15 @@ class PaymentTransaction(Base):
         CheckConstraint("payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')", name="ck_payment_transactions_method"),
         CheckConstraint("amount > 0", name="ck_payment_transactions_amount_positive"),
         CheckConstraint(
-            "(sale_id IS NOT NULL AND sale_return_id IS NULL) OR "
-            "(sale_id IS NULL AND sale_return_id IS NOT NULL)",
+            "(sale_id IS NOT NULL AND sale_return_id IS NULL AND customer_order_id IS NULL) OR "
+            "(sale_id IS NULL AND sale_return_id IS NOT NULL AND customer_order_id IS NULL) OR "
+            "(sale_id IS NULL AND sale_return_id IS NULL AND customer_order_id IS NOT NULL)",
             name="ck_payment_transactions_exactly_one_source",
         ),
         Index("ix_payment_transactions_company_site_paid_at", "company_id", "site_id", "paid_at"),
         Index("ix_payment_transactions_sale_id", "sale_id"),
         Index("ix_payment_transactions_return_id", "sale_return_id"),
+        Index("ix_payment_transactions_customer_order_id", "customer_order_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -30,6 +32,8 @@ class PaymentTransaction(Base):
     site_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=False)
     sale_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("sales.id", ondelete="RESTRICT"), nullable=True)
     sale_return_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("sale_returns.id", ondelete="RESTRICT"), nullable=True)
+    customer_order_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("customer_orders.id", ondelete="RESTRICT"), nullable=True)
+    customer_order: Mapped["CustomerOrder | None"] = relationship(back_populates="payments")
     direction: Mapped[str] = mapped_column(String(3), nullable=False)
     payment_method: Mapped[str] = mapped_column(String(12), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
