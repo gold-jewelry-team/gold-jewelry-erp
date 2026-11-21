@@ -100,6 +100,41 @@ def test_temporary_estimate_sale_is_snapshotted_without_inventory_movement():
         assert return_line["source_location_id"] is None
         assert return_line["settlement_reversal_amount"] == "-12500.00"
 
+        refund_sale_response = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-ESTIMATE-REFUND-001",
+            "payment_method": "CASH",
+            "lines": [{
+                "product_name": "臨時估價手環",
+                "net_weight": "1.0000",
+                "weight_unit_code": "QIAN",
+                "labor_fee": "500",
+                "old_gold_weight": "1.5000",
+                "trade_in_source": "EXTERNAL",
+                "trade_in_ratio": "0.95",
+            }],
+        })
+        assert refund_sale_response.status_code == 201, refund_sale_response.text
+        refund_sale = refund_sale_response.json()
+        assert refund_sale["subtotal"] == "-4120.00"
+        assert refund_sale["final_amount"] == "-4120.00"
+        refund_completed = client.post(
+            f"/companies/{company_id}/sales/{refund_sale['id']}/complete"
+        )
+        assert refund_completed.status_code == 200, refund_completed.text
+        assert refund_completed.json()["status"] == "COMPLETED"
+
+        refund_return = client.post(
+            f"/companies/{company_id}/sales/{refund_sale['id']}/returns",
+            json={
+                "return_no": "RT-ESTIMATE-REFUND-001",
+                "sale_line_ids": [refund_sale["lines"][0]["id"]],
+                "reason": "舊金超額退款測試",
+            },
+        )
+        assert refund_return.status_code == 201, refund_return.text
+        assert refund_return.json()["settlement_reversal_amount"] == "4120.00"
+
         check_session = TestSession()
         assert check_session.query(InventoryMovement).count() == 0
         check_session.close()
