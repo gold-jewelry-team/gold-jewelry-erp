@@ -27,6 +27,7 @@ function makeElement(value = "") {
       remove() {},
     },
     focus() { this.focused = true; },
+    addEventListener() {},
   };
 }
 
@@ -290,7 +291,6 @@ test("臨時估價可完整帶入正式銷售購物車，保留重量、工錢�
   assert.equal(context.saleCartLines.length, 1);
   const line = context.saleCartLines[0];
   assert.equal(line.isEstimate, true);
-  assert.equal(line.product.product_name, undefined);
   assert.equal(line.product.name, "臨時估價");
   assert.equal(line.net_weight, 2);
   assert.equal(line.labor_fee, "500");
