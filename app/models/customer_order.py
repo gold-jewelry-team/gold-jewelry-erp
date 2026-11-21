@@ -1,4 +1,4 @@
-"""Customer special orders and deposit ledger; these records never reserve or deduct stock."""
+"""Customer special orders; receipts use the shared payment ledger and never reserve or deduct stock."""
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -33,21 +33,4 @@ class CustomerOrder(Base):
     note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
-    payments: Mapped[list["CustomerOrderPayment"]] = relationship(back_populates="order", cascade="all, delete-orphan", order_by="CustomerOrderPayment.created_at")
-
-
-class CustomerOrderPayment(Base):
-    __tablename__ = "customer_order_payments"
-    __table_args__ = (
-        CheckConstraint("amount > 0", name="ck_customer_order_payments_amount_positive"),
-        CheckConstraint("payment_method IN ('CASH', 'CARD', 'TRANSFER', 'OTHER')", name="ck_customer_order_payments_method"),
-        Index("ix_customer_order_payments_order_created", "order_id", "created_at"),
-    )
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("customer_orders.id", ondelete="RESTRICT"), nullable=False)
-    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
-    payment_method: Mapped[str] = mapped_column(String(12), nullable=False)
-    note: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    order: Mapped[CustomerOrder] = relationship(back_populates="payments")
+    payments: Mapped[list["PaymentTransaction"]] = relationship(back_populates="customer_order", order_by="PaymentTransaction.paid_at")
