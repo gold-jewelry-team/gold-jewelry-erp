@@ -2954,7 +2954,7 @@ async function createCustomerOrderFromQuote(){
   labor_fee:Number(line.labor),
   trade_in_source:line.tradeInSource||null,
   old_gold_weight:Number(line.oldWeight||0),
-  trade_in_ratio:Number(line.tradeInRatio||0.95),
+  trade_in_ratio:line.tradeInSource==="EXTERNAL"?Number(line.tradeInRatio||0.95):null,
   estimated_line_amount:Number(line.quotedAmount||0)
  }));
  const date=$("quoteOrderDeliveryDate").value;
