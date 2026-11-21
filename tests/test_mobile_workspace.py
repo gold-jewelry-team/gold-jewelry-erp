@@ -105,6 +105,7 @@ def test_mobile_workspace_serves_html():
 
     assert 'id="quoteWorkbenchPanel"' in response.text
     assert 'id="quoteProduct"' in response.text
+    assert 'id="quoteWeight"' in response.text
     assert 'id="quoteLaborFee"' in response.text
     assert 'id="quoteOldGoldWeight"' in response.text
     assert 'id="quoteTradeInSource"' in response.text

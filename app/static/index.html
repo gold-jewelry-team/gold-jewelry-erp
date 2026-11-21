@@ -316,7 +316,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="grid">
  <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 選取商品"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
  <div class="field wide"><label for="quoteProduct">商品（可依編號／名稱／條碼選擇）</label><select id="quoteProduct"><option value="">請選擇商品</option></select></div>
- <div class="field"><label for="quoteLaborFee">本次報價工錢（留空使用商品預設）</label><input id="quoteLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
+ <div class="field"><label for="quoteWeight">本次報價重量（留空使用商品預設）</label><input id="quoteWeight" type="number" min="0.0001" step="0.0001" placeholder="選填"></div>
+  <div class="field"><label for="quoteLaborFee">本次報價工錢（留空使用商品預設）</label><input id="quoteLaborFee" type="number" min="0" step="0.01" placeholder="選填"></div>
  <h4 class="wide">客戶折抵（選填，沒有折抵可不填）</h4>
  <div class="field"><label for="quoteOldGoldWeight">折抵重量</label><input id="quoteOldGoldWeight" type="number" min="0" step="0.0001" value="0"></div>
  <div class="field"><label for="quoteTradeInSource">折抵來源</label><select id="quoteTradeInSource"><option value="">不使用折抵</option><option value="LOCAL">客戶提供本店舊金（100%）</option><option value="EXTERNAL">客戶提供外店舊金（預設 95%）</option></select></div>
@@ -3057,7 +3058,9 @@ async function selectQuoteProduct(product){
   await loadQuoteStockBalances();
   const stockRows=quoteStockRowsByProduct.get(product.id)||[];
   quoteStockSummary.set(product.id,stockRows.reduce((sum,row)=>sum+Number(row.quantity||0),0));
-  message("quoteSearchStatus","已選取："+product.product_code+" · "+product.name+"；請設定新商品工錢及客戶折抵（如有），再加入報價清單。");
+  $("quoteWeight").value=String(product.net_weight??"");
+   $("quoteLaborFee").value=String(product.labor_fee??"");
+   message("quoteSearchStatus","已選取："+product.product_code+" · "+product.name+"；可調整本次報價重量、工錢及客戶折抵（如有），再加入報價清單。");
  }catch(error){message("quoteSearchStatus","商品已選取，但庫存查詢失敗："+error.message,true);}
 }
 async function addQuoteProduct(){
@@ -3071,12 +3074,15 @@ async function addQuoteProduct(){
  if(oldWeight>0&&!source){quoteSetStatus("輸入舊金折抵重量時，必須選擇本店或外店舊金來源。",true);return;}
  if(oldWeight===0&&source){quoteSetStatus("選擇折抵來源時，請輸入大於 0 的折抵重量。",true);return;}
  if(source==="EXTERNAL"&&(!Number.isFinite(Number(ratio))||Number(ratio)<=0||Number(ratio)>1)){quoteSetStatus("外店折抵比率須大於 0 且不得超過 1。",true);return;}
+ const weightText=$("quoteWeight").value.trim(),weight=weightText===""?Number(product.net_weight??0):Number(weightText);
+ if(!weightText&&Number(product.net_weight??0)<=0){quoteSetStatus("商品尚未設定重量，請輸入本次報價重量。",true);$("quoteWeight").focus();return;}
+ if(!Number.isFinite(weight)||weight<=0){quoteSetStatus("本次報價重量必須大於 0。",true);$("quoteWeight").focus();return;}
  const labor=$("quoteLaborFee").value.trim();
  let stockRows=[];
  try{await loadQuoteStockBalances();stockRows=quoteStockRowsByProduct.get(product.id)||[];}catch(error){message("quoteSearchStatus","商品已加入報價，但庫存查詢失敗："+error.message,true);}
- quoteSelectedProducts.push({id:product.id,product,weight:String(product.net_weight??0),labor:labor===""?String(product.labor_fee??0):labor,oldWeight:String(oldWeight),tradeInSource:source,tradeInRatio:String(ratio),stockRows});
+ quoteSelectedProducts.push({id:product.id,product,weight:String(weight),labor:labor===""?String(product.labor_fee??0):labor,oldWeight:String(oldWeight),tradeInSource:source,tradeInRatio:String(ratio),stockRows});
  renderQuoteLines();
- $("quoteProduct").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
+ $("quoteProduct").value="";$("quoteWeight").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  quoteSetStatus("已加入報價清單；此操作不扣庫存、不建立正式銷售。");
 }
 function renderQuoteLines(){
@@ -3165,7 +3171,7 @@ $("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
 $("quoteClearButton").addEventListener("click",()=>{
  quoteSelectedProducts=[];
  $("quoteProductCode").value="";
- $("quoteProduct").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
+ $("quoteProduct").value="";$("quoteWeight").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  $("quoteProductSearch").value="";
  $("quoteEstimateName").value="";
  $("quoteEstimateSize").value="";
