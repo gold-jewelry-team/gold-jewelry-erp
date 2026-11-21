@@ -8,7 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
-from app.models.customer_order import CustomerOrder, CustomerOrderPayment
+from app.models.customer_order import CustomerOrder
+from app.models.payment_transaction import PaymentTransaction
 from app.models.site import Site
 from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead
 
@@ -75,8 +76,9 @@ def create_customer_order(company_id: UUID, payload: CustomerOrderCreate, db: Se
     db.add(order)
     db.flush()
     if payload.initial_deposit > 0:
-        db.add(CustomerOrderPayment(
-            order_id=order.id, amount=payload.initial_deposit,
+        db.add(PaymentTransaction(
+            company_id=company_id, site_id=payload.site_id, customer_order_id=order.id,
+            direction="IN", amount=payload.initial_deposit,
             payment_method=payload.payment_method, note="建立訂購單時收取訂金",
         ))
     try:
@@ -105,7 +107,10 @@ def add_customer_order_payment(company_id: UUID, order_id: UUID, payload: Custom
     if order.deposit_amount + payload.amount > order.total_amount:
         raise HTTPException(status_code=422, detail="累計收款不可超過訂購總額。")
     order.deposit_amount += payload.amount
-    db.add(CustomerOrderPayment(order_id=order.id, amount=payload.amount, payment_method=payload.payment_method, note=payload.note))
+    db.add(PaymentTransaction(
+        company_id=company_id, site_id=order.site_id, customer_order_id=order.id,
+        direction="IN", amount=payload.amount, payment_method=payload.payment_method, note=payload.note,
+    ))
     db.commit()
     return _load(db, company_id, order.id)
 
