@@ -136,6 +136,9 @@ def test_mobile_workspace_serves_html():
     assert "本店舊金（100%，不扣重）" in response.text
     assert "外店舊金（預設95%，可調整）" in response.text
     assert "臨時估價即時試算" in response.text
+    assert 'manualName||"臨時估價"' in response.text
+    assert "可留空，直接輸入重量與工錢估價" in response.text
+    assert 'if(!product&&!name)' not in response.text
     assert "已勾選舊金折抵" in response.text
     assert 'id="quoteMixedTenderFields"' in response.text
     assert 'id="quoteCardAmount"' in response.text
