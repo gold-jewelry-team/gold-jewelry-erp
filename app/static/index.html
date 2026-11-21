@@ -931,6 +931,7 @@ let dailyClosingsById=new Map();
 let selectedClosing=null;
 let saleCartLines=[];
 let currentSale=null;
+let currentSalePaymentRows=[];
 let saleReturns=[];
 let selectedReturn=null;
 let suppliersById=new Map();
@@ -2198,11 +2199,30 @@ $("salesHistoryList").addEventListener("click",async event=>{
   message("saleStatus","已載入歷史銷售紀錄："+sale.sale_no);
  }catch(error){message("salesHistoryStatus",error.message,true);}
 });
+function updateSalePaymentAmountForTender(){
+ if(!currentSale)return;
+ const method=$("actualPaymentMethod").value;
+ const rows=currentSalePaymentRows||[];
+ let limit=Math.abs(Number(currentSale.final_amount));
+ if(Number(currentSale.final_amount)>0&&currentSale.payment_method==="MIXED"){
+  limit=method==="CARD"
+   ?Number(currentSale.card_amount)+Number(currentSale.card_fee)
+   :method==="CASH"?Number(currentSale.cash_amount):0;
+ }
+ const already=rows.filter(row=>row.payment_method===method).reduce((sum,row)=>sum+Number(row.amount),0);
+ const remaining=Math.max(0,limit-already);
+ $("salePaymentAmount").max=remaining.toFixed(2);
+ $("salePaymentAmount").value=remaining>0?remaining.toFixed(2):"";
+ const submit=$("salePaymentForm").querySelector('button[type="submit"]');
+ submit.disabled=remaining<=0;
+ $("salePaymentAmount").disabled=remaining<=0;
+}
 async function loadSalePayments(sale){
  const panel=$("salePaymentPanel");
  if(!sale||sale.status!=="COMPLETED"){panel.classList.add("hidden");return;}
  panel.classList.remove("hidden");
  const rows=await api("/companies/"+companyId+"/sales/"+sale.id+"/payments");
+ currentSalePaymentRows=rows;
  const total=Number(sale.final_amount);
  const obligation=Math.abs(total);
  const paid=rows.reduce((sum,row)=>sum+Number(row.amount),0);
@@ -2211,12 +2231,22 @@ async function loadSalePayments(sale){
  const verb=direction==="OUT"?"本店付款／退款":"顧客收款";
  $("salePaymentHeading").textContent=verb+"登錄";
  $("salePaymentHint").textContent=direction==="OUT"?"此銷售單結算為應付顧客，請依實際付款逐筆登錄。":"依實際收到的款項逐筆登錄；可分次收款，紀錄不可覆寫。";
- $("salePaymentSummary").innerHTML='<article class="item"><strong>應收／應付：'+escapeHtml(obligation.toFixed(2))+' 元</strong><span class="muted">已'+(direction==="OUT"?"付款":"收款")+'：'+escapeHtml(paid.toFixed(2))+' 元</span><span class="pill">尚未結清：'+escapeHtml(remaining.toFixed(2))+' 元</span></article>';
+ $("salePaymentSummary").innerHTML='<article class="item"><strong>應收／應付：'+escapeHtml(obligation.toFixed(2))+' 元</strong><span class="muted">已'+(direction==="OUT"?"付款":"收款")+'：'+escapeHtml(paid.toFixed(2))+' 元</span><span class="pill">尚未結清：'+escapeHtml(remaining.toFixed(2))+' 元</span>'+(direction==="IN"&&sale.payment_method==="MIXED"?'<span class="muted">刷卡應收（含 5% 手續費）：'+escapeHtml((Number(sale.card_amount)+Number(sale.card_fee)).toFixed(2))+' 元 · 現金應收：'+escapeHtml(Number(sale.cash_amount).toFixed(2))+' 元</span>':'')+'</article>';
+ const methodSelect=$("actualPaymentMethod");
+ if(direction==="OUT"){
+  methodSelect.innerHTML='<option value="CASH">現金</option><option value="CARD">刷卡</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option>';
+ }else if(sale.payment_method==="MIXED"){
+  methodSelect.innerHTML='<option value="CASH">現金（不加價）</option><option value="CARD">刷卡（含 5% 手續費）</option>';
+ }else{
+  const labels={CASH:"現金",CARD:"刷卡（含 5% 手續費）",TRANSFER:"轉帳",OTHER:"其他"};
+  methodSelect.innerHTML='<option value="'+sale.payment_method+'">'+labels[sale.payment_method]+'</option>';
+ }
  $("salePaymentForm").classList.toggle("hidden",remaining<=0);
- $("salePaymentAmount").max=remaining.toFixed(2);
- $("salePaymentAmount").value=remaining>0?remaining.toFixed(2):"";
+ $("salePaymentAmount").disabled=remaining<=0;
  $("salePaymentList").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+(row.direction==="OUT"?"付款／退款":"收款")+' · '+escapeHtml(paymentMethodLabels[row.payment_method]||row.payment_method)+'</strong><span class="muted">'+escapeHtml(Number(row.amount).toFixed(2))+' 元 · '+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+(row.note?'<span class="muted">備註：'+escapeHtml(row.note)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無收付款紀錄</div>';
+ updateSalePaymentAmountForTender();
 }
+$("actualPaymentMethod").addEventListener("change",updateSalePaymentAmountForTender);
 $("salePaymentForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!currentSale||currentSale.status!=="COMPLETED")return;

@@ -74,6 +74,36 @@ def record_sale_payment(
     )
     existing = _existing_amount(session, sale_id=sale.id, direction=direction)
     remaining = abs(obligation) - existing
+
+    # A mixed sale has a fixed tender plan: card principal plus its 5% fee
+    # must be collected by card, and the remaining principal must be cash.
+    # Do not let the general outstanding balance mask a wrong tender split.
+    if direction == "IN" and sale.payment_method == "MIXED":
+        if payment_method not in {"CARD", "CASH"}:
+            raise ValueError("部分刷卡銷售只能使用刷卡及現金收款。")
+        from app.services.pricing.rounding import round_twd_like_legacy
+
+        method_existing = Decimal(session.scalar(
+            select(func.coalesce(func.sum(PaymentTransaction.amount), 0)).where(
+                PaymentTransaction.sale_id == sale.id,
+                PaymentTransaction.direction == "IN",
+                PaymentTransaction.payment_method == payment_method,
+            )
+        ) or 0)
+        if payment_method == "CARD":
+            tender_limit = sale.card_amount + sale.card_fee
+        else:
+            tender_limit = max(
+                Decimal("0"),
+                round_twd_like_legacy(sale.subtotal) - sale.card_amount,
+            )
+        method_remaining = tender_limit - method_existing
+        if amount > method_remaining:
+            label = "刷卡（含 5% 手續費）" if payment_method == "CARD" else "現金"
+            raise ValueError(
+                f"{label}收款超過此付款方式應收餘額，目前尚可登錄：{method_remaining}。"
+            )
+
     if amount > remaining:
         raise ValueError(f"收付款金額超過未結清餘額，目前尚可登錄：{remaining}。")
 
