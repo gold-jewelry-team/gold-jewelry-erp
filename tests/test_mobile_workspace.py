@@ -109,6 +109,15 @@ def test_mobile_workspace_serves_html():
     assert 'id="quoteOldGoldWeight"' in response.text
     assert 'id="quoteTradeInSource"' in response.text
     assert 'id="quoteTradeInRatio"' in response.text
+    assert 'id="quoteTradeInRatioField"' in response.text
+    assert "新商品報價" in response.text
+    assert "客戶折抵（選填，沒有折抵可不填）" in response.text
+    assert "折抵後應付商品金額" in response.text
+    assert "客戶折抵合計" in response.text
+    assert 'max="100" step="0.01" value="95"' in response.text
+    assert 'function updateQuoteTradeInRatioVisibility()' in response.text
+    assert 'field.classList.toggle("hidden",$("quoteTradeInSource").value!=="EXTERNAL")' in response.text
+    assert 'Number($("quoteTradeInRatio").value||95))/100' in response.text
     assert 'id="quoteAddProductButton"' in response.text
     assert "async function addQuoteProduct()" in response.text
     assert "已加入報價清單；此操作不扣庫存、不建立正式銷售。" in response.text
