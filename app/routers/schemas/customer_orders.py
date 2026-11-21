@@ -33,11 +33,12 @@ class CustomerOrderCreate(BaseModel):
 class CustomerOrderPaymentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    order_id: UUID
+    customer_order_id: UUID
+    direction: str
     amount: Decimal
     payment_method: str
     note: str | None
-    created_at: datetime
+    paid_at: datetime
 
 
 class CustomerOrderRead(BaseModel):
