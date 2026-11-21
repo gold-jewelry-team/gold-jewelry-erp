@@ -148,5 +148,14 @@ def test_mobile_workspace_serves_html():
     assert 'Number($("quoteTradeInRatio").value||95))/100' in response.text
     assert 'id="quoteAddProductButton"' in response.text
     assert "async function addQuoteProduct()" in response.text
+    assert 'id="quoteMixedTenderFields"' in response.text
+    assert 'id="quoteCardAmount"' in response.text
+    assert 'id="quoteCashAmount"' in response.text
+    assert 'option value="MIXED">自訂刷卡＋現金' in response.text
+    assert "function syncQuoteMixedTender(" in response.text
+    assert "另一欄會自動補足" in response.text
+    assert "刷卡部分加收 5%" in response.text
+    assert "確認並加入上方報價清單" in response.text
+    assert "quoteSelectedProducts.push({id:key,product,weight:String(weight)" in response.text
     assert "已加入報價清單；此操作不扣庫存、不建立正式銷售。" in response.text
     assert 'id="saleOldGoldWeight"' in response.text
