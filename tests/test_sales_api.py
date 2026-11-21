@@ -94,8 +94,8 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         reference_type="TEST",
     )
     session.commit()
-    company_id, site_id, product_id, product2_id, location_id = (
-        company.id, site.id, product.id, product2.id, location.id
+    company_id, site_id, product_id, product2_id, product3_id, location_id = (
+        company.id, site.id, product.id, product2.id, product3.id, location.id
     )
     session.close()
 
