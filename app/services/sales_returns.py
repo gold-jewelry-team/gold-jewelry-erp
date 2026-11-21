@@ -62,8 +62,8 @@ def create_sale_return(
         raise ValueError("所選商品已有退貨紀錄，不可重複退貨。")
 
     for line in lines:
-        if line.product_id is None or line.source_location_id is None:
-            raise ValueError("原銷售明細缺少商品或出貨位置，無法安全回補庫存。")
+        if (line.product_id is None) != (line.source_location_id is None):
+            raise ValueError("原銷售明細的商品與出貨位置資料不完整。")
 
     return_record = SaleReturn(
         company_id=company_id,
@@ -97,20 +97,21 @@ def create_sale_return(
         session.add(return_line)
         session.flush()
 
-        create_inventory_movement(
-            session,
-            company_id=company_id,
-            site_id=sale.site_id,
-            product_id=sale_line.product_id,
-            movement_type="RETURN",
-            quantity=Decimal("1"),
-            to_location_id=sale_line.source_location_id,
-            weight=sale_line.net_weight,
-            weight_unit_code=sale_line.weight_unit_code,
-            reference_type="SALE_RETURN_LINE",
-            reference_id=return_line.id,
-            note=f"退貨單 {return_no}；原銷售單 {sale.sale_no}",
-        )
+        if sale_line.product_id is not None and sale_line.source_location_id is not None:
+            create_inventory_movement(
+                session,
+                company_id=company_id,
+                site_id=sale.site_id,
+                product_id=sale_line.product_id,
+                movement_type="RETURN",
+                quantity=Decimal("1"),
+                to_location_id=sale_line.source_location_id,
+                weight=sale_line.net_weight,
+                weight_unit_code=sale_line.weight_unit_code,
+                reference_type="SALE_RETURN_LINE",
+                reference_id=return_line.id,
+                note=f"退貨單 {return_no}；原銷售單 {sale.sale_no}",
+            )
         total_reversal += reversal
 
     return_record.settlement_reversal_amount = total_reversal

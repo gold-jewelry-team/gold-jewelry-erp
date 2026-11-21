@@ -111,43 +111,32 @@ def test_mobile_workspace_serves_html():
     assert "已載入帳面庫存清單" in response.text
 
     assert 'id="quoteWorkbenchPanel"' in response.text
-    assert response.text.index("商品報價（有現貨／無現貨共用）") < response.text.index("找不到現有商品？臨時估價（不建立正式商品）")
-    assert "goldUnitLabel(p.weight_unit_code)" in response.text
-    assert "goldUnitLabel(product.weight_unit_code)" in response.text
-    assert "賣出金價：NT$ " in response.text
-    assert "重量單位：" in response.text
-    assert "const category=target.dataset.category" in response.text
-    assert "categoryButton.click()" in response.text
+    assert "掃碼／商品輸入（正式商品與臨時估價共用）" in response.text
+    assert 'id="quoteProductCode"' in response.text
+    assert 'id="quoteScanButton"' in response.text
+    assert 'id="quoteProductSearch"' in response.text
+    assert 'id="quoteSearchResults"' in response.text
     assert 'id="quoteProduct"' in response.text
+    assert 'id="quoteManualName"' in response.text
+    assert 'id="quoteManualSize"' in response.text
     assert 'id="quoteWeight"' in response.text
+    assert 'id="quoteWeightUnit"' in response.text
     assert 'id="quoteLaborFee"' in response.text
+    assert 'id="quoteHasTradeIn"' in response.text
+    assert 'id="quoteTradeInDetails"' in response.text
     assert 'id="quoteOldGoldWeight"' in response.text
     assert 'id="quoteTradeInSource"' in response.text
     assert 'id="quoteTradeInRatio"' in response.text
     assert 'id="quoteTradeInRatioField"' in response.text
-    assert "商品報價（有現貨／無現貨共用）" in response.text
-    assert "客戶折抵（選填，沒有折抵可不填）" in response.text
-    assert "找不到現有商品？臨時估價（不建立正式商品）" in response.text
     assert 'id="quoteEntryPreview"' in response.text
+    assert "function quoteTradeInInput()" in response.text
     assert "function renderQuoteEntryPreview()" in response.text
-    assert "function renderQuoteEstimatePreview()" in response.text
-    assert '["quoteEstimateName","quoteEstimateSize","quoteEstimateWeight","quoteEstimateLabor"].forEach(id=>$(id).addEventListener("input",renderQuoteEstimatePreview))' in response.text
-    assert '["quoteWeight","quoteLaborFee","quoteOldGoldWeight","quoteTradeInRatio"].forEach(id=>$(id).addEventListener("input",renderQuoteEntryPreview))' in response.text
-    assert response.text.count('if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();') >= 2
-    assert response.text.count('if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();') >= 2
-    assert "無現貨／需訂製：建立客戶訂購單" in response.text
-    assert 'id="quoteOrderCustomerName"' in response.text
-    assert 'id="quoteOrderDeposit"' in response.text
-    assert "建立客訂單並收訂金" in response.text
-    assert "訂購單不扣庫存" in response.text
-    assert "折抵後應付商品金額" in response.text
-    assert "客戶折抵合計" in response.text
-    assert 'max="100" step="0.01" value="95"' in response.text
-    assert 'function updateQuoteTradeInRatioVisibility()' in response.text
-    assert 'field.classList.toggle("hidden",$("quoteTradeInSource").value!=="EXTERNAL")' in response.text
-    assert 'Number($("quoteTradeInRatio").value||95))/100' in response.text
-    assert 'id="quoteAddProductButton"' in response.text
     assert "async function addQuoteProduct()" in response.text
+    assert 'quoteHasTradeIn' in response.text and 'quoteTradeInDetails' in response.text
+    assert "本店舊金（100%，不扣重）" in response.text
+    assert "外店舊金（預設95%，可調整）" in response.text
+    assert "臨時估價即時試算" in response.text
+    assert "已勾選舊金折抵" in response.text
     assert 'id="quoteMixedTenderFields"' in response.text
     assert 'id="quoteCardAmount"' in response.text
     assert 'id="quoteCashAmount"' in response.text
@@ -155,7 +144,18 @@ def test_mobile_workspace_serves_html():
     assert "function syncQuoteMixedTender(" in response.text
     assert "另一欄會自動補足" in response.text
     assert "刷卡部分加收 5%" in response.text
-    assert "確認並加入上方報價清單" in response.text
-    assert "quoteSelectedProducts.push({id:key,product,weight:String(weight)" in response.text
-    assert "已加入報價清單；此操作不扣庫存、不建立正式銷售。" in response.text
+    assert 'id="quoteTransferToSaleButton"' in response.text
+    assert "function transferQuoteToSale()" in response.text
+    assert "source_location_id:null" in response.text
+    assert "臨時估價／不扣庫存" in response.text
+    assert "已將共用報價明細帶入銷售購物車" in response.text
+    assert "無現貨／需訂製：建立客戶訂購單" in response.text
+    assert 'id="quoteOrderCustomerName"' in response.text
+    assert 'id="quoteOrderDeposit"' in response.text
+    assert "建立客訂單並收訂金" in response.text
+    assert "訂單不扣庫存" in response.text
+    assert "折抵後應付商品金額" in response.text
+    assert "客戶折抵合計" in response.text
+    assert 'function updateQuoteTradeInRatioVisibility()' in response.text
+    assert 'field.classList.toggle("hidden",$("quoteTradeInSource").value!=="EXTERNAL")' in response.text
     assert 'id="saleOldGoldWeight"' in response.text
