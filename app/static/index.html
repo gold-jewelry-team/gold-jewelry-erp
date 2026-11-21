@@ -3080,7 +3080,8 @@ function renderQuoteCalculation(){
  }
  const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
  quoteCurrentTotal=positiveSubtotal;
- const method=$("quotePaymentMethod").value;
+ const selectedMethod=$("quotePaymentMethod").value;
+ const method=subtotalTotal<0?"CASH":selectedMethod;
  const mixedFields=$("quoteMixedTenderFields");
  if(mixedFields)mixedFields.classList.toggle("hidden",method!=="MIXED");
  let cardAmount=0,cashAmount=positiveSubtotal;
@@ -3100,7 +3101,7 @@ function renderQuoteCalculation(){
  const paymentLines=method==="MIXED"
   ?'<div>自訂刷卡：NT$ '+escapeHtml(quoteMoney(cardAmount))+'</div><div>自訂現金：NT$ '+escapeHtml(quoteMoney(cashAmount))+'</div><div>刷卡 5% 手續費：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>'
   :method==="CARD"?'<div>全額刷卡 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'<div>付款方式：現金／轉帳（不加價）</div>';
- box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">重量單位：'+escapeHtml(goldUnitLabel(x.weightUnit))+' · 賣出金價：NT$ '+escapeHtml(quoteMoney(x.sellRate))+'／'+escapeHtml(goldUnitLabel(x.weightUnit))+'<br>新商品金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 客戶折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+' '+escapeHtml(goldUnitLabel(x.weightUnit))+'）':' · 未使用客戶折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>新商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">客戶折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>客戶折抵：NT$ 0</div>')+'<div>折抵後應付商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+paymentLines+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>新商品金額依重量與工錢計算；客戶提供舊金時，再依重量、來源及折抵比率扣抵。刷卡部分加收 5%，現金／轉帳不加價。此處為報價試算，實際收款仍於正式銷售結帳記錄。</small>';
+ box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">重量單位：'+escapeHtml(goldUnitLabel(x.weightUnit))+' · 賣出金價：NT$ '+escapeHtml(quoteMoney(x.sellRate))+'／'+escapeHtml(goldUnitLabel(x.weightUnit))+'<br>新商品金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 客戶折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+' '+escapeHtml(goldUnitLabel(x.weightUnit))+'）':' · 未使用客戶折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>新商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">客戶折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>客戶折抵：NT$ 0</div>')+'<div>折抵後應付商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+paymentLines+'</div><strong style="display:block;font-size:20px;margin-top:8px">'+(final<0?"本店應付客人":"預估應收")+'：NT$ '+escapeHtml(quoteMoney(Math.abs(final)))+'</strong><small>新商品金額依重量與工錢計算；客戶提供舊金時，再依重量、來源及折抵比率扣抵。刷卡部分加收 5%，現金／轉帳不加價。此處為報價試算，實際收款仍於正式銷售結帳記錄。</small>';
 }
 function quoteTradeInInput(){
  const enabled=$("quoteHasTradeIn").checked;
