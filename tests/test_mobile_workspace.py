@@ -67,6 +67,10 @@ def test_mobile_workspace_serves_html():
     assert 'id="salePaymentForm"' in response.text
     assert 'id="actualPaymentMethod"' in response.text
     assert 'id="salePaymentList"' in response.text
+    assert "function updateSalePaymentAmountForTender()" in response.text
+    assert "刷卡（含 5% 手續費）" in response.text
+    assert "現金（不加價）" in response.text
+    assert "刷卡應收（含 5% 手續費）" in response.text
     assert 'id="supplierPayablesPanel"' in response.text
     assert 'id="purchasingPanel"' in response.text
     assert 'id="purchaseHeaderForm"' in response.text
