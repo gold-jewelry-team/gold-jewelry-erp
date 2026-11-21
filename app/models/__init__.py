@@ -15,7 +15,7 @@ __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "ProductCodeSequence", "InventoryMovement", "Supplier",
     "Purchase", "PurchaseLine", "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary", "PaymentTransaction", "SupplierBill", "SupplierPayment", "SupplierPaymentAllocation", "OperatingExpense", "DailyCashCount", "CashDrawerMovement", "BankAccount", "BankTransaction", "BankStatementImport", "BankStatementLine", "BankReconciliationSnapshot", "LaborCodeSetting", "LaborCodeMapping",
-    "GoldMaterialMovement", "GoldMaterialSettlementAllocation", "SupplierCategoryOffering", "SupplierProductOffering",
+    "GoldMaterialMovement", "GoldMaterialSettlementAllocation", "SupplierCategoryOffering", "SupplierProductOffering", "CustomerOrder", "CustomerOrderPayment",
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine
@@ -29,3 +29,4 @@ from app.models.bank_account import BankAccount, BankTransaction
 from app.models.bank_statement import BankStatementImport, BankStatementLine
 from app.models.bank_reconciliation import BankReconciliationSnapshot
 from app.models.labor_code import LaborCodeSetting, LaborCodeMapping
+from app.models.customer_order import CustomerOrder, CustomerOrderPayment
