@@ -303,11 +303,58 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 #quoteCalcSummary strong{color:#263b30}
 @media(max-width:760px){#quoteWorkbenchPanel .quote-line{grid-template-columns:1fr 1fr;gap:8px}#quoteWorkbenchPanel .quote-line-main{grid-column:1/-1}#quoteWorkbenchPanel .quote-line .quote-remove{grid-column:1/-1;width:100%}#quoteWorkbenchPanel .quote-product-result{align-items:flex-start}#quoteWorkbenchPanel .quote-product-result .quote-stock{white-space:normal;text-align:right;min-width:65px}}
 
+
+/* 首頁儀表板：手機優先的營運入口 */
+#homeDashboard{margin:0 0 18px;padding:clamp(16px,3vw,26px);border:1px solid #e7e3d8;border-radius:22px;background:linear-gradient(145deg,#fffdf7 0%,#f7f5ee 58%,#edf2ed 100%);box-shadow:0 12px 32px rgba(36,48,39,.07)}
+#homeDashboard .home-kicker{font-size:11px;font-weight:900;letter-spacing:.16em;color:#9a7335}
+#homeDashboard .home-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:5px 0 16px}
+#homeDashboard h2{margin:0;color:#24372d;font-size:clamp(21px,4vw,29px);letter-spacing:.02em}
+#homeDashboard .home-date{font-size:11px;color:#788078;background:#fff;border:1px solid #e7e8df;padding:7px 10px;border-radius:999px;white-space:nowrap}
+#homeDashboard .home-intro{margin:5px 0 0;color:#68736a;font-size:13px;line-height:1.65}
+#homeDashboard .home-section-title{display:flex;align-items:center;gap:8px;margin:20px 0 10px;color:#34483a;font-size:14px;font-weight:900}
+#homeDashboard .home-section-title:before{content:"";width:4px;height:16px;border-radius:4px;background:#b88a43}
+#homeDashboard .home-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+#homeDashboard .home-action{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:14px;min-height:112px;padding:14px;border:1px solid #e7e7df;border-radius:16px;background:rgba(255,255,255,.92);color:#304237;text-align:left;box-shadow:0 3px 10px rgba(36,48,39,.035);transition:transform .15s,border-color .15s,box-shadow .15s}
+#homeDashboard .home-action:active{transform:scale(.98)}
+#homeDashboard .home-action:hover{border-color:#c9aa72;box-shadow:0 7px 18px rgba(36,48,39,.08)}
+#homeDashboard .home-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#f5efe2;font-size:20px}
+#homeDashboard .home-action strong{display:block;font-size:14px}
+#homeDashboard .home-action small{display:block;margin-top:3px;color:#818980;font-size:11px;line-height:1.4}
+#homeDashboard .home-lower{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}
+#homeDashboard .home-info{padding:15px;border:1px solid #e6e8df;border-radius:16px;background:rgba(255,255,255,.78)}
+#homeDashboard .home-info strong{display:block;color:#34483a;font-size:13px}
+#homeDashboard .home-info p{margin:5px 0 0;color:#778078;font-size:12px;line-height:1.6}
+#homeDashboard .home-info button{margin-top:10px;padding:8px 11px;border:1px solid #d9c49c;border-radius:10px;background:#fffaf0;color:#785a2c;font-size:12px;font-weight:800}
+@media(max-width:760px){#homeDashboard .home-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#homeDashboard .home-action{min-height:100px;padding:12px}#homeDashboard .home-lower{grid-template-columns:1fr}#homeDashboard .home-heading{align-items:flex-start}#homeDashboard .home-date{font-size:10px}}
+@media(min-width:1100px){#homeDashboard .home-actions{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
 </style>
 </head>
 <body>
 <header><div class="header-title-row"><h1>黃金珠寶進銷存</h1><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><button id="quickQuote" type="button" title="快速開啟現場報價（Alt+Q）">🧮 報價</button><button id="quickGoldPrice" class="quick-gold-price" type="button" title="快速調整今日金價（Alt+G）">🪙 金價</button><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></div><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-currency-tools"><div class="gold-currency-tools-head"><strong>外幣金價換算</strong><button id="toggleGoldCurrencyRates" class="secondary" type="button" aria-expanded="false">設定匯率／展開</button></div><div id="goldCurrencyRateEditor" class="gold-currency-rate-editor hidden"><p class="muted">輸入「1 外幣可兌換多少新台幣」，例如 1 USD = 32 TWD。匯率僅儲存在目前瀏覽器。</p><div class="gold-currency-rate-fields"><div><label for="goldUsdRate">美元 USD／TWD</label><input id="goldUsdRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 32"></div><div><label for="goldJpyRate">日圓 JPY／TWD（每 1 日圓）</label><input id="goldJpyRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 0.21"></div></div><button id="saveGoldCurrencyRates" type="button">儲存匯率</button><span id="goldCurrencyRateStatus" class="muted" role="status"></span></div><div id="goldCurrencyValues" class="gold-currency-values"><div class="muted">設定匯率後即可換算美金與日圓金價。</div></div></div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section></header>
 <main>
+
+<section id="homeDashboard" aria-label="營運首頁">
+  <div class="home-kicker">JEWELRY STORE · MANAGEMENT</div>
+  <div class="home-heading"><div><h2>營運總覽</h2><p class="home-intro">掌握門市日常作業，常用功能一鍵進入。</p></div><span class="home-date">門市工作台</span></div>
+  <div class="home-section-title">常用作業</div>
+  <div class="home-actions">
+    <button class="home-action" type="button" data-home-target="salesPanel"><span class="home-icon">🧾</span><span><strong>銷售結帳</strong><small>建立交易、收款與折抵</small></span></button>
+    <button class="home-action" type="button" data-home-target="quoteWorkbenchPanel"><span class="home-icon">🧮</span><span><strong>現場報價</strong><small>商品估價、舊金折抵</small></span></button>
+    <button class="home-action" type="button" data-home-target="purchasingPanel"><span class="home-icon">📥</span><span><strong>進貨管理</strong><small>建立進貨單與商品入庫</small></span></button>
+    <button class="home-action" type="button" data-home-target="inventoryStockPanel"><span class="home-icon">💍</span><span><strong>商品庫存</strong><small>查詢商品、條碼與櫃位</small></span></button>
+    <button class="home-action" type="button" data-home-target="stocktakePanel"><span class="home-icon">📋</span><span><strong>每日盤點</strong><small>掃描盤點與差異確認</small></span></button>
+    <button class="home-action" type="button" data-home-target="goldPricePanel"><span class="home-icon">🪙</span><span><strong>今日金價</strong><small>設定買入價與賣出價</small></span></button>
+    <button class="home-action" type="button" data-home-target="dailyClosingPanel"><span class="home-icon">📊</span><span><strong>每日結帳</strong><small>核對現金、刷卡與營業額</small></span></button>
+    <button class="home-action" type="button" data-home-target="salesHistoryPanel"><span class="home-icon">🗂️</span><span><strong>交易紀錄</strong><small>查詢銷售、退貨與歷史資料</small></span></button>
+  </div>
+  <div class="home-section-title">門市管理</div>
+  <div class="home-lower">
+    <div class="home-info"><strong>🧭 作業小提醒</strong><p>每日營業前先確認買入／賣出金價；交易完成後核對收付款，打烊前執行每日結帳。</p><button type="button" data-home-target="goldPricePanel">前往金價管理　→</button></div>
+    <div class="home-info"><strong>📦 庫存與異動</strong><p>進貨、調櫃、盤點及銷售都會影響庫存，建議定期查看庫存異動紀錄。</p><button type="button" data-home-target="inventoryMovementPanel">查看庫存異動　→</button></div>
+  </div>
+</section>
+
 
 <section class="panel span2" id="quoteWorkbenchPanel">
 <h2>現場報價／同款查找</h2>
@@ -1624,7 +1671,7 @@ function printProductQrLabel(product,lot,printWindow,config,copies=1){
   '@media print{html,body{width:100mm;margin:0;padding:0}.label{margin:0;box-shadow:none}}'+
   '@media screen{body{background:#eee}.label{background:#fff;margin:12px auto;box-shadow:0 1px 5px #999}}'+
   '</style></head><body>'+Array.from({length:copies},()=>labelMarkup).join("")+
-  '<scr'+'ipt>const images=[...document.querySelectorAll(".barcode")];let loaded=0;const done=()=>{loaded++;if(loaded===images.length){window.focus();window.print();}};images.forEach(image=>{image.onload=done;image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};});<\/script>'+'</body></html>';
+  '<scr'+'ipt>const images=[...document.querySelectorAll(".barcode")];let loaded=0;const done=()=>{loaded++;if(loaded===images.length){window.focus();window.print();}};images.forEach(image=>{image.onload=done;image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};});</scr'+'ipt>'+String.fromCharCode(10,10)+'</body></html>';
  printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
 }
 async function beginProductLabelPrint(product){
@@ -3260,5 +3307,16 @@ $("quoteClearButton").addEventListener("click",()=>{
  });
 })();
 
+
+/* 首頁快捷卡片：定位至既有功能區，不另造一套業務流程 */
+document.addEventListener("click",function(event){
+ const shortcut=event.target.closest("[data-home-target]");
+ if(!shortcut)return;
+ const target=document.getElementById(shortcut.getAttribute("data-home-target"));
+ if(!target)return;
+ target.scrollIntoView({behavior:"smooth",block:"start"});
+ target.setAttribute("tabindex","-1");
+ window.setTimeout(function(){try{target.focus({preventScroll:true});}catch(_){target.focus();}},350);
+});
 </script>
 </body></html>
