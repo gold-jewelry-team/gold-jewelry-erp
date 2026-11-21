@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.payment_transaction import PaymentTransaction
+from app.models.customer_order import CustomerOrder
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.services.daily_closing import assert_business_day_open
@@ -137,6 +138,52 @@ def record_return_payment(
         amount=amount,
         currency_code=returned.currency_code,
         reference_no=reference_no,
+        paid_at=datetime.now(timezone.utc),
+        note=note,
+    )
+    session.add(transaction)
+    session.flush()
+    return transaction
+
+
+
+def record_customer_order_payment(
+    session: Session,
+    *,
+    company_id: UUID,
+    order_id: UUID,
+    payment_method: str,
+    amount: Decimal,
+    note: str | None = None,
+) -> PaymentTransaction:
+    """Record a deposit or balance collection against a customer special order."""
+    _validate_amount(amount)
+    _validate_method(payment_method)
+    order = session.execute(
+        select(CustomerOrder).where(
+            CustomerOrder.id == order_id,
+            CustomerOrder.company_id == company_id,
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if order is None:
+        raise ValueError("找不到指定客訂單。")
+    if order.status in {"COMPLETED", "CANCELLED"}:
+        raise ValueError("已完成或已取消的訂單不可再收款。")
+    remaining = order.total_amount - order.deposit_amount
+    if amount > remaining:
+        raise ValueError(f"收款金額超過訂單未收餘額，目前尚可收取：{remaining}。")
+    assert_business_day_open(
+        session, site_id=order.site_id, at=datetime.now(timezone.utc)
+    )
+    order.deposit_amount += amount
+    transaction = PaymentTransaction(
+        company_id=company_id,
+        site_id=order.site_id,
+        customer_order_id=order.id,
+        direction="IN",
+        payment_method=payment_method,
+        amount=amount,
+        currency_code=order.currency_code,
         paid_at=datetime.now(timezone.utc),
         note=note,
     )
