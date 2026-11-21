@@ -3062,16 +3062,8 @@ function renderQuoteCalculation(){
   const sellRate=convertGoldPrice(sell.price_value,sell.unit_code,p.weight_unit_code);
   const buyRate=convertGoldPrice(buy.price_value,buy.unit_code,p.weight_unit_code);
   if(sellRate===null||buyRate===null){box.textContent="商品重量單位無法換算，請確認金價與商品單位設定。";return;}
-  const baseAmount=weight*sellRate+labor;
-  let amount=baseAmount,tradeInCredit=0,adjustedOldWeight=0;
-  if(oldWeight>0){
-   const effectiveRatio=line.tradeInSource==="LOCAL"?1:ratio;
-   adjustedOldWeight=Math.trunc(oldWeight*effectiveRatio*100)/100;
-   amount=adjustedOldWeight<=weight
-    ?(weight-adjustedOldWeight)*sellRate+labor
-    :labor-(adjustedOldWeight-weight)*buyRate;
-   tradeInCredit=baseAmount-amount;
-  }
+  const pricing=quoteCalculateLineAmount({newWeight:weight,sellRate,buyRate,laborFee:labor,oldWeight,tradeInSource:line.tradeInSource,tradeInRatio:ratio});
+  const {baseAmount,amount,tradeInCredit,adjustedOldWeight}=pricing;
   subtotalTotal+=amount;
   grossSubtotalTotal+=baseAmount;
   tradeInTotal+=tradeInCredit;
@@ -3110,6 +3102,22 @@ function quoteTradeInInput(){
  const ratio=Number($("quoteTradeInRatio").value||95)/100;
  return {enabled,oldWeight,source,ratio};
 }
+
+function quoteCalculateLineAmount({newWeight,sellRate,buyRate,laborFee,oldWeight=0,tradeInSource=null,tradeInRatio=0.95}){
+ const baseAmount=newWeight*sellRate+laborFee;
+ let amount=baseAmount,tradeInCredit=0,adjustedOldWeight=0;
+ if(oldWeight>0){
+  if(!["LOCAL","EXTERNAL"].includes(tradeInSource))throw new Error("請選擇本店或外店舊金來源。");
+  if(tradeInSource==="EXTERNAL"&&(!Number.isFinite(tradeInRatio)||tradeInRatio<=0||tradeInRatio>1))throw new Error("外店折抵比例須大於 0 且不得超過 100%。");
+  const effectiveRatio=tradeInSource==="LOCAL"?1:tradeInRatio;
+  adjustedOldWeight=Math.trunc(oldWeight*effectiveRatio*100)/100;
+  amount=adjustedOldWeight<=newWeight
+   ?(newWeight-adjustedOldWeight)*sellRate+laborFee
+   :laborFee-(adjustedOldWeight-newWeight)*buyRate;
+  tradeInCredit=baseAmount-amount;
+ }
+ return {baseAmount,amount,tradeInCredit,adjustedOldWeight};
+}
 function renderQuoteEntryPreview(){
  const box=$("quoteEntryPreview");if(!box)return;
  const productId=$("quoteProduct").value;
@@ -3130,8 +3138,8 @@ function renderQuoteEntryPreview(){
  if(sell.currency_code!=="TWD"||buy.currency_code!=="TWD"){box.textContent="目前商品報價僅支援 TWD 金價。";return;}
  const sellRate=convertGoldPrice(sell.price_value,sell.unit_code,unit),buyRate=convertGoldPrice(buy.price_value,buy.unit_code,unit);
  if(sellRate===null||buyRate===null){box.textContent="重量單位無法換算，請確認金價設定。";return;}
- const baseAmount=weight*sellRate+labor;let amount=baseAmount,credit=0,adjustedOldWeight=0;
- if(trade.enabled){adjustedOldWeight=Math.trunc(oldWeight*(source==="LOCAL"?1:ratio)*100)/100;amount=adjustedOldWeight<=weight?(weight-adjustedOldWeight)*sellRate+labor:labor-(adjustedOldWeight-weight)*buyRate;credit=baseAmount-amount;}
+ const pricing=quoteCalculateLineAmount({newWeight:weight,sellRate,buyRate,laborFee:labor,oldWeight:trade.enabled?oldWeight:0,tradeInSource:source,tradeInRatio:ratio});
+ const {baseAmount,amount,tradeInCredit:credit,adjustedOldWeight}=pricing;
  const rounded=quoteRoundTwd(amount),card=$("quotePaymentMethod").value==="CARD",cardFee=card&&rounded>0?quoteRoundTwd(rounded*0.05):0,final=quoteRoundTwd(amount+cardFee);
  box.innerHTML="<strong>"+(product?"正式商品即時試算":"臨時估價即時試算")+"</strong><div>"+escapeHtml(product?product.product_code:"臨時估價")+" · "+escapeHtml(name)+" · "+escapeHtml(weight)+" "+escapeHtml(goldUnitLabel(unit))+"</div><div>新商品金額：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(baseAmount)))+"</div>"+(trade.enabled?"<div>舊金折抵（"+(source==="LOCAL"?"本店100%":"外店"+quoteMoney(ratio*100)+"%")+"；折算 "+escapeHtml(adjustedOldWeight)+" "+escapeHtml(goldUnitLabel(unit))+"）：NT$ "+escapeHtml(quoteMoney(quoteRoundTwd(credit)))+"</div>":"<div>未使用舊金折抵</div>")+"<strong style='display:block;font-size:20px;margin-top:6px'>"+(rounded<0?"本店應付客人":"預估應收")+"：NT$ "+escapeHtml(quoteMoney(Math.abs(final)))+"</strong>"+(card&&final>0?"<small>含刷卡 5% 手續費 NT$ "+escapeHtml(quoteMoney(cardFee))+"</small>":"");
 }
