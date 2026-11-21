@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
 from app.models.customer_order import CustomerOrder
-from app.models.payment_transaction import PaymentTransaction
 from app.models.site import Site
 from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead
+from app.services.payments import record_customer_order_payment
 
 
 router = APIRouter(prefix="/companies/{company_id}/customer-orders", tags=["customer-orders"])
@@ -69,21 +69,24 @@ def create_customer_order(company_id: UUID, payload: CustomerOrderCreate, db: Se
         expected_delivery_date=payload.expected_delivery_date,
         items=payload.items,
         total_amount=payload.total_amount,
-        deposit_amount=payload.initial_deposit,
-        status="PENDING_DEPOSIT" if payload.initial_deposit == 0 else "IN_PROGRESS",
+        deposit_amount=0,
+        status="PENDING_DEPOSIT",
         note=payload.note,
     )
     db.add(order)
     db.flush()
-    if payload.initial_deposit > 0:
-        db.add(PaymentTransaction(
-            company_id=company_id, site_id=payload.site_id, customer_order_id=order.id,
-            direction="IN", amount=payload.initial_deposit,
-            payment_method=payload.payment_method, note="建立訂購單時收取訂金",
-        ))
     try:
+        record_customer_order_payment(
+            db, company_id=company_id, order_id=order.id,
+            payment_method=payload.payment_method, amount=payload.initial_deposit,
+            note="建立訂購單時收取訂金",
+        )
+        order.status = "IN_PROGRESS"
         db.commit()
         return _load(db, company_id, order.id)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail="訂購單號重複或資料關聯衝突。") from exc
@@ -102,17 +105,16 @@ def add_customer_order_payment(company_id: UUID, order_id: UUID, payload: Custom
     order = _load(db, company_id, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="找不到指定客訂單。")
-    if order.status in {"COMPLETED", "CANCELLED"}:
-        raise HTTPException(status_code=409, detail="已完成或已取消的訂單不可再收款。")
-    if order.deposit_amount + payload.amount > order.total_amount:
-        raise HTTPException(status_code=422, detail="累計收款不可超過訂購總額。")
-    order.deposit_amount += payload.amount
-    db.add(PaymentTransaction(
-        company_id=company_id, site_id=order.site_id, customer_order_id=order.id,
-        direction="IN", amount=payload.amount, payment_method=payload.payment_method, note=payload.note,
-    ))
-    db.commit()
-    return _load(db, company_id, order.id)
+    try:
+        record_customer_order_payment(
+            db, company_id=company_id, order_id=order.id,
+            payment_method=payload.payment_method, amount=payload.amount, note=payload.note,
+        )
+        db.commit()
+        return _load(db, company_id, order.id)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.patch("/{order_id}/status", response_model=CustomerOrderRead)
