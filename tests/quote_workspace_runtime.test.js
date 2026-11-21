@@ -210,3 +210,21 @@ test("報價輸入預覽與報價清單都呼叫同一個計價函式", () => {
   assert.match(cartCalculation, /quoteCalculateLineAmount\(/);
   assert.match(entryPreview, /quoteCalculateLineAmount\(/);
 });
+
+test("混合付款時單件輸入預覽不會把未計算刷卡費的金額誤標為最終應收", () => {
+  const { context, get } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteWeight: "1.2",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "500",
+    quotePaymentMethod: "MIXED",
+  });
+
+  context.renderQuoteEntryPreview();
+
+  const preview = get("quoteEntryPreview").innerHTML;
+  assert.match(preview, /商品金額（未含刷卡手續費）：NT\$ 18,500/);
+  assert.match(preview, /加入報價清單並配平刷卡／現金金額後，會依刷卡部分加收 5%/);
+  assert.doesNotMatch(preview, /預估應收：NT\$ 18,500/);
+});
