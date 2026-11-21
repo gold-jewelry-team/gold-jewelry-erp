@@ -20,6 +20,18 @@ PRICING_RULE_VERSION = "legacy-v1"
 CARD_FEE_RATE = Decimal("0.05")
 
 
+_GOLD_UNIT_GRAMS = {"QIAN": Decimal("3.75"), "GRAM": Decimal("1"), "TAEL": Decimal("37.5")}
+
+
+def _convert_gold_price(value: Decimal, from_unit: str, to_unit: str) -> Decimal:
+    """Convert a price quoted per source unit to a price per target unit."""
+    from_grams = _GOLD_UNIT_GRAMS.get(from_unit)
+    to_grams = _GOLD_UNIT_GRAMS.get(to_unit)
+    if from_grams is None or to_grams is None:
+        raise ValueError("商品重量單位無法換算，請確認金價與商品單位設定。")
+    return value * to_grams / from_grams
+
+
 def _allocate_integer_total(total: Decimal, weights: list[Decimal]) -> list[Decimal]:
     """Allocate a whole-TWD total proportionally using largest remainders.
 
@@ -92,18 +104,46 @@ def create_sale_draft(
     subtotal_total = Decimal("0")
 
     for line_no, item in enumerate(lines, start=1):
-        product = session.execute(
-            select(Product).where(
-                Product.id == item["product_id"],
-                Product.company_id == company_id,
-            ).with_for_update()
-        ).scalar_one_or_none()
-        if product is None or not product.is_active:
-            raise ValueError("商品不存在、不屬於指定公司或已停用。")
-
-        location = session.get(StorageLocation, item["source_location_id"])
-        if location is None or location.site_id != site_id or not location.is_active:
-            raise ValueError("出貨儲存位置不存在、未啟用或不屬於銷售據點。")
+        product_id = item.get("product_id")
+        product = None
+        location = None
+        if product_id is not None:
+            product = session.execute(
+                select(Product).where(
+                    Product.id == product_id,
+                    Product.company_id == company_id,
+                ).with_for_update()
+            ).scalar_one_or_none()
+            if product is None or not product.is_active:
+                raise ValueError("商品不存在、不屬於指定公司或已停用。")
+            location = session.get(StorageLocation, item.get("source_location_id"))
+            if location is None or location.site_id != site_id or not location.is_active:
+                raise ValueError("出貨儲存位置不存在、未啟用或不屬於銷售據點。")
+            weight = product.net_weight
+            gross_weight = product.gross_weight
+            weight_unit_code = product.weight_unit_code
+            labor = item.get("labor_fee")
+            if labor is None:
+                labor = product.labor_fee
+            product_code_snapshot = product.product_code
+            barcode_snapshot = product.barcode
+            product_name_snapshot = product.name
+        else:
+            # Temporary estimate: persist the exact sold description and weight,
+            # but do not associate it with inventory or a storage location.
+            product_name_snapshot = (item.get("product_name") or "").strip()
+            if not product_name_snapshot:
+                raise ValueError("臨時估價成交必須提供商品名稱。")
+            weight = item.get("net_weight")
+            weight_unit_code = item.get("weight_unit_code")
+            if weight is None or weight <= 0 or weight_unit_code not in _GOLD_UNIT_GRAMS:
+                raise ValueError("臨時估價成交必須提供有效重量及重量單位。")
+            gross_weight = item.get("gross_weight") or weight
+            labor = item.get("labor_fee")
+            if labor is None:
+                labor = Decimal("0")
+            product_code_snapshot = item.get("product_code") or "臨時估價"
+            barcode_snapshot = item.get("barcode")
 
         sell_price = get_effective_gold_price(
             session, company_id=company_id, site_id=site_id, price_type="SELL", at=priced_at
@@ -113,23 +153,20 @@ def create_sale_draft(
         )
         if sell_price is None or buy_price is None:
             raise ValueError("找不到交易時間有效的買入或賣出金價，請先建立金價。")
-        if sell_price.unit_code != product.weight_unit_code or buy_price.unit_code != product.weight_unit_code:
-            raise ValueError("商品重量單位必須與買入、賣出金價單位一致，請先統一單位設定。")
         if sell_price.currency_code != "TWD" or buy_price.currency_code != "TWD":
             raise ValueError("目前銷售計價僅支援 TWD 金價。")
+        sell_rate = _convert_gold_price(sell_price.price_value, sell_price.unit_code, weight_unit_code)
+        buy_rate = _convert_gold_price(buy_price.price_value, buy_price.unit_code, weight_unit_code)
 
         old_weight = item.get("old_gold_weight", Decimal("0"))
         has_trade_in = old_weight > 0
         trade_in_source = item.get("trade_in_source") if has_trade_in else None
         ratio = item.get("trade_in_ratio", Decimal("0.95"))
-        labor = item.get("labor_fee")
-        if labor is None:
-            labor = product.labor_fee
 
         result = calculate_sale_amount(SalePricingInput(
-            new_weight=product.net_weight,
-            sell_gold_price=sell_price.price_value,
-            buy_gold_price=buy_price.price_value,
+            new_weight=weight,
+            sell_gold_price=sell_rate,
+            buy_gold_price=buy_rate,
             labor_fee=labor,
             has_trade_in=has_trade_in,
             trade_in_source=trade_in_source,
@@ -141,14 +178,14 @@ def create_sale_draft(
         line = SaleLine(
             sale_id=sale.id,
             line_no=line_no,
-            product_id=product.id,
-            source_location_id=location.id,
-            product_code_snapshot=product.product_code,
-            barcode_snapshot=product.barcode,
-            product_name_snapshot=product.name,
-            gross_weight=product.gross_weight,
-            net_weight=product.net_weight,
-            weight_unit_code=product.weight_unit_code,
+            product_id=product.id if product else None,
+            source_location_id=location.id if location else None,
+            product_code_snapshot=product_code_snapshot,
+            barcode_snapshot=barcode_snapshot,
+            product_name_snapshot=product_name_snapshot,
+            gross_weight=gross_weight,
+            net_weight=weight,
+            weight_unit_code=weight_unit_code,
             labor_fee=labor,
             sell_gold_price_id=sell_price.id,
             sell_gold_price_value=sell_price.price_value,
@@ -248,8 +285,12 @@ def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
     completed_at = datetime.now(timezone.utc)
     assert_business_day_open(session, site_id=sale.site_id, at=completed_at)
     for line in lines:
+        # Temporary estimate lines are sold as descriptive snapshots only and
+        # intentionally do not create inventory movements.
+        if line.product_id is None and line.source_location_id is None:
+            continue
         if line.product_id is None or line.source_location_id is None:
-            raise ValueError("銷售明細缺少商品或出貨儲存位置。")
+            raise ValueError("銷售明細的商品與出貨儲存位置資料不完整。")
         create_inventory_movement(
             session,
             company_id=company_id,
