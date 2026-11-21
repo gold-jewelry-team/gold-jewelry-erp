@@ -215,3 +215,58 @@ def test_customer_collection_and_refund_are_blocked_after_daily_closing():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+def test_mixed_sale_collections_must_match_card_fee_and_cash_tender_plan():
+    engine, TestSession, ids, _ = _payment_context()
+    company_id, site_id = ids[0], ids[1]
+    session = TestSession()
+    mixed_sale = Sale(
+        company_id=company_id,
+        site_id=site_id,
+        sale_no="PAY-MIXED-001",
+        status="COMPLETED",
+        payment_method="MIXED",
+        currency_code="TWD",
+        subtotal=Decimal("30000"),
+        card_amount=Decimal("10000"),
+        card_fee=Decimal("500"),
+        final_amount=Decimal("30500"),
+        completed_at=datetime.now(timezone.utc),
+    )
+    session.add(mixed_sale)
+    session.commit()
+    sale_id = mixed_sale.id
+    session.close()
+
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/sales/{sale_id}/payments"
+
+        # Card terminal must receive card principal plus the 5% fee.
+        card = client.post(base, json={"payment_method": "CARD", "amount": "10500"})
+        assert card.status_code == 201, card.text
+
+        excess_card = client.post(base, json={"payment_method": "CARD", "amount": "0.01"})
+        assert excess_card.status_code == 422
+        assert "刷卡" in excess_card.json()["detail"]
+
+        # The cash remainder is the original cash principal, without surcharge.
+        cash = client.post(base, json={"payment_method": "CASH", "amount": "20000"})
+        assert cash.status_code == 201, cash.text
+
+        excess_cash = client.post(base, json={"payment_method": "CASH", "amount": "0.01"})
+        assert excess_cash.status_code == 422
+        assert "現金" in excess_cash.json()["detail"]
+
+        wrong_method = client.post(base, json={"payment_method": "TRANSFER", "amount": "1"})
+        assert wrong_method.status_code == 422
+        assert "刷卡及現金" in wrong_method.json()["detail"]
+
+        listed = client.get(base)
+        assert listed.status_code == 200
+        assert sum(Decimal(row["amount"]) for row in listed.json()) == Decimal("30500.00")
+        assert {row["payment_method"] for row in listed.json()} == {"CARD", "CASH"}
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
