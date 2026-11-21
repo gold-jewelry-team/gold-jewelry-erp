@@ -2975,7 +2975,7 @@ async function createCustomerOrderFromQuote(){
   const order=await api("/companies/"+companyId+"/customer-orders",{method:"POST",body:JSON.stringify(payload)});
   latestCreatedCustomerOrder=order;
   status.style.color="#28724d";
-  status.innerHTML="客訂單已建立："+escapeHtml(order.order_no)+"；訂購總額 NT$ "+quoteMoney(order.total_amount)+"，已收訂金 NT$ "+quoteMoney(order.deposit_amount)+"，尚欠 NT$ "+quoteMoney(order.balance_amount)+"。訂單不扣庫存。 <button type="button" class="secondary" id="printCustomerOrderButton">列印客戶訂購單</button>";
+  status.innerHTML='客訂單已建立：'+escapeHtml(order.order_no)+'；訂購總額 NT$ '+quoteMoney(order.total_amount)+'，已收訂金 NT$ '+quoteMoney(order.deposit_amount)+'，尚欠 NT$ '+quoteMoney(order.balance_amount)+'。訂單不扣庫存。 <button type="button" class="secondary" id="printCustomerOrderButton">列印客戶訂購單</button>';
  }catch(error){fail("建立客訂單失敗："+error.message);}
 }
 $("createCustomerOrderButton").addEventListener("click",createCustomerOrderFromQuote);
