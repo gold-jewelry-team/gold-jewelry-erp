@@ -59,4 +59,4 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           alembic current
-          alembic current | grep -q "0024_labor_code_settings"
+          alembic current | grep -q "0027_customer_orders_deposits"

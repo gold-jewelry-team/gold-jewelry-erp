@@ -1,0 +1,66 @@
+from datetime import datetime
+from decimal import Decimal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+
+
+class CustomerOrderPaymentCreate(BaseModel):
+    amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    payment_method: str = Field(default="CASH", pattern="^(CASH|CARD|TRANSFER|OTHER)$")
+    note: str | None = Field(default=None, max_length=500)
+
+
+class CustomerOrderCreate(BaseModel):
+    site_id: UUID
+    order_no: str = Field(min_length=1, max_length=40)
+    customer_name: str = Field(min_length=1, max_length=120)
+    customer_phone: str | None = Field(default=None, max_length=40)
+    expected_delivery_date: datetime | None = None
+    items: list[dict] = Field(min_length=1, max_length=100)
+    total_amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    initial_deposit: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    payment_method: str = Field(default="CASH", pattern="^(CASH|CARD|TRANSFER|OTHER)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+    @model_validator(mode="after")
+    def validate_deposit(self):
+        if self.initial_deposit > self.total_amount:
+            raise ValueError("訂金不可超過訂購總額。")
+        return self
+
+
+class CustomerOrderPaymentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    customer_order_id: UUID
+    direction: str
+    amount: Decimal
+    payment_method: str
+    note: str | None
+    paid_at: datetime
+
+
+class CustomerOrderRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    company_id: UUID
+    site_id: UUID
+    order_no: str
+    status: str
+    customer_name: str
+    customer_phone: str | None
+    expected_delivery_date: datetime | None
+    currency_code: str
+    items: list[dict]
+    total_amount: Decimal
+    deposit_amount: Decimal
+    note: str | None
+    created_at: datetime
+    updated_at: datetime
+    payments: list[CustomerOrderPaymentRead]
+
+    @computed_field
+    @property
+    def balance_amount(self) -> Decimal:
+        return self.total_amount - self.deposit_amount
