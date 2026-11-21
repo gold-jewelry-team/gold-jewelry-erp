@@ -68,6 +68,9 @@ def test_mobile_workspace_serves_html():
     assert 'id="actualPaymentMethod"' in response.text
     assert 'id="salePaymentList"' in response.text
     assert "function updateSalePaymentAmountForTender()" in response.text
+    assert 'const settlementLabel=Number(sale.final_amount)<0?"本店應付客人":"顧客應付總額"' in response.text
+    assert "本項結算：" in response.text
+    assert 'direction===\"OUT\"?\"本店付款／退款\"' in response.text
     assert "刷卡（含 5% 手續費）" in response.text
     assert "現金（不加價）" in response.text
     assert "刷卡應收（含 5% 手續費）" in response.text
