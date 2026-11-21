@@ -581,7 +581,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 </section>
 <section id="saleReturnPanel" class="panel hidden">
 <h3>退貨與庫存回補</h3>
-<p class="sub">選取原銷售明細辦理退貨。每件商品只能退貨一次；系統依原銷售明細金額（含原刷卡手續費分攤）沖回，不重新計算金價或手續費。</p>
+<p class="sub">選取原銷售明細辦理退貨。每項明細只能退貨一次；系統依原銷售金額（含原刷卡手續費分攤）沖回。正式商品會回補原庫存位置；臨時估價只沖回金額，不會建立庫存。</p>
 <form id="saleReturnForm">
 <div class="field"><label for="saleReturnNo">退貨單號</label><input id="saleReturnNo" maxlength="40" required placeholder="輸入退貨單號"></div>
 <div id="saleReturnSelectableLines"><div class="empty">載入原銷售明細中…</div></div>
@@ -589,7 +589,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="field"><label for="saleReturnReason">退貨原因</label><input id="saleReturnReason" maxlength="500"></div>
 <div class="field"><label for="saleReturnNote">退貨備註</label><input id="saleReturnNote" maxlength="500"></div>
 </div>
-<button type="submit">建立退貨並回補庫存</button>
+<button type="submit">建立退貨／沖回金額</button>
 </form>
 <div id="saleReturnStatus" class="status" role="status"></div>
 <h3>退貨紀錄</h3>
