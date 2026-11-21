@@ -1507,7 +1507,7 @@ async function loadGoldPrices(){
   renderGoldPriceViews();
   if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
   if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
-  if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();
+  
   renderGoldClosureDates();
   historyBox.innerHTML='<div class="empty">請先選擇公司與據點</div>';
   return;
@@ -1522,7 +1522,7 @@ async function loadGoldPrices(){
  renderGoldPriceViews();
  if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
  if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
- if(typeof renderQuoteEstimatePreview==="function")renderQuoteEstimatePreview();
+ 
  renderGoldClosureDates();
  if(history.length){
   const groups=new Map();
@@ -3347,7 +3347,8 @@ updateQuoteTradeInRatioVisibility();
 $("quoteProductSearch").addEventListener("input",renderQuoteSearchResults);
 $("quoteAddProductButton").addEventListener("click",addQuoteProduct);
 ["quoteWeight","quoteLaborFee","quoteManualName","quoteManualSize","quoteOldGoldWeight","quoteTradeInRatio"].forEach(id=>$(id).addEventListener("input",renderQuoteEntryPreview));
-["quoteProduct","quoteWeightUnit","quoteTradeInSource","quotePaymentMethod"].forEach(id=>$(id).addEventListener("change",renderQuoteEntryPreview));
+["quoteWeightUnit","quoteTradeInSource","quotePaymentMethod"].forEach(id=>$(id).addEventListener("change",renderQuoteEntryPreview));
+$("quoteProduct").addEventListener("change",()=>{const product=inventoryProducts.find(item=>item.id===$("quoteProduct").value&&item.is_active);if(product)selectQuoteProduct(product);else renderQuoteEntryPreview();});
 $("quoteHasTradeIn").addEventListener("change",()=>{$("quoteTradeInDetails").classList.toggle("hidden",!$("quoteHasTradeIn").checked);renderQuoteEntryPreview();});
 $("quoteSearchResults").addEventListener("click",event=>{
  const button=event.target.closest("[data-quote-product]");if(!button)return;
