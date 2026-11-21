@@ -17,8 +17,8 @@ class SaleReturnLineRead(BaseModel):
     id: UUID
     return_id: UUID
     sale_line_id: UUID
-    product_id: UUID
-    source_location_id: UUID
+    product_id: UUID | None
+    source_location_id: UUID | None
     product_code_snapshot: str | None
     barcode_snapshot: str | None
     product_name_snapshot: str
