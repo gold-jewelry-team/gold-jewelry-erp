@@ -1,0 +1,173 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import test from "node:test";
+import vm from "node:vm";
+
+const html = fs.readFileSync("app/static/index.html", "utf8");
+
+function extract(startMarker, endMarker) {
+  const start = html.indexOf(startMarker);
+  assert.notEqual(start, -1, `Missing function marker: ${startMarker}`);
+  const end = html.indexOf(endMarker, start);
+  assert.notEqual(end, -1, `Missing end marker: ${endMarker}`);
+  return html.slice(start, end).trim();
+}
+
+function makeElement(value = "") {
+  return {
+    value,
+    checked: false,
+    textContent: "",
+    innerHTML: "",
+    focused: false,
+    classList: {
+      toggle() {},
+      add() {},
+      remove() {},
+    },
+    focus() { this.focused = true; },
+  };
+}
+
+function setup(values = {}) {
+  const elements = new Map();
+  const get = (id) => {
+    if (!elements.has(id)) elements.set(id, makeElement(values[id] ?? ""));
+    return elements.get(id);
+  };
+  const context = {
+    $: get,
+    inventoryProducts: [],
+    quoteSelectedProducts: [],
+    quoteStockRowsByProduct: new Map(),
+    currentGoldPriceRows: {
+      SELL: { currency_code: "TWD", price_value: 15000, unit_code: "QIAN" },
+      BUY: { currency_code: "TWD", price_value: 14000, unit_code: "QIAN" },
+    },
+    companyId: "company-1",
+    selectedSiteId: "site-1",
+    quoteCurrentTotal: null,
+    quoteRoundTwd: (value) => Math.round(Number(value)),
+    quoteMoney: (value) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 }),
+    convertGoldPrice: (value, fromUnit, toUnit) => fromUnit === toUnit ? Number(value) : null,
+    goldUnitLabel: () => "錢",
+    escapeHtml: (value) => String(value),
+    quoteSetStatus(message, isError = false) {
+      get("quoteStatus").textContent = message;
+      get("quoteStatus").isError = isError;
+    },
+    renderQuoteLines() {},
+    updateQuoteTradeInRatioVisibility() {},
+    async loadQuoteStockBalances() {},
+  };
+  context.quoteTradeInInput = undefined;
+  vm.createContext(context);
+  vm.runInContext(extract("function quoteTradeInInput(){", "\nfunction renderQuoteEntryPreview(){"), context);
+  vm.runInContext(extract("function renderQuoteEntryPreview(){", "\nasync function addQuoteProduct(){"), context);
+  vm.runInContext(extract("async function addQuoteProduct(){", "\nasync function createCustomerOrderFromQuote(){"), context);
+  return { context, get };
+}
+
+test("臨時估價不選商品、不填名稱，只輸入重量與工錢即可試算", () => {
+  const { context, get } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteWeight: "1.2",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "500",
+    quotePaymentMethod: "CASH",
+  });
+
+  context.renderQuoteEntryPreview();
+
+  const preview = get("quoteEntryPreview").innerHTML;
+  assert.match(preview, /臨時估價即時試算/);
+  assert.match(preview, /預估應收：NT\$ 18,500/);
+});
+
+test("外店舊金 1.429 錢按 95% 折抵後無條件捨去為 1.35 錢", () => {
+  const { context, get } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteWeight: "2",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "500",
+    quotePaymentMethod: "CASH",
+    quoteHasTradeIn: "",
+    quoteOldGoldWeight: "1.429",
+    quoteTradeInSource: "EXTERNAL",
+    quoteTradeInRatio: "95",
+  });
+  get("quoteHasTradeIn").checked = true;
+
+  context.renderQuoteEntryPreview();
+
+  const preview = get("quoteEntryPreview").innerHTML;
+  assert.match(preview, /折算 1\.35 錢/);
+  assert.match(preview, /預估應收：NT\$ 10,250/);
+});
+
+test("本店舊金超過新商品重量時顯示店家找補，不套用刷卡費", () => {
+  const { context, get } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteWeight: "1",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "300",
+    quotePaymentMethod: "CARD",
+    quoteOldGoldWeight: "1.5",
+    quoteTradeInSource: "LOCAL",
+    quoteTradeInRatio: "95",
+  });
+  get("quoteHasTradeIn").checked = true;
+
+  context.renderQuoteEntryPreview();
+
+  const preview = get("quoteEntryPreview").innerHTML;
+  assert.match(preview, /本店應付客人：NT\$ 6,700/);
+  assert.doesNotMatch(preview, /刷卡 5% 手續費/);
+});
+
+test("不選商品、不填名稱仍可加入報價清單，並以臨時估價作為名稱", async () => {
+  const { context, get } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteManualSize: "",
+    quoteWeight: "1.2",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "500",
+    quoteOldGoldWeight: "0",
+    quoteTradeInSource: "",
+    quoteTradeInRatio: "95",
+    quoteProductSearch: "",
+    quoteProductCode: "",
+  });
+
+  await context.addQuoteProduct();
+
+  assert.equal(context.quoteSelectedProducts.length, 1);
+  const line = context.quoteSelectedProducts[0];
+  assert.equal(line.isEstimate, true);
+  assert.equal(line.product.name, "臨時估價");
+  assert.equal(line.product.product_code, "臨時估價");
+  assert.equal(line.weight, "1.2");
+  assert.equal(line.labor, "500");
+  assert.equal(get("quoteStatus").isError, false);
+  assert.match(get("quoteStatus").textContent, /臨時估價已加入報價清單/);
+});
+
+test("缺少重量時阻止加入並聚焦重量欄位", async () => {
+  const { context, get } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteWeight: "",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "500",
+  });
+
+  await context.addQuoteProduct();
+
+  assert.equal(context.quoteSelectedProducts.length, 0);
+  assert.equal(get("quoteWeight").focused, true);
+  assert.match(get("quoteStatus").textContent, /重量必須大於 0/);
+});
