@@ -1671,7 +1671,7 @@ function printProductQrLabel(product,lot,printWindow,config,copies=1){
   '@media print{html,body{width:100mm;margin:0;padding:0}.label{margin:0;box-shadow:none}}'+
   '@media screen{body{background:#eee}.label{background:#fff;margin:12px auto;box-shadow:0 1px 5px #999}}'+
   '</style></head><body>'+Array.from({length:copies},()=>labelMarkup).join("")+
-  '<scr'+'ipt>const images=[...document.querySelectorAll(".barcode")];let loaded=0;const done=()=>{loaded++;if(loaded===images.length){window.focus();window.print();}};images.forEach(image=>{image.onload=done;image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};});'</scr'+'ipt>'+String.fromCharCode(10,10)+'</body></html>';
+  '<scr'+'ipt>const images=[...document.querySelectorAll(".barcode")];let loaded=0;const done=()=>{loaded++;if(loaded===images.length){window.focus();window.print();}};images.forEach(image=>{image.onload=done;image.onerror=()=>{document.body.innerHTML="一維條碼載入失敗，請關閉視窗後重試。";};});</scr'+'ipt>'+String.fromCharCode(10,10)+'</body></html>';
  printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
 }
 async function beginProductLabelPrint(product){
