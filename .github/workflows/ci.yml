@@ -45,9 +45,9 @@ jobs:
           import re
 
           html = Path("app/static/index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script\\b[^>]*>(.*?)</script>", html, re.DOTALL | re.IGNORECASE)
+          scripts = re.findall(r"<script\b[^>]*>(.*?)</script>", html, re.DOTALL | re.IGNORECASE)
           assert scripts, "No inline browser script found in app/static/index.html"
-          Path("/tmp/gold-erp-inline.js").write_text("\\n".join(scripts), encoding="utf-8")
+          Path("/tmp/gold-erp-inline.js").write_text("\n".join(scripts), encoding="utf-8")
           PY
           node --check /tmp/gold-erp-inline.js
       - name: Run quote workspace runtime tests
