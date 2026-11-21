@@ -2358,7 +2358,7 @@ function transferQuoteToSale(){
  }
  saleCartLines=converted;
  renderSaleCart();
- const quoteMethod=$("quotePaymentMethod").value;
+ const quoteMethod=Number(quoteCurrentTotal||0)>0?$("quotePaymentMethod").value:"CASH";
  $("salePaymentMethod").value=quoteMethod==="CARD"?"CARD":quoteMethod==="MIXED"?"MIXED":"CASH";
  $("saleCardAmount").disabled=quoteMethod!=="MIXED";
  $("saleCardAmount").value=quoteMethod==="MIXED"?$("quoteCardAmount").value:"";
