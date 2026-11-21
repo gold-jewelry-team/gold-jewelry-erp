@@ -13,7 +13,7 @@ from app.models.company import Company
 from app.models.gold_price import GoldPrice
 from app.models.inventory import InventoryMovement
 from app.models.site import Site
-from app.routers import sales
+from app.routers import sales, sales_returns
 
 
 def test_temporary_estimate_sale_is_snapshotted_without_inventory_movement():
@@ -54,6 +54,7 @@ def test_temporary_estimate_sale_is_snapshotted_without_inventory_movement():
 
     app.dependency_overrides.clear()
     app.dependency_overrides[sales.get_db] = override_db
+    app.dependency_overrides[sales_returns.get_db] = override_db
     try:
         client = TestClient(app)
         created = client.post(f"/companies/{company_id}/sales", json={
@@ -84,6 +85,20 @@ def test_temporary_estimate_sale_is_snapshotted_without_inventory_movement():
         )
         assert completed.status_code == 200, completed.text
         assert completed.json()["status"] == "COMPLETED"
+
+        returned = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json={
+                "return_no": "RT-ESTIMATE-001",
+                "sale_line_ids": [line["id"]],
+                "reason": "臨時估價商品取消",
+            },
+        )
+        assert returned.status_code == 201, returned.text
+        return_line = returned.json()["lines"][0]
+        assert return_line["product_id"] is None
+        assert return_line["source_location_id"] is None
+        assert return_line["settlement_reversal_amount"] == "-12500.00"
 
         check_session = TestSession()
         assert check_session.query(InventoryMovement).count() == 0
