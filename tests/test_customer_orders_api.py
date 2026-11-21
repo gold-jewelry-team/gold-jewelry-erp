@@ -99,12 +99,12 @@ def test_customer_order_deposit_ledger_and_status_flow():
             params={"status": "READY"},
         )
         assert ready.status_code == 200, ready.text
-        completed = client.patch(
+        premature_completion = client.patch(
             f"/companies/{company_id}/customer-orders/{order['id']}/status",
             params={"status": "COMPLETED"},
         )
-        assert completed.status_code == 200, completed.text
-        assert completed.json()["status"] == "COMPLETED"
+        assert premature_completion.status_code == 422
+        assert ready.json()["status"] == "READY"
 
         duplicate_overpayment = client.post(f"/companies/{company_id}/customer-orders/{order['id']}/payments", json={
             "amount": "1", "payment_method": "CASH",
