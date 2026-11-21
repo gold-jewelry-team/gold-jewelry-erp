@@ -2881,7 +2881,8 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
 })();
 
 /* 現場報價商品查找：沿用既有商品資料與共用掃描器，不建立交易 */
-let quoteSelectedProducts=[];\nlet quoteCurrentTotal=null;
+let quoteSelectedProducts=[];
+let quoteCurrentTotal=null;
 const quoteMoney=value=>Number(value||0).toLocaleString("zh-TW",{minimumFractionDigits:0,maximumFractionDigits:2});
 function quoteProductSearchText(product){
  const category=product.category_id?(categoryNames.get(product.category_id)||""):"";
