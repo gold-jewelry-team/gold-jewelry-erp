@@ -377,9 +377,9 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div>
 <h3>已選商品／報價參考</h3>
 <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
-<div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳</option><option value="CARD">全額刷卡（加 5%）</option></select></div></div><div id="quoteCalcSummary" class="quote-note">選擇或新增商品後，會依目前有效金價、商品重量、工錢及客戶折抵，使用同一套規則試算。</div>
+<div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳（不加價）</option><option value="CARD">全額刷卡（加 5%）</option><option value="MIXED">自訂刷卡＋現金</option></select></div><div id="quoteMixedTenderFields" class="grid wide hidden"><div class="field"><label for="quoteCardAmount">刷卡金額（元）</label><input id="quoteCardAmount" type="number" min="0" step="1" value="0" inputmode="numeric" placeholder="輸入刷卡金額"></div><div class="field"><label for="quoteCashAmount">現金金額（元）</label><input id="quoteCashAmount" type="number" min="0" step="1" value="0" inputmode="numeric" placeholder="輸入現金金額"></div><p class="sub wide">可直接修改刷卡或現金其中一欄，另一欄會自動補足。刷卡部分加收 5% 手續費，現金部分不加價。</p></div></div><div id="quoteCalcSummary" class="quote-note">選擇或新增商品後，會依目前有效金價、商品重量、工錢及客戶折抵，使用同一套規則試算。</div>
 <h3>找不到現有商品？臨時估價（不建立正式商品）</h3>
-<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">加入預估規格</button></div></div><div id="quoteEstimatePreview" class="quote-note" aria-live="polite">輸入商品規格及重量、工錢後即時試算；加入後與現有商品使用相同報價明細。</div>
+<div class="grid"><div class="field"><label for="quoteEstimateName">商品／款式名稱</label><input id="quoteEstimateName" maxlength="120" placeholder="例如：同款戒指"></div><div class="field"><label for="quoteEstimateSize">尺寸／長度</label><input id="quoteEstimateSize" maxlength="40" placeholder="例如：16號、1.6尺"></div><div class="field"><label for="quoteEstimateWeight">預估重量</label><input id="quoteEstimateWeight" type="number" min="0.0001" step="0.0001" placeholder="輸入重量"></div><div class="field"><label for="quoteEstimateUnit">重量單位</label><select id="quoteEstimateUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div><div class="field"><label for="quoteEstimateLabor">預估工錢（元）</label><input id="quoteEstimateLabor" type="number" min="0" step="0.01" value="0"></div><div class="field"><label>&nbsp;</label><button id="quoteAddEstimateButton" type="button">確認並加入上方報價清單</button></div></div><div id="quoteEstimatePreview" class="quote-note" aria-live="polite">輸入商品規格及重量、工錢後即時試算；加入後與現有商品使用相同報價明細。</div>
 <h3>無現貨／需訂製：建立客戶訂購單</h3>
 <p class="sub">有現貨請直接進入銷售結帳；無現貨或需訂製時，使用同一份報價明細建立訂購單並收取訂金。訂購單不扣庫存，訂金獨立記錄。</p>
 <div class="grid">
@@ -2976,6 +2976,19 @@ function quoteProductSearchText(product){
 }
 
 function quoteRoundTwd(value){return Math.floor(Number(value)+0.5);}
+let quoteMixedTenderLastEdited="CARD";
+function syncQuoteMixedTender(source=quoteMixedTenderLastEdited){
+ const cardInput=$("quoteCardAmount"),cashInput=$("quoteCashAmount");
+ if(!cardInput||!cashInput)return;
+ const total=Math.max(0,quoteRoundTwd(Number(quoteCurrentTotal||0)));
+ const sourceInput=source==="CASH"?cashInput:cardInput;
+ const targetInput=source==="CASH"?cardInput:cashInput;
+ const raw=sourceInput.value.trim();
+ if(raw===""){targetInput.value="";return;}
+ const amount=Number(raw);
+ if(!Number.isFinite(amount)||amount<0||!Number.isInteger(amount)){targetInput.value="";return;}
+ targetInput.value=String(Math.max(0,total-amount));
+}
 function renderQuoteCalculation(){
  const box=$("quoteCalcSummary");if(!box)return;
  quoteCurrentTotal=null;
@@ -3011,12 +3024,28 @@ function renderQuoteCalculation(){
  }
  const positiveSubtotal=Math.max(0,quoteRoundTwd(subtotalTotal));
  quoteCurrentTotal=positiveSubtotal;
- const card=$("quotePaymentMethod").value==="CARD";
- const cardFee=card?quoteRoundTwd(positiveSubtotal*0.05):0;
+ const method=$("quotePaymentMethod").value;
+ const mixedFields=$("quoteMixedTenderFields");
+ if(mixedFields)mixedFields.classList.toggle("hidden",method!=="MIXED");
+ let cardAmount=0,cashAmount=positiveSubtotal;
+ if(method==="CARD")cardAmount=positiveSubtotal;
+ if(method==="MIXED"){
+  syncQuoteMixedTender();
+  const cardText=$("quoteCardAmount").value.trim(),cashText=$("quoteCashAmount").value.trim();
+  cardAmount=cardText===""?NaN:Number(cardText);
+  cashAmount=cashText===""?NaN:Number(cashText);
+  if(!Number.isInteger(cardAmount)||!Number.isInteger(cashAmount)||cardAmount<0||cashAmount<0||cardAmount+cashAmount!==positiveSubtotal){
+   box.innerHTML='<strong>付款金額尚未配平</strong><div>刷卡與現金合計必須等於折抵後應付商品金額 NT$ '+escapeHtml(quoteMoney(positiveSubtotal))+'。請輸入其中一種金額，另一欄會自動補足。</div>';
+   return;
+  }
+ }
+ const cardFee=cardAmount>0&&subtotalTotal>0?quoteRoundTwd(cardAmount*0.05):0;
  const final=quoteRoundTwd(subtotalTotal+cardFee);
- box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">重量單位：'+escapeHtml(goldUnitLabel(x.weightUnit))+' · 賣出金價：NT$ '+escapeHtml(quoteMoney(x.sellRate))+'／'+escapeHtml(goldUnitLabel(x.weightUnit))+'<br>新商品金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 客戶折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+' '+escapeHtml(goldUnitLabel(x.weightUnit))+'）':' · 未使用客戶折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>新商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">客戶折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>客戶折抵：NT$ 0</div>')+'<div>折抵後應付商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+(card?'<div>刷卡試算 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'')+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>新商品金額先依商品重量與工錢計算；客戶提供舊金時，再依重量、來源及折抵比率扣抵。刷卡模式假設全額刷卡，實際交易以正式結帳結果為準。</small>';
+ const paymentLines=method==="MIXED"
+  ?'<div>自訂刷卡：NT$ '+escapeHtml(quoteMoney(cardAmount))+'</div><div>自訂現金：NT$ '+escapeHtml(quoteMoney(cashAmount))+'</div><div>刷卡 5% 手續費：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>'
+  :method==="CARD"?'<div>全額刷卡 5%：NT$ '+escapeHtml(quoteMoney(cardFee))+'</div>':'<div>付款方式：現金／轉帳（不加價）</div>';
+ box.innerHTML='<strong>試算明細</strong><div>'+lines.map(x=>'<div style="padding:6px 0;border-bottom:1px solid #e8ece8"><strong>'+escapeHtml(x.code)+'：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.amount)))+'</strong><small style="display:block;color:#68716b">重量單位：'+escapeHtml(goldUnitLabel(x.weightUnit))+' · 賣出金價：NT$ '+escapeHtml(quoteMoney(x.sellRate))+'／'+escapeHtml(goldUnitLabel(x.weightUnit))+'<br>新商品金額 NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.baseAmount)))+(x.tradeInCredit>0?' · 客戶折抵 '+(x.tradeInSource==="LOCAL"?'（本店）':'（外店）')+' NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(x.tradeInCredit)))+'（折算重量 '+escapeHtml(x.adjustedOldWeight)+' '+escapeHtml(goldUnitLabel(x.weightUnit))+'）':' · 未使用客戶折抵')+'</small></div>').join("")+'</div><div style="margin-top:10px;display:grid;gap:5px"><div>新商品原金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(grossSubtotalTotal)))+'</div>'+(tradeInTotal>0?'<div style="color:#28724d;font-weight:700">客戶折抵合計：－ NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(tradeInTotal)))+'</div>':'<div>客戶折抵：NT$ 0</div>')+'<div>折抵後應付商品金額：NT$ '+escapeHtml(quoteMoney(quoteRoundTwd(subtotalTotal)))+'</div>'+paymentLines+'</div><strong style="display:block;font-size:20px;margin-top:8px">預估應收：NT$ '+escapeHtml(quoteMoney(final))+'</strong><small>新商品金額依重量與工錢計算；客戶提供舊金時，再依重量、來源及折抵比率扣抵。刷卡部分加收 5%，現金／轉帳不加價。此處為報價試算，實際收款仍於正式銷售結帳記錄。</small>';
 }
-
 function renderQuoteEntryPreview(){
  const box=$("quoteEntryPreview");if(!box)return;
  const productId=$("quoteProduct").value;
@@ -3249,7 +3278,7 @@ $("quoteAddEstimateButton").addEventListener("click",()=>{
  $("quoteEstimateName").value="";$("quoteEstimateSize").value="";$("quoteEstimateWeight").value="";$("quoteEstimateLabor").value="0";
  $("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  renderQuoteEstimatePreview();
- quoteSetStatus("已加入報價清單。這是非庫存預估規格，不會建立商品或庫存。");
+ quoteSetStatus("已加入上方「已選商品／報價參考」清單，可與正式商品一起試算及結算。此為非庫存預估規格，不會建立商品或庫存。");
 });
 
 function updateQuoteTradeInRatioVisibility(){const field=$("quoteTradeInRatioField");if(!field)return;field.classList.toggle("hidden",$("quoteTradeInSource").value!=="EXTERNAL");}
@@ -3269,7 +3298,9 @@ $("quoteLines").addEventListener("input",event=>{
  if(li!==undefined&&quoteSelectedProducts[Number(li)])quoteSelectedProducts[Number(li)].labor=event.target.value;
  renderQuoteCalculation();
 });
-$("quotePaymentMethod").addEventListener("change",renderQuoteCalculation);
+$("quotePaymentMethod").addEventListener("change",()=>{if($("quotePaymentMethod").value==="MIXED"){quoteMixedTenderLastEdited="CARD";$("quoteCardAmount").value="0";$("quoteCashAmount").value=String(Math.max(0,Number(quoteCurrentTotal||0)));}renderQuoteCalculation();});
+$("quoteCardAmount").addEventListener("input",()=>{quoteMixedTenderLastEdited="CARD";renderQuoteCalculation();});
+$("quoteCashAmount").addEventListener("input",()=>{quoteMixedTenderLastEdited="CASH";renderQuoteCalculation();});
 $("quoteLines").addEventListener("click",event=>{
  const button=event.target.closest("[data-quote-remove]");if(!button)return;
  quoteSelectedProducts.splice(Number(button.dataset.quoteRemove),1);renderQuoteLines();
@@ -3289,7 +3320,7 @@ $("quoteClearButton").addEventListener("click",()=>{
  $("quoteEstimateSize").value="";
  $("quoteEstimateWeight").value="";
  $("quoteEstimateLabor").value="0";
- $("quotePaymentMethod").value="CASH";
+ $("quotePaymentMethod").value="CASH";$("quoteCardAmount").value="0";$("quoteCashAmount").value="0";quoteMixedTenderLastEdited="CARD";$("quoteMixedTenderFields").classList.add("hidden");
  renderQuoteLines();
  renderQuoteSearchResults();
  renderQuoteEntryPreview();
