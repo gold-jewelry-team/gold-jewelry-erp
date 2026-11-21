@@ -3082,7 +3082,7 @@ async function addQuoteProduct(){
  try{await loadQuoteStockBalances();stockRows=quoteStockRowsByProduct.get(product.id)||[];}catch(error){message("quoteSearchStatus","商品已加入報價，但庫存查詢失敗："+error.message,true);}
  quoteSelectedProducts.push({id:product.id,product,weight:String(weight),labor:labor===""?String(product.labor_fee??0):labor,oldWeight:String(oldWeight),tradeInSource:source,tradeInRatio:String(ratio),stockRows});
  renderQuoteLines();
- $"quoteProduct").value="";$("quoteWeight").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
+ $("quoteProduct").value="";$("quoteWeight").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  quoteSetStatus("已加入報價清單；此操作不扣庫存、不建立正式銷售。");
 }
 function renderQuoteLines(){
@@ -3171,7 +3171,7 @@ $("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
 $("quoteClearButton").addEventListener("click",()=>{
  quoteSelectedProducts=[];
  $("quoteProductCode").value="";
- $"quoteProduct").value="";$("quoteWeight").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
+ $("quoteProduct").value="";$("quoteWeight").value="";$("quoteLaborFee").value="";$("quoteOldGoldWeight").value="0";$("quoteTradeInSource").value="";$("quoteTradeInRatio").value="95";
  $("quoteProductSearch").value="";
  $("quoteEstimateName").value="";
  $("quoteEstimateSize").value="";
