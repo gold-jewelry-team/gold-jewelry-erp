@@ -1,4 +1,7 @@
-from datetime import datetime\nfrom decimal import Decimal\nfrom zoneinfo import ZoneInfo
+from datetime import datetime
+from decimal import Decimal
+from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -9,7 +12,9 @@ from app import models  # noqa: F401
 from app.db.base import Base
 from app.main import app
 from app.models.company import Company
-from app.models.site import Site\nfrom app.models.payment_transaction import PaymentTransaction\nfrom app.services.daily_closing import create_daily_closing
+from app.models.site import Site
+from app.models.payment_transaction import PaymentTransaction
+from app.services.daily_closing import create_daily_closing
 from app.routers import customer_orders
 
 
@@ -70,7 +75,7 @@ def test_customer_order_deposit_ledger_and_status_flow():
         assert len(paid.json()["payments"]) == 2
         ledger = TestSession()
         receipts = ledger.query(PaymentTransaction).filter(
-            PaymentTransaction.customer_order_id == order["id"]
+            PaymentTransaction.customer_order_id == UUID(order["id"])
         ).all()
         assert len(receipts) == 2
         assert all(receipt.direction == "IN" for receipt in receipts)
