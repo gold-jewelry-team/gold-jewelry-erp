@@ -491,3 +491,96 @@ def test_closed_day_rejects_cash_drawer_movement_after_daily_close():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+
+def test_closed_day_rejects_payment_of_existing_operating_expense():
+    from app.services.operating_expenses import create_expense, pay_expense
+
+    engine, TestSession, (company_id, site_id, _) = _context()
+    try:
+        db = TestSession()
+        business_date = date.today()
+        expense = create_expense(
+            db, company_id=company_id, site_id=site_id,
+            expense_no="UNPAID-BEFORE-CLOSE", expense_date=business_date,
+            category_code="SUPPLIES", description="先建檔、結帳後才付款",
+            amount=Decimal("45.00"),
+        )
+        expense_id = expense.id
+        db.commit()
+
+        create_daily_closing(
+            db, company_id=company_id, site_id=site_id,
+            business_date=business_date,
+        )
+        db.commit()
+
+        try:
+            pay_expense(
+                db, company_id=company_id, expense_id=expense_id,
+                payment_method="CASH",
+            )
+            assert False, "closed day must reject payment of an existing expense"
+        except ValueError as exc:
+            assert "已結帳" in str(exc)
+        db.rollback()
+
+        unchanged = db.get(OperatingExpense, expense_id)
+        assert unchanged.status == "UNPAID"
+        assert unchanged.payment_method is None
+        assert unchanged.paid_at is None
+        db.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_closed_day_rejects_supplier_bill_payment_without_partial_records():
+    from app.models.supplier_payable import SupplierBill, SupplierPayment
+    from app.services.supplier_payables import create_supplier_bill, record_supplier_payment
+
+    engine, TestSession, (company_id, site_id, _) = _context()
+    try:
+        db = TestSession()
+        business_date = date.today()
+        supplier = Supplier(
+            company_id=company_id, code="CLOSE-SUP", name="關帳付款測試供應商"
+        )
+        db.add(supplier)
+        db.flush()
+        bill = create_supplier_bill(
+            db, company_id=company_id, site_id=site_id,
+            supplier_id=supplier.id, bill_no="CLOSE-SUP-BILL",
+            bill_date=business_date, due_date=None, currency_code="TWD",
+            total_amount=Decimal("260.00"),
+        )
+        bill_id = bill.id
+        supplier_id = supplier.id
+        db.commit()
+
+        create_daily_closing(
+            db, company_id=company_id, site_id=site_id,
+            business_date=business_date,
+        )
+        db.commit()
+
+        try:
+            record_supplier_payment(
+                db, company_id=company_id, site_id=site_id,
+                supplier_id=supplier_id, payment_no="AFTER-CLOSE-SUP-PAY",
+                payment_method="CASH",
+                allocations=[{"bill_id": bill_id, "amount": Decimal("100.00")}],
+            )
+            assert False, "closed day must reject supplier payment"
+        except ValueError as exc:
+            assert "已結帳" in str(exc)
+        db.rollback()
+
+        unchanged_bill = db.get(SupplierBill, bill_id)
+        assert unchanged_bill.status == "OPEN"
+        assert db.query(SupplierPayment).count() == 0
+        db.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
