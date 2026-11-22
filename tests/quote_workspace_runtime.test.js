@@ -27,6 +27,7 @@ function makeElement(value = "") {
       remove() {},
     },
     focus() { this.focused = true; },
+    addEventListener() {},
   };
 }
 
@@ -39,8 +40,17 @@ function setup(values = {}) {
   const context = {
     $: get,
     inventoryProducts: [],
+    inventoryLocations: [],
     quoteSelectedProducts: [],
     quoteStockRowsByProduct: new Map(),
+    saleCartLines: [],
+    currentSale: null,
+    document: {
+      querySelector(selector) {
+        if (selector === ".category-nav button[data-category=\"sales\"]") return { click() {} };
+        return null;
+      },
+    },
     currentGoldPriceRows: {
       SELL: { currency_code: "TWD", price_value: 15000, unit_code: "QIAN" },
       BUY: { currency_code: "TWD", price_value: 14000, unit_code: "QIAN" },
@@ -58,6 +68,8 @@ function setup(values = {}) {
       get("quoteStatus").isError = isError;
     },
     renderQuoteLines() {},
+    renderSaleCart() {},
+    message(id, messageText) { get(id).textContent = messageText; },
     updateQuoteTradeInRatioVisibility() {},
     async loadQuoteStockBalances() {},
   };
@@ -67,6 +79,8 @@ function setup(values = {}) {
   vm.runInContext(extract("function quoteCalculateLineAmount(", "\nfunction renderQuoteEntryPreview(){"), context);
   vm.runInContext(extract("function renderQuoteEntryPreview(){", "\nasync function addQuoteProduct(){"), context);
   vm.runInContext(extract("async function addQuoteProduct(){", "\nasync function createCustomerOrderFromQuote(){"), context);
+  vm.runInContext(extract("function transferQuoteToSale(){", "\nasync function addSaleProduct(){"), context);
+  get("salesPanel").scrollIntoView = () => {};
   return { context, get };
 }
 
@@ -249,4 +263,41 @@ test("browser quote pricing matches the shared legacy golden cases", () => {
     assert.ok(Math.abs(result.amount - Number(item.subtotal)) < 1e-8, `${item.name}: unrounded amount differs beyond floating-point tolerance`);
     assert.equal(context.quoteRoundTwd(result.amount), Number(item.final_amount), item.name);
   }
+});
+
+
+test("臨時估價可完整帶入正式銷售購物車，保留重量、工錢與舊金資料", async () => {
+  const { context, get } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteManualSize: "",
+    quoteWeight: "2",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "500",
+    quoteHasTradeIn: "",
+    quoteOldGoldWeight: "1.429",
+    quoteTradeInSource: "EXTERNAL",
+    quoteTradeInRatio: "95",
+    quotePaymentMethod: "MIXED",
+    quoteCardAmount: "5000",
+    saleNo: "",
+  });
+  get("quoteHasTradeIn").checked = true;
+
+  await context.addQuoteProduct();
+  context.quoteCurrentTotal = 10250;
+  context.transferQuoteToSale();
+
+  assert.equal(context.saleCartLines.length, 1);
+  const line = context.saleCartLines[0];
+  assert.equal(line.isEstimate, true);
+  assert.equal(line.product.name, "臨時估價");
+  assert.equal(line.net_weight, 2);
+  assert.equal(line.labor_fee, "500");
+  assert.equal(line.old_gold_weight, "1.429");
+  assert.equal(line.trade_in_source, "EXTERNAL");
+  assert.equal(line.trade_in_ratio, "0.95");
+  assert.equal(get("salePaymentMethod").value, "MIXED");
+  assert.equal(get("saleCardAmount").value, "5000");
+  assert.match(get("saleStatus").textContent, /共用報價明細帶入銷售購物車/);
 });
