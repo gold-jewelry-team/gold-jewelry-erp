@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -141,7 +142,7 @@ def test_mixed_catalog_and_estimate_completion_rolls_back_all_stock_on_shortage(
         assert "庫存不足" in failed.json()["detail"]
 
         check = TestSession()
-        persisted_sale = check.get(models.Sale, sale["id"])
+        persisted_sale = check.get(models.Sale, UUID(sale["id"]))
         assert persisted_sale.status == "DRAFT"
         assert get_stock_balance(
             check, product_id=first_id, location_id=location_id
