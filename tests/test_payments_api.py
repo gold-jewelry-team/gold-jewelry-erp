@@ -12,10 +12,11 @@ from app.main import app
 from app.models.company import Company
 from app.models.daily_closing import DailyClosing
 from app.models.payment_transaction import PaymentTransaction
+from app.models.cash_drawer_movement import CashDrawerMovement
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
-from app.routers import daily_closing, payments
+from app.routers import daily_closing, payments, cash_counts
 
 
 def _payment_context():
@@ -75,6 +76,7 @@ def _payment_context():
     app.dependency_overrides.clear()
     app.dependency_overrides[payments.get_db] = override_db
     app.dependency_overrides[daily_closing.get_db] = override_db
+    app.dependency_overrides[cash_counts.get_db] = override_db
     return engine, TestSession, ids, now
 
 
@@ -270,3 +272,71 @@ def test_mixed_sale_collections_must_match_card_fee_and_cash_tender_plan():
         app.dependency_overrides.clear()
         engine.dispose()
 
+
+ 
+def test_cash_refund_and_drawer_transfers_reconcile_to_physical_cash_count():
+    engine, TestSession, ids, now = _payment_context()
+    company_id, site_id, sale_id, _, return_id, _ = ids
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}"
+
+        collected = client.post(
+            f"{base}/sales/{sale_id}/payments",
+            json={"payment_method": "CASH", "amount": "1000.00"},
+        )
+        assert collected.status_code == 201, collected.text
+        refunded = client.post(
+            f"{base}/sales/returns/{return_id}/payments",
+            json={"payment_method": "CASH", "amount": "100.00"},
+        )
+        assert refunded.status_code == 201, refunded.text
+        assert refunded.json()["direction"] == "OUT"
+
+        db = TestSession()
+        db.add_all([
+            CashDrawerMovement(
+                company_id=company_id, site_id=site_id,
+                movement_type="BANK_DEPOSIT", direction="OUT",
+                amount=Decimal("100.00"), currency_code="TWD",
+                description="存入銀行", created_by_name="測試店員",
+                created_at=now,
+            ),
+            CashDrawerMovement(
+                company_id=company_id, site_id=site_id,
+                movement_type="FLOAT_INCREASE", direction="IN",
+                amount=Decimal("50.00"), currency_code="TWD",
+                description="增加備用金", created_by_name="測試店員",
+                created_at=now,
+            ),
+        ])
+        db.commit()
+        db.close()
+
+        from zoneinfo import ZoneInfo
+        business_date = now.astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"{base}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+        snapshot = closing.json()
+        assert snapshot["collected_amount"] == "1000.00"
+        assert snapshot["refunded_amount"] == "100.00"
+        assert snapshot["cash_drawer_in_amount"] == "50.00"
+        assert snapshot["cash_drawer_out_amount"] == "100.00"
+
+        counted = client.post(
+            f"{base}/sites/{site_id}/daily-closings/{snapshot['id']}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "1350.00",
+                "counted_by_name": "甲",
+            },
+        )
+        assert counted.status_code == 201, counted.text
+        assert counted.json()["expected_cash_amount"] == "1350.00"
+        assert counted.json()["cash_variance"] == "0.00"
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
