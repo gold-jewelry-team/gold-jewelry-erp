@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -283,7 +284,7 @@ def test_supplier_payment_with_void_bill_is_atomic_across_all_allocations():
         # The first allocation is valid, but the second bill is void.
         # The service must validate every bill before creating any payment row.
         db = TestSession()
-        void_bill = db.get(SupplierBill, created_bills[1]["id"])
+        void_bill = db.get(SupplierBill, UUID(created_bills[1]["id"]))
         void_bill.status = "VOID"
         db.commit()
         db.close()
