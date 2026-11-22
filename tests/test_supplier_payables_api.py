@@ -737,3 +737,51 @@ def test_supplier_bill_cannot_be_created_from_draft_purchase():
         session.close()
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+
+def test_supplier_bills_can_be_created_from_active_purchase_states():
+    from app.models.purchase import Purchase
+    from app.services.supplier_payables import create_supplier_bill
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    session = TestSession()
+    try:
+        allowed_states = ("ORDERED", "PARTIALLY_RECEIVED", "RECEIVED")
+        created_bill_ids = []
+        for index, status in enumerate(allowed_states, start=1):
+            purchase = Purchase(
+                company_id=company_id,
+                site_id=site_id,
+                supplier_id=supplier_id,
+                purchase_no=f"PO-ALLOWED-{status}",
+                order_date=date(2026, 11, 23),
+                currency_code="TWD",
+                status=status,
+            )
+            session.add(purchase)
+            session.flush()
+
+            bill = create_supplier_bill(
+                session,
+                company_id=company_id,
+                site_id=site_id,
+                supplier_id=supplier_id,
+                purchase_id=purchase.id,
+                bill_no=f"INV-ALLOWED-{index}",
+                bill_date=date(2026, 11, 23),
+                due_date=None,
+                currency_code="TWD",
+                total_amount=Decimal("300.00"),
+            )
+            assert bill.purchase_id == purchase.id
+            assert bill.status == "OPEN"
+            created_bill_ids.append(bill.id)
+
+        session.commit()
+        assert session.query(SupplierBill).count() == 3
+        assert {bill.id for bill in session.query(SupplierBill).all()} == set(created_bill_ids)
+    finally:
+        session.close()
+        app.dependency_overrides.clear()
+        engine.dispose()

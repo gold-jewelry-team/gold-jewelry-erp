@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -440,7 +441,7 @@ def test_closed_day_rejects_immediate_operating_expense_payment():
     engine, TestSession, (company_id, site_id, _) = _context()
     try:
         db = TestSession()
-        business_date = date.today()
+        business_date = datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
         create_daily_closing(
             db, company_id=company_id, site_id=site_id,
             business_date=business_date,
@@ -470,7 +471,7 @@ def test_closed_day_rejects_cash_drawer_movement_after_daily_close():
     engine, TestSession, (company_id, site_id, _) = _context()
     try:
         db = TestSession()
-        business_date = date.today()
+        business_date = datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
         create_daily_closing(
             db, company_id=company_id, site_id=site_id,
             business_date=business_date,
@@ -500,7 +501,7 @@ def test_closed_day_rejects_payment_of_existing_operating_expense():
     engine, TestSession, (company_id, site_id, _) = _context()
     try:
         db = TestSession()
-        business_date = date.today()
+        business_date = datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
         expense = create_expense(
             db, company_id=company_id, site_id=site_id,
             expense_no="UNPAID-BEFORE-CLOSE", expense_date=business_date,
@@ -543,7 +544,7 @@ def test_closed_day_rejects_supplier_bill_payment_without_partial_records():
     engine, TestSession, (company_id, site_id, _) = _context()
     try:
         db = TestSession()
-        business_date = date.today()
+        business_date = datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
         supplier = Supplier(
             company_id=company_id, code="CLOSE-SUP", name="關帳付款測試供應商"
         )
