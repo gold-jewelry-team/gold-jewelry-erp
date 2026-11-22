@@ -1,6 +1,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -254,6 +255,65 @@ def test_supplier_payment_is_blocked_after_daily_closing():
         check = TestSession()
         assert check.query(SupplierPayment).count() == 0
         assert check.query(DailyClosing).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_supplier_payment_with_void_bill_is_atomic_across_all_allocations():
+    from app.models.supplier_payable import SupplierPaymentAllocation
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        created_bills = []
+        for bill_no in ("INV-ATOMIC-001", "INV-ATOMIC-002"):
+            response = client.post(f"{base}/bills", json={
+                "site_id": str(site_id),
+                "supplier_id": str(supplier_id),
+                "bill_no": bill_no,
+                "bill_date": "2026-11-22",
+                "currency_code": "TWD",
+                "total_amount": "100.00",
+            })
+            assert response.status_code == 201, response.text
+            created_bills.append(response.json())
+
+        # The first allocation is valid, but the second bill is void.
+        # The service must validate every bill before creating any payment row.
+        db = TestSession()
+        void_bill = db.get(SupplierBill, UUID(created_bills[1]["id"]))
+        void_bill.status = "VOID"
+        db.commit()
+        db.close()
+
+        rejected = client.post(f"{base}/payments", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "payment_no": "SP-ATOMIC-VOID",
+            "payment_method": "TRANSFER",
+            "allocations": [
+                {"bill_id": created_bills[0]["id"], "amount": "40.00"},
+                {"bill_id": created_bills[1]["id"], "amount": "40.00"},
+            ],
+        })
+        assert rejected.status_code == 422, rejected.text
+        assert "作廢" in rejected.json()["detail"]
+
+        first_bill = client.get(f"{base}/bills/{created_bills[0]['id']}")
+        second_bill = client.get(f"{base}/bills/{created_bills[1]['id']}")
+        assert first_bill.status_code == 200
+        assert first_bill.json()["status"] == "OPEN"
+        assert Decimal(first_bill.json()["paid_amount"]) == Decimal("0.00")
+        assert first_bill.json()["outstanding_amount"] == "100.00"
+        assert second_bill.json()["status"] == "VOID"
+        assert Decimal(second_bill.json()["paid_amount"]) == Decimal("0.00")
+
+        check = TestSession()
+        assert check.query(SupplierPayment).count() == 0
+        assert check.query(SupplierPaymentAllocation).count() == 0
         check.close()
     finally:
         app.dependency_overrides.clear()
