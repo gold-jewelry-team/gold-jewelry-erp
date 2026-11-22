@@ -458,3 +458,45 @@ def test_duplicate_supplier_bill_number_is_rejected_without_creating_second_bill
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_same_supplier_bill_number_is_allowed_for_different_suppliers():
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        other_supplier = client.post(f"/companies/{company_id}/suppliers", json={
+            "code": "SUP-SECOND",
+            "name": "第二家供應商",
+        })
+        assert other_supplier.status_code == 201, other_supplier.text
+
+        shared_bill_no = "INV-SHARED-ACROSS-SUPPLIERS"
+        first = client.post(f"{base}/bills", json={
+            "site_id": str(site_id), "supplier_id": str(supplier_id),
+            "bill_no": shared_bill_no, "bill_date": "2026-11-22",
+            "currency_code": "TWD", "total_amount": "125.00",
+        })
+        second = client.post(f"{base}/bills", json={
+            "site_id": str(site_id), "supplier_id": other_supplier.json()["id"],
+            "bill_no": shared_bill_no, "bill_date": "2026-11-22",
+            "currency_code": "TWD", "total_amount": "225.00",
+        })
+        assert first.status_code == 201, first.text
+        assert second.status_code == 201, second.text
+        assert first.json()["id"] != second.json()["id"]
+        assert first.json()["bill_no"] == second.json()["bill_no"] == shared_bill_no
+
+        listed = client.get(f"{base}/bills", params={"site_id": str(site_id)})
+        assert listed.status_code == 200, listed.text
+        matching = [item for item in listed.json() if item["bill_no"] == shared_bill_no]
+        assert len(matching) == 2
+        assert {item["supplier_id"] for item in matching} == {
+            str(supplier_id), other_supplier.json()["id"]
+        }
+        check = TestSession()
+        assert check.query(SupplierBill).count() == 2
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
