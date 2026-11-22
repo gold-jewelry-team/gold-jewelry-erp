@@ -369,3 +369,58 @@ def test_duplicate_supplier_payment_number_rolls_back_second_allocation():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+
+def test_supplier_payment_rejects_cross_supplier_bill_without_partial_allocation():
+    from app.models.supplier_payable import SupplierPaymentAllocation
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        other_supplier = client.post(f"/companies/{company_id}/suppliers", json={
+            "code": "SUP-OTHER",
+            "name": "另一家供應商",
+        })
+        assert other_supplier.status_code == 201, other_supplier.text
+        other_supplier_id = other_supplier.json()["id"]
+
+        own_bill = client.post(f"{base}/bills", json={
+            "site_id": str(site_id), "supplier_id": str(supplier_id),
+            "bill_no": "INV-OWN-ATOMIC", "bill_date": "2026-11-22",
+            "currency_code": "TWD", "total_amount": "100.00",
+        })
+        foreign_bill = client.post(f"{base}/bills", json={
+            "site_id": str(site_id), "supplier_id": other_supplier_id,
+            "bill_no": "INV-FOREIGN-ATOMIC", "bill_date": "2026-11-22",
+            "currency_code": "TWD", "total_amount": "100.00",
+        })
+        assert own_bill.status_code == 201, own_bill.text
+        assert foreign_bill.status_code == 201, foreign_bill.text
+
+        rejected = client.post(f"{base}/payments", json={
+            "site_id": str(site_id), "supplier_id": str(supplier_id),
+            "payment_no": "SP-CROSS-SUPPLIER", "payment_method": "TRANSFER",
+            "allocations": [
+                {"bill_id": own_bill.json()["id"], "amount": "40.00"},
+                {"bill_id": foreign_bill.json()["id"], "amount": "40.00"},
+            ],
+        })
+        assert rejected.status_code == 422, rejected.text
+        assert "相同公司、據點及供應商" in rejected.json()["detail"]
+
+        refreshed_own = client.get(f"{base}/bills/{own_bill.json()['id']}")
+        refreshed_foreign = client.get(f"{base}/bills/{foreign_bill.json()['id']}")
+        assert refreshed_own.json()["status"] == "OPEN"
+        assert Decimal(refreshed_own.json()["paid_amount"]) == Decimal("0.00")
+        assert refreshed_foreign.json()["status"] == "OPEN"
+        assert Decimal(refreshed_foreign.json()["paid_amount"]) == Decimal("0.00")
+
+        check = TestSession()
+        assert check.query(SupplierPayment).count() == 0
+        assert check.query(SupplierPaymentAllocation).count() == 0
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
