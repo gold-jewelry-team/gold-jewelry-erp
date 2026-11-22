@@ -334,7 +334,7 @@ test("臨時估價建立銷售草稿時，會把商品、重量、工錢與舊�
   context.transferQuoteToSale();
 
   vm.runInContext(
-    extract('$("createSaleDraft").addEventListener("click",async()=>{', '$("completeSale").addEventListener'),
+    extract('$("createSaleDraft").addEventListener("click",async()=>{', '$("completeSale").addEventListener("click",async()=>{'),
     context,
   );
   await get("createSaleDraft").listeners.click();
