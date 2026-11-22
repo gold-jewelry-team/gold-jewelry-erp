@@ -13,12 +13,15 @@ from app.models.company import Company
 from app.models.daily_closing import DailyClosing
 from app.models.payment_transaction import PaymentTransaction
 from app.models.cash_drawer_movement import CashDrawerMovement
+from app.models.supplier import Supplier
+from app.models.supplier_payable import SupplierPayment
+from app.models.operating_expense import OperatingExpense
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.payment_transaction import PaymentTransaction
 from app.models.cash_drawer_movement import CashDrawerMovement
 from app.models.site import Site
-from app.routers import daily_closing
+from app.routers import daily_closing, cash_counts
 from app.services.daily_closing import assert_business_day_open, create_daily_closing
 
 
@@ -94,6 +97,7 @@ def _context():
 
     app.dependency_overrides.clear()
     app.dependency_overrides[daily_closing.get_db] = override_db
+    app.dependency_overrides[cash_counts.get_db] = override_db
     return engine, TestSession, ids
 
 
@@ -319,6 +323,112 @@ def test_daily_closing_includes_payment_events_at_taipei_start_but_excludes_end(
         assert cash["collected_amount"] == "200.00"
         assert cash["refunded_amount"] == "50.00"
         assert cash["cash_drawer_out_amount"] == "30.00"
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+
+def test_cash_count_subtracts_cash_supplier_and_expense_payments_only():
+    engine, TestSession, (company_id, site_id, cash_sale_id) = _context()
+    try:
+        db = TestSession()
+        returned = db.query(SaleReturn).filter_by(return_no="DC-RETURN").one()
+        supplier = Supplier(
+            company_id=company_id, code="CASH-COUNT-SUP", name="現金付款供應商"
+        )
+        db.add(supplier)
+        db.flush()
+        business_time = datetime(2026, 11, 19, 5, 0, tzinfo=timezone.utc)
+        db.add_all([
+            PaymentTransaction(
+                company_id=company_id, site_id=site_id, sale_id=cash_sale_id,
+                direction="IN", payment_method="CASH", amount=Decimal("300.00"),
+                currency_code="TWD", paid_at=business_time,
+            ),
+            PaymentTransaction(
+                company_id=company_id, site_id=site_id, sale_id=cash_sale_id,
+                direction="IN", payment_method="CARD", amount=Decimal("500.00"),
+                currency_code="TWD", paid_at=business_time,
+            ),
+            PaymentTransaction(
+                company_id=company_id, site_id=site_id, sale_return_id=returned.id,
+                direction="OUT", payment_method="CASH", amount=Decimal("50.00"),
+                currency_code="TWD", paid_at=business_time,
+            ),
+            SupplierPayment(
+                company_id=company_id, site_id=site_id, supplier_id=supplier.id,
+                payment_no="SUP-CASH-001", payment_method="CASH",
+                total_amount=Decimal("120.00"), currency_code="TWD",
+                paid_at=business_time,
+            ),
+            SupplierPayment(
+                company_id=company_id, site_id=site_id, supplier_id=supplier.id,
+                payment_no="SUP-TRANSFER-001", payment_method="TRANSFER",
+                total_amount=Decimal("200.00"), currency_code="TWD",
+                paid_at=business_time,
+            ),
+            OperatingExpense(
+                company_id=company_id, site_id=site_id, expense_no="EXP-CASH-001",
+                expense_date=date(2026, 11, 19), category_code="SUPPLIES",
+                description="現金購買耗材", amount=Decimal("30.00"),
+                status="PAID", payment_method="CASH", paid_at=business_time,
+            ),
+            OperatingExpense(
+                company_id=company_id, site_id=site_id, expense_no="EXP-TRANSFER-001",
+                expense_date=date(2026, 11, 19), category_code="UTILITIES",
+                description="轉帳支付水電", amount=Decimal("70.00"),
+                status="PAID", payment_method="TRANSFER", paid_at=business_time,
+            ),
+            CashDrawerMovement(
+                company_id=company_id, site_id=site_id,
+                movement_type="FLOAT_INCREASE", direction="IN",
+                amount=Decimal("20.00"), currency_code="TWD",
+                description="增加備用金", created_by_name="測試人員",
+                created_at=business_time,
+            ),
+            CashDrawerMovement(
+                company_id=company_id, site_id=site_id,
+                movement_type="BANK_DEPOSIT", direction="OUT",
+                amount=Decimal("40.00"), currency_code="TWD",
+                description="存入銀行", created_by_name="測試人員",
+                created_at=business_time,
+            ),
+        ])
+        db.commit()
+        db.close()
+
+        client = TestClient(app)
+        response = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": "2026-11-19"},
+        )
+        assert response.status_code == 201, response.text
+        closing = response.json()
+        cash = next(
+            item for item in closing["payment_summaries"]
+            if item["payment_method"] == "CASH"
+        )
+        assert cash["collected_amount"] == "300.00"
+        assert cash["refunded_amount"] == "50.00"
+        assert cash["supplier_paid_amount"] == "120.00"
+        assert cash["expenses_paid_amount"] == "30.00"
+        assert cash["cash_drawer_in_amount"] == "20.00"
+        assert cash["cash_drawer_out_amount"] == "40.00"
+        assert cash["net_cash_flow"] == "100.00"
+
+        counted = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/"
+            f"{closing['id']}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "580.00",
+                "counted_by_name": "盤點人甲",
+            },
+        )
+        assert counted.status_code == 201, counted.text
+        assert counted.json()["expected_cash_amount"] == "580.00"
+        assert counted.json()["cash_variance"] == "0.00"
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
