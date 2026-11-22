@@ -27,12 +27,14 @@ function makeElement(value = "") {
       remove() {},
     },
     focus() { this.focused = true; },
-    addEventListener() {},
+    listeners: {},
+    addEventListener(type, callback) { this.listeners[type] = callback; },
   };
 }
 
 function setup(values = {}) {
   const elements = new Map();
+  const apiCalls = [];
   const get = (id) => {
     if (!elements.has(id)) elements.set(id, makeElement(values[id] ?? ""));
     return elements.get(id);
@@ -69,6 +71,11 @@ function setup(values = {}) {
     },
     renderQuoteLines() {},
     renderSaleCart() {},
+    renderSaleResult() {},
+    async api(url, options) {
+      apiCalls.push({ url, options });
+      return { id: "sale-1", status: "DRAFT", sale_no: "SO-TEST" };
+    },
     message(id, messageText) { get(id).textContent = messageText; },
     updateQuoteTradeInRatioVisibility() {},
     async loadQuoteStockBalances() {},
@@ -81,7 +88,7 @@ function setup(values = {}) {
   vm.runInContext(extract("async function addQuoteProduct(){", "\nasync function createCustomerOrderFromQuote(){"), context);
   vm.runInContext(extract("function transferQuoteToSale(){", "\nasync function addSaleProduct(){"), context);
   get("salesPanel").scrollIntoView = () => {};
-  return { context, get };
+  return { context, get, apiCalls };
 }
 
 test("臨時估價不選商品、不填名稱，只輸入重量與工錢即可試算", () => {
@@ -300,4 +307,59 @@ test("臨時估價可完整帶入正式銷售購物車，保留重量、工錢�
   assert.equal(get("salePaymentMethod").value, "MIXED");
   assert.equal(get("saleCardAmount").value, "5000");
   assert.match(get("saleStatus").textContent, /共用報價明細帶入銷售購物車/);
+});
+
+
+test("臨時估價建立銷售草稿時，會把商品、重量、工錢與舊金折抵送到後端", async () => {
+  const { context, get, apiCalls } = setup({
+    quoteProduct: "",
+    quoteManualName: "",
+    quoteManualSize: "",
+    quoteWeight: "2",
+    quoteWeightUnit: "QIAN",
+    quoteLaborFee: "500",
+    quoteHasTradeIn: "",
+    quoteOldGoldWeight: "1.429",
+    quoteTradeInSource: "EXTERNAL",
+    quoteTradeInRatio: "95",
+    quotePaymentMethod: "MIXED",
+    quoteCardAmount: "5000",
+    saleNo: "SO-ESTIMATE-PAYLOAD-001",
+    saleNote: "臨時估價結帳測試",
+  });
+  get("quoteHasTradeIn").checked = true;
+
+  await context.addQuoteProduct();
+  context.quoteCurrentTotal = 10250;
+  context.transferQuoteToSale();
+
+  vm.runInContext(
+    extract('$("createSaleDraft").addEventListener("click",async()=>{', '$("completeSale").addEventListener("click",async()=>{'),
+    context,
+  );
+  await get("createSaleDraft").listeners.click();
+
+  assert.equal(apiCalls.length, 1);
+  assert.equal(apiCalls[0].url, "/companies/company-1/sales");
+  assert.equal(apiCalls[0].options.method, "POST");
+  const payload = JSON.parse(apiCalls[0].options.body);
+  assert.equal(payload.site_id, "site-1");
+  assert.equal(payload.sale_no, "SO-ESTIMATE-PAYLOAD-001");
+  assert.equal(payload.payment_method, "MIXED");
+  assert.equal(payload.card_amount, "5000");
+  assert.equal(payload.note, "臨時估價結帳測試");
+  assert.equal(payload.lines.length, 1);
+
+  const line = payload.lines[0];
+  assert.equal(line.product_id, null);
+  assert.equal(line.source_location_id, null);
+  assert.equal(line.product_code, "臨時估價");
+  assert.equal(line.product_name, "臨時估價");
+  assert.equal(line.net_weight, "2");
+  assert.equal(line.weight_unit_code, "QIAN");
+  assert.equal(line.labor_fee, "500");
+  assert.equal(line.old_gold_weight, "1.429");
+  assert.equal(line.trade_in_source, "EXTERNAL");
+  assert.equal(line.trade_in_ratio, "0.95");
+  assert.match(get("saleStatus").textContent, /銷售草稿建立成功/);
 });
