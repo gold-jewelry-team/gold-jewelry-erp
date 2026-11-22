@@ -692,3 +692,48 @@ def test_supplier_bill_rejects_purchase_from_another_site():
         session.close()
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_supplier_bill_cannot_be_created_from_draft_purchase():
+    from app.models.purchase import Purchase
+    from app.services.supplier_payables import create_supplier_bill
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    session = TestSession()
+    try:
+        purchase = Purchase(
+            company_id=company_id,
+            site_id=site_id,
+            supplier_id=supplier_id,
+            purchase_no="PO-DRAFT-BILL",
+            order_date=date(2026, 11, 22),
+            currency_code="TWD",
+            status="DRAFT",
+        )
+        session.add(purchase)
+        session.commit()
+        purchase_id = purchase.id
+
+        try:
+            create_supplier_bill(
+                session,
+                company_id=company_id,
+                site_id=site_id,
+                supplier_id=supplier_id,
+                purchase_id=purchase_id,
+                bill_no="INV-FROM-DRAFT-PO",
+                bill_date=date(2026, 11, 22),
+                due_date=None,
+                currency_code="TWD",
+                total_amount=Decimal("300.00"),
+            )
+            assert False, "草稿採購單不應建立供應商應付帳單"
+        except ValueError as exc:
+            assert "採購單狀態不允許" in str(exc)
+
+        session.rollback()
+        assert session.query(SupplierBill).count() == 0
+    finally:
+        session.close()
+        app.dependency_overrides.clear()
+        engine.dispose()
