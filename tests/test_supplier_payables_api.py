@@ -598,3 +598,48 @@ def test_supplier_bill_rejects_purchase_from_another_supplier():
         session.close()
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_supplier_bill_currency_must_match_linked_purchase():
+    from app.models.purchase import Purchase
+    from app.services.supplier_payables import create_supplier_bill
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    session = TestSession()
+    try:
+        purchase = Purchase(
+            company_id=company_id,
+            site_id=site_id,
+            supplier_id=supplier_id,
+            purchase_no="PO-USD-BILL-CURRENCY",
+            order_date=date(2026, 11, 22),
+            currency_code="USD",
+            status="ORDERED",
+        )
+        session.add(purchase)
+        session.commit()
+        purchase_id = purchase.id
+
+        try:
+            create_supplier_bill(
+                session,
+                company_id=company_id,
+                site_id=site_id,
+                supplier_id=supplier_id,
+                purchase_id=purchase_id,
+                bill_no="INV-TWD-ON-USD-PO",
+                bill_date=date(2026, 11, 22),
+                due_date=None,
+                currency_code="TWD",
+                total_amount=Decimal("900.00"),
+            )
+            assert False, "帳單幣別必須與關聯採購單一致"
+        except ValueError as exc:
+            assert "帳單幣別必須與關聯採購單一致" in str(exc)
+
+        session.rollback()
+        assert session.query(SupplierBill).count() == 0
+    finally:
+        session.close()
+        app.dependency_overrides.clear()
+        engine.dispose()
