@@ -318,3 +318,54 @@ def test_supplier_payment_with_void_bill_is_atomic_across_all_allocations():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+
+def test_duplicate_supplier_payment_number_rolls_back_second_allocation():
+    from app.models.supplier_payable import SupplierPaymentAllocation
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        bill = client.post(f"{base}/bills", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "bill_no": "INV-DUP-PAYNO",
+            "bill_date": "2026-11-22",
+            "currency_code": "TWD",
+            "total_amount": "200.00",
+        })
+        assert bill.status_code == 201, bill.text
+
+        first = client.post(f"{base}/payments", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "payment_no": "SP-DUPLICATE-NO",
+            "payment_method": "TRANSFER",
+            "allocations": [{"bill_id": bill.json()["id"], "amount": "50.00"}],
+        })
+        assert first.status_code == 201, first.text
+
+        duplicate = client.post(f"{base}/payments", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "payment_no": "SP-DUPLICATE-NO",
+            "payment_method": "CASH",
+            "allocations": [{"bill_id": bill.json()["id"], "amount": "70.00"}],
+        })
+        assert duplicate.status_code == 409, duplicate.text
+
+        refreshed = client.get(f"{base}/bills/{bill.json()['id']}")
+        assert refreshed.status_code == 200, refreshed.text
+        assert refreshed.json()["status"] == "PARTIALLY_PAID"
+        assert Decimal(refreshed.json()["paid_amount"]) == Decimal("50.00")
+        assert Decimal(refreshed.json()["outstanding_amount"]) == Decimal("150.00")
+
+        check = TestSession()
+        assert check.query(SupplierPayment).count() == 1
+        assert check.query(SupplierPaymentAllocation).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
