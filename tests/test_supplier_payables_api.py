@@ -309,7 +309,7 @@ def test_supplier_payment_with_void_bill_is_atomic_across_all_allocations():
         assert first_bill.json()["paid_amount"] == "0.00"
         assert first_bill.json()["outstanding_amount"] == "100.00"
         assert second_bill.json()["status"] == "VOID"
-        assert second_bill.json()["paid_amount"] == "0.00"
+        assert Decimal(second_bill.json()["paid_amount"]) == Decimal("0.00")
 
         check = TestSession()
         assert check.query(SupplierPayment).count() == 0
