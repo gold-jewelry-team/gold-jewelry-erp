@@ -396,3 +396,48 @@ def test_non_cash_return_refund_does_not_reduce_physical_cash_count():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+ 
+def test_cash_count_records_variance_and_rejects_duplicate_count():
+    engine, TestSession, ids, now = _payment_context()
+    company_id, site_id = ids[0], ids[1]
+    try:
+        client = TestClient(app)
+        from zoneinfo import ZoneInfo
+        business_date = now.astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+        closing_id = closing.json()["id"]
+
+        counted = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/{closing_id}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "475.00",
+                "counted_by_name": "盤點甲",
+                "count_note": "實際現金短少",
+            },
+        )
+        assert counted.status_code == 201, counted.text
+        assert counted.json()["expected_cash_amount"] == "500.00"
+        assert counted.json()["counted_cash_amount"] == "475.00"
+        assert counted.json()["cash_variance"] == "-25.00"
+
+        duplicate = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/{closing_id}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "500.00",
+                "counted_by_name": "盤點乙",
+            },
+        )
+        assert duplicate.status_code == 422
+        check = TestSession()
+        assert check.query(DailyClosing).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
