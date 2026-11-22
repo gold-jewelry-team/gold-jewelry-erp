@@ -260,3 +260,79 @@ def test_sale_return_is_blocked_after_daily_closing_without_restocking():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_sale_can_be_returned_in_separate_partial_transactions():
+    engine, TestSession, (company_id, site_id, product_id, product2_id, location_id) = _return_test_context("RETURN-SEQUENTIAL")
+    try:
+        client = TestClient(app)
+        sale_response = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-RETURN-SEQUENTIAL",
+            "payment_method": "MIXED",
+            "card_amount": "1010",
+            "lines": [
+                {"product_id": str(product_id), "source_location_id": str(location_id)},
+                {"product_id": str(product2_id), "source_location_id": str(location_id)},
+            ],
+        })
+        assert sale_response.status_code == 201, sale_response.text
+        sale = sale_response.json()
+        completed = client.post(f"/companies/{company_id}/sales/{sale['id']}/complete")
+        assert completed.status_code == 200, completed.text
+
+        first_return = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json={
+                "return_no": "RT-RETURN-SEQUENTIAL-001",
+                "sale_line_ids": [sale["lines"][0]["id"]],
+                "reason": "第一次部分退貨",
+            },
+        )
+        assert first_return.status_code == 201, first_return.text
+        assert first_return.json()["settlement_reversal_amount"] == "-12326.00"
+
+        after_first = TestSession()
+        assert get_stock_balance(after_first, product_id=product_id, location_id=location_id) == Decimal("1")
+        assert get_stock_balance(after_first, product_id=product2_id, location_id=location_id) == Decimal("0")
+        after_first.close()
+
+        second_return = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json={
+                "return_no": "RT-RETURN-SEQUENTIAL-002",
+                "sale_line_ids": [sale["lines"][1]["id"]],
+                "reason": "第二次部分退貨",
+            },
+        )
+        assert second_return.status_code == 201, second_return.text
+        assert second_return.json()["settlement_reversal_amount"] == "-12325.00"
+
+        history = client.get(f"/companies/{company_id}/sales/{sale['id']}/returns")
+        assert history.status_code == 200, history.text
+        assert len(history.json()) == 2
+        assert sum(
+            (Decimal(record["settlement_reversal_amount"]) for record in history.json()),
+            Decimal("0"),
+        ) == Decimal("-24651.00")
+
+        duplicate = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json={
+                "return_no": "RT-RETURN-SEQUENTIAL-003",
+                "sale_line_ids": [sale["lines"][0]["id"]],
+            },
+        )
+        assert duplicate.status_code == 422
+
+        final_check = TestSession()
+        assert final_check.query(SaleReturn).count() == 2
+        assert final_check.query(InventoryMovement).filter_by(
+            reference_type="SALE_RETURN_LINE"
+        ).count() == 2
+        assert get_stock_balance(final_check, product_id=product_id, location_id=location_id) == Decimal("1")
+        assert get_stock_balance(final_check, product_id=product2_id, location_id=location_id) == Decimal("1")
+        final_check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
