@@ -432,3 +432,62 @@ def test_cash_count_subtracts_cash_supplier_and_expense_payments_only():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_closed_day_rejects_immediate_operating_expense_payment():
+    from app.services.operating_expenses import create_expense
+
+    engine, TestSession, (company_id, site_id, _) = _context()
+    try:
+        db = TestSession()
+        business_date = date.today()
+        create_daily_closing(
+            db, company_id=company_id, site_id=site_id,
+            business_date=business_date,
+        )
+        db.commit()
+        try:
+            create_expense(
+                db, company_id=company_id, site_id=site_id,
+                expense_no="AFTER-CLOSE-EXP", expense_date=business_date,
+                category_code="SUPPLIES", description="結帳後新增的現金費用",
+                amount=Decimal("25.00"), payment_method="CASH",
+            )
+            assert False, "closed day must reject an immediately paid expense"
+        except ValueError as exc:
+            assert "已結帳" in str(exc)
+        db.rollback()
+        assert db.query(OperatingExpense).count() == 0
+        db.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_closed_day_rejects_cash_drawer_movement_after_daily_close():
+    from app.services.cash_drawer_movements import create_cash_drawer_movement
+
+    engine, TestSession, (company_id, site_id, _) = _context()
+    try:
+        db = TestSession()
+        business_date = date.today()
+        create_daily_closing(
+            db, company_id=company_id, site_id=site_id,
+            business_date=business_date,
+        )
+        db.commit()
+        try:
+            create_cash_drawer_movement(
+                db, company_id=company_id, site_id=site_id,
+                movement_type="BANK_DEPOSIT", amount=Decimal("100.00"),
+                description="結帳後才登錄的存款", created_by_name="測試人員",
+            )
+            assert False, "closed day must reject a later drawer movement"
+        except ValueError as exc:
+            assert "已結帳" in str(exc)
+        db.rollback()
+        assert db.query(CashDrawerMovement).count() == 0
+        db.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
