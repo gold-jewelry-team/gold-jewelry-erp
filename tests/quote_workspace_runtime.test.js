@@ -14,14 +14,6 @@ function extract(startMarker, endMarker) {
   return html.slice(start, end).trim();
 }
 
-function extractLast(startMarker, endMarker) {
-  const start = html.lastIndexOf(startMarker);
-  assert.notEqual(start, -1, `Missing function marker: ${startMarker}`);
-  const end = html.indexOf(endMarker, start);
-  assert.notEqual(end, -1, `Missing end marker: ${endMarker}`);
-  return html.slice(start, end).trim();
-}
-
 function makeElement(value = "") {
   return {
     value,
@@ -93,7 +85,7 @@ function setup(values = {}) {
   vm.runInContext(extract("function quoteTradeInInput(){", "\nfunction renderQuoteEntryPreview(){"), context);
   vm.runInContext(extract("function quoteCalculateLineAmount(", "\nfunction renderQuoteEntryPreview(){"), context);
   vm.runInContext(extract("function renderQuoteEntryPreview(){", "\nasync function addQuoteProduct(){"), context);
-  vm.runInContext(extractLast("async function addQuoteProduct(){", "\nfunction renderQuoteLines(){"), context);
+  vm.runInContext(extract("async function addQuoteProduct(){", "\nasync function createCustomerOrderFromQuote(){"), context);
   vm.runInContext(extract("function transferQuoteToSale(){", "\nasync function addSaleProduct(){"), context);
   get("salesPanel").scrollIntoView = () => {};
   return { context, get, apiCalls };
