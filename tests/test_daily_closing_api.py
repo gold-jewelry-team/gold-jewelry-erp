@@ -11,6 +11,8 @@ from app.db.base import Base
 from app.main import app
 from app.models.company import Company
 from app.models.daily_closing import DailyClosing
+from app.models.payment_transaction import PaymentTransaction
+from app.models.cash_drawer_movement import CashDrawerMovement
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.payment_transaction import PaymentTransaction
@@ -244,6 +246,79 @@ def test_daily_closing_separates_return_obligation_from_actual_refund_and_drawer
         assert cash["refunded_amount"] == "100.00"
         assert cash["cash_drawer_out_amount"] == "50.00"
         assert cash["net_cash_flow"] == "200.00"
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+ 
+def test_daily_closing_includes_payment_events_at_taipei_start_but_excludes_end():
+    engine, TestSession, (company_id, site_id, cash_sale_id) = _context()
+    try:
+        db = TestSession()
+        returned = db.query(SaleReturn).filter_by(return_no="DC-RETURN").one()
+        return_id = returned.id
+        db.add_all([
+            PaymentTransaction(
+                company_id=company_id, site_id=site_id, sale_id=cash_sale_id,
+                direction="IN", payment_method="CASH", amount=Decimal("100.00"),
+                currency_code="TWD",
+                paid_at=datetime(2026, 11, 18, 15, 59, 59, tzinfo=timezone.utc),
+            ),
+            PaymentTransaction(
+                company_id=company_id, site_id=site_id, sale_id=cash_sale_id,
+                direction="IN", payment_method="CASH", amount=Decimal("200.00"),
+                currency_code="TWD",
+                paid_at=datetime(2026, 11, 18, 16, 0, 0, tzinfo=timezone.utc),
+            ),
+            PaymentTransaction(
+                company_id=company_id, site_id=site_id, sale_return_id=return_id,
+                direction="OUT", payment_method="CASH", amount=Decimal("50.00"),
+                currency_code="TWD",
+                paid_at=datetime(2026, 11, 19, 15, 59, 59, tzinfo=timezone.utc),
+            ),
+            PaymentTransaction(
+                company_id=company_id, site_id=site_id, sale_return_id=return_id,
+                direction="OUT", payment_method="CASH", amount=Decimal("25.00"),
+                currency_code="TWD",
+                paid_at=datetime(2026, 11, 19, 16, 0, 0, tzinfo=timezone.utc),
+            ),
+            CashDrawerMovement(
+                company_id=company_id, site_id=site_id,
+                movement_type="BANK_DEPOSIT", direction="OUT",
+                amount=Decimal("30.00"), currency_code="TWD",
+                description="營業日內存款", created_by_name="測試人員",
+                created_at=datetime(2026, 11, 19, 15, 59, 59, tzinfo=timezone.utc),
+            ),
+            CashDrawerMovement(
+                company_id=company_id, site_id=site_id,
+                movement_type="BANK_DEPOSIT", direction="OUT",
+                amount=Decimal("10.00"), currency_code="TWD",
+                description="下一營業日存款", created_by_name="測試人員",
+                created_at=datetime(2026, 11, 19, 16, 0, 0, tzinfo=timezone.utc),
+            ),
+        ])
+        db.commit()
+        db.close()
+
+        client = TestClient(app)
+        response = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": "2026-11-19"},
+        )
+        assert response.status_code == 201, response.text
+        result = response.json()
+        assert result["collected_amount"] == "200.00"
+        assert result["refunded_amount"] == "50.00"
+        assert result["cash_drawer_out_amount"] == "30.00"
+        assert result["net_cash_flow"] == "150.00"
+
+        cash = next(
+            item for item in result["payment_summaries"]
+            if item["payment_method"] == "CASH"
+        )
+        assert cash["collected_amount"] == "200.00"
+        assert cash["refunded_amount"] == "50.00"
+        assert cash["cash_drawer_out_amount"] == "30.00"
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
