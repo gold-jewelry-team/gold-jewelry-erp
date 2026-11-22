@@ -441,3 +441,57 @@ def test_cash_count_records_variance_and_rejects_duplicate_count():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+ 
+def test_cash_count_requires_independent_reviewer_and_is_reviewed_once():
+    engine, TestSession, ids, now = _payment_context()
+    company_id, site_id = ids[0], ids[1]
+    try:
+        client = TestClient(app)
+        from zoneinfo import ZoneInfo
+        business_date = now.astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+        closing_id = closing.json()["id"]
+
+        counted = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/{closing_id}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "500.00",
+                "counted_by_name": "盤點甲",
+            },
+        )
+        assert counted.status_code == 201, counted.text
+        count_id = counted.json()["id"]
+        review_url = (
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/"
+            f"{closing_id}/cash-count/{count_id}/review"
+        )
+
+        self_review = client.post(review_url, json={"reviewed_by_name": "盤點甲"})
+        assert self_review.status_code == 422
+        assert "不同" in self_review.json()["detail"]
+
+        reviewed = client.post(review_url, json={
+            "reviewed_by_name": "覆核乙",
+            "review_note": "已核對現金盤點",
+        })
+        assert reviewed.status_code == 200, reviewed.text
+        assert reviewed.json()["reviewed_by_name"] == "覆核乙"
+        assert reviewed.json()["review_note"] == "已核對現金盤點"
+        assert reviewed.json()["reviewed_at"] is not None
+
+        duplicate_review = client.post(review_url, json={"reviewed_by_name": "覆核丙"})
+        assert duplicate_review.status_code == 422
+        assert "已完成覆核" in duplicate_review.json()["detail"]
+
+        check = TestSession()
+        assert check.query(DailyClosing).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
