@@ -306,7 +306,7 @@ def test_supplier_payment_with_void_bill_is_atomic_across_all_allocations():
         second_bill = client.get(f"{base}/bills/{created_bills[1]['id']}")
         assert first_bill.status_code == 200
         assert first_bill.json()["status"] == "OPEN"
-        assert first_bill.json()["paid_amount"] == "0.00"
+        assert Decimal(first_bill.json()["paid_amount"]) == Decimal("0.00")
         assert first_bill.json()["outstanding_amount"] == "100.00"
         assert second_bill.json()["status"] == "VOID"
         assert Decimal(second_bill.json()["paid_amount"]) == Decimal("0.00")
