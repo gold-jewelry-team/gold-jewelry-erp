@@ -545,3 +545,56 @@ def test_supplier_bill_cannot_be_created_from_cancelled_purchase():
         session.close()
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_supplier_bill_rejects_purchase_from_another_supplier():
+    from app.models.purchase import Purchase
+    from app.services.supplier_payables import create_supplier_bill
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    session = TestSession()
+    try:
+        other_supplier = Supplier(
+            company_id=company_id,
+            code="SUP-OTHER",
+            name="另一家供應商",
+        )
+        session.add(other_supplier)
+        session.flush()
+        purchase = Purchase(
+            company_id=company_id,
+            site_id=site_id,
+            supplier_id=supplier_id,
+            purchase_no="PO-SUPPLIER-MISMATCH",
+            order_date=date(2026, 11, 22),
+            currency_code="TWD",
+            status="ORDERED",
+        )
+        session.add(purchase)
+        session.commit()
+        other_supplier_id = other_supplier.id
+        purchase_id = purchase.id
+
+        try:
+            create_supplier_bill(
+                session,
+                company_id=company_id,
+                site_id=site_id,
+                supplier_id=other_supplier_id,
+                purchase_id=purchase_id,
+                bill_no="INV-WRONG-SUPPLIER",
+                bill_date=date(2026, 11, 22),
+                due_date=None,
+                currency_code="TWD",
+                total_amount=Decimal("450.00"),
+            )
+            assert False, "帳單供應商必須與關聯採購單供應商一致"
+        except ValueError as exc:
+            assert "供應商／據點不符" in str(exc)
+
+        session.rollback()
+        assert session.query(SupplierBill).count() == 0
+    finally:
+        session.close()
+        app.dependency_overrides.clear()
+        engine.dispose()
