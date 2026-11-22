@@ -340,3 +340,59 @@ def test_cash_refund_and_drawer_transfers_reconcile_to_physical_cash_count():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+ 
+def test_non_cash_return_refund_does_not_reduce_physical_cash_count():
+    engine, TestSession, ids, now = _payment_context()
+    company_id, site_id, sale_id, _, return_id, _ = ids
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}"
+
+        collected = client.post(
+            f"{base}/sales/{sale_id}/payments",
+            json={"payment_method": "CASH", "amount": "1000.00"},
+        )
+        assert collected.status_code == 201, collected.text
+        refunded = client.post(
+            f"{base}/sales/returns/{return_id}/payments",
+            json={
+                "payment_method": "TRANSFER",
+                "amount": "100.00",
+                "reference_no": "BANK-REFUND-NON-CASH",
+            },
+        )
+        assert refunded.status_code == 201, refunded.text
+        assert refunded.json()["direction"] == "OUT"
+
+        from zoneinfo import ZoneInfo
+        business_date = now.astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"{base}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+        snapshot = closing.json()
+        assert snapshot["collected_amount"] == "1000.00"
+        assert snapshot["refunded_amount"] == "100.00"
+        assert snapshot["cash_drawer_out_amount"] == "0.00"
+
+        summaries = {item["payment_method"]: item for item in snapshot["payment_summaries"]}
+        assert summaries["CASH"]["net_cash_flow"] == "1000.00"
+        assert summaries["TRANSFER"]["refunded_amount"] == "100.00"
+        assert summaries["TRANSFER"]["net_cash_flow"] == "-100.00"
+
+        counted = client.post(
+            f"{base}/sites/{site_id}/daily-closings/{snapshot['id']}/cash-count",
+            json={
+                "opening_cash_float": "500.00",
+                "counted_cash_amount": "1500.00",
+                "counted_by_name": "乙",
+            },
+        )
+        assert counted.status_code == 201, counted.text
+        assert counted.json()["expected_cash_amount"] == "1500.00"
+        assert counted.json()["cash_variance"] == "0.00"
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
