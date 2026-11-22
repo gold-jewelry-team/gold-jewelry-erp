@@ -186,3 +186,90 @@ def test_supplier_gold_delivery_rejects_insufficient_stock_without_partial_write
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_gold_and_cash_settlements_together_complete_supplier_bill():
+    engine, TestSession, (company_id, site_id, supplier_id) = _context()
+    try:
+        client = TestClient(app)
+        payable_base = f"/companies/{company_id}/supplier-payables"
+        gold_base = f"/companies/{company_id}/gold-material"
+
+        bill = client.post(f"{payable_base}/bills", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "bill_no": "INV-GOLD-CASH-COMBINED",
+            "bill_date": "2026-11-23",
+            "currency_code": "TWD",
+            "total_amount": "30000.00",
+        })
+        assert bill.status_code == 201, bill.text
+
+        opening = client.post(f"{gold_base}/movements", json={
+            "site_id": str(site_id),
+            "movement_no": "GM-OPEN-COMBINED",
+            "movement_type": "OPENING",
+            "purity_label": "9999",
+            "purity_ratio": "0.999900",
+            "gross_weight": "10.0000",
+            "loss_weight": "0",
+            "weight_unit_code": "G",
+            "gold_price_value": "3000.00",
+            "gold_price_unit_code": "G",
+            "deduction_amount": "0",
+        })
+        assert opening.status_code == 201, opening.text
+
+        delivery = client.post(f"{gold_base}/movements", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "movement_no": "GM-DEL-COMBINED",
+            "movement_type": "SUPPLIER_DELIVERY",
+            "source_type": "PURCHASE_SETTLEMENT",
+            "purity_label": "9999",
+            "purity_ratio": "0.999900",
+            "gross_weight": "2.0000",
+            "loss_weight": "0",
+            "weight_unit_code": "G",
+            "gold_price_value": "3000.00",
+            "gold_price_unit_code": "G",
+            "deduction_amount": "0",
+            "allocations": [{
+                "bill_id": bill.json()["id"],
+                "amount": "5999.40",
+            }],
+        })
+        assert delivery.status_code == 201, delivery.text
+
+        after_gold = client.get(f"{payable_base}/bills/{bill.json()['id']}")
+        assert after_gold.status_code == 200, after_gold.text
+        assert after_gold.json()["status"] == "PARTIALLY_PAID"
+        assert Decimal(after_gold.json()["paid_amount"]) == Decimal("5999.40")
+        assert Decimal(after_gold.json()["outstanding_amount"]) == Decimal("24000.60")
+
+        cash = client.post(f"{payable_base}/payments", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "payment_no": "SP-GOLD-CASH-COMBINED",
+            "payment_method": "TRANSFER",
+            "allocations": [{
+                "bill_id": bill.json()["id"],
+                "amount": "24000.60",
+            }],
+        })
+        assert cash.status_code == 201, cash.text
+
+        completed = client.get(f"{payable_base}/bills/{bill.json()['id']}")
+        assert completed.status_code == 200, completed.text
+        assert completed.json()["status"] == "PAID"
+        assert Decimal(completed.json()["paid_amount"]) == Decimal("30000.00")
+        assert Decimal(completed.json()["outstanding_amount"]) == Decimal("0.00")
+
+        check = TestSession()
+        assert check.query(GoldMaterialMovement).count() == 2
+        assert check.query(GoldMaterialSettlementAllocation).count() == 1
+        assert check.query(SupplierPayment).count() == 1
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
