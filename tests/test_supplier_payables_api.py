@@ -424,3 +424,37 @@ def test_supplier_payment_rejects_cross_supplier_bill_without_partial_allocation
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_duplicate_supplier_bill_number_is_rejected_without_creating_second_bill():
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        payload = {
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "bill_no": "INV-DUPLICATE-SUPPLIER",
+            "bill_date": "2026-11-22",
+            "currency_code": "TWD",
+            "total_amount": "125.00",
+        }
+        first = client.post(f"{base}/bills", json=payload)
+        assert first.status_code == 201, first.text
+
+        duplicate = client.post(f"{base}/bills", json={
+            **payload,
+            "total_amount": "999.00",
+        })
+        assert duplicate.status_code == 409, duplicate.text
+        assert "帳單號碼重複" in duplicate.json()["detail"]
+
+        listed = client.get(f"{base}/bills", params={"site_id": str(site_id)})
+        assert listed.status_code == 200, listed.text
+        assert len(listed.json()) == 1
+        assert listed.json()[0]["id"] == first.json()["id"]
+        assert Decimal(listed.json()[0]["total_amount"]) == Decimal("125.00")
+        assert listed.json()[0]["status"] == "OPEN"
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
