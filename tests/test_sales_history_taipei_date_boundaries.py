@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
@@ -36,10 +36,13 @@ def test_sales_history_date_range_uses_inclusive_taipei_calendar_day():
     local_midnight = datetime(2026, 11, 23, 0, 0, tzinfo=taipei)
     local_last_second = datetime(2026, 11, 23, 23, 59, 59, tzinfo=taipei)
     next_day_midnight = datetime(2026, 11, 24, 0, 0, tzinfo=taipei)
+    # SQLite drops timezone offsets for DateTime(timezone=True). Store the
+    # Taipei wall-clock values as naive datetimes so SQLite compares the same
+    # calendar boundaries used by the router's timezone-aware query params.
     moments = (
-        ("SO-DATE-START", local_midnight),
-        ("SO-DATE-END", local_last_second),
-        ("SO-DATE-NEXT", next_day_midnight),
+        ("SO-DATE-START", local_midnight.replace(tzinfo=None)),
+        ("SO-DATE-END", local_last_second.replace(tzinfo=None)),
+        ("SO-DATE-NEXT", next_day_midnight.replace(tzinfo=None)),
     )
     for sale_no, local_time in moments:
         db.add(Sale(
@@ -53,8 +56,8 @@ def test_sales_history_date_range_uses_inclusive_taipei_calendar_day():
             card_amount=Decimal("0.00"),
             card_fee=Decimal("0.00"),
             final_amount=Decimal("0.00"),
-            created_at=local_time.astimezone(timezone.utc),
-            updated_at=local_time.astimezone(timezone.utc),
+            created_at=local_time,
+            updated_at=local_time,
         ))
     db.commit()
     company_id = company.id
