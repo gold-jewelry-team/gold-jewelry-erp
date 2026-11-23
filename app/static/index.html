@@ -3449,7 +3449,20 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   });
   buttons.forEach((button,id)=>button.setAttribute("aria-pressed",String(id===activeCategory)));
  };
- buttons.forEach((button,id)=>button.addEventListener("click",()=>activate(id)));
+ buttons.forEach((button,id)=>button.addEventListener("click",event=>{
+  const changed=id!==activeCategory;
+  activate(id);
+  // On desktop the category rail remains sticky. Move the newly selected
+  // category to the reading position only for a real user click; synthetic
+  // clicks from quick links keep control of their own target scrolling.
+  if(changed&&event.isTrusted&&window.matchMedia("(min-width: 900px)").matches){
+   const firstPanel=panels.find(panel=>panel.dataset.category===id);
+   if(firstPanel)firstPanel.scrollIntoView({
+    behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",
+    block:"start"
+   });
+  }
+ }));
  document.querySelectorAll("#quickNav a").forEach(link=>{
   link.addEventListener("click",()=>{
    const target=document.getElementById(link.hash.slice(1));
