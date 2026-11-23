@@ -60,6 +60,8 @@ jobs:
         run: node --test tests/scanner_close_runtime.test.js
       - name: Run label dialog close runtime tests
         run: node --test tests/label_dialog_close_runtime.test.js
+      - name: Run operating expense retry runtime tests
+        run: node --test tests/operating_expense_retry_runtime.test.js
       - name: Run supplier payment retry runtime tests
         run: node --test tests/supplier_payment_retry_runtime.test.js
       - name: Run tests
