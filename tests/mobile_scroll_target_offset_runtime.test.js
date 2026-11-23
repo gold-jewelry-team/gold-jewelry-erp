@@ -15,7 +15,7 @@ test("desktop panel and nested heading targets account for sticky navigation", (
 test("mobile scroll targets use a compact offset when the header is not sticky", () => {
   assert.ok(mobileRule, "mobile header and shortcut layout override must exist");
   assert.ok(
-    mobileRule[1].includes("main>section.panel[id],main>section.panel[id] h3{scroll-margin-top:24px}"),
+    mobileRule[1].includes("main>section.panel[id],main>section.panel[id] h3{scroll-margin-top:24px"),
     "mobile panel and nested heading targets should not reserve the desktop 240px header gap"
   );
 });
