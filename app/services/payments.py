@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models.company import Company
 from app.models.payment_transaction import PaymentTransaction
 from app.models.customer_order import CustomerOrder
 from app.models.sale import Sale
@@ -14,6 +15,10 @@ from app.services.daily_closing import assert_business_day_open
 
 PAYMENT_METHODS = {"CASH", "CARD", "TRANSFER", "OTHER"}
 CENT = Decimal("0.01")
+
+
+class CustomerOrderPaymentIdempotencyConflict(ValueError):
+    """Raised when a retry key is reused for a different customer-order payment."""
 
 
 def _validate_amount(amount: Decimal) -> None:
@@ -185,10 +190,20 @@ def record_customer_order_payment(
     payment_method: str,
     amount: Decimal,
     note: str | None = None,
+    idempotency_key: UUID | None = None,
 ) -> PaymentTransaction:
     """Record a deposit or balance collection against a customer special order."""
     _validate_amount(amount)
     _validate_method(payment_method)
+    idempotency_reference = (
+        f"CO-PAYMENT:{idempotency_key}" if idempotency_key is not None else None
+    )
+    if idempotency_key is not None:
+        company = session.scalar(
+            select(Company).where(Company.id == company_id).with_for_update()
+        )
+        if company is None:
+            raise ValueError("找不到指定公司。")
     order = session.execute(
         select(CustomerOrder).where(
             CustomerOrder.id == order_id,
@@ -197,6 +212,25 @@ def record_customer_order_payment(
     ).scalar_one_or_none()
     if order is None:
         raise ValueError("找不到指定客訂單。")
+    if idempotency_reference is not None:
+        existing = session.scalar(select(PaymentTransaction).where(
+            PaymentTransaction.company_id == company_id,
+            PaymentTransaction.reference_no == idempotency_reference,
+        ))
+        if existing is not None:
+            matches = (
+                existing.customer_order_id == order.id
+                and existing.direction == "IN"
+                and existing.payment_method == payment_method
+                and existing.amount == amount
+                and existing.currency_code == order.currency_code
+                and existing.note == note
+            )
+            if not matches:
+                raise CustomerOrderPaymentIdempotencyConflict(
+                    "此付款識別碼已用於不同的客訂收款內容，請確認原付款紀錄後再操作。"
+                )
+            return existing
     if order.status in {"COMPLETED", "CANCELLED"}:
         raise ValueError("已完成或已取消的訂單不可再收款。")
     remaining = order.total_amount - order.deposit_amount
@@ -214,6 +248,7 @@ def record_customer_order_payment(
         payment_method=payment_method,
         amount=amount,
         currency_code=order.currency_code,
+        reference_no=idempotency_reference,
         paid_at=datetime.now(timezone.utc),
         note=note,
     )

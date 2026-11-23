@@ -11,7 +11,10 @@ from app.db.session import SessionLocal
 from app.models.customer_order import CustomerOrder
 from app.models.site import Site
 from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead
-from app.services.payments import record_customer_order_payment
+from app.services.payments import (
+    CustomerOrderPaymentIdempotencyConflict,
+    record_customer_order_payment,
+)
 
 
 router = APIRouter(prefix="/companies/{company_id}/customer-orders", tags=["customer-orders"])
@@ -109,9 +112,13 @@ def add_customer_order_payment(company_id: UUID, order_id: UUID, payload: Custom
         record_customer_order_payment(
             db, company_id=company_id, order_id=order.id,
             payment_method=payload.payment_method, amount=payload.amount, note=payload.note,
+            idempotency_key=payload.idempotency_key,
         )
         db.commit()
         return _load(db, company_id, order.id)
+    except CustomerOrderPaymentIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
