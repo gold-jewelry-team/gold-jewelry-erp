@@ -1285,6 +1285,14 @@ function scannerFormats(supported){
  const selected=scanFormatMode==="qr"?["qr_code"]:scanFormatMode==="both"?[...linear,"qr_code"]:linear;
  return selected.filter(format=>supported.includes(format));
 }
+function handleKeyboardScannerInput(event,value,callback){
+ if(event.key!=="Enter"&&event.key!=="Tab")return false;
+ const code=String(value||"").trim();
+ if(!code)return false;
+ event.preventDefault();
+ callback(code);
+ return true;
+}
 function scanResultInCenter(item,video){
  const box=item.boundingBox;if(!box||!video.videoWidth||!video.videoHeight)return false;
  const x=(box.x+box.width/2)/video.videoWidth,y=(box.y+box.height/2)/video.videoHeight;
@@ -2973,13 +2981,12 @@ $("saleCartList").addEventListener("click",event=>{
  saleCartLines.splice(Number(button.dataset.removeSaleLine),1);renderSaleCart();
 });
 $("saleBarcodeScan").addEventListener("keydown",event=>{
- if(event.key!=="Enter")return;
- event.preventDefault();
- const barcode=$("saleBarcodeScan").value.trim();
- const product=inventoryProducts.find(x=>x.is_active&&x.barcode===barcode);
- if(!product){message("saleStatus","找不到此條碼的有效商品，請確認條碼或改用商品選單。",true);return;}
- $("saleProduct").value=product.id;
- addSaleProduct();
+ handleKeyboardScannerInput(event,$("saleBarcodeScan").value,barcode=>{
+  const product=inventoryProducts.find(x=>x.is_active&&x.barcode===barcode);
+  if(!product){message("saleStatus","找不到此條碼的有效商品，請確認條碼或改用商品選單。",true);return;}
+  $("saleProduct").value=product.id;
+  addSaleProduct();
+ });
 });
 $("salePaymentMethod").addEventListener("change",()=>{
  const method=$("salePaymentMethod").value;
@@ -3223,7 +3230,7 @@ $("scanAdjustmentButton").addEventListener("click",()=>openCameraScanner("adjust
 $("scanTransferButton").addEventListener("click",()=>openCameraScanner("transfer"));
 $("scanPurchaseButton").addEventListener("click",()=>openCameraScanner("purchase"));
 $("scanPurchaseReceiveButton").addEventListener("click",()=>openCameraScanner("purchaseReceive"));
-[["adjustmentScanCode","adjustment"],["transferScanCode","transfer"],["purchaseScanCode","purchase"],["purchaseReceiveScanCode","purchaseReceive"]].forEach(([id,target])=>$(id).addEventListener("keydown",event=>{if(event.key!=="Enter")return;event.preventDefault();const code=$(id).value.trim();if(code)handleScannedProductCode(code,target);}));
+[["adjustmentScanCode","adjustment"],["transferScanCode","transfer"],["purchaseScanCode","purchase"],["purchaseReceiveScanCode","purchaseReceive"]].forEach(([id,target])=>$(id).addEventListener("keydown",event=>{handleKeyboardScannerInput(event,$(id).value,code=>handleScannedProductCode(code,target));}));
 $("scanSaleButton").addEventListener("click",()=>openCameraScanner("sale"));
 $("scanProductButton").addEventListener("click",()=>openCameraScanner("product"));
 $("scanFormatMode").addEventListener("change",event=>{scanFormatMode=event.target.value;localStorage.setItem("scanFormatMode",scanFormatMode);});
