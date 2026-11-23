@@ -259,3 +259,12 @@ def test_inventory_stock_cards_separate_quantity_and_product_trace_details():
     assert 'escapeHtml(x.product_code)' in response.text
     assert 'escapeHtml(x.quantity)' in response.text
     assert 'escapeHtml(x.barcode||"未設定")' in response.text
+
+
+def test_category_shortcuts_remove_expand_state_and_normalize_subnavigation_labels():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    assert r'replace(/\s*(展開|收合)\s*$/,"")' in response.text
+    assert r'replace(/\s+/g," ")' in response.text
+    assert r'replace(/\\s*(展開|收合)\\s*$/,"")' not in response.text
+    assert r'replace(/\\s+/g," ")' not in response.text
