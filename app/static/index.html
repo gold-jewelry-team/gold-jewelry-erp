@@ -3257,7 +3257,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  categoryNav.after(shortcuts);
  const titleFor=panel=>{
   const h=panel.querySelector(":scope > h2");
-  return h?(h.textContent||"").replace(/\\s*(展開|收合)\\s*$/,"").trim():"其他功能";
+  return h?(h.textContent||"").replace(/\s*(展開|收合)\s*$/,"").trim():"其他功能";
  };
  const expandCollapse=panel=>{
   let content=panel.querySelector(":scope > .panel-content");
@@ -3302,7 +3302,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
      const jump=document.createElement("button");
      jump.type="button";
      jump.className="secondary";
-     jump.textContent=item.textContent.trim().replace(/\\s+/g," ").slice(0,18);
+     jump.textContent=item.textContent.trim().replace(/\s+/g," ").slice(0,18);
      jump.title="跳至："+item.textContent.trim();
      jump.addEventListener("click",()=>item.scrollIntoView({behavior:"smooth",block:"start"}));
      subnav.appendChild(jump);
