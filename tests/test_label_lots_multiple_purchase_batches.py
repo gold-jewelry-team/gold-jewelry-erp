@@ -35,7 +35,11 @@ def test_label_lots_keep_same_product_purchase_and_supplier_batches_separate():
     show = StorageLocation(site_id=site.id, code="SHOW", name="展示櫃", location_type="STORE_FLOOR")
     product = Product(company_id=company.id, product_code="LABEL-G-001", barcode="LABEL-G-001",
                       name="同款黃金戒指", gross_weight=Decimal("1.2000"), net_weight=Decimal("1.0000"))
-    db.add_all([site, supplier_a, supplier_b, safe, show, product])
+    db.add_all([site, supplier_a, supplier_b])
+    db.flush()
+    safe.site_id = site.id
+    show.site_id = site.id
+    db.add_all([safe, show, product])
     db.flush()
     purchases = []
     for number, supplier, location, weight in [
