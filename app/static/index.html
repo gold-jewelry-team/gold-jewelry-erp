@@ -956,7 +956,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  </div>
 </div>
 <div id="scanModal" class="scan-modal hidden" role="dialog" aria-modal="true" aria-labelledby="scanTitle">
- <div class="scan-dialog"><h2 id="scanTitle">掃描商品條碼／QR Code</h2>
+ <div class="scan-dialog" tabindex="-1"><h2 id="scanTitle">掃描商品條碼／QR Code</h2>
   <div class="scan-settings"><div><label for="scanFormatMode">辨識格式</label><select id="scanFormatMode"><option value="linear">只掃一維條碼（預設）</option><option value="qr">只掃 QR Code</option><option value="both">一維條碼＋QR Code</option></select></div><div><label for="scanMultipleMode">多碼處理</label><select id="scanMultipleMode"><option value="block">多個條碼時停止並提示</option><option value="select">顯示結果讓我選擇</option></select></div></div><div class="scan-camera-wrap"><video id="scanVideo" autoplay muted playsinline></video><div class="scan-frame" aria-hidden="true"></div></div><div id="scanResults" class="scan-results" hidden></div>
   <p id="scanHint" class="scan-hint" role="status">將商品條碼或 QR Code 對準鏡頭，辨識成功後會自動帶入商品。</p>
   <div class="scan-actions"><button id="closeScanner" class="secondary" type="button">關閉相機</button><button id="switchScannerCamera" class="secondary" type="button">切換鏡頭</button></div>
@@ -1037,8 +1037,9 @@ function stopCameraScanner(){
  const video=$("scanVideo");if(video)video.srcObject=null;
  scanDetector=null;scanBusy=false;
 }
-async function closeCameraScanner(){stopCameraScanner();$("scanModal").classList.add("hidden");}
-document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("scanModal").classList.contains("hidden")){event.preventDefault();closeCameraScanner();}});
+let scanTrigger=null;
+async function closeCameraScanner(){stopCameraScanner();$("scanModal").classList.add("hidden");const trigger=scanTrigger;scanTrigger=null;if(trigger&&trigger.isConnected)trigger.focus();}
+document.addEventListener("keydown",event=>{const modal=$("scanModal");if(modal.classList.contains("hidden"))return;if(event.key==="Escape"){event.preventDefault();closeCameraScanner();return;}if(event.key!=="Tab")return;const dialog=modal.querySelector(".scan-dialog");const focusable=Array.from(dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length);if(!focusable.length){event.preventDefault();dialog.focus();return;}const first=focusable[0],last=focusable[focusable.length-1];if(event.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){event.preventDefault();first.focus();}});
 function scannerFormats(supported){
  const linear=["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar"];
  const selected=scanFormatMode==="qr"?["qr_code"]:scanFormatMode==="both"?[...linear,"qr_code"]:linear;
@@ -1059,6 +1060,7 @@ function showScanChoices(codes){
  codes.forEach(item=>{const button=document.createElement("button");button.type="button";button.className="secondary";button.textContent=(item.format==="qr_code"?"QR Code":"一維條碼")+"："+String(item.rawValue).slice(0,80);button.addEventListener("click",()=>chooseScannedCode(item));results.appendChild(button);});
 }
 async function openCameraScanner(target){
+ scanTrigger=document.activeElement;
  scanTarget=target;
  if(!("BarcodeDetector" in window)){message("globalStatus","此瀏覽器尚未支援相機條碼辨識；可使用外接條碼槍或手動輸入條碼。",true);return;}
  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){message("globalStatus","瀏覽器無法使用相機，請確認使用 HTTPS 並允許相機權限。",true);return;}

@@ -68,7 +68,13 @@ def test_mobile_workspace_serves_html():
     assert "dialog.querySelectorAll(" in response.text
     assert "last.focus()" in response.text and "first.focus()" in response.text
     assert "if(trigger&&trigger.isConnected)trigger.focus()" in response.text
-    assert 'event.key==="Escape"&&!$("scanModal").classList.contains("hidden")' in response.text
+    assert 'if(event.key==="Escape"){event.preventDefault();closeCameraScanner();return;}' in response.text
+    assert 'class="scan-dialog" tabindex="-1"' in response.text
+    assert "let scanTrigger=null" in response.text
+    assert 'if(trigger&&trigger.isConnected)trigger.focus()' in response.text
+    assert 'event.key!=="Tab"' in response.text
+    assert 'dialog.querySelectorAll(\'button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])\')' in response.text
+    assert "last.focus()" in response.text and "first.focus()" in response.text
     assert '$("closeScanner").focus()' in response.text
     assert "button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible" in response.text
     assert "outline:3px solid #789b83;outline-offset:2px" in response.text
