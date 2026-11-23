@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.company import Company
@@ -188,12 +188,9 @@ def receive_purchase_line(
     receipt_weight = None
     if line.weight is not None:
         previous_weights = session.scalars(select(InventoryMovement.weight).where(
-            InventoryMovement.reference_type.in_(
-                ["PURCHASE_LINE"]
-            ) if idempotency_key is None else
-            (
-                (InventoryMovement.reference_type == "PURCHASE_LINE")
-                | InventoryMovement.reference_type.like("PR-%")
+            or_(
+                InventoryMovement.reference_type == "PURCHASE_LINE",
+                InventoryMovement.reference_type.like("PR-%"),
             ),
             InventoryMovement.reference_id == line.id,
             InventoryMovement.movement_type == "RECEIPT",
