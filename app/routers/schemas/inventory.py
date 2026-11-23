@@ -61,3 +61,26 @@ class StockBalanceRead(BaseModel):
     location_code: str
     location_name: str
     quantity: Decimal
+
+
+class StocktakeAdjustmentItem(BaseModel):
+    product_id: UUID
+    location_id: UUID
+    expected_quantity: Decimal = Field(ge=0, max_digits=18, decimal_places=3)
+    actual_quantity: Decimal = Field(ge=0, max_digits=18, decimal_places=3)
+    expected_net_weight: Decimal = Field(ge=0, max_digits=18, decimal_places=4)
+    idempotency_key: UUID
+    note: str | None = Field(default=None, max_length=500)
+
+
+class StocktakeAdjustmentBatchCreate(BaseModel):
+    site_id: UUID
+    items: list[StocktakeAdjustmentItem] = Field(min_length=1, max_length=500)
+
+
+class StocktakeAdjustmentBatchRead(BaseModel):
+    applied_count: int
+    adjustment_count: int
+    no_change_count: int
+    replayed: bool
+    movements: list[InventoryMovementRead]
