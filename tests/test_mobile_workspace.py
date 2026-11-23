@@ -312,7 +312,7 @@ def test_purchasing_and_sales_cards_share_clear_mobile_transaction_hierarchy():
     assert '<small>訂購數量</small>' in response.text
     assert '<small>已驗收／訂購</small>' in response.text
     assert '<small>商品驗收進度（已收／訂購）</small>' in response.text
-    assert '<small>應收金額</small>' in response.text
+    assert 'Number(row.final_amount)<0?"本店應付":"應收金額"' in response.text
     assert 'max-width:380px' in response.text
     # Existing business fields and action identifiers remain escaped and wired.
     for expression in (
