@@ -93,9 +93,13 @@ def post_match(company_id:UUID,account_id:UUID,import_id:UUID,line_id:UUID,paylo
 
 @router.post("/{import_id}/lines/{line_id}/ignore",response_model=ActionResult)
 def post_ignore(company_id:UUID,account_id:UUID,import_id:UUID,line_id:UUID,db:Session=Depends(get_db)):
-    line=db.execute(select(BankStatementLine).where(BankStatementLine.import_id==import_id,
-        BankStatementLine.bank_account_id==account_id)).scalar_one_or_none()
-    if line is None or line.id!=line_id:
+    line=db.execute(select(BankStatementLine).where(
+        BankStatementLine.company_id==company_id,
+        BankStatementLine.import_id==import_id,
+        BankStatementLine.bank_account_id==account_id,
+        BankStatementLine.id==line_id,
+    )).scalar_one_or_none()
+    if line is None:
         raise HTTPException(status_code=404,detail="對帳單明細不存在。")
     try:
         row=ignore_statement_line(db,company_id=company_id,line_id=line_id)
