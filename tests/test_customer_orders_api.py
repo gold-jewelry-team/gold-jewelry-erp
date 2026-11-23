@@ -64,6 +64,27 @@ def test_customer_order_deposit_ledger_and_status_flow():
         assert order["balance_amount"] == "25000.00"
         assert len(order["payments"]) == 1
 
+        arrived = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "ARRIVED"},
+        )
+        assert arrived.status_code == 200, arrived.text
+        ready = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "READY"},
+        )
+        assert ready.status_code == 200, ready.text
+
+        unpaid_completion = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "COMPLETED"},
+        )
+        assert unpaid_completion.status_code == 422
+        assert "尚有尾款未收清" in unpaid_completion.json()["detail"]
+        assert client.get(
+            f"/companies/{company_id}/customer-orders/{order['id']}"
+        ).json()["status"] == "READY"
+
         paid = client.post(f"/companies/{company_id}/customer-orders/{order['id']}/payments", json={
             "amount": "25000",
             "payment_method": "TRANSFER",
@@ -73,6 +94,14 @@ def test_customer_order_deposit_ledger_and_status_flow():
         assert paid.json()["deposit_amount"] == "30000.00"
         assert paid.json()["balance_amount"] == "0.00"
         assert len(paid.json()["payments"]) == 2
+
+        completed = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "COMPLETED"},
+        )
+        assert completed.status_code == 200, completed.text
+        assert completed.json()["status"] == "COMPLETED"
+
         ledger = TestSession()
         receipts = ledger.query(PaymentTransaction).filter(
             PaymentTransaction.customer_order_id == UUID(order["id"])
@@ -88,23 +117,6 @@ def test_customer_order_deposit_ledger_and_status_flow():
         ledger.commit()
         assert closing.collected_amount == Decimal("30000.00")
         ledger.close()
-
-        arrived = client.patch(
-            f"/companies/{company_id}/customer-orders/{order['id']}/status",
-            params={"status": "ARRIVED"},
-        )
-        assert arrived.status_code == 200, arrived.text
-        ready = client.patch(
-            f"/companies/{company_id}/customer-orders/{order['id']}/status",
-            params={"status": "READY"},
-        )
-        assert ready.status_code == 200, ready.text
-        premature_completion = client.patch(
-            f"/companies/{company_id}/customer-orders/{order['id']}/status",
-            params={"status": "COMPLETED"},
-        )
-        assert premature_completion.status_code == 422
-        assert ready.json()["status"] == "READY"
 
         duplicate_overpayment = client.post(f"/companies/{company_id}/customer-orders/{order['id']}/payments", json={
             "amount": "1", "payment_method": "CASH",
