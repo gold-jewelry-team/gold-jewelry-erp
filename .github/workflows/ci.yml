@@ -52,6 +52,8 @@ jobs:
           node --check /tmp/gold-erp-inline.js
       - name: Run quote workspace runtime tests
         run: node --test tests/quote_workspace_runtime.test.js
+      - name: Run dialog focus runtime tests
+        run: node --test tests/dialog_focus_runtime.test.js
       - name: Run tests
         run: pytest -q
       - name: Upgrade PostgreSQL schema to head
