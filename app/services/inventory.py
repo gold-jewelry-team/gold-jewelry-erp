@@ -18,6 +18,54 @@ _OUTBOUND_ONLY = {"SALE", "REPAIR_SEND"}
 _ALLOWED_TYPES = _INBOUND_ONLY | _OUTBOUND_ONLY | {"TRANSFER", "ADJUSTMENT"}
 
 
+class InventoryIdempotencyConflict(ValueError):
+    """Raised when a retry key is reused for a different inventory adjustment."""
+
+
+def get_idempotent_adjustment(
+    session: Session,
+    *,
+    company_id: UUID,
+    site_id: UUID,
+    product_id: UUID,
+    location_id: UUID,
+    direction: str,
+    quantity: Decimal,
+    weight: Decimal | None,
+    weight_unit_code: str | None,
+    note: str | None,
+    idempotency_key: UUID | None,
+) -> InventoryMovement | None:
+    """Return a matching prior adjustment, or reject a key reused for other data."""
+    if idempotency_key is None:
+        return None
+    existing = session.scalar(select(InventoryMovement).where(
+        InventoryMovement.company_id == company_id,
+        InventoryMovement.idempotency_key == idempotency_key,
+    ))
+    if existing is None:
+        return None
+
+    expected_from = location_id if direction == "OUT" else None
+    expected_to = location_id if direction == "IN" else None
+    matches = (
+        existing.movement_type == "ADJUSTMENT"
+        and existing.site_id == site_id
+        and existing.product_id == product_id
+        and existing.from_location_id == expected_from
+        and existing.to_location_id == expected_to
+        and existing.quantity == quantity
+        and existing.weight == weight
+        and existing.weight_unit_code == weight_unit_code
+        and existing.note == note
+    )
+    if not matches:
+        raise InventoryIdempotencyConflict(
+            "此冪等識別碼已用於不同的庫存調整內容，請重新讀取盤點資料後再操作。"
+        )
+    return existing
+
+
 def create_inventory_movement(
     session: Session,
     *,
@@ -34,6 +82,7 @@ def create_inventory_movement(
     reference_type: str | None = None,
     reference_id: UUID | None = None,
     note: str | None = None,
+    idempotency_key: UUID | None = None,
 ) -> InventoryMovement:
     """Validate ownership and movement direction before appending a ledger row."""
     if movement_type not in _ALLOWED_TYPES:
@@ -72,6 +121,25 @@ def create_inventory_movement(
             if location is None or location.site_id != site_id or not location.is_active:
                 raise ValueError("儲存位置不存在、未啟用或不屬於指定據點。")
 
+    if idempotency_key is not None:
+        if movement_type != "ADJUSTMENT":
+            raise InventoryIdempotencyConflict("冪等識別碼目前僅支援庫存盤點調整。")
+        existing = get_idempotent_adjustment(
+            session,
+            company_id=company_id,
+            site_id=site_id,
+            product_id=product_id,
+            location_id=from_location_id or to_location_id,
+            direction="OUT" if from_location_id is not None else "IN",
+            quantity=quantity,
+            weight=weight,
+            weight_unit_code=weight_unit_code,
+            note=note,
+            idempotency_key=idempotency_key,
+        )
+        if existing is not None:
+            return existing
+
     # Serialize movements for one product in PostgreSQL and prevent negative stock.
     if from_location_id is not None:
         available = get_stock_balance(
@@ -94,6 +162,7 @@ def create_inventory_movement(
         reference_type=reference_type,
         reference_id=reference_id,
         note=note,
+        idempotency_key=idempotency_key,
     )
     session.add(movement)
     session.flush()
