@@ -2014,7 +2014,7 @@ function printProductQrLabel(product,lot,printWindow,config,copies=1){
  }
  const barcodeUrl="/companies/"+selectedCompanyId+"/products/"+product.id+"/barcode.svg";
  const weight=Number(product.gross_weight||0);
- const weightText=Number.isFinite(weight)?weight.toFixed(2)+" "+(product.weight_unit_code||""):"—";
+ const weightText=Number.isFinite(weight)?weight.toFixed(2)+" "+goldUnitLabel(product.weight_unit_code||"QIAN"):"—";
  const supplier=lot?lot.supplier_name:"—";
  const location=lot?lot.location_name:"—";
  const receiptDate=lot?formatRocStickerDate(lot.received_at):"—";
@@ -2038,7 +2038,7 @@ function printProductQrLabel(product,lot,printWindow,config,copies=1){
   '.source-row span{overflow:hidden;text-overflow:clip}'+
   '.right{width:49mm;height:28mm;padding:0 1mm 0 2mm;display:grid;grid-template-rows:12mm 5mm 5mm 6mm;align-items:center;min-width:0}'+
   '.weight{font-size:20pt;font-weight:800;line-height:1;white-space:nowrap}'+
-  '.labor{font-size:9pt;font-weight:700;white-space:nowrap}'+
+  '.labor{font-size:20pt;font-weight:800;line-height:1;white-space:nowrap}'+
   '.dark{font-size:8pt;font-weight:700;white-space:nowrap}'+
   '.extra{display:flex;justify-content:space-between;gap:1mm;font-size:7pt;white-space:nowrap;overflow:hidden}'+
   '.label:last-child{page-break-after:auto;break-after:auto}'+
