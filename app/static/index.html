@@ -339,6 +339,25 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  .grid>.field{min-width:0}
  .grid>.field.wide{grid-column:1/-1}
 }
+
+/* Inventory stock cards: separate identity, available quantity, and traceable location details. */
+#inventoryStockPanel .stock-item{gap:11px;padding:14px;border-color:#e8e2d5;background:#fffefa}
+#inventoryStockPanel .stock-item-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+#inventoryStockPanel .stock-item-identity{display:grid;gap:7px;min-width:0}
+#inventoryStockPanel .stock-item-identity>strong{font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+#inventoryStockPanel .stock-item-identity .pill{max-width:100%;overflow-wrap:anywhere}
+#inventoryStockPanel .stock-item-quantity{display:grid;justify-items:end;gap:2px;min-width:88px;padding:8px 11px;border:1px solid #e4e9df;border-radius:11px;background:#f3f6f0}
+#inventoryStockPanel .stock-item-quantity>span{font-size:10px;color:#68746c;font-weight:700}
+#inventoryStockPanel .stock-item-quantity>strong{font-size:20px;line-height:1.2;color:#315b46;font-variant-numeric:tabular-nums}
+#inventoryStockPanel .stock-item-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;padding-top:10px;border-top:1px solid #eee9de}
+#inventoryStockPanel .stock-item-meta>span{display:grid;gap:3px;min-width:0}
+#inventoryStockPanel .stock-item-meta small{font-size:10px;color:#7a827a}
+#inventoryStockPanel .stock-item-meta strong{font-size:12px;font-weight:600;color:#47564b;overflow-wrap:anywhere}
+@media(max-width:380px){
+ #inventoryStockPanel .stock-item-head{gap:7px}
+ #inventoryStockPanel .stock-item-quantity{min-width:76px;padding:7px 8px}
+ #inventoryStockPanel .stock-item-meta{grid-template-columns:minmax(0,1fr);gap:7px}
+}
 </style>
 </head>
 <body>
@@ -1400,7 +1419,7 @@ async function loadInventoryStock(){
  const q=$("inventorySearch").value.trim().toLocaleLowerCase();
  const filtered=rows.filter(x=>!q||[x.product_code,x.product_name,x.barcode,x.location_name,x.location_code].some(v=>String(v||"").toLocaleLowerCase().includes(q)));
  const productMap=new Map(inventoryProducts.map(p=>[p.id,p]));
- box.innerHTML=filtered.length?filtered.map(x=>{const product=productMap.get(x.product_id);const weight=product?' · 單件淨重 '+escapeHtml(product.net_weight)+' '+escapeHtml(product.weight_unit_code):'';return '<article class="item"><strong>'+escapeHtml(x.product_name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 位置：'+escapeHtml(x.location_name)+'（'+escapeHtml(x.location_code)+'）</span><span class="muted">目前庫存：'+escapeHtml(x.quantity)+weight+'</span></article>';}).join(""):'<div class="empty">沒有符合條件的庫存資料</div>';
+ box.innerHTML=filtered.length?filtered.map(x=>{const product=productMap.get(x.product_id);const weight=product?'<span><small>單件淨重</small><strong>'+escapeHtml(product.net_weight)+' '+escapeHtml(product.weight_unit_code)+'</strong></span>':'';return '<article class="item stock-item"><div class="stock-item-head"><div class="stock-item-identity"><strong>'+escapeHtml(x.product_name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span></div><div class="stock-item-quantity"><span>目前庫存</span><strong>'+escapeHtml(x.quantity)+'</strong></div></div><div class="stock-item-meta"><span><small>條碼</small><strong>'+escapeHtml(x.barcode||"未設定")+'</strong></span><span><small>儲存位置</small><strong>'+escapeHtml(x.location_name)+'（'+escapeHtml(x.location_code)+'）</strong></span>'+weight+'</div></article>';}).join(""):'<div class="empty">沒有符合條件的庫存資料</div>';
 }
 async function loadInventoryMovements(){
  const box=$("movementList");
