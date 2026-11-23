@@ -86,7 +86,7 @@ def test_same_product_on_two_sale_lines_creates_two_linked_deductions():
         check = TestSession()
         movements = check.query(InventoryMovement).filter_by(reference_type="SALE_LINE").all()
         assert len(movements) == 2
-        assert {m.reference_id for m in movements} == {line["id"] for line in sale["lines"]}
+        assert {str(m.reference_id) for m in movements} == {line["id"] for line in sale["lines"]}
         assert {m.product_id for m in movements} == {product_id}
         assert all(m.movement_type == "SALE" and m.quantity == Decimal("1") for m in movements)
         assert all(m.weight == Decimal("1.0000") and m.weight_unit_code == "QIAN" for m in movements)
