@@ -23,6 +23,7 @@ class CustomerOrderCreate(BaseModel):
     initial_deposit: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     payment_method: str = Field(default="CASH", pattern="^(CASH|CARD|TRANSFER|OTHER)$")
     note: str | None = Field(default=None, max_length=1000)
+    idempotency_key: UUID | None = None
 
     @model_validator(mode="after")
     def validate_deposit(self):
