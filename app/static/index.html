@@ -12,7 +12,7 @@ main{max-width:760px;margin:0 auto;padding:16px;display:grid;gap:14px}.panel{bac
 h2{font-size:16px;margin:0 0 14px}.sub{font-size:12px;color:#68716b;margin:-8px 0 12px}
 label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:10px;padding:10px 11px;font:inherit;font-size:15px;background:#fff;color:#202124}input:focus,select:focus{outline:2px solid #899b8d;outline-offset:1px}
 /* 一致且清楚的鍵盤焦點提示，滑鼠操作不額外顯示外框 */
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #789b83;outline-offset:2px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;margin-bottom:10px}.wide{grid-column:1/-1}button{border:0;border-radius:11px;min-height:44px;padding:10px 15px;background:#263b30;color:#fff;font:inherit;font-weight:600;cursor:pointer}button.secondary{background:#edf1ed;color:#263b30}button:disabled{opacity:.5}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:13px;min-height:20px;color:#526257;margin-top:8px}.status.error{color:#b42318}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}.item{border:1px solid #e7eae6;border-radius:12px;padding:12px;margin-top:9px;display:grid;gap:5px}.item strong{font-size:15px}.muted{font-size:12px;color:#6a746d}.pill{font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px;width:max-content}.empty{font-size:13px;color:#788079;padding:18px 0;text-align:center}.hidden{display:none}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #789b83;outline-offset:2px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{min-width:0;margin-bottom:10px}.wide{grid-column:1/-1}button{border:0;border-radius:11px;min-height:44px;padding:10px 15px;background:#263b30;color:#fff;font:inherit;font-weight:600;cursor:pointer}button.secondary{background:#edf1ed;color:#263b30}.actions{display:flex;gap:8px;flex-wrap:wrap}.status{font-size:13px;min-height:20px;color:#526257;margin-top:8px}.toolbar{display:flex;gap:8px;margin-bottom:12px}.toolbar input{flex:1}.item{border:1px solid #e7eae6;border-radius:12px;padding:12px;margin-top:9px;display:grid;gap:5px}.item strong{font-size:15px}.muted{font-size:12px;color:#6a746d}.pill{font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px;width:max-content}.empty{font-size:13px;color:#788079;padding:18px 0;text-align:center}.hidden{display:none}
 @media(min-width:640px){main{grid-template-columns:1fr 1fr;align-items:start}.span2{grid-column:1/-1}.products{grid-column:1/-1}}
  .label-lot-modal.hidden{display:none}.label-lot-modal{position:fixed;inset:0;background:#101512dd;z-index:25;display:flex;align-items:center;justify-content:center;padding:16px}.label-lot-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px;max-height:90vh;overflow:auto}.scan-modal.hidden{display:none}.scan-modal{position:fixed;inset:0;background:#101512dd;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px}.scan-dialog{width:min(100%,560px);background:#fff;border-radius:18px;padding:16px}.scan-dialog video{display:block;width:100%;max-height:58vh;object-fit:cover;background:#111;border-radius:12px}.scan-camera-wrap{position:relative}.scan-frame{position:absolute;left:15%;right:15%;top:30%;height:40%;border:2px solid #8ee0a8;border-radius:12px;box-shadow:0 0 0 999px #0003;pointer-events:none}.scan-settings{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.scan-settings label{font-size:12px}.scan-settings select{min-height:38px;font-size:13px}.scan-results{display:grid;gap:7px;margin-top:8px}.scan-results button{width:100%;text-align:left;overflow-wrap:anywhere}.scan-hint{font-size:13px;color:#59635c;margin:10px 0}.scan-actions{display:flex;gap:8px;margin-top:12px}.scan-actions button{flex:1}
 .scan-feedback{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;background:#fff;border:1px solid #d8ded8;border-radius:16px;padding:14px;box-shadow:0 8px 30px #0003;max-width:560px;margin:0 auto;max-height:48vh;overflow:auto}
@@ -138,8 +138,8 @@ main>section.panel[data-category="pricing"]{--category-accent:#c18b2e}
 main>section.panel[data-category="settings"]{--category-accent:#77847b}
 main>section.panel[data-category="advanced"]{--category-accent:#9a6871}
 button{background:linear-gradient(180deg,var(--app-green),var(--app-green-dark));box-shadow:0 2px 5px rgba(25,59,45,.12);transition:filter .15s ease,transform .15s ease}
-button:hover{filter:brightness(1.08)}
-button:active{transform:translateY(1px)}
+
+
 button.secondary{background:#edf2ed;color:#294b39;border:1px solid #dce6dc;box-shadow:none}
 input,select,textarea{border-color:#d8ded6;background:#fffefa}
 input:focus,select:focus,textarea:focus{outline:2px solid #b8cbbd;border-color:#6e947b}
@@ -147,8 +147,8 @@ label{color:#536158;font-weight:600}
 .sub,.muted{color:var(--app-muted)}
 .item{background:#fffefa;border-color:#e8e5dc}
 .pill{background:#f2ead8;color:#795b24;font-weight:700}
-.status{color:#2d7651}
-.status.error{color:#b42318}
+
+
 .category-nav button{border-color:#e3e2d9;background:#fffefa;color:#405247;box-shadow:0 2px 7px rgba(36,48,39,.04)}
 .category-nav button[aria-pressed="true"]{background:var(--app-green);border-color:var(--app-green);color:#fff;box-shadow:0 3px 10px rgba(35,75,58,.2)}
 .category-count{display:inline-flex;align-items:center;justify-content:center;min-width:21px;height:21px;padding:0 6px;border-radius:99px;background:#f0eee6;color:inherit;font-weight:700}
@@ -238,7 +238,7 @@ button{background:linear-gradient(180deg,#3c6b52,#2b503d)}
 button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 .pill{background:#f4ead4;color:#805f24}
 .item{background:#fffefa;border-color:#e8e2d5}
-.status:not(.error){color:#28724d}
+
 @media(max-width:899px){
  .category-nav button{min-height:44px;padding:9px 12px}
  .category-shortcuts{
@@ -490,6 +490,16 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  .product-form-section{padding:10px}
  .product-form-section-heading small{font-size:10px}
 }
+
+/* 全站共用操作狀態：成功、錯誤與按鈕互動使用一致回饋。 */
+
+.status.success{color:#28724d;font-weight:700}
+.status.error{color:#b42318;font-weight:700}
+button{transition:filter .15s ease,transform .15s ease,box-shadow .15s ease}
+button:not(:disabled):hover{filter:brightness(1.08)}
+button:not(:disabled):active{transform:translateY(1px)}
+button:disabled{opacity:.48;cursor:not-allowed;filter:none;transform:none;box-shadow:none}
+button.secondary:disabled{opacity:.42}
 </style>
 </head>
 <body>
@@ -1228,10 +1238,12 @@ const message=(id,text,error=false)=>{
  el.textContent=text;
  el.classList.toggle("error",error);
  el.hidden=false;
- const delay=error?8000:(/成功|已建立|已儲存|已完成|已新增|已更新|已找到|已產生|已保留|已作廢|已取消|已匯入|已調整|已結帳|已列印/.test(text)?4000:5000);
+ const success=/成功|已建立|已儲存|已完成|已新增|已更新|已找到|已產生|已保留|已作廢|已取消|已匯入|已調整|已結帳|已列印/.test(text);
+ el.classList.toggle("success",!error&&success);
+ const delay=error?8000:(success?4000:5000);
  const timer=setTimeout(()=>{
   el.textContent="";
-  el.classList.remove("error");
+  el.classList.remove("error","success");
   statusMessageTimers.delete(id);
  },delay);
  statusMessageTimers.set(id,timer);
