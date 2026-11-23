@@ -64,6 +64,8 @@ jobs:
         run: node --test tests/scanner_field_suffix_runtime.test.js
       - name: Run home dashboard layout runtime tests
         run: node --test tests/home_dashboard_layout_runtime.test.js
+      - name: Run quick navigation category shortcut runtime tests
+        run: node --test tests/quick_nav_category_shortcuts_runtime.test.js
       - name: Run scanner startup fallback runtime tests
         run: node --test tests/scanner_startup_fallback_runtime.test.js
       - name: Run label dialog close runtime tests

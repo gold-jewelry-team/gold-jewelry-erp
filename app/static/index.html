@@ -3451,7 +3451,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
    const target=document.getElementById(link.hash.slice(1));
    if(!target)return;
    const category=target.dataset.category;
-   if(category&&category!=="global")activate(category);
+   if(category&&category!=="global"){const categoryButton=nav.querySelector('button[data-category="'+category+'"]');if(categoryButton)categoryButton.click();}
    if(target.classList.contains("panel-collapsed")){
     const toggle=target.querySelector(":scope > h2 .panel-toggle");
     if(toggle)toggle.click();
