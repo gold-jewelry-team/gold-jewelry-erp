@@ -244,7 +244,7 @@ def test_compact_phone_layout_stacks_form_fields_without_narrowing_specialized_c
 def test_inventory_stock_cards_separate_quantity_and_product_trace_details():
     response = TestClient(app).get("/app")
     assert response.status_code == 200
-    assert 'class="stock-item"' in response.text
+    assert 'class="item stock-item"' in response.text
     assert 'class="stock-item-head"' in response.text
     assert 'class="stock-item-quantity"' in response.text
     assert 'class="stock-item-meta"' in response.text
