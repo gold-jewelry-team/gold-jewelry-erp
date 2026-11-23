@@ -5,7 +5,7 @@ import test from "node:test";
 const html = fs.readFileSync("app/static/index.html", "utf8");
 
 test("every home dashboard shortcut points to one existing unique section", () => {
-  const ids = [...html.matchAll(/\\bid="([^"]+)"/g)].map((match) => match[1]);
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
   const targets = [...html.matchAll(/data-home-target="([^"]+)"/g)].map((match) => match[1]);
 
   assert.ok(targets.length > 0, "home dashboard must expose shortcut targets");
