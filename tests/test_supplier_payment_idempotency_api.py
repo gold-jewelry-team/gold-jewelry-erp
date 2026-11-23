@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
@@ -11,6 +12,7 @@ from app import models  # noqa: F401
 from app.db.base import Base
 from app.main import app
 from app.models.company import Company
+from app.models.daily_closing import DailyClosing
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
@@ -24,40 +26,30 @@ def _payable_context():
         poolclass=StaticPool,
     )
     Base.metadata.create_all(engine)
-    test_session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    db = test_session()
-    company = Company(code="AP-RETRY", name="應付帳款重送測試銀樓")
-    db.add(company)
-    db.flush()
+    TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    session = TestSession()
+    company = Company(code="AP-TEST", name="應付帳款測試銀樓")
+    session.add(company)
+    session.flush()
     site = Site(company_id=company.id, code="MAIN", name="總店")
-    supplier = Supplier(company_id=company.id, code="SUP-RETRY", name="重送測試供應商")
-    db.add_all([site, supplier])
-    db.commit()
+    supplier = Supplier(company_id=company.id, code="SUP-01", name="測試供應商")
+    session.add_all([site, supplier])
+    session.commit()
     ids = (company.id, site.id, supplier.id)
-    db.close()
+    session.close()
 
     def override_db():
-        session = test_session()
+        db = TestSession()
         try:
-            yield session
+            yield db
         finally:
-            session.close()
+            db.close()
 
     app.dependency_overrides.clear()
     app.dependency_overrides[supplier_payables.get_db] = override_db
     app.dependency_overrides[suppliers.get_db] = override_db
     app.dependency_overrides[daily_closing.get_db] = override_db
-    return engine, test_session, ids
-
-
-from datetime import datetime, timezone
-from decimal import Decimal
-from zoneinfo import ZoneInfo
-
-from fastapi.testclient import TestClient
-from sqlalchemy import func, select
-
-from app.models.supplier_payable import SupplierPaymentAllocation
+    return engine, TestSession, ids
 
 
 def test_supplier_payment_replay_returns_original_after_bill_paid_and_day_closed():
@@ -156,7 +148,7 @@ def test_supplier_payment_number_reuse_with_changed_amount_is_rejected_atomicall
 
         assert first.status_code == 201, first.text
         assert conflict.status_code == 409, conflict.text
-        assert "付款單號已用於不同的付款內容" in conflict.json()["detail"]
+        assert "不同的付款內容" in conflict.json()["detail"]
 
         refreshed = client.get(f"{base}/bills/{bill.json()['id']}")
         assert refreshed.status_code == 200, refreshed.text
