@@ -466,3 +466,20 @@ def test_product_create_and_edit_forms_are_grouped_without_changing_fields():
     assert "product-form-section" in html
     assert "@media(max-width:760px)" in html
     assert "@media(max-width:380px)" in html
+
+
+def test_global_status_feedback_and_button_states_are_consistent():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    html = response.text
+    assert ".status.success{color:#28724d;font-weight:700}" in html
+    assert ".status.error{color:#b42318;font-weight:700}" in html
+    assert 'el.classList.toggle("success",!error&&success)' in html
+    assert 'el.classList.remove("error","success")' in html
+    assert "const success=/成功|已建立|已儲存" in html
+    assert "button:not(:disabled):hover" in html
+    assert "button:not(:disabled):active" in html
+    assert "button:disabled{opacity:.48;cursor:not-allowed;filter:none;transform:none;box-shadow:none}" in html
+    assert "button.secondary:disabled{opacity:.42}" in html
+    assert html.count(".status.success{") == 1
+    assert html.count(".status.error{") == 1
