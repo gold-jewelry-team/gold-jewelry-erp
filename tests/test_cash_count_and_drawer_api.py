@@ -261,3 +261,44 @@ def test_cash_count_and_review_are_scoped_to_the_exact_site_and_closing():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_cash_count_rejects_negative_expected_drawer_balance_without_database_error():
+    engine, TestSession, (company_id, site_id) = _cash_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/sites/{site_id}"
+        deposit = client.post(f"{base}/cash-drawer-movements", json={
+            "movement_type": "BANK_DEPOSIT",
+            "amount": "100.00",
+            "description": "測試超出可用現金的存款",
+            "created_by_name": "店員甲",
+        })
+        assert deposit.status_code == 201, deposit.text
+
+        business_date = datetime.now(timezone.utc).astimezone(
+            ZoneInfo("Asia/Taipei")
+        ).date()
+        close = client.post(
+            f"{base}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert close.status_code == 201, close.text
+
+        count = client.post(
+            f"{base}/daily-closings/{close.json()['id']}/cash-count",
+            json={
+                "opening_cash_float": "0.00",
+                "counted_cash_amount": "0.00",
+                "counted_by_name": "店員甲",
+            },
+        )
+        assert count.status_code == 422, count.text
+        assert "預期現金為負數" in count.json()["detail"]
+
+        verify = TestSession()
+        assert verify.query(DailyCashCount).count() == 0
+        verify.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
