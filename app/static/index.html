@@ -665,7 +665,7 @@ button.secondary:disabled{opacity:.42}
 <h2>庫存調整</h2>
 <p class="sub">用於期初入庫或盤點差異調整；出庫時不可超過目前庫存。</p>
 <form id="inventoryAdjustmentForm">
-<div class="field"><label for="adjustmentProduct">商品</label><select id="adjustmentProduct" required><option value="">請選擇商品</option></select><div class="toolbar"><input id="adjustmentScanCode" placeholder="掃描／輸入條碼後按 Enter"><button id="scanAdjustmentButton" class="secondary" type="button">相機</button></div></div>
+<div class="field"><label for="adjustmentProduct">商品</label><select id="adjustmentProduct" required><option value="">請選擇商品</option></select><div class="toolbar"><input id="adjustmentScanCode" placeholder="掃描／輸入條碼後按 Enter／Tab"><button id="scanAdjustmentButton" class="secondary" type="button">相機</button></div></div>
 <div class="field"><label for="adjustmentLocation">儲存位置</label><select id="adjustmentLocation" required><option value="">請選擇位置</option></select></div>
 <div class="field"><label for="adjustmentDirection">調整方向</label><select id="adjustmentDirection"><option value="IN">增加庫存（入）</option><option value="OUT">減少庫存（出）</option></select></div>
 <div class="field"><label for="adjustmentQuantity">數量</label><input id="adjustmentQuantity" type="number" min="1" step="1" value="1" required></div>
@@ -738,7 +738,7 @@ button.secondary:disabled{opacity:.42}
 <p class="sub">商品掃碼、臨時估價及舊金折抵都從上方「現場報價／同款查找」共用工作區帶入，這裡只負責確認付款方式、建立銷售草稿及完成成交。</p>
 <div class="hidden">
 <h3>新商品報價</h3>
-<div class="field"><label for="saleBarcodeScan">掃描／輸入商品條碼（按 Enter 加入）</label><div class="toolbar"><input id="saleBarcodeScan" autocomplete="off" inputmode="numeric" placeholder="掃描器可直接輸入條碼"><button id="scanSaleButton" class="secondary" type="button">相機掃描</button></div></div>
+<div class="field"><label for="saleBarcodeScan">掃描／輸入商品條碼（Enter／Tab 加入）</label><div class="toolbar"><input id="saleBarcodeScan" autocomplete="off" inputmode="numeric" placeholder="掃描器輸入後按 Enter／Tab"><button id="scanSaleButton" class="secondary" type="button">相機掃描</button></div></div>
 <div class="grid">
 <div class="field"><label for="saleProduct">商品（可依編號／名稱／條碼選擇）</label><select id="saleProduct"><option value="">請選擇商品</option></select></div>
 <div class="field"><label for="saleLocation">出貨位置</label><select id="saleLocation"><option value="">請選擇位置</option></select></div>
