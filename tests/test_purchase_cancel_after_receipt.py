@@ -14,7 +14,7 @@ from app.models.product import Product
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.models.supplier import Supplier
-from app.routers import purchases, suppliers
+from app.routers import inventory, purchases, suppliers
 
 
 def test_partially_received_purchase_cannot_be_cancelled_and_receipt_remains():
@@ -54,6 +54,7 @@ def test_partially_received_purchase_cannot_be_cancelled_and_receipt_remains():
     app.dependency_overrides.clear()
     app.dependency_overrides[purchases.get_db] = override_db
     app.dependency_overrides[suppliers.get_db] = override_db
+    app.dependency_overrides[inventory.get_db] = override_db
     try:
         client = TestClient(app)
         created_supplier = client.get(f"/companies/{company_id}/suppliers")
