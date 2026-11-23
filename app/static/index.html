@@ -3040,6 +3040,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
 let quoteSelectedProducts=[];
 let quoteCurrentTotal=null;
 let latestCreatedCustomerOrder=null;
+let pendingCustomerOrderCreate=null;
 const quoteMoney=value=>Number(value||0).toLocaleString("zh-TW",{minimumFractionDigits:0,maximumFractionDigits:2});
 function quoteProductSearchText(product){
  const category=product.category_id?(categoryNames.get(product.category_id)||""):"";
@@ -3192,6 +3193,10 @@ async function addQuoteProduct(){
  renderQuoteEntryPreview();
  quoteSetStatus(isEstimate?"臨時估價已加入報價清單；不建立正式商品或庫存。":"正式商品已加入報價清單；尚未建立銷售或扣庫存。");
 }
+function newCustomerOrderIdempotencyKey(){
+ if(window.crypto&&typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
+ return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,char=>{const random=Math.random()*16|0;return (char==="x"?random:(random&3|8)).toString(16);});
+}
 async function createCustomerOrderFromQuote(){
  const status=$("quoteOrderStatus");
  const fail=messageText=>{status.textContent=messageText;status.style.color="#b42318";};
@@ -3221,9 +3226,8 @@ async function createCustomerOrderFromQuote(){
   estimated_line_amount:Number(line.quotedAmount||0)
  }));
  const date=$("quoteOrderDeliveryDate").value;
- const payload={
+ const requestData={
   site_id:selectedSiteId,
-  order_no:"CO-"+Date.now().toString(),
   customer_name:customerName,
   customer_phone:$("quoteOrderCustomerPhone").value.trim()||null,
   expected_delivery_date:date?date+"T12:00:00+08:00":null,
@@ -3233,12 +3237,31 @@ async function createCustomerOrderFromQuote(){
   payment_method:$("quoteOrderPaymentMethod").value,
   note:$("quoteOrderNote").value.trim()||null
  };
+ // Keep the same order number and key if the server committed but the response was lost.
+ // A changed form gets a fresh identity; a successful create clears the pending identity.
+ const fingerprint=JSON.stringify({company_id:companyId,...requestData});
+ if(!pendingCustomerOrderCreate||pendingCustomerOrderCreate.fingerprint!==fingerprint){
+  pendingCustomerOrderCreate={
+   fingerprint,
+   idempotency_key:newCustomerOrderIdempotencyKey(),
+   order_no:"CO-"+Date.now().toString()
+  };
+ }
+ const payload={
+  ...requestData,
+  order_no:pendingCustomerOrderCreate.order_no,
+  idempotency_key:pendingCustomerOrderCreate.idempotency_key
+ };
+ const button=$("createCustomerOrderButton");
+ button.disabled=true;
  try{
   const order=await api("/companies/"+companyId+"/customer-orders",{method:"POST",body:JSON.stringify(payload)});
+  pendingCustomerOrderCreate=null;
   latestCreatedCustomerOrder=order;
   status.style.color="#28724d";
   status.innerHTML='客訂單已建立：'+escapeHtml(order.order_no)+'；訂購總額 NT$ '+quoteMoney(order.total_amount)+'，已收訂金 NT$ '+quoteMoney(order.deposit_amount)+'，尚欠 NT$ '+quoteMoney(order.balance_amount)+'。訂單不扣庫存。 <button type="button" class="secondary" id="printCustomerOrderButton">列印客戶訂購單</button>';
  }catch(error){fail("建立客訂單失敗："+error.message);}
+ finally{button.disabled=false;}
 }
 $("createCustomerOrderButton").addEventListener("click",createCustomerOrderFromQuote);
 $("quoteOrderStatus").addEventListener("click",event=>{
