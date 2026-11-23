@@ -433,3 +433,36 @@ def test_quote_workbench_groups_steps_without_changing_quote_controls():
         assert logic in html
     assert "@media(max-width:760px)" in html
     assert "@media(max-width:380px)" in html
+
+
+def test_product_create_and_edit_forms_are_grouped_without_changing_fields():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    html = response.text
+    assert html.count('id="productForm"') == 1
+    assert html.count('id="productEditForm"') == 1
+    assert html.count("product-form-section") >= 8
+    assert "商品識別" in html
+    assert "商品分類與材質" in html
+    assert "重量與工錢" in html
+    assert "商品規格與備註" in html
+    create_ids = (
+        "productPrefix", "productCode", "generateCode", "barcode", "productName",
+        "productCategory", "materialCode", "grossWeight", "netWeight", "weightUnit",
+        "laborFee", "chainLength", "chainLengthUnit", "styleCode", "productNote",
+    )
+    edit_ids = (
+        "editProductId", "editChainLengthRaw", "editProductCode", "editBarcode",
+        "editProductName", "editProductCategory", "editMaterialCode",
+        "editGrossWeight", "editNetWeight", "editWeightUnit", "editLaborFee",
+        "editChainLength", "editChainLengthUnit", "editStyleCode", "editProductNote",
+        "cancelProductEdit",
+    )
+    for element_id in create_ids + edit_ids:
+        assert html.count(f'id="{element_id}"') == 1
+    assert 'type="submit">新增商品</button>' in html
+    assert 'type="submit">儲存修改</button>' in html
+    assert "product-form-actions" in html
+    assert "product-form-section" in html
+    assert "@media(max-width:760px)" in html
+    assert "@media(max-width:380px)" in html
