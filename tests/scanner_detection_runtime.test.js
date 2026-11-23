@@ -98,7 +98,7 @@ test("multiple results are presented as explicit choices and no item is auto-sel
   assert.equal(ui.results.children.length, 2);
   assert.equal(ui.results.children[0].textContent, "一維條碼：471000000001");
   assert.equal(ui.results.children[1].textContent, "QR Code：PRODUCT-QR-002");
-  assert.equal(ui.context.scanBusy, true);
+  assert.equal(vm.runInContext("scanBusy", ui.context), true);
   assert.match(ui.hint.textContent, /請選擇正確的商品碼/);
   assert.deepEqual(ui.closed, []);
   assert.deepEqual(ui.handled, []);
