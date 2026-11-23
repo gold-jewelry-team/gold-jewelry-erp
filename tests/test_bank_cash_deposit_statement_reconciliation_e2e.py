@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -103,7 +104,7 @@ def test_cash_deposit_links_bank_ledger_cash_drawer_and_imported_statement_line(
         assert line["matched_bank_transaction_id"] == bank_transaction_id
 
         verify = TestSession()
-        bank_tx = verify.get(BankTransaction, bank_transaction_id)
+        bank_tx = verify.get(BankTransaction, UUID(bank_transaction_id))
         assert bank_tx is not None
         drawer = verify.query(CashDrawerMovement).one()
         statement_line = verify.query(BankStatementLine).one()
