@@ -12,7 +12,11 @@ from app.models.company import Company
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.supplier_payable import SupplierBill, SupplierPayment
-from app.services.supplier_payables import create_supplier_bill, record_supplier_payment
+from app.services.supplier_payables import (
+    SupplierPaymentIdempotencyConflict,
+    create_supplier_bill,
+    record_supplier_payment,
+)
 
 
 def _payment_validation_context():
@@ -83,7 +87,6 @@ def test_supplier_payment_rejects_unsupported_method_and_empty_allocations():
         engine.dispose()
 
 def test_duplicate_supplier_payment_number_rolls_back_without_partial_allocation():
-    from sqlalchemy.exc import IntegrityError
     from app.models.supplier_payable import SupplierPaymentAllocation
 
     engine, Session, (company_id, site_id, supplier_id) = _payment_validation_context()
@@ -108,7 +111,7 @@ def test_duplicate_supplier_payment_number_rolls_back_without_partial_allocation
         )
         session.commit()
 
-        with pytest.raises(IntegrityError):
+        with pytest.raises(SupplierPaymentIdempotencyConflict):
             record_supplier_payment(
                 session, company_id=company_id, site_id=site_id, supplier_id=supplier_id,
                 payment_no="SP-DUPLICATE-ATOMIC", payment_method="CASH",
