@@ -7,7 +7,7 @@ const topStart = html.indexOf('const topButton=document.getElementById("backToTo
 const topEnd = html.indexOf("\n })();", topStart);
 assert.ok(topStart >= 0 && topEnd > topStart, "missing back-to-top controller");
 const topController = html.slice(topStart, topEnd);
-const behaviorHelper = 'const getNavigationScrollBehavior=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"';
+const reducedMotionBehavior = 'window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"';
 
 test("back-to-top appears after scrolling and initializes its visibility", () => {
   assert.ok(topController.includes("window.scrollY>500"), "button should appear after a meaningful scroll distance");
@@ -15,14 +15,13 @@ test("back-to-top appears after scrolling and initializes its visibility", () =>
   assert.ok(topController.includes("updateTopButton();"), "initial visibility should be synchronized on page load");
 });
 
-test("back-to-top uses the shared reduced-motion-aware behavior", () => {
-  assert.ok(html.includes(behaviorHelper), "a shared helper should honor the system reduced-motion preference");
-  assert.ok(topController.includes('window.scrollTo({top:0,behavior:getNavigationScrollBehavior()})'), "back-to-top should use the shared behavior helper");
+test("back-to-top respects the operating system reduced-motion preference", () => {
+  assert.ok(topController.includes('window.scrollTo({top:0,behavior:'+reducedMotionBehavior+'})'), "back-to-top should use immediate scrolling when reduced motion is preferred");
 });
 
-test("all in-page navigation uses the shared reduced-motion-aware behavior", () => {
-  assert.ok(html.includes('item.scrollIntoView({behavior:getNavigationScrollBehavior(),block:"start"})'), "nested section shortcuts should respect reduced motion");
-  assert.ok(html.includes('panel.scrollIntoView({behavior:getNavigationScrollBehavior(),block:"start"})'), "panel shortcuts should respect reduced motion");
-  assert.ok(html.includes('target.scrollIntoView({behavior:getNavigationScrollBehavior(),block:"start"})'), "home dashboard shortcuts should respect reduced motion");
+test("all in-page navigation respects the operating system reduced-motion preference", () => {
+  assert.ok(html.includes('item.scrollIntoView({behavior:'+reducedMotionBehavior+',block:"start"})'), "nested section shortcuts should respect reduced motion");
+  assert.ok(html.includes('panel.scrollIntoView({behavior:'+reducedMotionBehavior+',block:"start"})'), "panel shortcuts should respect reduced motion");
+  assert.ok(html.includes('target.scrollIntoView({behavior:'+reducedMotionBehavior+',block:"start"})'), "home dashboard shortcuts should respect reduced motion");
   assert.doesNotMatch(html, /scrollIntoView\\(\\{behavior:"smooth"/, "no in-page scroll action should force smooth motion");
 });
