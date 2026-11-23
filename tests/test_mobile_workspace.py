@@ -124,6 +124,13 @@ def test_mobile_workspace_serves_html():
     assert "恢復待確認付款" in response.text
     assert 'id="cashDrawerPanel"' in response.text
     assert 'id="cashDrawerForm"' in response.text
+    assert 'id="restorePendingCashDrawer"' in response.text
+    assert "function cashDrawerPendingStorageKey(company,site)" in response.text
+    assert "function readPendingCashDrawerMovement(company,site)" in response.text
+    assert "savePendingCashDrawerMovement(companyId,selectedSiteId,payload)" in response.text
+    assert "payload.idempotency_key=pending.idempotency_key" in response.text
+    assert "clearPendingCashDrawerMovement(companyId,selectedSiteId)" in response.text
+    assert "恢復尚未確認的現金櫃異動" in response.text
     assert 'id="supplierForm"' in response.text
     assert 'id="supplierBillForm"' in response.text
     assert 'id="supplierPaymentForm"' in response.text

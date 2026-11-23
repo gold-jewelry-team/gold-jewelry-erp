@@ -62,6 +62,8 @@ jobs:
         run: node --test tests/label_dialog_close_runtime.test.js
       - name: Run operating expense retry runtime tests
         run: node --test tests/operating_expense_retry_runtime.test.js
+      - name: Run cash drawer retry runtime tests
+        run: node --test tests/cash_drawer_retry_runtime.test.js
       - name: Run supplier payment retry runtime tests
         run: node --test tests/supplier_payment_retry_runtime.test.js
       - name: Run tests
@@ -166,6 +168,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0028_estimate_sale_returns"
+          alembic current | grep -q "0029_cash_drawer_idempotency"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp

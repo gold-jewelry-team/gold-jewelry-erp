@@ -813,7 +813,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="field"><label for="drawerReference">交易／存款編號</label><input id="drawerReference" maxlength="100"></div>
 <div class="field"><label for="drawerNote">備註</label><input id="drawerNote" maxlength="500"></div>
 </div>
-<button type="submit">新增現金櫃異動</button>
+<div class="actions"><button id="restorePendingCashDrawer" class="secondary hidden" type="button">恢復尚未確認的現金櫃異動</button><button type="submit">新增現金櫃異動</button></div>
 </form>
 <div id="cashDrawerStatus" class="status" role="status"></div>
 <h3>現金櫃異動紀錄</h3>
@@ -2287,8 +2287,69 @@ async function loadExpenses(){
  }).join(""):'<div class="empty">沒有符合條件的營業費用</div>';
 }
 
+function cashDrawerPendingStorageKey(company,site){
+ return "gold-erp-cash-drawer:"+company+":"+site;
+}
+function newCashDrawerIdempotencyKey(){
+ if(window.crypto&&typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
+ return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,char=>{
+  const random=Math.random()*16|0;
+  return (char==="x"?random:(random&3|8)).toString(16);
+ });
+}
+function readPendingCashDrawerMovement(company,site){
+ try{
+  const raw=localStorage.getItem(cashDrawerPendingStorageKey(company,site));
+  if(!raw)return null;
+  const pending=JSON.parse(raw);
+  return pending&&pending.fingerprint&&pending.payload&&pending.idempotency_key?pending:null;
+ }catch(error){
+  try{localStorage.removeItem(cashDrawerPendingStorageKey(company,site));}catch(storageError){}
+  return null;
+ }
+}
+function savePendingCashDrawerMovement(company,site,payload){
+ const key=cashDrawerPendingStorageKey(company,site);
+ const fingerprint=JSON.stringify(payload);
+ const existing=readPendingCashDrawerMovement(company,site);
+ if(existing){
+  if(existing.fingerprint!==fingerprint){
+   throw new Error("上一筆現金櫃異動尚未確認結果，請先恢復原異動內容重試，不可修改內容另送。");
+  }
+  return existing;
+ }
+ const pending={fingerprint,payload,idempotency_key:newCashDrawerIdempotencyKey()};
+ try{localStorage.setItem(key,JSON.stringify(pending));}
+ catch(error){throw new Error("瀏覽器無法保存現金櫃異動重送資料，請確認儲存空間後再試。");}
+ return pending;
+}
+function clearPendingCashDrawerMovement(company,site){
+ try{localStorage.removeItem(cashDrawerPendingStorageKey(company,site));}catch(error){}
+}
+function renderPendingCashDrawerRecovery(){
+ const button=$("restorePendingCashDrawer");
+ if(!button)return;
+ const pending=companyId&&selectedSiteId
+  ?readPendingCashDrawerMovement(companyId,selectedSiteId):null;
+ button.classList.toggle("hidden",!pending);
+}
+function restorePendingCashDrawerDraft(){
+ const pending=companyId&&selectedSiteId
+  ?readPendingCashDrawerMovement(companyId,selectedSiteId):null;
+ if(!pending){message("cashDrawerStatus","沒有尚未確認的現金櫃異動。");return;}
+ const p=pending.payload;
+ $("drawerMovementType").value=p.movement_type;
+ $("drawerAmount").value=p.amount;
+ $("drawerDescription").value=p.description;
+ $("drawerActor").value=p.created_by_name;
+ $("drawerReference").value=p.reference_no||"";
+ $("drawerNote").value=p.note||"";
+ message("cashDrawerStatus","已恢復尚未確認回應的現金櫃異動；請使用原金額與內容重試。");
+ $("cashDrawerForm").scrollIntoView({behavior:"smooth",block:"start"});
+}
 async function loadCashDrawerMovements(){
  const box=$("cashDrawerList");
+ renderPendingCashDrawerRecovery();
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
  const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/cash-drawer-movements");
  box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(drawerTypeLabels[row.movement_type]||row.movement_type)+'</strong><span class="pill">'+(row.direction==="IN"?"現金櫃流入":"現金櫃流出")+'</span><span class="muted">金額：'+escapeHtml(row.amount)+' 元 · '+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span><span class="muted">說明：'+escapeHtml(row.description)+' · 經手人：'+escapeHtml(row.created_by_name)+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無現金櫃異動</div>';
@@ -2471,16 +2532,26 @@ $("expenseList").addEventListener("click",async event=>{
  }
  finally{button.disabled=false;}
 });
+$("restorePendingCashDrawer").addEventListener("click",restorePendingCashDrawerDraft);
 $("cashDrawerForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("cashDrawerStatus","請先選擇公司與據點。",true);return;}
  const payload={movement_type:$("drawerMovementType").value,amount:$("drawerAmount").value,description:$("drawerDescription").value.trim(),created_by_name:$("drawerActor").value.trim(),reference_no:$("drawerReference").value.trim()||null,note:$("drawerNote").value.trim()||null};
+ let pending;
+ try{pending=savePendingCashDrawerMovement(companyId,selectedSiteId,payload);}
+ catch(error){message("cashDrawerStatus",error.message,true);return;}
+ payload.idempotency_key=pending.idempotency_key;
  const button=$("cashDrawerForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
   await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/cash-drawer-movements",{method:"POST",body:JSON.stringify(payload)});
-  $("cashDrawerForm").reset();message("cashDrawerStatus","現金櫃異動已新增。");
-  await loadCashDrawerMovements();
- }catch(error){message("cashDrawerStatus",error.message,true);}
+  clearPendingCashDrawerMovement(companyId,selectedSiteId);
+  $("cashDrawerForm").reset();message("cashDrawerStatus","現金櫃異動已新增或確認原紀錄。");
+  try{await loadCashDrawerMovements();}
+  catch(refreshError){message("cashDrawerStatus","異動已完成，但清單更新失敗："+refreshError.message,true);}
+ }catch(error){
+  if(error.status===422)clearPendingCashDrawerMovement(companyId,selectedSiteId);
+  message("cashDrawerStatus",error.message,true);
+ }
  finally{button.disabled=false;}
 });
 $("refreshCashDrawer").addEventListener("click",()=>loadCashDrawerMovements().catch(error=>message("cashDrawerStatus",error.message,true)));
