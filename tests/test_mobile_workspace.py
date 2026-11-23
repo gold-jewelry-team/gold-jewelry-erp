@@ -273,7 +273,7 @@ def test_category_shortcuts_remove_expand_state_and_normalize_subnavigation_labe
 def test_product_master_cards_prioritize_identity_and_group_specifications():
     response = TestClient(app).get("/app")
     assert response.status_code == 200
-    assert 'class="product-item"' in response.text
+    assert 'class="item product-item"' in response.text
     assert 'class="product-results-count"' in response.text
     assert 'class="product-item-identity"' in response.text
     assert 'class="product-item-meta"' in response.text
