@@ -268,3 +268,25 @@ def test_category_shortcuts_remove_expand_state_and_normalize_subnavigation_labe
     assert r'replace(/\s+/g," ")' in response.text
     assert r'replace(/\\s*(展開|收合)\\s*$/,"")' not in response.text
     assert r'replace(/\\s+/g," ")' not in response.text
+
+
+def test_product_master_cards_prioritize_identity_and_group_specifications():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    assert 'class="product-item"' in response.text
+    assert 'class="product-results-count"' in response.text
+    assert 'class="product-item-identity"' in response.text
+    assert 'class="product-item-meta"' in response.text
+    assert 'class="product-item-specs"' in response.text
+    assert '<small>條碼</small>' in response.text
+    assert '<small>商品分類</small>' in response.text
+    assert '<small>預設銷售工錢</small>' in response.text
+    assert 'max-width:380px' in response.text
+    # Preserve escaping for product names, codes, weights, fees, and action IDs.
+    assert 'escapeHtml(x.name)' in response.text
+    assert 'escapeHtml(x.product_code)' in response.text
+    assert 'escapeHtml(x.gross_weight)' in response.text
+    assert 'escapeHtml(x.net_weight)' in response.text
+    assert 'escapeHtml(x.labor_fee)' in response.text
+    assert 'data-edit-product="'+ ' in response.text
+    assert 'data-print-product-label="'+ ' in response.text
