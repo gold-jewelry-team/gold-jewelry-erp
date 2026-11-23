@@ -121,3 +121,40 @@ test("empty scan values do not close the camera or trigger product lookup", asyn
   assert.deepEqual(ui.closed, []);
   assert.deepEqual(ui.handled, []);
 });
+
+
+test("keyboard scanner submits trimmed values when the suffix is Enter", () => {
+  const ui = setup();
+  const calls = [];
+  let prevented = false;
+  const event = { key: "Enter", preventDefault() { prevented = true; } };
+  assert.equal(ui.context.handleKeyboardScannerInput(event, " 471000000001 ", code => calls.push(code)), true);
+  assert.equal(prevented, true);
+  assert.deepEqual(calls, ["471000000001"]);
+});
+
+test("keyboard scanner submits trimmed values when the suffix is Tab", () => {
+  const ui = setup();
+  const calls = [];
+  let prevented = false;
+  const event = { key: "Tab", preventDefault() { prevented = true; } };
+  assert.equal(ui.context.handleKeyboardScannerInput(event, " PRODUCT-QR-002\\t", code => calls.push(code)), true);
+  assert.equal(prevented, true);
+  assert.deepEqual(calls, ["PRODUCT-QR-002"]);
+});
+
+test("empty keyboard scanner values preserve normal Tab navigation", () => {
+  const ui = setup();
+  let prevented = false;
+  const event = { key: "Tab", preventDefault() { prevented = true; } };
+  assert.equal(ui.context.handleKeyboardScannerInput(event, "   ", () => assert.fail("must not submit")), false);
+  assert.equal(prevented, false);
+});
+
+test("ordinary keyboard keys do not submit or block input", () => {
+  const ui = setup();
+  let prevented = false;
+  const event = { key: "a", preventDefault() { prevented = true; } };
+  assert.equal(ui.context.handleKeyboardScannerInput(event, "ABC", () => assert.fail("must not submit")), false);
+  assert.equal(prevented, false);
+});
