@@ -291,3 +291,46 @@ def test_product_master_cards_prioritize_identity_and_group_specifications():
     assert 'data-edit-product="' in response.text
     assert 'data-print-product-label="' in response.text
     assert 'escapeHtml(x.id)' in response.text
+
+
+def test_purchasing_and_sales_cards_share_clear_mobile_transaction_hierarchy():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    for class_name in (
+        "transaction-item",
+        "purchase-line-item",
+        "purchase-order-item",
+        "sale-line-item",
+        "sales-history-item",
+        "transaction-item-head",
+        "transaction-item-primary",
+        "transaction-item-meta",
+        "transaction-item-lines",
+        "transaction-item-actions",
+    ):
+        assert f'class="' in response.text and class_name in response.text
+    assert '<small>訂購數量</small>' in response.text
+    assert '<small>已驗收／訂購</small>' in response.text
+    assert '<small>商品驗收進度（已收／訂購）</small>' in response.text
+    assert 'Number(row.final_amount)<0?"本店應付":"應收金額"' in response.text
+    assert 'max-width:380px' in response.text
+    # Existing business fields and action identifiers remain escaped and wired.
+    for expression in (
+        "escapeHtml(line.product.product_code)",
+        "escapeHtml(line.product.name)",
+        "escapeHtml(line.quantity)",
+        "escapeHtml(line.unit_cost)",
+        "escapeHtml(line.cost_labor_fee)",
+        "escapeHtml(line.product.barcode||\"未設定\")",
+        "escapeHtml(line.old_gold_weight)",
+        "escapeHtml(row.purchase_no)",
+        "escapeHtml(row.id)",
+        "escapeHtml(row.sale_no)",
+    ):
+        assert expression in response.text
+    assert 'data-remove-purchase-line="' in response.text
+    assert 'data-remove-sale-line="' in response.text
+    assert 'data-submit-purchase="' in response.text
+    assert 'data-cancel-purchase="' in response.text
+    assert 'data-open-receive="' in response.text
+    assert 'data-open-sale="' in response.text
