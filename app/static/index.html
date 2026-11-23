@@ -2966,8 +2966,9 @@ $("applyStocktake").addEventListener("click",async()=>{
   const result=await api("/companies/"+companyId+"/inventory/stocktake-adjustments",{method:"POST",body:JSON.stringify(payload)});
   for(const line of pending){line.applied=true;line.verified=true;}
   persistStocktakeDraft();renderStocktake();
-  await loadInventoryStock();await loadInventoryMovements();await loadStocktakeBaseline();
-  message("stocktakeStatus","盤點整批確認完成：處理 "+result.applied_count+" 件商品，寫入 "+result.adjustment_count+" 筆庫存差異；無差異 "+result.no_change_count+" 件。");
+  message("stocktakeStatus","盤點整批已入帳：處理 "+result.applied_count+" 件商品，寫入 "+result.adjustment_count+" 筆庫存差異；無差異 "+result.no_change_count+" 件。");
+  try{await loadInventoryStock();await loadInventoryMovements();await loadStocktakeBaseline();}
+  catch(refreshError){message("stocktakeStatus","盤點已入帳，但庫存清單刷新失敗："+refreshError.message,true);}
  }catch(error){
   const guidance=error.status===409
    ?"盤點期間的庫存或商品淨重已改變，整批未入帳。請先確認是否有新交易，再按「重新讀取帳面庫存」更新快照並重新核對。"
