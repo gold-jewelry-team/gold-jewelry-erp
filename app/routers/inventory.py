@@ -131,9 +131,18 @@ def list_inventory_movements(
         statement = statement.where(InventoryMovement.occurred_at >= since)
     if until:
         statement = statement.where(InventoryMovement.occurred_at <= until)
-    return list(db.scalars(statement.order_by(
+    rows = list(db.scalars(statement.order_by(
         InventoryMovement.occurred_at.desc(), InventoryMovement.created_at.desc()
     ).limit(limit)).all())
+    return [
+        InventoryMovementRead.model_validate(row).model_copy(update={
+            "reference_type": (
+                "PURCHASE_LINE" if (row.reference_type or "").startswith("PR-")
+                else row.reference_type
+            )
+        })
+        for row in rows
+    ]
 
 
 @router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)

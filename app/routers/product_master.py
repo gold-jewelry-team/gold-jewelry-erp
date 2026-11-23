@@ -320,7 +320,10 @@ def list_product_label_lots(
             InventoryMovement.company_id == company_id,
             InventoryMovement.product_id == product_id,
             InventoryMovement.movement_type == "RECEIPT",
-            InventoryMovement.reference_type == "PURCHASE_LINE",
+            or_(
+                InventoryMovement.reference_type == "PURCHASE_LINE",
+                InventoryMovement.reference_type.like("PR-%"),
+            ),
             Purchase.company_id == company_id,
         )
         .order_by(InventoryMovement.occurred_at.desc(), InventoryMovement.created_at.desc())
