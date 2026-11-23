@@ -32,7 +32,11 @@ def test_label_lots_return_one_row_per_partial_receipt_with_exact_weight():
     safe = StorageLocation(site_id=site.id, code="SAFE", name="保險櫃", location_type="SAFE")
     show = StorageLocation(site_id=site.id, code="SHOW", name="展示櫃", location_type="STORE_FLOOR")
     product = Product(company_id=company.id, product_code="LABEL-P-001", barcode="LABEL-P-001", name="分批入庫戒指")
-    db.add_all([site, supplier, safe, show, product])
+    db.add_all([site, supplier])
+    db.flush()
+    safe.site_id = site.id
+    show.site_id = site.id
+    db.add_all([safe, show, product])
     db.flush()
     purchase = Purchase(company_id=company.id, site_id=site.id, supplier_id=supplier.id,
                         purchase_no="PO-LABEL-PARTIAL", order_date=date(2026, 11, 23), status="ORDERED")
