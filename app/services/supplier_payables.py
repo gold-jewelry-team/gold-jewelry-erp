@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.company import Company
 from app.models.purchase import Purchase
 from app.models.site import Site
 from app.models.supplier import Supplier
@@ -77,7 +78,11 @@ def create_supplier_bill(
         status="OPEN",
         note=note,
     )
-    session.add(bill)
+    session.add(bill)class SupplierPaymentIdempotencyConflict(ValueError):
+    """Raised when a supplier payment number is reused for different details."""
+
+
+
     session.flush()
     return bill
 
@@ -93,7 +98,8 @@ def record_supplier_payment(
     allocations: list[dict],
     reference_no: str | None = None,
     note: str | None = None,
-) -> SupplierPayment:
+    return_created: bool = False,
+) -> SupplierPayment | tuple[SupplierPayment, bool]:
     if payment_method not in PAYMENT_METHODS:
         raise ValueError("不支援的供應商付款方式。")
     if not allocations:
@@ -108,6 +114,43 @@ def record_supplier_payment(
         _validate_money(amount, "分攤金額")
         allocation_amounts[item["bill_id"]] = amount
     total_amount = sum(allocation_amounts.values(), Decimal("0"))
+
+    # Lock the site before checking the unique (site_id, payment_no) identity.
+    # This serializes concurrent retries even when the first response is lost.
+    site = session.execute(
+        select(Site).where(Site.id == site_id).with_for_update()
+    ).scalar_one_or_none()
+    if site is None or site.company_id != company_id:
+        raise ValueError("據點不存在或不屬於指定公司。")
+
+    existing = session.scalar(select(SupplierPayment).where(
+        SupplierPayment.site_id == site_id,
+        SupplierPayment.payment_no == payment_no,
+    ))
+    if existing is not None:
+        existing_allocations = {
+            row.bill_id: row.amount
+            for row in session.scalars(
+                select(SupplierPaymentAllocation).where(
+                    SupplierPaymentAllocation.payment_id == existing.id
+                )
+            ).all()
+        }
+        same_request = (
+            existing.company_id == company_id
+            and existing.supplier_id == supplier_id
+            and existing.payment_method == payment_method
+            and existing.total_amount == total_amount
+            and existing.currency_code == "TWD"
+            and existing.reference_no == reference_no
+            and existing.note == note
+            and existing_allocations == allocation_amounts
+        )
+        if not same_request:
+            raise SupplierPaymentIdempotencyConflict(
+                "此供應商付款單號已用於不同的付款內容；請查閱原付款紀錄，勿以新單號重複付款。"
+            )
+        return (existing, False) if return_created else existing
 
     bills = list(session.scalars(
         select(SupplierBill)
@@ -133,9 +176,6 @@ def record_supplier_payment(
     if currencies != {"TWD"}:
         raise ValueError("目前每日結帳僅支援新台幣付款；外幣帳單可建檔，但須待多幣別付款與匯率模組上線後才能付款。")
 
-    site = session.get(Site, site_id)
-    if site is None or site.company_id != company_id:
-        raise ValueError("據點不存在或不屬於指定公司。")
     paid_at = datetime.now(timezone.utc)
     assert_business_day_open(session, site_id=site_id, at=paid_at)
 
@@ -181,4 +221,4 @@ def record_supplier_payment(
         bill.status = "PAID" if paid == bill.total_amount else "PARTIALLY_PAID"
 
     session.flush()
-    return payment
+    return (payment, True) if return_created else payment
