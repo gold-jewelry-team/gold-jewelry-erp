@@ -82,6 +82,7 @@ def test_purchase_stock_transfer_sale_and_return_preserve_actual_location_and_le
         weight_unit_code="QIAN",
         reference_type="TEST_PURCHASE_RECEIPT",
     )
+    receipt_id = receipt.id
     db.commit()
     company_id, site_id, safe_id, display_id, product_id = (
         company.id, site.id, safe.id, display.id, product.id
@@ -188,7 +189,7 @@ def test_purchase_stock_transfer_sale_and_return_preserve_actual_location_and_le
         ).all())
         by_type = {row.movement_type: row for row in movements}
         assert set(by_type) == {"RECEIPT", "TRANSFER", "SALE", "RETURN"}
-        assert by_type["RECEIPT"].id == receipt.id
+        assert by_type["RECEIPT"].id == receipt_id
         assert by_type["TRANSFER"].from_location_id == safe_id
         assert by_type["TRANSFER"].to_location_id == display_id
         assert by_type["SALE"].from_location_id == display_id
