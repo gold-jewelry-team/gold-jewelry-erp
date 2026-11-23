@@ -38,16 +38,40 @@ def create_expense(session: Session, *, company_id: UUID, site_id: UUID, expense
     session.flush()
     return row
 
-def pay_expense(session: Session, *, company_id: UUID, expense_id: UUID, payment_method: str) -> OperatingExpense:
+class OperatingExpensePaymentConflict(ValueError):
+    """Raised when an already-paid expense is retried with a different method."""
+
+
+def pay_expense(
+    session: Session,
+    *,
+    company_id: UUID,
+    expense_id: UUID,
+    payment_method: str,
+) -> OperatingExpense:
     if payment_method not in METHODS:
         raise ValueError("不支援的付款方式。")
-    row = session.execute(select(OperatingExpense).where(
-        OperatingExpense.company_id == company_id, OperatingExpense.id == expense_id
-    ).with_for_update()).scalar_one_or_none()
+    row = session.execute(
+        select(OperatingExpense).where(
+            OperatingExpense.company_id == company_id,
+            OperatingExpense.id == expense_id,
+        ).with_for_update()
+    ).scalar_one_or_none()
     if row is None:
         raise ValueError("找不到指定營業費用。")
+
+    # An exact retry must be answered before checking whether the business day
+    # is still open: the original payment may already have been included in
+    # today's closing and committed successfully.
+    if row.status == "PAID":
+        if row.payment_method == payment_method:
+            return row
+        raise OperatingExpensePaymentConflict(
+            "此營業費用已使用其他付款方式登錄，不可重複付款或變更原付款方式。"
+        )
     if row.status != "UNPAID":
-        raise ValueError("只有未付款費用可以付款或作廢。")
+        raise ValueError("只有未付款費用可以付款。")
+
     paid_at = datetime.now(timezone.utc)
     assert_business_day_open(session, site_id=row.site_id, at=paid_at)
     row.status = "PAID"
