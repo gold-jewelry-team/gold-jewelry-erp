@@ -74,6 +74,8 @@ jobs:
         run: node --test tests/back_to_top_reduced_motion_runtime.test.js
       - name: Run desktop category switch scroll runtime tests
         run: node --test tests/desktop_category_switch_scroll_runtime.test.js
+      - name: Run desktop viewport visibility runtime tests
+        run: node --test tests/desktop_viewport_visibility_runtime.test.js
       - name: Run quick navigation category shortcut runtime tests
         run: node --test tests/quick_nav_category_shortcuts_runtime.test.js
       - name: Run quick navigation empty search runtime tests

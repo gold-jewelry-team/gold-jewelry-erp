@@ -524,6 +524,14 @@ button.secondary:disabled{opacity:.42}
  #quoteWorkbenchPanel .quote-product-result{flex-direction:column;gap:7px}
  #quoteWorkbenchPanel .quote-product-result .quote-stock{max-width:100%;text-align:left}
 }
+
+/* Desktop viewport recovery: keep the tall operational header in normal document flow. */
+@media(min-width:900px){
+ header{position:static;top:auto}
+ .category-nav{top:16px}
+ .category-shortcuts{top:16px}
+ main>section.panel[id],main>section.panel[id] h3{scroll-margin-top:24px}
+}
 </style>
 </head>
 <body>
