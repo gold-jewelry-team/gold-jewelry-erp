@@ -9,7 +9,13 @@ from app.db.session import SessionLocal
 from app.models.company import Company
 from app.models.purchase import Purchase
 from app.routers.schemas.purchasing import PurchaseActionResult, PurchaseCreate, PurchaseRead, PurchaseReceive
-from app.services.purchasing import cancel_purchase, create_purchase, receive_purchase_line, submit_purchase
+from app.services.purchasing import (
+    PurchaseReceiptIdempotencyConflict,
+    cancel_purchase,
+    create_purchase,
+    receive_purchase_line,
+    submit_purchase,
+)
 
 router = APIRouter(prefix="/companies/{company_id}/purchases", tags=["purchases"])
 
@@ -114,11 +120,15 @@ def post_receive_purchase(company_id: UUID, purchase_id: UUID, payload: Purchase
         receive_purchase_line(db, purchase_id=purchase_id,
                               purchase_line_id=payload.purchase_line_id,
                               location_id=payload.location_id,
-                              received_quantity=payload.received_quantity)
+                              received_quantity=payload.received_quantity,
+                              idempotency_key=payload.idempotency_key)
         db.commit()
         db.refresh(purchase)
         return PurchaseActionResult(purchase_id=purchase.id, status=purchase.status,
                                     message="驗收完成，已新增庫存入庫流水。")
+    except PurchaseReceiptIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
