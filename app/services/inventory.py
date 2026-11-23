@@ -41,7 +41,8 @@ def get_idempotent_adjustment(
         return None
     existing = session.scalar(select(InventoryMovement).where(
         InventoryMovement.company_id == company_id,
-        InventoryMovement.idempotency_key == idempotency_key,
+        InventoryMovement.reference_type == "STOCKTAKE",
+        InventoryMovement.reference_id == idempotency_key,
     ))
     if existing is None:
         return None
@@ -92,7 +93,11 @@ def create_inventory_movement(
     if weight is not None and (not isinstance(weight, Decimal) or weight < 0):
         raise ValueError("重量必須是非負 Decimal。")
 
-    company = session.get(Company, company_id)
+    company_query = select(Company).where(Company.id == company_id)
+    if idempotency_key is not None:
+        # Serialize keyed stocktake writes before the idempotency lookup.
+        company_query = company_query.with_for_update()
+    company = session.scalar(company_query)
     site = session.get(Site, site_id)
     product = session.execute(
         select(Product).where(Product.id == product_id).with_for_update()
@@ -159,10 +164,9 @@ def create_inventory_movement(
         weight=weight,
         weight_unit_code=weight_unit_code,
         occurred_at=occurred_at,
-        reference_type=reference_type,
-        reference_id=reference_id,
+        reference_type="STOCKTAKE" if idempotency_key is not None else reference_type,
+        reference_id=idempotency_key if idempotency_key is not None else reference_id,
         note=note,
-        idempotency_key=idempotency_key,
     )
     session.add(movement)
     session.flush()
