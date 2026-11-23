@@ -30,6 +30,8 @@ def test_partially_received_purchase_cannot_be_cancelled_and_receipt_remains():
     db.add(company)
     db.flush()
     site = Site(company_id=company.id, code="MAIN", name="總店")
+    db.add(site)
+    db.flush()
     supplier = Supplier(company_id=company.id, code="SUP-01", name="測試供應商")
     location = StorageLocation(
         site_id=site.id, code="SAFE", name="保險櫃", location_type="SAFE"
@@ -38,7 +40,7 @@ def test_partially_received_purchase_cannot_be_cancelled_and_receipt_remains():
         company_id=company.id, product_code="PO-CANCEL-001", name="測試黃金戒指",
         gross_weight=Decimal("1.2"), net_weight=Decimal("1.1"),
     )
-    db.add_all([site, supplier, location, product])
+    db.add_all([supplier, location, product])
     db.commit()
     company_id, site_id, supplier_id = company.id, site.id, supplier.id
     location_id, product_id = location.id, product.id
