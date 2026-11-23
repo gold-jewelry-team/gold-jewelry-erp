@@ -138,7 +138,7 @@ test("keyboard scanner submits trimmed values when the suffix is Tab", () => {
   const calls = [];
   let prevented = false;
   const event = { key: "Tab", preventDefault() { prevented = true; } };
-  assert.equal(ui.context.handleKeyboardScannerInput(event, " PRODUCT-QR-002\\t", code => calls.push(code)), true);
+  assert.equal(ui.context.handleKeyboardScannerInput(event, " PRODUCT-QR-002\t", code => calls.push(code)), true);
   assert.equal(prevented, true);
   assert.deepEqual(calls, ["PRODUCT-QR-002"]);
 });
