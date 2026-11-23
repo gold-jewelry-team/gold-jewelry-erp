@@ -61,11 +61,24 @@ def list_customer_orders(
 
 
 def _normalize_order_datetime(value: datetime | None) -> datetime | None:
+    """Keep naive delivery times interpreted as Taipei local time."""
     if value is None:
         return None
     if value.tzinfo is None:
-        return value.replace(tzinfo=ZoneInfo("UTC"))
-    return value.astimezone(ZoneInfo("UTC"))
+        return value.replace(tzinfo=ZoneInfo("Asia/Taipei"))
+    return value
+
+
+def _same_order_datetime(left: datetime | None, right: datetime | None) -> bool:
+    if left is None or right is None:
+        return left is None and right is None
+
+    def as_utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=ZoneInfo("Asia/Taipei"))
+        return value.astimezone(ZoneInfo("UTC"))
+
+    return as_utc(left) == as_utc(right)
 
 
 def _customer_order_create_matches(
@@ -89,8 +102,7 @@ def _customer_order_create_matches(
         and order.order_no == payload.order_no
         and order.customer_name == payload.customer_name.strip()
         and order.customer_phone == payload.customer_phone
-        and _normalize_order_datetime(order.expected_delivery_date)
-            == _normalize_order_datetime(payload.expected_delivery_date)
+        and _same_order_datetime(order.expected_delivery_date, payload.expected_delivery_date)
         and order.items == payload.items
         and order.total_amount == payload.total_amount
         and order.deposit_amount >= payload.initial_deposit
