@@ -17,12 +17,15 @@ test("tablet gold summary uses full available width and tablet header gutters", 
 });
 
 test("narrow phones stack prices and currency inputs while keeping copy actions usable", () => {
-  const phone = html.match(/@media\(max-width:520px\)\{([\s\S]*?)\n\}/);
-  assert.ok(phone, "missing narrow-phone responsive rules");
-  assert.match(phone[1], /#goldPriceSummary \.gold-summary-values\{grid-template-columns:minmax\(0,1fr\)\}/);
-  assert.match(phone[1], /#goldPriceSummary \.gold-currency-rate-fields\{grid-template-columns:minmax\(0,1fr\)\}/);
-  assert.match(phone[1], /#goldPriceSummary \.gold-currency-values\{grid-template-columns:minmax\(0,1fr\)\}/);
-  assert.match(phone[1], /#goldPriceSummary \.gold-summary-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/);
+  const phoneStart = html.lastIndexOf("@media(max-width:520px){");
+  assert.notEqual(phoneStart, -1, "missing narrow-phone responsive rules");
+  const phoneEnd = html.indexOf("\n}", phoneStart);
+  assert.notEqual(phoneEnd, -1, "narrow-phone responsive rules are not closed");
+  const phone = html.slice(phoneStart, phoneEnd);
+  assert.match(phone, /#goldPriceSummary \.gold-summary-values\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(phone, /#goldPriceSummary \.gold-currency-rate-fields\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(phone, /#goldPriceSummary \.gold-currency-values\{grid-template-columns:minmax\(0,1fr\)\}/);
+  assert.match(phone, /#goldPriceSummary \.gold-summary-actions\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/);
 });
 
 test("very narrow phones stack copy buttons and keep select controls within the viewport", () => {
