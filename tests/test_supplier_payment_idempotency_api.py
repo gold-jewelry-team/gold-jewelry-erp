@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -12,7 +12,6 @@ from app import models  # noqa: F401
 from app.db.base import Base
 from app.main import app
 from app.models.company import Company
-from app.models.daily_closing import DailyClosing
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
@@ -104,13 +103,12 @@ def test_supplier_payment_replay_returns_original_after_bill_paid_and_day_closed
             SupplierPayment.company_id == company_id
         ).all()
         allocations = verify.query(SupplierPaymentAllocation).all()
-        refreshed_bill = client.get(f"{base}/bills/{bill.json()['id']}")
+        refreshed_bill = verify.get(SupplierBill, UUID(bill.json()["id"]))
         assert len(payments) == 1
         assert len(allocations) == 1
-        assert refreshed_bill.status_code == 200, refreshed_bill.text
-        assert refreshed_bill.json()["status"] == "PAID"
-        assert Decimal(refreshed_bill.json()["paid_amount"]) == Decimal("650.00")
-        assert Decimal(refreshed_bill.json()["outstanding_amount"]) == Decimal("0.00")
+        assert refreshed_bill.status == "PAID"
+        assert refreshed_bill.paid_amount == Decimal("650.00")
+        assert refreshed_bill.outstanding_amount == Decimal("0.00")
         verify.close()
     finally:
         app.dependency_overrides.clear()
