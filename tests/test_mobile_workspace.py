@@ -239,3 +239,23 @@ def test_compact_phone_layout_stacks_form_fields_without_narrowing_specialized_c
     # Keep deliberately paired controls, such as gold-price entry, in two columns.
     assert ".gold-price-entry-grid{grid-template-columns:1fr 1fr" in response.text
     assert ".scan-settings{display:grid;grid-template-columns:1fr 1fr" in response.text
+
+
+def test_inventory_stock_cards_separate_quantity_and_product_trace_details():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    assert 'class="item stock-item"' in response.text
+    assert 'class="stock-item-head"' in response.text
+    assert 'class="stock-item-quantity"' in response.text
+    assert 'class="stock-item-meta"' in response.text
+    assert '<small>目前庫存</small>' not in response.text
+    assert '<span>目前庫存</span>' in response.text
+    assert '<small>儲存位置</small>' in response.text
+    assert '<small>條碼</small>' in response.text
+    assert 'max-width:380px' in response.text
+    assert 'grid-template-columns:minmax(0,1fr)' in response.text
+    # The stock-card renderer escapes all dynamic product and stock values.
+    assert 'escapeHtml(x.product_name)' in response.text
+    assert 'escapeHtml(x.product_code)' in response.text
+    assert 'escapeHtml(x.quantity)' in response.text
+    assert 'escapeHtml(x.barcode||"未設定")' in response.text
