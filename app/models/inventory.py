@@ -32,14 +32,6 @@ class InventoryMovement(Base):
         Index("ix_inventory_movements_company_product_time", "company_id", "product_id", "occurred_at"),
         Index("ix_inventory_movements_from_location", "from_location_id", "occurred_at"),
         Index("ix_inventory_movements_to_location", "to_location_id", "occurred_at"),
-        Index(
-            "uq_inventory_movements_company_idempotency_key",
-            "company_id",
-            "idempotency_key",
-            unique=True,
-            postgresql_where=text("idempotency_key IS NOT NULL"),
-            sqlite_where=text("idempotency_key IS NOT NULL"),
-        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -54,7 +46,6 @@ class InventoryMovement(Base):
     weight_unit_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     reference_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     reference_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
-    idempotency_key: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
