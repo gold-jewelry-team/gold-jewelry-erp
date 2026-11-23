@@ -191,12 +191,16 @@ def record_customer_order_payment(
     amount: Decimal,
     note: str | None = None,
     idempotency_key: UUID | None = None,
+    idempotency_prefix: str = "CO-PAYMENT",
 ) -> PaymentTransaction:
     """Record a deposit or balance collection against a customer special order."""
     _validate_amount(amount)
     _validate_method(payment_method)
+    if idempotency_prefix not in {"CO-PAYMENT", "CO-CREATE"}:
+        raise ValueError("不支援的客訂付款識別碼類型。")
     idempotency_reference = (
-        f"CO-PAYMENT:{idempotency_key}" if idempotency_key is not None else None
+        f"{idempotency_prefix}:{idempotency_key}"
+        if idempotency_key is not None else None
     )
     if idempotency_key is not None:
         company = session.scalar(
