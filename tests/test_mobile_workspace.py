@@ -117,6 +117,12 @@ def test_mobile_workspace_serves_html():
     assert 'id="supplierForm"' in response.text
     assert 'id="supplierBillForm"' in response.text
     assert 'id="supplierPaymentForm"' in response.text
+    assert "function supplierPaymentPendingStorageKey(company,site,bill)" in response.text
+    assert "function readPendingSupplierPayment(company,site,bill)" in response.text
+    assert "existing.fingerprint!==fingerprint" in response.text
+    assert "savePendingSupplierPayment(companyId,selectedSiteId,selectedSupplierBill.id,payload)" in response.text
+    assert "已恢復上一筆尚未確認回應的付款" in response.text
+    assert "重試時必須使用原付款單號" in response.text
     assert 'id="salesHistoryPanel"' in response.text
     assert 'id="salesHistoryQuery"' in response.text
     assert 'id="salesHistoryState"' in response.text
