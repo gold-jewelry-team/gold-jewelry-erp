@@ -121,3 +121,42 @@ def test_partial_receiving_allocates_total_line_weight_without_double_counting()
     finally:
         session.close()
         engine.dispose()
+
+
+def test_three_partial_receipts_preserve_exact_total_weight_after_rounding():
+    engine, session, company, site, supplier, location, product, purchase, line = setup_purchase()
+    try:
+        # The line's total weight (1.1 qian) cannot be divided evenly into
+        # three receipts at four decimal places. The final receipt must absorb
+        # the accumulated rounding remainder instead of rounding independently.
+        line.quantity = Decimal("3")
+        line.weight = Decimal("1.0000")
+        session.flush()
+
+        receive_purchase_line(
+            session, purchase_id=purchase.id, purchase_line_id=line.id,
+            location_id=location.id, received_quantity=Decimal("1"),
+        )
+        receive_purchase_line(
+            session, purchase_id=purchase.id, purchase_line_id=line.id,
+            location_id=location.id, received_quantity=Decimal("1"),
+        )
+        receive_purchase_line(
+            session, purchase_id=purchase.id, purchase_line_id=line.id,
+            location_id=location.id, received_quantity=Decimal("1"),
+        )
+        session.commit()
+
+        movements = session.query(InventoryMovement).filter_by(
+            reference_type="PURCHASE_LINE", reference_id=line.id
+        ).order_by(InventoryMovement.created_at, InventoryMovement.id).all()
+        assert [movement.weight for movement in movements] == [
+            Decimal("0.3333"), Decimal("0.3333"), Decimal("0.3334")
+        ]
+        assert sum((movement.weight for movement in movements), Decimal("0")) == Decimal("1.0000")
+        assert line.received_quantity == Decimal("3")
+        assert purchase.status == "RECEIVED"
+    finally:
+        session.close()
+        engine.dispose()
+
