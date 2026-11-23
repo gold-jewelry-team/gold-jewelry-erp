@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 from zoneinfo import ZoneInfo
 from decimal import Decimal
 
@@ -142,7 +143,7 @@ def test_return_api_rejects_return_after_daily_close_without_restocking():
         assert get_stock_balance(
             verify, product_id=product_id, location_id=location_id
         ) == Decimal("0")
-        persisted_sale = verify.get(Sale, sale["id"])
+        persisted_sale = verify.get(Sale, UUID(sale["id"]))
         assert persisted_sale.status == "COMPLETED"
         verify.close()
     finally:
