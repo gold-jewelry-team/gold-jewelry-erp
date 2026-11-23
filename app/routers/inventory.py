@@ -16,11 +16,14 @@ from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.routers.schemas.inventory import (
     InventoryAdjustmentCreate, InventoryMovementRead, InventoryTransferCreate, StockBalanceRead,
+    StocktakeAdjustmentBatchCreate, StocktakeAdjustmentBatchRead,
 )
 from app.services.inventory import (
     InventoryIdempotencyConflict,
     create_inventory_movement,
     get_idempotent_adjustment,
+    StocktakeSnapshotConflict,
+    apply_stocktake_adjustment_batch,
 )
 
 router = APIRouter(prefix="/companies/{company_id}/inventory", tags=["inventory"])
@@ -143,6 +146,50 @@ def list_inventory_movements(
         })
         for row in rows
     ]
+
+
+@router.post(
+    "/stocktake-adjustments",
+    response_model=StocktakeAdjustmentBatchRead,
+    status_code=201,
+)
+def post_stocktake_adjustment_batch(
+    company_id: UUID,
+    payload: StocktakeAdjustmentBatchCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    try:
+        movements, replayed, no_change_count = apply_stocktake_adjustment_batch(
+            db,
+            company_id=company_id,
+            site_id=payload.site_id,
+            items=[item.model_dump() for item in payload.items],
+        )
+        db.commit()
+        for movement in movements:
+            db.refresh(movement)
+        if replayed:
+            response.status_code = 200
+        return StocktakeAdjustmentBatchRead(
+            applied_count=len(payload.items),
+            adjustment_count=len(movements),
+            no_change_count=no_change_count,
+            replayed=replayed,
+            movements=movements,
+        )
+    except StocktakeSnapshotConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except InventoryIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="盤點調整重複或資料關聯衝突；整批未入帳。") from exc
 
 
 @router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
