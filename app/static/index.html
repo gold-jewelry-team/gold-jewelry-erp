@@ -330,6 +330,15 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 @media(max-width:760px){#homeDashboard .home-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#homeDashboard .home-action{min-height:100px;padding:12px}#homeDashboard .home-lower{grid-template-columns:1fr}#homeDashboard .home-heading{align-items:flex-start}#homeDashboard .home-date{font-size:10px}}
 @media(min-width:1100px){#homeDashboard .home-actions{grid-template-columns:repeat(4,minmax(0,1fr))}}
 
+
+/* Compact phones: keep form controls readable without squeezing labels into narrow columns. */
+@media(max-width:380px){
+ main{padding:10px}
+ .panel{padding:12px}
+ .grid:not(.gold-price-entry-grid){grid-template-columns:minmax(0,1fr);gap:8px}
+ .grid>.field{min-width:0}
+ .grid>.field.wide{grid-column:1/-1}
+}
 </style>
 </head>
 <body>
