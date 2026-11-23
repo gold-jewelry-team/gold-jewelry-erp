@@ -177,6 +177,11 @@ def test_mobile_workspace_serves_html():
     assert 'id="quoteOrderCustomerName"' in response.text
     assert 'id="quoteOrderDeposit"' in response.text
     assert "建立客訂單並收訂金" in response.text
+    assert "let pendingCustomerOrderCreate=null" in response.text
+    assert "function newCustomerOrderIdempotencyKey()" in response.text
+    assert "pendingCustomerOrderCreate.fingerprint!==fingerprint" in response.text
+    assert "idempotency_key:pendingCustomerOrderCreate.idempotency_key" in response.text
+    assert 'order_no:"CO-"+Date.now().toString()' in response.text
     assert "訂單不扣庫存" in response.text
     assert "折抵後應付商品金額" in response.text
     assert "客戶折抵合計" in response.text
