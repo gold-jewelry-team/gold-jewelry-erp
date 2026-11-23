@@ -177,6 +177,11 @@ def test_mobile_workspace_serves_html():
     assert 'id="quoteOrderCustomerName"' in response.text
     assert 'id="quoteOrderDeposit"' in response.text
     assert "建立客訂單並收訂金" in response.text
+        assert "let pendingCustomerOrderCreate=null" in response.text
+        assert "function newCustomerOrderIdempotencyKey()" in response.text
+        assert "pendingCustomerOrderCreate.fingerprint!==fingerprint" in response.text
+        assert "idempotency_key:pendingCustomerOrderCreate.idempotency_key" in response.text
+        assert "finally{button.disabled=false;}" in response.text
     assert "let pendingCustomerOrderCreate=null" in response.text
     assert "function newCustomerOrderIdempotencyKey()" in response.text
     assert "pendingCustomerOrderCreate.fingerprint!==fingerprint" in response.text
