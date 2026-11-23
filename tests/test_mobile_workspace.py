@@ -101,7 +101,7 @@ def test_mobile_workspace_serves_html():
     assert 'id="purchaseReceiveForm"' in response.text
     assert "function purchaseReceiveStorageKey(purchaseId,lineId)" in response.text
     assert "function readPendingPurchaseReceive(purchaseId,lineId)" in response.text
-    assert "pending.fingerprint!==fingerprint" in response.text
+    assert "existing.fingerprint!==fingerprint" in response.text
     assert "payload.idempotency_key=pending.idempotency_key" in response.text
     assert "clearPendingPurchaseReceive" in response.text
     assert "已恢復上一筆尚未確認回應的到貨驗收" in response.text
