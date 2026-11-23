@@ -19,3 +19,18 @@ test("quote product code field uses the shared Enter and Tab scanner handler", (
   );
   assert.match(html, /按 Enter／Tab 查找/);
 });
+
+test("all keyboard scanner fields show consistent Enter and Tab guidance", () => {
+  for (const id of [
+    "saleBarcodeScan",
+    "adjustmentScanCode",
+    "transferScanCode",
+    "purchaseScanCode",
+    "purchaseReceiveScanCode",
+  ]) {
+    const field = html.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`))?.[0];
+    assert.ok(field, `missing scanner field: ${id}`);
+    assert.match(field, /Enter／Tab/, `${id} should explain Enter and Tab suffixes`);
+  }
+  assert.match(html, /掃描／輸入商品條碼（Enter／Tab 加入）/);
+});
