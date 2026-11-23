@@ -483,3 +483,20 @@ def test_global_status_feedback_and_button_states_are_consistent():
     assert "button.secondary:disabled{opacity:.42}" in html
     assert html.count(".status.success{") == 1
     assert html.count(".status.error{") == 1
+
+
+def test_responsive_workspace_prevents_narrow_viewport_overflow():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    html = response.text
+    assert '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' in html
+    assert "@media(max-width:520px)" in html
+    assert "@media(max-width:380px)" in html
+    assert "main>section.panel{min-width:0;max-width:100%}" in html
+    assert ".toolbar{min-width:0;flex-wrap:wrap}" in html
+    assert ".toolbar input{min-width:0;flex:1 1 180px}" in html
+    assert ".actions button{min-width:0;max-width:100%}" in html
+    assert "#quoteWorkbenchPanel .quote-product-result>span:first-child{min-width:0;flex:1 1 auto;overflow-wrap:anywhere}" in html
+    assert "#quoteWorkbenchPanel .quote-product-result .quote-stock{flex:0 1 auto;min-width:0;max-width:38%;overflow-wrap:anywhere}" in html
+    assert "#quoteWorkbenchPanel .quote-product-result{flex-direction:column;gap:7px}" in html
+    assert ".panel-subnav" in html and ".quick-nav" in html and ".category-nav" in html

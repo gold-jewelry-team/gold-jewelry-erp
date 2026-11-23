@@ -500,6 +500,27 @@ button:not(:disabled):hover{filter:brightness(1.08)}
 button:not(:disabled):active{transform:translateY(1px)}
 button:disabled{opacity:.48;cursor:not-allowed;filter:none;transform:none;box-shadow:none}
 button.secondary:disabled{opacity:.42}
+
+/* Responsive hardening: prevent long labels and toolbars from forcing horizontal page overflow. */
+@media(max-width:520px){
+ main>section.panel{min-width:0;max-width:100%}
+ .toolbar{min-width:0;flex-wrap:wrap}
+ .toolbar input{min-width:0;flex:1 1 180px}
+ .toolbar button{flex:0 0 auto}
+ .actions{min-width:0}
+ .actions button{min-width:0;max-width:100%}
+ #quoteWorkbenchPanel .quote-product-result>span:first-child{min-width:0;flex:1 1 auto;overflow-wrap:anywhere}
+ #quoteWorkbenchPanel .quote-product-result .quote-stock{flex:0 1 auto;min-width:0;max-width:38%;overflow-wrap:anywhere}
+ #quoteWorkbenchPanel .quote-product-result strong,#quoteWorkbenchPanel .quote-product-result small{overflow-wrap:anywhere}
+ #productList .product-item-identity,#inventoryStockPanel .stock-item-identity,.transaction-item-identity{overflow-wrap:anywhere}
+}
+@media(max-width:380px){
+ .toolbar input{flex-basis:100%}
+ .toolbar button{width:100%}
+ .actions button{flex:1 1 100%}
+ #quoteWorkbenchPanel .quote-product-result{flex-direction:column;gap:7px}
+ #quoteWorkbenchPanel .quote-product-result .quote-stock{max-width:100%;text-align:left}
+}
 </style>
 </head>
 <body>
