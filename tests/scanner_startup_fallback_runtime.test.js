@@ -63,7 +63,8 @@ function setup({ barcodeDetector = true, mediaDevices = true, formats = ["ean_13
     scanFrameHandle: null,
     scannerFormats(supported) {
       const linear = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "codabar"];
-      const selected = this.scanFormatMode === "qr" ? ["qr_code"] : this.scanFormatMode === "both" ? [...linear, "qr_code"] : linear;
+      const mode = context.scanFormatMode;
+      const selected = mode === "qr" ? ["qr_code"] : mode === "both" ? [...linear, "qr_code"] : linear;
       return selected.filter((format) => supported.includes(format));
     },
     stopCameraScanner() {
