@@ -107,7 +107,7 @@ def test_return_uses_original_sale_snapshots_after_product_master_is_edited():
 
         check = TestSession()
         movement = check.query(InventoryMovement).filter_by(reference_type="SALE_RETURN_LINE").one()
-        assert movement.reference_id == return_line["id"]
+        assert str(movement.reference_id) == return_line["id"]
         assert movement.to_location_id == location_id
         assert movement.weight == Decimal("1.1250")
         assert movement.weight_unit_code == "QIAN"
