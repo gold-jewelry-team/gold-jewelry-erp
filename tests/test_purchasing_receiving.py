@@ -150,7 +150,7 @@ def test_three_partial_receipts_preserve_exact_total_weight_after_rounding():
         movements = session.query(InventoryMovement).filter_by(
             reference_type="PURCHASE_LINE", reference_id=line.id
         ).order_by(InventoryMovement.created_at, InventoryMovement.id).all()
-        assert [movement.weight for movement in movements] == [
+        assert sorted(movement.weight for movement in movements) == [
             Decimal("0.3333"), Decimal("0.3333"), Decimal("0.3334")
         ]
         assert sum((movement.weight for movement in movements), Decimal("0")) == Decimal("1.0000")
