@@ -28,11 +28,13 @@ def _context(code):
     db.add(company)
     db.flush()
     site = Site(company_id=company.id, code="MAIN", name="總店")
+    db.add(site)
+    db.flush()
     location = StorageLocation(site_id=site.id, code="SAFE", name="保險櫃", location_type="SAFE")
     product = Product(company_id=company.id, product_code=f"{code}-001", barcode=f"{code}-BAR-001",
                       name="黃金戒指", gross_weight=Decimal("1.2000"), net_weight=Decimal("1.0000"),
                       weight_unit_code="QIAN", labor_fee=Decimal("300"))
-    db.add_all([site, location, product])
+    db.add_all([location, product])
     db.flush()
     effective_at = datetime.now(timezone.utc) - timedelta(days=1)
     db.add_all([
