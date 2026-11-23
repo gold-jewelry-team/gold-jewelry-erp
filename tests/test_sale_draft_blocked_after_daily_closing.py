@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
@@ -40,7 +39,7 @@ def test_sale_draft_api_rejects_new_sale_after_business_day_is_closed():
         business_date=business_date,
     )
     db.commit()
-    company_id = company.id
+    company_id, site_id = company.id, site.id
     db.close()
 
     def override_db():
@@ -57,7 +56,7 @@ def test_sale_draft_api_rejects_new_sale_after_business_day_is_closed():
         response = client.post(
             f"/companies/{company_id}/sales",
             json={
-                "site_id": str(site.id),
+                "site_id": str(site_id),
                 "sale_no": "SO-CLOSED-DAY-001",
                 "payment_method": "CASH",
                 "lines": [{
