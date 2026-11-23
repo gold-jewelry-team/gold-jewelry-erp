@@ -532,6 +532,11 @@ button.secondary:disabled{opacity:.42}
  .category-shortcuts{top:16px}
  main>section.panel[id],main>section.panel[id] h3{scroll-margin-top:24px}
 }
+/* iPad portrait/tablet: use the available width for the dashboard and work panels. */
+@media(min-width:640px) and (max-width:899px){
+ main{width:100%;max-width:none;padding:16px 20px}
+ #homeDashboard{width:100%;grid-column:1/-1}
+}
 </style>
 </head>
 <body>
@@ -4043,7 +4048,9 @@ $("quoteClearButton").addEventListener("click",()=>{
 
 /* 首頁快捷卡片：定位至既有功能區，不另造一套業務流程 */
 document.addEventListener("click",function(event){
- const shortcut=event.target.closest("[data-home-target]");
+ /* iPad/Safari 等環境下，保守處理非 Element 型態的事件目標。 */
+ const eventElement=event.target instanceof Element?event.target:event.target&&event.target.parentElement;
+ const shortcut=eventElement&&eventElement.closest("[data-home-target]");
  if(!shortcut)return;
  const target=document.getElementById(shortcut.getAttribute("data-home-target"));
  if(!target)return;
@@ -4062,11 +4069,17 @@ document.addEventListener("click",function(event){
    if(toggle)toggle.click();
   }
  });
- window.requestAnimationFrame(()=>{
-  target.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ /* 先完成分類顯示與父面板展開，再定位巢狀子區塊。 */
+ window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>{
+  if(typeof target.scrollIntoView==="function"){
+   target.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  }else{
+   const top=target.getBoundingClientRect().top+(window.scrollY||window.pageYOffset||0)-16;
+   window.scrollTo({top,behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+  }
   target.setAttribute("tabindex","-1");
   window.setTimeout(function(){try{target.focus({preventScroll:true});}catch(_){target.focus();}},350);
- });
+ }));
 });
 </script>
 </body></html>
