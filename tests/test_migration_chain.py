@@ -2,12 +2,11 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_stocktake_idempotency():
+def test_alembic_history_is_a_single_linear_chain_through_estimate_sale_returns():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0029_stocktake_idempotency"]
+    assert script.get_heads() == ["0028_estimate_sale_returns"]
 
     expected = [
-        "0029_stocktake_idempotency",
         "0028_estimate_sale_returns",
         "0027_customer_orders_deposits",
         "0026_supplier_product_catalog",
