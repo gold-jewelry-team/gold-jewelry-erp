@@ -2,14 +2,19 @@
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.operating_expense import OperatingExpense
-from app.services.operating_expenses import create_expense, pay_expense
+from app.services.operating_expenses import (
+    ExpenseIdempotencyConflict,
+    ExpensePaymentIdempotencyConflict,
+    create_expense,
+    pay_expense,
+)
 
 router = APIRouter(prefix="/companies/{company_id}/operating-expenses", tags=["operating expenses"])
 def get_db():
@@ -51,10 +56,16 @@ class ExpenseRead(BaseModel):
     note: str | None
 
 @router.post("",response_model=ExpenseRead,status_code=201)
-def post_expense(company_id: UUID,payload: ExpenseCreate,db: Session=Depends(get_db)):
+def post_expense(company_id: UUID,payload: ExpenseCreate,response: Response,db: Session=Depends(get_db)):
     try:
-        row=create_expense(db,company_id=company_id,**payload.model_dump())
+        row,created=create_expense(
+            db,company_id=company_id,return_created=True,**payload.model_dump()
+        )
+        if not created:
+            response.status_code=200
         db.commit(); db.refresh(row); return row
+    except ExpenseIdempotencyConflict as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc
     except IntegrityError as exc:
@@ -74,9 +85,16 @@ def list_expenses(company_id: UUID,site_id: UUID | None=None,status: str | None=
     return list(db.scalars(q).all())
 
 @router.post("/{expense_id}/pay",response_model=ExpenseRead)
-def post_expense_payment(company_id: UUID,expense_id: UUID,payload: ExpensePay,db: Session=Depends(get_db)):
+def post_expense_payment(company_id: UUID,expense_id: UUID,payload: ExpensePay,response: Response,db: Session=Depends(get_db)):
     try:
-        row=pay_expense(db,company_id=company_id,expense_id=expense_id,payment_method=payload.payment_method)
+        row,created=pay_expense(
+            db,company_id=company_id,expense_id=expense_id,
+            payment_method=payload.payment_method,return_created=True
+        )
+        if not created:
+            response.status_code=200
         db.commit(); db.refresh(row); return row
+    except ExpensePaymentIdempotencyConflict as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc
