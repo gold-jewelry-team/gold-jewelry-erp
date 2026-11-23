@@ -785,3 +785,54 @@ def test_supplier_bills_can_be_created_from_active_purchase_states():
         session.close()
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_supplier_payment_overpayment_on_second_bill_is_atomic():
+    from app.models.supplier_payable import SupplierPaymentAllocation
+
+    engine, TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        bills = []
+        for bill_no in ("INV-ATOMIC-OVERPAY-001", "INV-ATOMIC-OVERPAY-002"):
+            response = client.post(f"{base}/bills", json={
+                "site_id": str(site_id),
+                "supplier_id": str(supplier_id),
+                "bill_no": bill_no,
+                "bill_date": "2026-11-23",
+                "currency_code": "TWD",
+                "total_amount": "100.00",
+            })
+            assert response.status_code == 201, response.text
+            bills.append(response.json())
+
+        # The first bill allocation is valid, but the second exceeds its
+        # outstanding balance. Neither allocation nor payment may be saved.
+        rejected = client.post(f"{base}/payments", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "payment_no": "SP-ATOMIC-OVERPAY",
+            "payment_method": "TRANSFER",
+            "allocations": [
+                {"bill_id": bills[0]["id"], "amount": "30.00"},
+                {"bill_id": bills[1]["id"], "amount": "100.01"},
+            ],
+        })
+        assert rejected.status_code == 422, rejected.text
+        assert "超過未付餘額" in rejected.json()["detail"]
+
+        for bill in bills:
+            refreshed = client.get(f"{base}/bills/{bill['id']}")
+            assert refreshed.status_code == 200, refreshed.text
+            assert refreshed.json()["status"] == "OPEN"
+            assert Decimal(refreshed.json()["paid_amount"]) == Decimal("0.00")
+            assert Decimal(refreshed.json()["outstanding_amount"]) == Decimal("100.00")
+
+        check = TestSession()
+        assert check.query(SupplierPayment).count() == 0
+        assert check.query(SupplierPaymentAllocation).count() == 0
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
