@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -16,7 +16,11 @@ from app.models.storage_location import StorageLocation
 from app.routers.schemas.inventory import (
     InventoryAdjustmentCreate, InventoryMovementRead, InventoryTransferCreate, StockBalanceRead,
 )
-from app.services.inventory import create_inventory_movement
+from app.services.inventory import (
+    InventoryIdempotencyConflict,
+    create_inventory_movement,
+    get_idempotent_adjustment,
+)
 
 router = APIRouter(prefix="/companies/{company_id}/inventory", tags=["inventory"])
 
@@ -133,8 +137,24 @@ def list_inventory_movements(
 
 @router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
 def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCreate,
-                              db: Session = Depends(get_db)):
+                              response: Response, db: Session = Depends(get_db)):
     try:
+        existing = get_idempotent_adjustment(
+            db,
+            company_id=company_id,
+            site_id=payload.site_id,
+            product_id=payload.product_id,
+            location_id=payload.location_id,
+            direction=payload.direction,
+            quantity=payload.quantity,
+            weight=payload.weight,
+            weight_unit_code=payload.weight_unit_code,
+            note=payload.note,
+            idempotency_key=payload.idempotency_key,
+        )
+        if existing is not None:
+            response.status_code = 200
+            return existing
         movement = create_inventory_movement(
             db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
             movement_type="ADJUSTMENT", quantity=payload.quantity,
@@ -142,13 +162,40 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
             to_location_id=payload.location_id if payload.direction == "IN" else None,
             weight=payload.weight, weight_unit_code=payload.weight_unit_code,
             occurred_at=payload.occurred_at, note=payload.note,
+            idempotency_key=payload.idempotency_key,
         )
         db.commit()
         db.refresh(movement)
         return movement
+    except InventoryIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        if payload.idempotency_key is not None:
+            try:
+                existing = get_idempotent_adjustment(
+                    db,
+                    company_id=company_id,
+                    site_id=payload.site_id,
+                    product_id=payload.product_id,
+                    location_id=payload.location_id,
+                    direction=payload.direction,
+                    quantity=payload.quantity,
+                    weight=payload.weight,
+                    weight_unit_code=payload.weight_unit_code,
+                    note=payload.note,
+                    idempotency_key=payload.idempotency_key,
+                )
+            except InventoryIdempotencyConflict as conflict:
+                raise HTTPException(status_code=409, detail=str(conflict)) from conflict
+            if existing is not None:
+                response.status_code = 200
+                return existing
+        raise HTTPException(status_code=409, detail="庫存調整重複或資料關聯衝突。") from exc
 
 
 @router.post("/transfers", response_model=InventoryMovementRead, status_code=201)
