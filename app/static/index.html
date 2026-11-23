@@ -45,7 +45,7 @@ header{padding:14px 16px 10px}
 .panel-collapsible>h2{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .panel-toggle{flex:0 0 auto;min-height:34px;padding:6px 12px;font-size:12px}
 .panel-collapsed>.panel-content{display:none}
-main>section.panel[id]{scroll-margin-top:240px}
+main>section.panel[id]{scroll-margin-top:240px}main>section.panel[id] h3{scroll-margin-top:240px}
 #backToTop{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:15;display:none;min-height:44px;padding:10px 14px;border-radius:999px;box-shadow:0 3px 14px #0003}
 #backToTop.visible{display:block}
 @media(max-width:420px){.header-title-row{gap:8px;align-items:center}.header-title-row h1{font-size:18px}.header-title-row .quick-nav{flex-basis:145px;min-width:120px}#quickNavSearch{font-size:12px;padding-left:8px;padding-right:8px}}@media(min-width:640px){header{padding-left:max(16px,calc((100vw - 760px)/2));padding-right:max(16px,calc((100vw - 760px)/2))}}
@@ -116,7 +116,7 @@ main>section.panel[data-category]{min-width:0}
 @media(max-width:520px){.gold-summary-foot{align-items:flex-start;flex-direction:column}.gold-summary-price{flex:1 1 100%;justify-content:space-between}.sale-gold-quote-head strong{flex-basis:100%}}
 
 /* 手機版：頁首與分類捷徑不固定，避免佔住可閱讀畫面 */
-@media(max-width:899px){header{position:static;top:auto}.category-shortcuts{position:static;top:auto;max-height:none;overflow:visible;z-index:auto}}
+@media(max-width:899px){header{position:static;top:auto}.category-shortcuts{position:static;top:auto;max-height:none;overflow:visible;z-index:auto}main>section.panel[id],main>section.panel[id] h3{scroll-margin-top:24px}}
 
 
 
