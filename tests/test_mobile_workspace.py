@@ -63,6 +63,10 @@ def test_mobile_workspace_serves_html():
     assert '$("labelLotSelect").focus()' in response.text
     assert 'event.key==="Escape"&&!$("labelLotModal").classList.contains("hidden")' in response.text
     assert "function closeLabelLotModal()" in response.text
+    assert 'class="label-lot-dialog" tabindex="-1"' in response.text
+    assert 'event.key!=="Tab"' in response.text
+    assert "dialog.querySelectorAll(" in response.text
+    assert "last.focus()" in response.text and "first.focus()" in response.text
     assert "if(trigger&&trigger.isConnected)trigger.focus()" in response.text
     assert 'event.key==="Escape"&&!$("scanModal").classList.contains("hidden")' in response.text
     assert '$("closeScanner").focus()' in response.text
