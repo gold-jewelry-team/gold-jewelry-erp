@@ -489,7 +489,7 @@ def test_responsive_workspace_prevents_narrow_viewport_overflow():
     response = TestClient(app).get("/app")
     assert response.status_code == 200
     html = response.text
-    assert '<meta name="viewport" content="width=device-width, initial-scale=1.0">' in html
+    assert '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' in html
     assert "@media(max-width:520px)" in html
     assert "@media(max-width:380px)" in html
     assert "main>section.panel{min-width:0;max-width:100%}" in html
