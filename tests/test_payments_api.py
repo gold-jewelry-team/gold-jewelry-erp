@@ -495,3 +495,78 @@ def test_cash_count_requires_independent_reviewer_and_is_reviewed_once():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_mixed_sale_allows_partial_card_and_cash_installments_with_exact_tender_caps():
+    engine, TestSession, ids, _ = _payment_context()
+    company_id, site_id = ids[0], ids[1]
+    session = TestSession()
+    mixed_sale = Sale(
+        company_id=company_id,
+        site_id=site_id,
+        sale_no="PAY-MIXED-PARTIAL-001",
+        status="COMPLETED",
+        payment_method="MIXED",
+        currency_code="TWD",
+        subtotal=Decimal("30000"),
+        card_amount=Decimal("10000"),
+        card_fee=Decimal("500"),
+        final_amount=Decimal("30500"),
+        completed_at=datetime.now(timezone.utc),
+    )
+    session.add(mixed_sale)
+    session.commit()
+    sale_id = mixed_sale.id
+    session.close()
+
+    try:
+        client = TestClient(app)
+        url = f"/companies/{company_id}/sales/{sale_id}/payments"
+
+        card_first = client.post(url, json={
+            "payment_method": "CARD", "amount": "6000.00",
+        })
+        assert card_first.status_code == 201, card_first.text
+        card_second = client.post(url, json={
+            "payment_method": "CARD", "amount": "4500.00",
+        })
+        assert card_second.status_code == 201, card_second.text
+        card_over = client.post(url, json={
+            "payment_method": "CARD", "amount": "0.01",
+        })
+        assert card_over.status_code == 422
+        assert "刷卡" in card_over.json()["detail"]
+
+        cash_first = client.post(url, json={
+            "payment_method": "CASH", "amount": "12500.00",
+        })
+        assert cash_first.status_code == 201, cash_first.text
+        cash_over = client.post(url, json={
+            "payment_method": "CASH", "amount": "7500.01",
+        })
+        assert cash_over.status_code == 422
+        cash_second = client.post(url, json={
+            "payment_method": "CASH", "amount": "7500.00",
+        })
+        assert cash_second.status_code == 201, cash_second.text
+
+        rows = client.get(url)
+        assert rows.status_code == 200
+        card_total = sum(
+            (Decimal(row["amount"]) for row in rows.json()
+             if row["payment_method"] == "CARD"), Decimal("0")
+        )
+        cash_total = sum(
+            (Decimal(row["amount"]) for row in rows.json()
+             if row["payment_method"] == "CASH"), Decimal("0")
+        )
+        assert card_total == Decimal("10500.00")
+        assert cash_total == Decimal("20000.00")
+        assert len(rows.json()) == 4
+
+        verify = TestSession()
+        assert verify.query(PaymentTransaction).count() == 4
+        verify.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
