@@ -25,6 +25,6 @@ test("home dashboard shortcuts activate, expand, scroll to and focus their targe
   assert.ok(handler.includes('document.getElementById(shortcut.getAttribute("data-home-target"))'), "shortcut must resolve its section by ID");
   assert.ok(handler.includes('categoryButton.click()'), "shortcut must activate the target category through the category button");
   assert.ok(handler.includes('target.querySelector(":scope > h2 .panel-toggle")'), "collapsed target panels must be expanded");
-  assert.ok(handler.includes('target.scrollIntoView({behavior:"smooth",block:"start"})'), "shortcut must scroll to its target");
+  assert.ok(handler.includes('target.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})'), "shortcut must scroll to its target");
   assert.ok(handler.includes('target.focus({preventScroll:true})'), "shortcut must move keyboard focus to its target");
 });
