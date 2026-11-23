@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
 from app.models.gold_material import GoldMaterialMovement
+from app.models.site import Site
 from app.routers.schemas.gold_material import (
     GoldMaterialBalanceRead, GoldMaterialMovementCreate, GoldMaterialMovementRead,
 )
@@ -25,6 +26,12 @@ def get_db():
 
 @router.get("/balance", response_model=GoldMaterialBalanceRead)
 def get_gold_material_balance(company_id: UUID, site_id: UUID, db: Session = Depends(get_db)):
+    site = db.scalar(select(Site).where(
+        Site.id == site_id,
+        Site.company_id == company_id,
+    ))
+    if site is None:
+        raise HTTPException(status_code=404, detail="找不到指定公司據點。")
     signed_weight = case(
         (GoldMaterialMovement.movement_type.in_(INCOMING_TYPES), GoldMaterialMovement.fine_gold_weight_g),
         else_=-GoldMaterialMovement.fine_gold_weight_g,
