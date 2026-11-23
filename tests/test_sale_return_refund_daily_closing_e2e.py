@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
