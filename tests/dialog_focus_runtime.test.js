@@ -15,7 +15,7 @@ function extractHandler(marker) {
 
 function setup(kind, options = {}) {
   const focusable = [];
-  const document = { activeElement: null, handler: null };
+  const document = { activeElement: null, handler: null, addEventListener(type, callback) { if (type === "keydown") this.handler = callback; } };
   const dialog = {
     focused: false,
     focus() { this.focused = true; document.activeElement = this; },
