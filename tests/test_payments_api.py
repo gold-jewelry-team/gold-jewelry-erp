@@ -570,3 +570,76 @@ def test_mixed_sale_allows_partial_card_and_cash_installments_with_exact_tender_
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_mixed_sale_card_and_cash_installments_reconcile_to_daily_close_and_drawer():
+    from zoneinfo import ZoneInfo
+
+    engine, TestSession, ids, _ = _payment_context()
+    company_id, site_id = ids[0], ids[1]
+    session = TestSession()
+    mixed_sale = Sale(
+        company_id=company_id,
+        site_id=site_id,
+        sale_no="PAY-MIXED-CLOSE-001",
+        status="COMPLETED",
+        payment_method="MIXED",
+        currency_code="TWD",
+        subtotal=Decimal("30000"),
+        card_amount=Decimal("10000"),
+        card_fee=Decimal("500"),
+        final_amount=Decimal("30500"),
+        completed_at=datetime.now(timezone.utc),
+    )
+    session.add(mixed_sale)
+    session.commit()
+    sale_id = mixed_sale.id
+    session.close()
+
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}"
+        card = client.post(
+            f"{base}/sales/{sale_id}/payments",
+            json={"payment_method": "CARD", "amount": "10500.00"},
+        )
+        assert card.status_code == 201, card.text
+        cash = client.post(
+            f"{base}/sales/{sale_id}/payments",
+            json={"payment_method": "CASH", "amount": "20000.00"},
+        )
+        assert cash.status_code == 201, cash.text
+
+        business_date = datetime.now(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"{base}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+        snapshot = closing.json()
+        assert snapshot["gross_sales_amount"] == "30500.00"
+        assert snapshot["collected_amount"] == "30500.00"
+        summaries = {
+            row["payment_method"]: row for row in snapshot["payment_summaries"]
+        }
+        assert summaries["CARD"]["collected_amount"] == "10500.00"
+        assert summaries["CASH"]["collected_amount"] == "20000.00"
+
+        counted = client.post(
+            f"{base}/sites/{site_id}/daily-closings/{snapshot['id']}/cash-count",
+            json={
+                "opening_cash_float": "1000.00",
+                "counted_cash_amount": "21000.00",
+                "counted_by_name": "盤點甲",
+            },
+        )
+        assert counted.status_code == 201, counted.text
+        assert counted.json()["expected_cash_amount"] == "21000.00"
+        assert counted.json()["cash_variance"] == "0.00"
+
+        verify = TestSession()
+        assert verify.query(PaymentTransaction).count() == 2
+        verify.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
