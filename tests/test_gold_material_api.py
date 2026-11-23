@@ -431,3 +431,88 @@ def test_supplier_gold_delivery_rejects_allocation_total_mismatch_atomically():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_supplier_gold_delivery_cannot_exceed_balance_after_cash_payment():
+    engine, TestSession, (company_id, site_id, supplier_id) = _context()
+    try:
+        client = TestClient(app)
+        payable_base = f"/companies/{company_id}/supplier-payables"
+        gold_base = f"/companies/{company_id}/gold-material"
+
+        bill = client.post(f"{payable_base}/bills", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "bill_no": "INV-GOLD-AFTER-CASH-OVERPAY",
+            "bill_date": "2026-11-23",
+            "currency_code": "TWD",
+            "total_amount": "30000.00",
+        })
+        assert bill.status_code == 201, bill.text
+
+        cash = client.post(f"{payable_base}/payments", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "payment_no": "SP-GOLD-AFTER-CASH-OVERPAY",
+            "payment_method": "TRANSFER",
+            "allocations": [{
+                "bill_id": bill.json()["id"],
+                "amount": "10000.00",
+            }],
+        })
+        assert cash.status_code == 201, cash.text
+
+        opening = client.post(f"{gold_base}/movements", json={
+            "site_id": str(site_id),
+            "movement_no": "GM-OPEN-GOLD-AFTER-CASH-OVERPAY",
+            "movement_type": "OPENING",
+            "purity_label": "9999",
+            "purity_ratio": "1.000000",
+            "gross_weight": "30.0000",
+            "loss_weight": "0",
+            "weight_unit_code": "G",
+            "gold_price_value": "1000.00",
+            "gold_price_unit_code": "G",
+            "deduction_amount": "0",
+        })
+        assert opening.status_code == 201, opening.text
+
+        rejected = client.post(f"{gold_base}/movements", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "movement_no": "GM-DEL-GOLD-AFTER-CASH-OVERPAY",
+            "movement_type": "SUPPLIER_DELIVERY",
+            "source_type": "PURCHASE_SETTLEMENT",
+            "purity_label": "9999",
+            "purity_ratio": "1.000000",
+            "gross_weight": "20.0001",
+            "loss_weight": "0",
+            "weight_unit_code": "G",
+            "gold_price_value": "1000.00",
+            "gold_price_unit_code": "G",
+            "deduction_amount": "0",
+            "allocations": [{
+                "bill_id": bill.json()["id"],
+                "amount": "20000.10",
+            }],
+        })
+        assert rejected.status_code == 422, rejected.text
+        assert "超過應付總額" in rejected.json()["detail"]
+
+        balance = client.get(f"{gold_base}/balance", params={"site_id": str(site_id)})
+        assert balance.status_code == 200, balance.text
+        assert Decimal(balance.json()["fine_gold_weight_g"]) == Decimal("30.0000")
+
+        refreshed = client.get(f"{payable_base}/bills/{bill.json()['id']}")
+        assert refreshed.status_code == 200, refreshed.text
+        assert refreshed.json()["status"] == "PARTIALLY_PAID"
+        assert Decimal(refreshed.json()["paid_amount"]) == Decimal("10000.00")
+        assert Decimal(refreshed.json()["outstanding_amount"]) == Decimal("20000.00")
+
+        check = TestSession()
+        assert check.query(GoldMaterialMovement).count() == 1
+        assert check.query(GoldMaterialSettlementAllocation).count() == 0
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
