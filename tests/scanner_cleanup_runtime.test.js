@@ -61,3 +61,17 @@ test("cleanup is safe when no camera stream or animation is active", () => {
   assert.equal(ui.context.scanDetector, null);
   assert.equal(ui.context.scanBusy, false);
 });
+
+test("repeated cleanup does not stop tracks or cancel frames twice", () => {
+  const ui = setup({ frame: 123, tracks: 2 });
+  ui.context.stopCameraScanner();
+  ui.context.stopCameraScanner();
+
+  assert.deepEqual(ui.stopped, [0, 1]);
+  assert.deepEqual(ui.cancelled, [123]);
+  assert.equal(ui.context.scanStream, null);
+  assert.equal(ui.context.scanFrameHandle, null);
+  assert.equal(ui.video.srcObject, null);
+  assert.equal(ui.context.scanDetector, null);
+  assert.equal(ui.context.scanBusy, false);
+});
