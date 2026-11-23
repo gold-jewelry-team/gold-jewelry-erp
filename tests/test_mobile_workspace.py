@@ -48,6 +48,13 @@ def test_mobile_workspace_serves_html():
     assert "function newStocktakeAdjustmentKey()" in response.text
     assert "idempotency_key:x.idempotency_key" in response.text
     assert "idempotency_key:line.idempotency_key" in response.text
+    assert "expected_net_weight:x.expected_net_weight" in response.text
+    assert "expected_net_weight:Number(line.expected_net_weight??product.net_weight)||0" in response.text
+    assert "/inventory/stocktake-adjustments" in response.text
+    assert "expected_quantity:String(line.expected)" in response.text
+    assert "actual_quantity:String(line.counted)" in response.text
+    assert "盤點期間的庫存或商品淨重已改變，整批未入帳" in response.text
+    assert "loadStocktakeBaseline(true)" in response.text
     assert 'id="inventoryAdjustmentForm"' in response.text
     assert 'id="inventoryTransferForm"' in response.text
     assert 'id="inventoryMovementPanel"' in response.text
