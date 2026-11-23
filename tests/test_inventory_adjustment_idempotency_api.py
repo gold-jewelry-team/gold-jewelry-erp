@@ -62,11 +62,20 @@ def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
         client = TestClient(app)
         url = f"/companies/{company_id}/inventory/adjustments"
         key = str(uuid4())
-        payload = {
+        received = client.post(url, json={
             "site_id": str(site_id),
             "product_id": str(product_id),
             "location_id": str(location_id),
             "direction": "IN",
+            "quantity": "2",
+        })
+        assert received.status_code == 201, received.text
+
+        payload = {
+            "site_id": str(site_id),
+            "product_id": str(product_id),
+            "location_id": str(location_id),
+            "direction": "OUT",
             "quantity": "2",
             "weight": "1.0000",
             "weight_unit_code": "QIAN",
@@ -83,17 +92,18 @@ def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
 
         verify = TestSession()
         rows = verify.query(InventoryMovement).all()
-        assert len(rows) == 1
-        assert rows[0].reference_type == "STOCKTAKE"
-        assert rows[0].reference_id.hex == key.replace("-", "")
+        assert len(rows) == 2
+        stocktake_rows = [row for row in rows if row.reference_type == "STOCKTAKE"]
+        assert len(stocktake_rows) == 1
+        assert stocktake_rows[0].reference_id.hex == key.replace("-", "")
         verify.close()
 
         stock = client.get(
             f"/companies/{company_id}/inventory/stock",
-            params={"site_id": str(site_id), "location_id": str(location_id)},
+            params={"site_id": str(site_id), "location_id": str(location_id), "include_zero": "true"},
         )
         assert stock.status_code == 200, stock.text
-        assert stock.json()[0]["quantity"] == "2.000"
+        assert stock[0]["quantity"] == "0.000"
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)
