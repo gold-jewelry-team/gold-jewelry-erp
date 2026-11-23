@@ -2211,7 +2211,7 @@ function readPendingPurchaseReceive(purchaseId,lineId){
   const pending=JSON.parse(raw);
   return pending&&pending.idempotency_key&&pending.location_id&&pending.received_quantity?pending:null;
  }catch(error){
-  localStorage.removeItem(purchaseReceiveStorageKey(purchaseId,lineId));
+  try{localStorage.removeItem(purchaseReceiveStorageKey(purchaseId,lineId));}catch(storageError){}
   return null;
  }
 }
