@@ -29,22 +29,47 @@ def test_operating_expense_create_pay_and_daily_closing():
         created=client.post(base,json={"site_id":str(sid),"expense_no":"EXP-001","expense_date":"2026-11-19","category_code":"UTILITIES","description":"電費","amount":"1200.00"})
         assert created.status_code==201,created.text
         assert created.json()["status"]=="UNPAID"
-        paid=client.post(f"{base}/{created.json()['id']}/pay",json={"payment_method":"TRANSFER"})
+        expense_id=created.json()["id"]
+
+        paid=client.post(f"{base}/{expense_id}/pay",json={"payment_method":"TRANSFER"})
         assert paid.status_code==200,paid.text
         assert paid.json()["status"]=="PAID"
+        original_paid_at=paid.json()["paid_at"]
+        assert paid.json()["payment_method"]=="TRANSFER"
 
         listed = client.get(base, params={"site_id": str(sid), "status": "PAID"})
         assert listed.status_code == 200, listed.text
         assert len(listed.json()) == 1
-        assert listed.json()[0]["id"] == created.json()["id"]
+        assert listed.json()[0]["id"] == expense_id
         today=datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
         close=client.post(f"/companies/{cid}/sites/{sid}/daily-closings",json={"business_date":today.isoformat()})
         assert close.status_code==201,close.text
         assert close.json()["expenses_paid_amount"]=="1200.00"
         assert close.json()["net_cash_flow"]=="-1200.00"
+
+        # The first payment may have committed even when the browser missed
+        # the response. An exact retry after daily closing returns that row.
+        replay=client.post(f"{base}/{expense_id}/pay",json={"payment_method":"TRANSFER"})
+        assert replay.status_code==200,replay.text
+        assert replay.json()["id"]==paid.json()["id"]
+        assert replay.json()["status"]=="PAID"
+        assert replay.json()["payment_method"]=="TRANSFER"
+        assert replay.json()["paid_at"]==original_paid_at
+
+        # A retry that changes the payment method is not an update operation.
+        changed=client.post(f"{base}/{expense_id}/pay",json={"payment_method":"CASH"})
+        assert changed.status_code==409,changed.text
+        assert "不可重複付款或變更原付款方式" in changed.json()["detail"]
+
+        refreshed=client.get(base,params={"site_id":str(sid),"status":"PAID"})
+        assert refreshed.status_code==200,refreshed.text
+        assert len(refreshed.json())==1
+        assert refreshed.json()[0]["payment_method"]=="TRANSFER"
+        assert refreshed.json()[0]["paid_at"]==original_paid_at
         check=Session(); assert check.query(OperatingExpense).count()==1; check.close()
     finally:
         app.dependency_overrides.clear(); engine.dispose()
+
 
 
 def test_unpaid_expense_cannot_be_paid_after_daily_closing():
