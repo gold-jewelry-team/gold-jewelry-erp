@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from uuid import UUID
 
 from app import models  # noqa: F401
 from app.db.base import Base
@@ -91,7 +92,7 @@ def test_same_product_on_two_sale_lines_creates_two_linked_deductions():
         assert all(m.movement_type == "SALE" and m.quantity == Decimal("1") for m in movements)
         assert all(m.weight == Decimal("1.0000") and m.weight_unit_code == "QIAN" for m in movements)
         assert get_stock_balance(check, product_id=product_id, location_id=location_id) == Decimal("0")
-        assert check.get(Sale, sale["id"]).status == "COMPLETED"
+        assert check.get(Sale, UUID(sale["id"])).status == "COMPLETED"
         check.close()
     finally:
         app.dependency_overrides.clear()
