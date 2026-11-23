@@ -23,5 +23,5 @@ test("all in-page navigation respects the operating system reduced-motion prefer
   assert.ok(html.includes('item.scrollIntoView({behavior:'+reducedMotionBehavior+',block:"start"})'), "nested section shortcuts should respect reduced motion");
   assert.ok(html.includes('panel.scrollIntoView({behavior:'+reducedMotionBehavior+',block:"start"})'), "panel shortcuts should respect reduced motion");
   assert.ok(html.includes('target.scrollIntoView({behavior:'+reducedMotionBehavior+',block:"start"})'), "home dashboard shortcuts should respect reduced motion");
-  assert.doesNotMatch(html, /scrollIntoView\\(\\{behavior:"smooth"/, "no in-page scroll action should force smooth motion");
+  assert.ok(!html.includes('scrollIntoView({behavior:"smooth"'), "no in-page scroll action should force smooth motion");
 });
