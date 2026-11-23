@@ -21,7 +21,7 @@ test("home dashboard shortcuts activate, expand, scroll to and focus their targe
   assert.ok(start >= 0 && end > start, "missing home shortcut click handler");
   const handler = html.slice(start, end);
 
-  assert.ok(handler.includes('event.target.closest("[data-home-target]")'), "nested shortcut content must resolve to its parent action");
+  assert.ok(handler.includes('eventElement&&eventElement.closest("[data-home-target]")'), "nested shortcut content must resolve to its parent action");
   assert.ok(handler.includes('document.getElementById(shortcut.getAttribute("data-home-target"))'), "shortcut must resolve its section by ID");
   assert.ok(handler.includes('categoryButton.click()'), "shortcut must activate the target category through the category button");
   assert.ok(handler.includes('target.closest("section.panel[data-category]")'), "nested shortcut targets must resolve their owning category panel");
