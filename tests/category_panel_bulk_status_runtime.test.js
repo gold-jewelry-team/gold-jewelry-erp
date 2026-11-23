@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 
 const html = fs.readFileSync("app/static/index.html", "utf8");
-const start = html.indexOf("const renderShortcuts=category=>");
+const start = html.indexOf('const status=document.createElement("span")');
 const end = html.indexOf('renderShortcuts("quote");', start);
 assert.ok(start >= 0 && end > start, "missing category shortcut renderer");
 const source = html.slice(start, end);
