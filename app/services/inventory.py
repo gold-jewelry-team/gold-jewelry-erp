@@ -22,6 +22,10 @@ class InventoryIdempotencyConflict(ValueError):
     """Raised when a retry key is reused for a different inventory adjustment."""
 
 
+class StocktakeSnapshotConflict(ValueError):
+    """Raised when stock changed after the stocktake baseline was captured."""
+
+
 def get_idempotent_adjustment(
     session: Session,
     *,
@@ -66,6 +70,192 @@ def get_idempotent_adjustment(
         )
     return existing
 
+
+
+def apply_stocktake_adjustment_batch(
+    session: Session,
+    *,
+    company_id: UUID,
+    site_id: UUID,
+    items: list[dict],
+) -> tuple[list[InventoryMovement], bool, int]:
+    """Validate every stocktake snapshot before applying any adjustment.
+
+    All product rows are locked in a stable order. Any stale quantity/weight
+    snapshot aborts the whole transaction, so a newer sale/return/transfer
+    cannot be overwritten by an old count.
+    """
+    if not items:
+        raise ValueError("盤點清單不可為空。")
+    if len(items) > 500:
+        raise ValueError("單次盤點最多可處理 500 件商品。")
+
+    product_ids = [item["product_id"] for item in items]
+    idempotency_keys = [item["idempotency_key"] for item in items]
+    if len(set(product_ids)) != len(product_ids):
+        raise ValueError("同一盤點批次不可重複包含同一商品。")
+    if len(set(idempotency_keys)) != len(idempotency_keys):
+        raise ValueError("盤點項目的冪等識別碼不可重複。")
+
+    # Serialize batches for this company and lock inventory rows in stable order.
+    company = session.scalar(
+        select(Company).where(Company.id == company_id).with_for_update()
+    )
+    site = session.scalar(
+        select(Site).where(
+            Site.id == site_id,
+            Site.company_id == company_id,
+        ).with_for_update()
+    )
+    if company is None:
+        raise ValueError("找不到指定公司。")
+    if site is None:
+        raise ValueError("據點不存在或不屬於指定公司。")
+
+    location_ids = {item["location_id"] for item in items}
+    locations = session.scalars(
+        select(StorageLocation).where(
+            StorageLocation.id.in_(location_ids),
+            StorageLocation.site_id == site_id,
+            StorageLocation.is_active.is_(True),
+        ).with_for_update()
+    ).all()
+    if len(locations) != len(location_ids):
+        raise ValueError("盤點儲存位置不存在、未啟用或不屬於指定據點。")
+
+    products = session.scalars(
+        select(Product)
+        .where(
+            Product.id.in_(product_ids),
+            Product.company_id == company_id,
+        )
+        .order_by(Product.id)
+        .with_for_update()
+    ).all()
+    products_by_id = {product.id: product for product in products}
+    if len(products_by_id) != len(product_ids):
+        raise ValueError("盤點清單包含不存在或不屬於指定公司的商品。")
+
+    existing_rows = session.scalars(
+        select(InventoryMovement).where(
+            InventoryMovement.company_id == company_id,
+            InventoryMovement.reference_type == "STOCKTAKE",
+            InventoryMovement.reference_id.in_(idempotency_keys),
+        )
+    ).all()
+    existing_by_key = {row.reference_id: row for row in existing_rows}
+
+    changed_items = []
+    expected_keys = set()
+    no_change_count = 0
+    for item in items:
+        product_id = item["product_id"]
+        product = products_by_id[product_id]
+        location_id = item["location_id"]
+        expected_quantity = item["expected_quantity"]
+        actual_quantity = item["actual_quantity"]
+        expected_net_weight = item["expected_net_weight"]
+        key = item["idempotency_key"]
+        note = (item.get("note") or "").strip() or (
+            f"條碼盤點差異（帳面：{expected_quantity}；實盤：{actual_quantity}）"
+        )
+
+        if expected_quantity < 0 or actual_quantity < 0:
+            raise ValueError("盤點數量不可小於零。")
+        if expected_net_weight < 0:
+            raise ValueError("盤點基準重量不可小於零。")
+        if actual_quantity != expected_quantity:
+            expected_keys.add(key)
+            direction = "IN" if actual_quantity > expected_quantity else "OUT"
+            quantity = abs(actual_quantity - expected_quantity)
+            expected_from = location_id if direction == "OUT" else None
+            expected_to = location_id if direction == "IN" else None
+            existing = existing_by_key.get(key)
+            if existing is not None:
+                matches = (
+                    existing.movement_type == "ADJUSTMENT"
+                    and existing.site_id == site_id
+                    and existing.product_id == product_id
+                    and existing.from_location_id == expected_from
+                    and existing.to_location_id == expected_to
+                    and existing.quantity == quantity
+                    and existing.weight == expected_net_weight
+                    and existing.weight_unit_code == product.weight_unit_code
+                    and existing.note == note
+                )
+                if not matches:
+                    raise InventoryIdempotencyConflict(
+                        "盤點識別碼已用於不同商品或不同數量，請重新讀取盤點草稿。"
+                    )
+            changed_items.append({
+                "item": item,
+                "product": product,
+                "direction": direction,
+                "quantity": quantity,
+                "note": note,
+            })
+        else:
+            no_change_count += 1
+            if key in existing_by_key:
+                raise InventoryIdempotencyConflict(
+                    "盤點識別碼先前已用於有差異的調整，不能改成無差異項目。"
+                )
+
+    # A previously committed batch is replayed only when every non-zero line
+    # already has its exact movement. Partial prior commits are never continued.
+    if existing_by_key:
+        if set(existing_by_key) != expected_keys:
+            raise InventoryIdempotencyConflict(
+                "盤點調整紀錄與本次清單不一致；為避免部分重複入帳，請先查詢庫存異動紀錄。"
+            )
+        return [existing_by_key[key] for key in idempotency_keys if key in existing_by_key], True, no_change_count
+
+    # Check all snapshots before writing the first movement.
+    conflicts = []
+    for item in items:
+        product = products_by_id[item["product_id"]]
+        current_quantity = get_stock_balance(
+            session,
+            product_id=product.id,
+            location_id=item["location_id"],
+        )
+        expected_quantity = item["expected_quantity"]
+        expected_weight = item["expected_net_weight"]
+        if current_quantity != expected_quantity:
+            conflicts.append(
+                f"{product.product_code}（帳面數量已由 {expected_quantity} 變更為 {current_quantity}）"
+            )
+        if product.net_weight != expected_weight:
+            conflicts.append(
+                f"{product.product_code}（商品淨重已由 {expected_weight} 變更為 {product.net_weight}）"
+            )
+        if not product.is_active:
+            conflicts.append(f"{product.product_code}（商品已停用）")
+    if conflicts:
+        raise StocktakeSnapshotConflict(
+            "盤點期間商品資料已被其他交易變更，整批未入帳：" + "；".join(conflicts[:10])
+        )
+
+    movements = []
+    for entry in changed_items:
+        item = entry["item"]
+        movement = create_inventory_movement(
+            session,
+            company_id=company_id,
+            site_id=site_id,
+            product_id=item["product_id"],
+            movement_type="ADJUSTMENT",
+            quantity=entry["quantity"],
+            from_location_id=item["location_id"] if entry["direction"] == "OUT" else None,
+            to_location_id=item["location_id"] if entry["direction"] == "IN" else None,
+            weight=entry["product"].net_weight,
+            weight_unit_code=entry["product"].weight_unit_code,
+            note=entry["note"],
+            idempotency_key=item["idempotency_key"],
+        )
+        movements.append(movement)
+
+    return movements, False, no_change_count
 
 def create_inventory_movement(
     session: Session,
