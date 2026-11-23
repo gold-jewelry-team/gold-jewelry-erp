@@ -84,7 +84,8 @@ def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
         verify = TestSession()
         rows = verify.query(InventoryMovement).all()
         assert len(rows) == 1
-        assert rows[0].idempotency_key.hex == key.replace("-", "")
+        assert rows[0].reference_type == "STOCKTAKE"
+        assert rows[0].reference_id.hex == key.replace("-", "")
         verify.close()
 
         stock = client.get(
