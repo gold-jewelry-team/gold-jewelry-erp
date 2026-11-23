@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -85,7 +86,7 @@ def test_ignore_targets_one_statement_line_in_multi_line_import():
         assert statuses[untouched["id"]] == "UNMATCHED"
 
         verify = TestSession()
-        stored = verify.query(BankStatementLine).filter_by(import_id=import_id).all()
+        stored = verify.query(BankStatementLine).filter_by(import_id=UUID(import_id)).all()
         assert len(stored) == 2
         assert sum(row.status == "IGNORED" for row in stored) == 1
         assert sum(row.status == "UNMATCHED" for row in stored) == 1
