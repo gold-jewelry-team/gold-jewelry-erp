@@ -103,7 +103,7 @@ def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
             params={"site_id": str(site_id), "location_id": str(location_id), "include_zero": "true"},
         )
         assert stock.status_code == 200, stock.text
-        assert stock[0]["quantity"] == "0.000"
+        assert stock.json()[0]["quantity"] == "0.000"
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)
