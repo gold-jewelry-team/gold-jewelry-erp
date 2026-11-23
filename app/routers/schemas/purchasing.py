@@ -98,6 +98,7 @@ class PurchaseReceive(BaseModel):
     purchase_line_id: UUID
     location_id: UUID
     received_quantity: Decimal = Field(gt=0, max_digits=18, decimal_places=3)
+    idempotency_key: UUID | None = None
 
 
 class PurchaseActionResult(BaseModel):
