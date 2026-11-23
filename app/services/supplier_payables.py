@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.models.purchase import Purchase
 from app.models.site import Site
@@ -77,13 +77,13 @@ def create_supplier_bill(
         status="OPEN",
         note=note,
     )
-    session.add(bill)class SupplierPaymentIdempotencyConflict(ValueError):
-    """Raised when a supplier payment number is reused for different details."""
-
-
-
+    session.add(bill)
     session.flush()
     return bill
+
+
+class SupplierPaymentIdempotencyConflict(ValueError):
+    """Raised when a supplier payment number is reused for different details."""
 
 
 def record_supplier_payment(
