@@ -172,7 +172,8 @@ def test_mobile_workspace_serves_html():
     assert "已載入帳面庫存清單" in response.text
 
     assert 'id="quoteWorkbenchPanel"' in response.text
-    assert "掃碼／商品輸入（正式商品與臨時估價共用）" in response.text
+    assert "選擇正式商品" in response.text
+    assert "臨時估價／修改報價規格" in response.text
     assert 'id="quoteProductCode"' in response.text
     assert 'id="quoteScanButton"' in response.text
     assert 'id="quoteProductSearch"' in response.text
