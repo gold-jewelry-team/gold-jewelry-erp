@@ -156,6 +156,20 @@ jobs:
                   missing_scope_fks.append(f"{table}.{expected_name}")
           assert not missing_scope_fks, f"Missing ownership-scope foreign keys: {missing_scope_fks}"
 
+          cash_drawer_columns = {
+              column.get("name")
+              for column in inspector.get_columns("cash_drawer_movements")
+          }
+          assert "idempotency_key" in cash_drawer_columns, (
+              "Missing cash_drawer_movements.idempotency_key column"
+          )
+          cash_drawer_indexes = inspector.get_indexes("cash_drawer_movements")
+          assert any(
+              index.get("name") == "uq_cash_drawer_movements_site_idempotency_key"
+              and index.get("unique")
+              for index in cash_drawer_indexes
+          ), "Missing cash drawer idempotency unique index"
+
           print("PostgreSQL schema verification passed.")
           engine.dispose()
           PY
