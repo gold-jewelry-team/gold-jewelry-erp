@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -114,7 +115,7 @@ def test_return_api_rejects_return_after_daily_close_without_restocking():
             close_session,
             company_id=company_id,
             site_id=site_id,
-            business_date=datetime.now().date(),
+            business_date=datetime.now(ZoneInfo("Asia/Taipei")).date(),
         )
         close_session.commit()
         close_session.close()
