@@ -1245,7 +1245,7 @@ function newStocktakeAdjustmentKey(){
 }
 function persistStocktakeDraft(){
  if(!companyId||!selectedSiteId)return;
- const draft={location_id:stocktakeLocationId,lines:stocktakeLines.map(x=>({product_id:x.product.id,expected:x.expected,counted:x.counted,verified:!!x.verified,applied:!!x.applied,idempotency_key:x.idempotency_key}))};
+ const draft={location_id:stocktakeLocationId,lines:stocktakeLines.map(x=>({product_id:x.product.id,expected:x.expected,expected_net_weight:x.expected_net_weight,counted:x.counted,verified:!!x.verified,applied:!!x.applied,idempotency_key:x.idempotency_key}))};
  try{localStorage.setItem(stocktakeStorageKey(),JSON.stringify(draft));}catch(error){message("stocktakeStatus","瀏覽器無法儲存盤點暫存，請勿關閉此頁面。",true);}
 }
 function renderStocktake(){
@@ -1260,7 +1260,7 @@ function renderStocktake(){
  const pending=stocktakeLines.filter(x=>!x.applied);
  $("applyStocktake").disabled=!pending.length||pending.some(x=>!x.verified);
 }
-async function loadStocktakeBaseline(){
+async function loadStocktakeBaseline(refreshSnapshot=false){
  if(!companyId||!selectedSiteId||!stocktakeLocationId){stocktakeExpectedByProduct=new Map();return;}
  const params=new URLSearchParams({site_id:selectedSiteId,location_id:stocktakeLocationId,include_zero:"true"});
  const rows=await api("/companies/"+companyId+"/inventory/stock?"+params.toString());
@@ -1268,11 +1268,32 @@ async function loadStocktakeBaseline(){
  const existing=new Map(stocktakeLines.map(line=>[line.product.id,line]));
  for(const row of rows){
   const expected=Number(row.quantity);
-  if(expected<=0||existing.has(row.product_id))continue;
   const product=inventoryProducts.find(item=>item.id===row.product_id);
   if(!product)continue;
-  const line={product,expected,counted:0,verified:false,applied:false,idempotency_key:newStocktakeAdjustmentKey()};
-  stocktakeLines.push(line);existing.set(product.id,line);
+  const line=existing.get(row.product_id);
+  if(line){
+   if(refreshSnapshot&&!line.applied){
+    line.expected=expected;
+    line.expected_net_weight=Number(product.net_weight||0);
+    line.counted=0;
+    line.verified=false;
+    line.idempotency_key=newStocktakeAdjustmentKey();
+   }
+   continue;
+  }
+  if(expected<=0)continue;
+  const added={product,expected,expected_net_weight:Number(product.net_weight||0),counted:0,verified:false,applied:false,idempotency_key:newStocktakeAdjustmentKey()};
+  stocktakeLines.push(added);existing.set(product.id,added);
+ }
+ if(refreshSnapshot){
+  for(const line of stocktakeLines){
+   if(line.applied||stocktakeExpectedByProduct.has(line.product.id))continue;
+   line.expected=0;
+   line.expected_net_weight=Number(line.product.net_weight||0);
+   line.counted=0;
+   line.verified=false;
+   line.idempotency_key=newStocktakeAdjustmentKey();
+  }
  }
  persistStocktakeDraft();renderStocktake();
 }
@@ -1283,7 +1304,7 @@ function restoreStocktakeDraft(){
   const raw=localStorage.getItem(stocktakeStorageKey());
   if(raw){
    const saved=JSON.parse(raw);stocktakeLocationId=saved.location_id||"";
-   stocktakeLines=(saved.lines||[]).map(line=>{const product=inventoryProducts.find(x=>x.id===line.product_id);return product?{product,expected:Number(line.expected)||0,counted:Number(line.counted)||0,verified:!!line.verified,applied:!!line.applied,idempotency_key:line.idempotency_key||newStocktakeAdjustmentKey()}:null;}).filter(Boolean);
+   stocktakeLines=(saved.lines||[]).map(line=>{const product=inventoryProducts.find(x=>x.id===line.product_id);return product?{product,expected:Number(line.expected)||0,expected_net_weight:Number(line.expected_net_weight??product.net_weight)||0,counted:Number(line.counted)||0,verified:!!line.verified,applied:!!line.applied,idempotency_key:line.idempotency_key||newStocktakeAdjustmentKey()}:null;}).filter(Boolean);
   }
  }catch(error){localStorage.removeItem(stocktakeStorageKey());stocktakeLines=[];stocktakeLocationId="";}
  const select=$("stocktakeLocation");
@@ -1301,7 +1322,7 @@ async function addStocktakeProduct(product){
   line.counted=1;line.verified=true;
  }else{
   const expected=stocktakeExpectedByProduct.get(product.id)||0;
-  line={product,expected,counted:1,verified:true,applied:false,idempotency_key:newStocktakeAdjustmentKey()};
+  line={product,expected,expected_net_weight:Number(product.net_weight||0),counted:1,verified:true,applied:false,idempotency_key:newStocktakeAdjustmentKey()};
   stocktakeLines.push(line);
  }
  persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
@@ -2915,7 +2936,7 @@ $("stocktakeLocation").addEventListener("change",async()=>{
  try{await loadStocktakeBaseline();persistStocktakeDraft();renderStocktake();message("stocktakeStatus",next?"已載入帳面庫存清單；實盤數量預設為 0，掃描或人工清點後逐項核對。":"請選擇盤點位置。");}catch(error){message("stocktakeStatus",error.message,true);}
 });
 $("stocktakeBarcode").addEventListener("keydown",async event=>{if(event.key!=="Enter")return;event.preventDefault();const code=$("stocktakeBarcode").value.trim();if(code)await handleScannedProductCode(code,"stocktake");});
-$("refreshStocktake").addEventListener("click",async()=>{try{await loadStocktakeBaseline();message("stocktakeStatus","帳面庫存已重新讀取；已掃描商品的原始帳面數量保留不變。");}catch(error){message("stocktakeStatus",error.message,true);}});
+$("refreshStocktake").addEventListener("click",async()=>{if(!window.confirm("重新讀取會更新尚未入帳商品的帳面快照，並清除這些商品的實盤數量及核對狀態。已入帳項目不變。確定繼續？"))return;try{await loadStocktakeBaseline(true);message("stocktakeStatus","帳面數量與淨重快照已更新；所有未入帳項目請重新清點及核對。");}catch(error){message("stocktakeStatus",error.message,true);}});
 $("resetStocktake").addEventListener("click",()=>{if(!window.confirm("清空未入帳的實盤數量？帳面庫存列與已入帳項目會保留。"))return;stocktakeLines=stocktakeLines.filter(line=>line.applied||Number(line.expected)>0);for(const line of stocktakeLines){if(line.applied)continue;line.counted=0;line.verified=false;}persistStocktakeDraft();renderStocktake();message("stocktakeStatus","未入帳實盤數量已清空；帳面庫存商品仍保留，請重新清點。");});
 $("stocktakeList").addEventListener("change",event=>{
  const verified=event.target.closest("[data-stocktake-verified]");
@@ -2928,14 +2949,31 @@ $("applyStocktake").addEventListener("click",async()=>{
  const pending=stocktakeLines.filter(line=>!line.applied);
  const unverified=pending.filter(line=>!line.verified);
  if(unverified.length){message("stocktakeStatus","尚有 "+unverified.length+" 件商品未核對，請逐項確認後才能入帳。",true);return;}
- const button=$("applyStocktake");button.disabled=true;let applied=0;
+ const button=$("applyStocktake");button.disabled=true;
  try{
-  for(const line of pending){const variance=Number(line.counted)-Number(line.expected);
-   if(variance!==0){const payload={site_id:selectedSiteId,product_id:line.product.id,location_id:stocktakeLocationId,direction:variance>0?"IN":"OUT",quantity:String(Math.abs(variance)),weight:line.product.net_weight,weight_unit_code:line.product.weight_unit_code,idempotency_key:line.idempotency_key,note:"條碼盤點差異（帳面："+line.expected+"；實盤："+line.counted+"）"};await api("/companies/"+companyId+"/inventory/adjustments",{method:"POST",body:JSON.stringify(payload)});}
-   line.applied=true;line.verified=true;applied++;persistStocktakeDraft();renderStocktake();
-  }
-  await loadInventoryStock();await loadInventoryMovements();await loadStocktakeBaseline();message("stocktakeStatus","盤點完成：已處理 "+applied+" 件商品，差異已寫入庫存異動紀錄。");
- }catch(error){message("stocktakeStatus","盤點部分完成，已成功處理 "+applied+" 件；其餘項目保留未入帳狀態。原因："+error.message,true);}
+  const payload={
+   site_id:selectedSiteId,
+   items:pending.map(line=>({
+    product_id:line.product.id,
+    location_id:stocktakeLocationId,
+    expected_quantity:String(line.expected),
+    actual_quantity:String(line.counted),
+    expected_net_weight:String(line.expected_net_weight??line.product.net_weight??0),
+    idempotency_key:line.idempotency_key,
+    note:"條碼盤點差異（帳面："+line.expected+"；實盤："+line.counted+"）"
+   }))
+  };
+  const result=await api("/companies/"+companyId+"/inventory/stocktake-adjustments",{method:"POST",body:JSON.stringify(payload)});
+  for(const line of pending){line.applied=true;line.verified=true;}
+  persistStocktakeDraft();renderStocktake();
+  await loadInventoryStock();await loadInventoryMovements();await loadStocktakeBaseline();
+  message("stocktakeStatus","盤點整批確認完成：處理 "+result.applied_count+" 件商品，寫入 "+result.adjustment_count+" 筆庫存差異；無差異 "+result.no_change_count+" 件。");
+ }catch(error){
+  const guidance=error.status===409
+   ?"盤點期間的庫存或商品淨重已改變，整批未入帳。請先確認是否有新交易，再按「重新讀取帳面庫存」更新快照並重新核對。"
+   :"本次整批未完成，未確認入帳的項目仍保留在盤點草稿，可使用相同識別碼安全重試。";
+  message("stocktakeStatus",guidance+" 原因："+error.message,true);
+ }
  finally{renderStocktake();}
 });
 $("scanInventoryButton").addEventListener("click",()=>openCameraScanner("inventory"));
