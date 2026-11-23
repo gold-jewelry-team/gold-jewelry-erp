@@ -1,4 +1,5 @@
 """Purchase order creation, lifecycle and atomic goods receiving."""
+import base64
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 from uuid import UUID
@@ -85,20 +86,86 @@ def cancel_purchase(session: Session, *, purchase_id: UUID) -> Purchase:
     return purchase
 
 
-def receive_purchase_line(session: Session, *, purchase_id: UUID, purchase_line_id: UUID,
-                          location_id: UUID, received_quantity: Decimal) -> InventoryMovement:
+class PurchaseReceiptIdempotencyConflict(ValueError):
+    """Raised when a receipt retry key is reused for different receiving details."""
+
+
+def purchase_receipt_reference_type(idempotency_key: UUID) -> str:
+    """Encode a UUID in the existing 30-character reference_type column."""
+    encoded = base64.b32encode(idempotency_key.bytes).decode("ascii").rstrip("=")
+    return f"PR-{encoded}"
+
+
+def receive_purchase_line(
+    session: Session,
+    *,
+    purchase_id: UUID,
+    purchase_line_id: UUID,
+    location_id: UUID,
+    received_quantity: Decimal,
+    idempotency_key: UUID | None = None,
+) -> InventoryMovement:
     if not isinstance(received_quantity, Decimal) or received_quantity <= 0:
         raise ValueError("本次驗收數量必須是正數 Decimal。")
-    purchase = session.execute(select(Purchase).where(Purchase.id == purchase_id).with_for_update()).scalar_one_or_none()
+
+    # Keyed requests lock the company before locking purchase rows. This
+    # serializes the first receipt and a replay, even across different POs.
+    purchase_company_id = session.scalar(
+        select(Purchase.company_id).where(Purchase.id == purchase_id)
+    )
+    if purchase_company_id is None:
+        raise ValueError("找不到指定採購單。")
+    if idempotency_key is not None:
+        company = session.scalar(
+            select(Company).where(Company.id == purchase_company_id).with_for_update()
+        )
+        if company is None:
+            raise ValueError("找不到指定公司。")
+
+    purchase = session.execute(
+        select(Purchase).where(Purchase.id == purchase_id).with_for_update()
+    ).scalar_one_or_none()
     if purchase is None:
-        raise ValueError("找不到採購單。")
-    if purchase.status not in {"ORDERED", "PARTIALLY_RECEIVED"}:
-        raise ValueError("只有已下單或部分到貨的採購單可以驗收。")
+        raise ValueError("找不到指定採購單。")
     line = session.execute(select(PurchaseLine).where(
         PurchaseLine.id == purchase_line_id, PurchaseLine.purchase_id == purchase_id
     ).with_for_update()).scalar_one_or_none()
     if line is None:
         raise ValueError("採購明細不存在。")
+
+    reference_type = (
+        purchase_receipt_reference_type(idempotency_key)
+        if idempotency_key is not None else "PURCHASE_LINE"
+    )
+    note = f"採購單 {purchase.purchase_no} 驗收入庫"
+
+    # Check for a committed receipt before validating the remaining quantity
+    # or purchase status; an exact replay may arrive after the line is fully received.
+    if idempotency_key is not None:
+        existing = session.scalar(select(InventoryMovement).where(
+            InventoryMovement.company_id == purchase.company_id,
+            InventoryMovement.reference_type == reference_type,
+        ))
+        if existing is not None:
+            matches = (
+                existing.reference_id == line.id
+                and existing.movement_type == "RECEIPT"
+                and existing.site_id == purchase.site_id
+                and existing.product_id == line.product_id
+                and existing.from_location_id is None
+                and existing.to_location_id == location_id
+                and existing.quantity == received_quantity
+                and existing.weight_unit_code == line.weight_unit_code
+                and existing.note == note
+            )
+            if not matches:
+                raise PurchaseReceiptIdempotencyConflict(
+                    "此驗收識別碼已用於不同的採購到貨內容，請確認原入庫紀錄後再操作。"
+                )
+            return existing
+
+    if purchase.status not in {"ORDERED", "PARTIALLY_RECEIVED"}:
+        raise ValueError("只有已下單或部分到貨的採購單可以驗收。")
     if line.received_quantity + received_quantity > line.quantity:
         raise ValueError("本次驗收數量超過尚未到貨數量。")
 
@@ -121,7 +188,13 @@ def receive_purchase_line(session: Session, *, purchase_id: UUID, purchase_line_
     receipt_weight = None
     if line.weight is not None:
         previous_weights = session.scalars(select(InventoryMovement.weight).where(
-            InventoryMovement.reference_type == "PURCHASE_LINE",
+            InventoryMovement.reference_type.in_(
+                ["PURCHASE_LINE"]
+            ) if idempotency_key is None else
+            (
+                (InventoryMovement.reference_type == "PURCHASE_LINE")
+                | InventoryMovement.reference_type.like("PR-%")
+            ),
             InventoryMovement.reference_id == line.id,
             InventoryMovement.movement_type == "RECEIPT",
         )).all()
@@ -139,8 +212,8 @@ def receive_purchase_line(session: Session, *, purchase_id: UUID, purchase_line_
         company_id=purchase.company_id, site_id=purchase.site_id, product_id=line.product_id,
         movement_type="RECEIPT", to_location_id=location_id, quantity=received_quantity,
         weight=receipt_weight, weight_unit_code=line.weight_unit_code,
-        reference_type="PURCHASE_LINE", reference_id=line.id,
-        note=f"採購單 {purchase.purchase_no} 驗收入庫",
+        reference_type=reference_type, reference_id=line.id,
+        note=note,
     )
     line.received_quantity += received_quantity
     session.add(movement)
