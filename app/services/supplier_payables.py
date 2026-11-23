@@ -6,7 +6,6 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.company import Company
 from app.models.purchase import Purchase
 from app.models.site import Site
 from app.models.supplier import Supplier
