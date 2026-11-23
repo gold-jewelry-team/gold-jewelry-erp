@@ -24,7 +24,9 @@ test("home dashboard shortcuts activate, expand, scroll to and focus their targe
   assert.ok(handler.includes('event.target.closest("[data-home-target]")'), "nested shortcut content must resolve to its parent action");
   assert.ok(handler.includes('document.getElementById(shortcut.getAttribute("data-home-target"))'), "shortcut must resolve its section by ID");
   assert.ok(handler.includes('categoryButton.click()'), "shortcut must activate the target category through the category button");
-  assert.ok(handler.includes('target.querySelector(":scope > h2 .panel-toggle")'), "collapsed target panels must be expanded");
+  assert.ok(handler.includes('target.closest("section.panel[data-category]")'), "nested shortcut targets must resolve their owning category panel");
+  assert.ok(handler.includes("const panelsToExpand=[owningPanel,target]"), "shortcut must expand a collapsed parent panel as well as the target");
+  assert.ok(handler.includes('panel.querySelector(":scope > h2 .panel-toggle")'), "collapsed owning panels must be expanded");
   assert.ok(handler.includes('target.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"})'), "shortcut must scroll to its target");
   assert.ok(handler.includes('target.focus({preventScroll:true})'), "shortcut must move keyboard focus to its target");
 });

@@ -4047,15 +4047,21 @@ document.addEventListener("click",function(event){
  if(!shortcut)return;
  const target=document.getElementById(shortcut.getAttribute("data-home-target"));
  if(!target)return;
- const category=target.dataset.category;
+ /* 子功能區可能沒有分類屬性，需沿 DOM 找到所屬的頂層分類面板。 */
+ const owningPanel=target.closest("section.panel[data-category]")||target;
+ const category=owningPanel.dataset.category||target.dataset.category;
  if(category&&category!=="global"){
   const categoryButton=document.querySelector('.category-nav button[data-category="'+category+'"]');
   if(categoryButton)categoryButton.click();
  }
- if(target.classList.contains("panel-collapsed")){
-  const toggle=target.querySelector(":scope > h2 .panel-toggle");
-  if(toggle)toggle.click();
- }
+ /* 目標若位於已收合的父面板，必須展開父面板才看得到子區塊。 */
+ const panelsToExpand=[owningPanel,target];
+ panelsToExpand.forEach(panel=>{
+  if(panel.classList&&panel.classList.contains("panel-collapsed")){
+   const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+   if(toggle)toggle.click();
+  }
+ });
  window.requestAnimationFrame(()=>{
   target.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   target.setAttribute("tabindex","-1");
