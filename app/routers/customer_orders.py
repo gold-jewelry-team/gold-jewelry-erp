@@ -125,7 +125,10 @@ def create_customer_order(
                 PaymentTransaction.reference_no == idempotency_reference,
             ))
             if existing_payment is not None:
-                existing_order = db.get(CustomerOrder, existing_payment.customer_order_id)
+                existing_order = db.scalar(select(CustomerOrder).where(
+                    CustomerOrder.id == existing_payment.customer_order_id,
+                    CustomerOrder.company_id == company_id,
+                ).with_for_update())
                 if existing_order is None or existing_order.company_id != company_id:
                     db.rollback()
                     raise HTTPException(
