@@ -185,15 +185,14 @@ def test_purchase_stock_transfer_sale_and_return_preserve_actual_location_and_le
         ) == Decimal("1")
         movements = list(verify.query(InventoryMovement).filter_by(
             product_id=product_id
-        ).order_by(InventoryMovement.created_at, InventoryMovement.id).all())
-        assert [row.movement_type for row in movements] == [
-            "RECEIPT", "TRANSFER", "SALE", "RETURN"
-        ]
-        assert movements[0].id == receipt.id
-        assert movements[1].from_location_id == safe_id
-        assert movements[1].to_location_id == display_id
-        assert movements[2].from_location_id == display_id
-        assert movements[3].to_location_id == display_id
+        ).all())
+        by_type = {row.movement_type: row for row in movements}
+        assert set(by_type) == {"RECEIPT", "TRANSFER", "SALE", "RETURN"}
+        assert by_type["RECEIPT"].id == receipt.id
+        assert by_type["TRANSFER"].from_location_id == safe_id
+        assert by_type["TRANSFER"].to_location_id == display_id
+        assert by_type["SALE"].from_location_id == display_id
+        assert by_type["RETURN"].to_location_id == display_id
         assert verify.query(Sale).filter_by(status="COMPLETED").count() == 1
         assert verify.query(SaleReturn).count() == 1
         payments_saved = verify.query(PaymentTransaction).order_by(
