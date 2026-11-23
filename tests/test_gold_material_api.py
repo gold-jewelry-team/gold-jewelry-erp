@@ -12,6 +12,7 @@ from app.main import app
 from app.models.company import Company
 from app.models.site import Site
 from app.models.supplier import Supplier
+from app.models.purchase import Purchase
 from app.models.gold_material import GoldMaterialMovement, GoldMaterialSettlementAllocation
 from app.models.supplier_payable import SupplierBill, SupplierPayment
 from app.routers import gold_material, supplier_payables
@@ -508,6 +509,95 @@ def test_supplier_gold_delivery_cannot_exceed_balance_after_cash_payment():
         assert refreshed.json()["status"] == "PARTIALLY_PAID"
         assert Decimal(refreshed.json()["paid_amount"]) == Decimal("10000.00")
         assert Decimal(refreshed.json()["outstanding_amount"]) == Decimal("20000.00")
+
+        check = TestSession()
+        assert check.query(GoldMaterialMovement).count() == 1
+        assert check.query(GoldMaterialSettlementAllocation).count() == 0
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_supplier_gold_settlement_rejects_bill_linked_to_different_purchase_atomically():
+    engine, TestSession, (company_id, site_id, supplier_id) = _context()
+    try:
+        from datetime import date
+
+        db = TestSession()
+        purchase_a = Purchase(
+            company_id=company_id, site_id=site_id, supplier_id=supplier_id,
+            purchase_no="PO-GOLD-LINK-A", order_date=date(2026, 11, 23),
+            status="ORDERED", currency_code="TWD",
+        )
+        purchase_b = Purchase(
+            company_id=company_id, site_id=site_id, supplier_id=supplier_id,
+            purchase_no="PO-GOLD-LINK-B", order_date=date(2026, 11, 23),
+            status="ORDERED", currency_code="TWD",
+        )
+        db.add_all([purchase_a, purchase_b])
+        db.commit()
+        purchase_a_id, purchase_b_id = purchase_a.id, purchase_b.id
+        db.close()
+
+        client = TestClient(app)
+        payable_base = f"/companies/{company_id}/supplier-payables"
+        gold_base = f"/companies/{company_id}/gold-material"
+        bill = client.post(f"{payable_base}/bills", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "purchase_id": str(purchase_a_id),
+            "bill_no": "INV-GOLD-LINK-A",
+            "bill_date": "2026-11-23",
+            "currency_code": "TWD",
+            "total_amount": "10000.00",
+        })
+        assert bill.status_code == 201, bill.text
+
+        opening = client.post(f"{gold_base}/movements", json={
+            "site_id": str(site_id),
+            "movement_no": "GM-OPEN-LINK",
+            "movement_type": "OPENING",
+            "purity_label": "9999",
+            "purity_ratio": "1.000000",
+            "gross_weight": "20.0000",
+            "loss_weight": "0",
+            "weight_unit_code": "G",
+            "gold_price_value": "1000.00",
+            "gold_price_unit_code": "G",
+            "deduction_amount": "0",
+        })
+        assert opening.status_code == 201, opening.text
+
+        rejected = client.post(f"{gold_base}/movements", json={
+            "site_id": str(site_id),
+            "supplier_id": str(supplier_id),
+            "purchase_id": str(purchase_b_id),
+            "movement_no": "GM-DEL-WRONG-PO",
+            "movement_type": "SUPPLIER_DELIVERY",
+            "source_type": "PURCHASE_SETTLEMENT",
+            "purity_label": "9999",
+            "purity_ratio": "1.000000",
+            "gross_weight": "5.0000",
+            "loss_weight": "0",
+            "weight_unit_code": "G",
+            "gold_price_value": "1000.00",
+            "gold_price_unit_code": "G",
+            "deduction_amount": "0",
+            "allocations": [{
+                "bill_id": bill.json()["id"],
+                "amount": "5000.00",
+            }],
+        })
+        assert rejected.status_code == 422, rejected.text
+        assert "舊金折抵帳單必須屬於相同公司、據點、供應商" in rejected.json()["detail"]
+
+        balance = client.get(f"{gold_base}/balance", params={"site_id": str(site_id)})
+        assert Decimal(balance.json()["fine_gold_weight_g"]) == Decimal("20.0000")
+        refreshed = client.get(f"{payable_base}/bills/{bill.json()['id']}")
+        assert refreshed.status_code == 200, refreshed.text
+        assert refreshed.json()["status"] == "OPEN"
+        assert Decimal(refreshed.json()["paid_amount"]) == Decimal("0.00")
 
         check = TestSession()
         assert check.query(GoldMaterialMovement).count() == 1
