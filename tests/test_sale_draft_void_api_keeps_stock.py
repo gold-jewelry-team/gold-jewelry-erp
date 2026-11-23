@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 from decimal import Decimal
 
 from fastapi.testclient import TestClient
@@ -118,7 +119,7 @@ def test_void_sale_draft_api_preserves_stock_and_prevents_completion():
         assert "只有草稿銷售單可以完成" in completed.json()["detail"]
 
         verify = TestSession()
-        persisted = verify.get(Sale, __import__("uuid").UUID(sale_id))
+        persisted = verify.get(Sale, UUID(sale_id))
         assert persisted.status == "VOID"
         assert persisted.voided_at is not None
         assert verify.query(InventoryMovement).filter_by(
