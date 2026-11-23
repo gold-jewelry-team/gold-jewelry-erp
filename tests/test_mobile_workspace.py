@@ -229,3 +229,13 @@ def test_mobile_workspace_serves_html():
     assert 'function updateQuoteTradeInRatioVisibility()' in response.text
     assert 'field.classList.toggle("hidden",$("quoteTradeInSource").value!=="EXTERNAL")' in response.text
     assert 'id="saleOldGoldWeight"' in response.text
+
+
+def test_compact_phone_layout_stacks_form_fields_without_narrowing_specialized_controls():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    assert "@media(max-width:380px)" in response.text
+    assert ".grid:not(.gold-price-entry-grid){grid-template-columns:minmax(0,1fr);gap:8px}" in response.text
+    # Keep deliberately paired controls, such as gold-price entry, in two columns.
+    assert ".gold-price-entry-grid{grid-template-columns:1fr 1fr" in response.text
+    assert ".scan-settings{display:grid;grid-template-columns:1fr 1fr" in response.text
