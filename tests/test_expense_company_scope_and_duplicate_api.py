@@ -62,8 +62,12 @@ def test_expense_api_rejects_foreign_site_and_duplicate_number_without_partial_w
         assert first.json()["status"] == "UNPAID"
 
         duplicate = client.post(base, json=payload)
-        assert duplicate.status_code == 409, duplicate.text
-        assert "費用單號重複" in duplicate.json()["detail"]
+        assert duplicate.status_code == 200, duplicate.text
+        assert duplicate.json()["id"] == first.json()["id"]
+
+        conflicting = client.post(base, json={**payload, "amount": "1300.00"})
+        assert conflicting.status_code == 409, conflicting.text
+        assert "不同的費用內容" in conflicting.json()["detail"]
 
         verify = TestSession()
         rows = verify.query(OperatingExpense).all()
