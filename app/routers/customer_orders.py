@@ -120,7 +120,7 @@ def add_customer_order_payment(company_id: UUID, order_id: UUID, payload: Custom
 @router.patch("/{order_id}/status", response_model=CustomerOrderRead)
 def update_customer_order_status(
     company_id: UUID, order_id: UUID,
-    status: str = Query(pattern="^(IN_PROGRESS|ARRIVED|READY)$"),
+    status: str = Query(pattern="^(IN_PROGRESS|ARRIVED|READY|COMPLETED)$"),
     db: Session = Depends(get_db),
 ):
     order = _load(db, company_id, order_id)
@@ -130,7 +130,7 @@ def update_customer_order_status(
         "PENDING_DEPOSIT": {"IN_PROGRESS"},
         "IN_PROGRESS": {"ARRIVED"},
         "ARRIVED": {"READY"},
-        "READY": set(),
+        "READY": {"COMPLETED"},
     }
     if status not in allowed.get(order.status, set()):
         raise HTTPException(status_code=409, detail=f"不可由 {order.status} 變更為 {status}。")
