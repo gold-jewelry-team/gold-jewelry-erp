@@ -58,6 +58,8 @@ jobs:
         run: node --test tests/scanner_cleanup_runtime.test.js
       - name: Run scanner close runtime tests
         run: node --test tests/scanner_close_runtime.test.js
+      - name: Run scanner detection runtime tests
+        run: node --test tests/scanner_detection_runtime.test.js
       - name: Run label dialog close runtime tests
         run: node --test tests/label_dialog_close_runtime.test.js
       - name: Run operating expense retry runtime tests
