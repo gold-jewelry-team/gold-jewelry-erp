@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -118,10 +118,11 @@ def get_supplier_bill(company_id: UUID, bill_id: UUID, db: Session = Depends(get
 def post_supplier_payment(
     company_id: UUID,
     payload: SupplierPaymentCreate,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     try:
-        payment = record_supplier_payment(
+        payment, created = record_supplier_payment(
             db,
             company_id=company_id,
             site_id=payload.site_id,
@@ -131,10 +132,16 @@ def post_supplier_payment(
             allocations=[item.model_dump() for item in payload.allocations],
             reference_no=payload.reference_no,
             note=payload.note,
+            return_created=True,
         )
         payment_id = payment.id
+        if not created:
+            response.status_code = 200
         db.commit()
         return _load_payment(db, company_id, payment_id)
+    except SupplierPaymentIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
