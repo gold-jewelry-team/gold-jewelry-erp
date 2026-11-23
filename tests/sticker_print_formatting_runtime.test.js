@@ -17,6 +17,7 @@ test("sticker weight uses the localized Chinese unit label, not the raw unit cod
 test("sticker sales labor is displayed at the same 20pt size and bold weight as the weight", () => {
   assert.match(source, /\.weight\{font-size:20pt;font-weight:800/);
   assert.match(source, /\.labor\{font-size:20pt;font-weight:800/);
+  assert.match(source, /\.right\{[^}]*grid-template-rows:11mm 7mm 4mm 6mm/);
 });
 
 test("sticker unit mapping supports qian, gram, and tael in Chinese", () => {
