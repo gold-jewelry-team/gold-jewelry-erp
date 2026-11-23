@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -40,7 +41,7 @@ def test_supplier_payables_api_isolates_bills_and_payments_by_company():
     db.commit()
     owner_id, other_id = owner.id, other.id
     owner_site_id, other_site_id = owner_site.id, other_site.id
-    other_supplier_id = other_supplier.id
+    owner_supplier_id, other_supplier_id = owner_supplier.id, other_supplier.id
     db.close()
 
     def override_db():
@@ -58,7 +59,7 @@ def test_supplier_payables_api_isolates_bills_and_payments_by_company():
         other_base = f"/companies/{other_id}/supplier-payables"
         created = client.post(f"{owner_base}/bills", json={
             "site_id": str(owner_site_id),
-            "supplier_id": str(owner_supplier.id),
+            "supplier_id": str(owner_supplier_id),
             "bill_no": "INV-COMPANY-ISOLATION",
             "bill_date": date(2026, 11, 23).isoformat(),
             "currency_code": "TWD",
@@ -88,7 +89,7 @@ def test_supplier_payables_api_isolates_bills_and_payments_by_company():
         assert "相同公司、據點及供應商" in payment.json()["detail"]
 
         verify = TestSession()
-        foreign_bill = verify.get(SupplierBill, __import__("uuid").UUID(foreign_bill_id))
+        foreign_bill = verify.get(SupplierBill, UUID(foreign_bill_id))
         assert foreign_bill.status == "OPEN"
         assert foreign_bill.total_amount == 1200
         assert verify.query(SupplierPayment).count() == 0
