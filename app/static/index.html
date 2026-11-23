@@ -2201,12 +2201,56 @@ $("purchaseList").addEventListener("click",async event=>{
   $("purchaseReceivePanel").scrollIntoView({behavior:"smooth",block:"start"});
  }
 });
+function purchaseReceiveStorageKey(purchaseId,lineId){
+ return "gold-erp-purchase-receive:"+companyId+":"+purchaseId+":"+lineId;
+}
+function readPendingPurchaseReceive(purchaseId,lineId){
+ try{
+  const raw=localStorage.getItem(purchaseReceiveStorageKey(purchaseId,lineId));
+  if(!raw)return null;
+  const pending=JSON.parse(raw);
+  return pending&&pending.idempotency_key&&pending.location_id&&pending.received_quantity?pending:null;
+ }catch(error){
+  localStorage.removeItem(purchaseReceiveStorageKey(purchaseId,lineId));
+  return null;
+ }
+}
+function savePendingPurchaseReceive(purchaseId,lineId,payload){
+ const storageKey=purchaseReceiveStorageKey(purchaseId,lineId);
+ const fingerprint=JSON.stringify(payload);
+ const existing=readPendingPurchaseReceive(purchaseId,lineId);
+ if(existing){
+  if(existing.fingerprint!==fingerprint){
+   throw new Error("上一筆到貨驗收尚未確認結果，請先恢復原入庫位置與驗收數量重試，避免重複入庫。");
+  }
+  return existing;
+ }
+ const pending={
+  fingerprint,
+  location_id:payload.location_id,
+  received_quantity:String(payload.received_quantity),
+  idempotency_key:newStocktakeAdjustmentKey()
+ };
+ try{localStorage.setItem(storageKey,JSON.stringify(pending));}
+ catch(error){throw new Error("瀏覽器無法保存驗收重送識別碼，請確認儲存空間後再試。");}
+ return pending;
+}
+function clearPendingPurchaseReceive(purchaseId,lineId){
+ try{localStorage.removeItem(purchaseReceiveStorageKey(purchaseId,lineId));}catch(error){}
+}
 $("selectedPurchaseLine").addEventListener("click",event=>{
  const button=event.target.closest("[data-receive-line]");
  if(!button)return;
  selectedPurchaseLine=button.dataset.receiveLine;
  $("purchaseReceiveQuantity").max=button.dataset.remaining;
- $("purchaseReceiveQuantity").value=button.dataset.remaining;
+ const pending=selectedPurchase?readPendingPurchaseReceive(selectedPurchase.id,selectedPurchaseLine):null;
+ if(pending){
+  $("purchaseReceiveQuantity").value=pending.received_quantity;
+  $("purchaseReceiveLocation").value=pending.location_id;
+  message("purchaseReceiveStatus","已恢復上一筆尚未確認回應的到貨驗收；請用原入庫位置與數量重試。");
+ }else{
+  $("purchaseReceiveQuantity").value=button.dataset.remaining;
+ }
  $("purchaseReceiveForm").classList.remove("hidden");
 });
 $("cancelPurchaseReceive").addEventListener("click",()=>{$("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;selectedPurchaseLine=null;});
@@ -2214,13 +2258,22 @@ $("purchaseReceiveForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!selectedPurchase||!selectedPurchaseLine)return;
  const payload={purchase_line_id:selectedPurchaseLine,location_id:$("purchaseReceiveLocation").value,received_quantity:$("purchaseReceiveQuantity").value};
+ let pending;
+ try{
+  pending=savePendingPurchaseReceive(selectedPurchase.id,selectedPurchaseLine,payload);
+ }catch(error){message("purchaseReceiveStatus",error.message,true);return;}
+ payload.idempotency_key=pending.idempotency_key;
  const button=$("purchaseReceiveForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
   await api("/companies/"+companyId+"/purchases/"+selectedPurchase.id+"/receive",{method:"POST",body:JSON.stringify(payload)});
+  clearPendingPurchaseReceive(selectedPurchase.id,selectedPurchaseLine);
   message("purchaseReceiveStatus","到貨驗收成功，已新增庫存入庫流水。");
   $("purchaseReceiveForm").classList.add("hidden");$("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;selectedPurchaseLine=null;
   await loadPurchases();await loadInventoryOptions();
- }catch(error){message("purchaseReceiveStatus",error.message,true);}
+ }catch(error){
+  if(error.status===422)clearPendingPurchaseReceive(selectedPurchase.id,selectedPurchaseLine);
+  message("purchaseReceiveStatus",error.message,true);
+ }
  finally{button.disabled=false;}
 });
 $("expenseForm").addEventListener("submit",async event=>{
