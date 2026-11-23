@@ -66,6 +66,8 @@ jobs:
         run: node --test tests/home_dashboard_layout_runtime.test.js
       - name: Run home dashboard shortcut navigation runtime tests
         run: node --test tests/home_shortcut_navigation_runtime.test.js
+      - name: Run transaction history shortcut and iPad layout runtime tests
+        run: node --test tests/transaction_history_shortcut_ipad_layout_runtime.test.js
       - name: Run category panel bulk status runtime tests
         run: node --test tests/category_panel_bulk_status_runtime.test.js
       - name: Run mobile scroll target offset runtime tests
