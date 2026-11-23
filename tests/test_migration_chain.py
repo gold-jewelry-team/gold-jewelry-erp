@@ -45,3 +45,16 @@ def test_alembic_history_is_a_single_linear_chain_through_cash_drawer_idempotenc
     root = script.get_revision(expected[-1])
     assert root is not None
     assert root.down_revision is None
+
+
+def test_docker_startup_applies_pending_migrations_before_serving_requests():
+    from pathlib import Path
+
+    dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(
+        encoding="utf-8"
+    )
+    migration = "alembic upgrade head"
+    server = "exec uvicorn app.main:app"
+    assert migration in dockerfile
+    assert server in dockerfile
+    assert dockerfile.index(migration) < dockerfile.index(server)
