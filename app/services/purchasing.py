@@ -13,6 +13,7 @@ from app.models.purchase import Purchase, PurchaseLine
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.models.supplier import Supplier
+from app.models.supplier_payable import SupplierBill
 
 
 def create_purchase(session: Session, *, company_id: UUID, site_id: UUID, supplier_id: UUID,
@@ -71,6 +72,14 @@ def cancel_purchase(session: Session, *, purchase_id: UUID) -> Purchase:
         raise ValueError("找不到採購單。")
     if purchase.status not in {"DRAFT", "ORDERED"}:
         raise ValueError("只有草稿或尚未收貨的採購單可以取消。")
+    linked_bill_id = session.scalar(
+        select(SupplierBill.id).where(
+            SupplierBill.purchase_id == purchase_id,
+            SupplierBill.status != "VOID",
+        ).limit(1)
+    )
+    if linked_bill_id is not None:
+        raise ValueError("採購單已有有效供應商帳單，請先處理帳款後再取消。")
     purchase.status = "CANCELLED"
     session.flush()
     return purchase
