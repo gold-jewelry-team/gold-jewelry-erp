@@ -288,5 +288,6 @@ def test_product_master_cards_prioritize_identity_and_group_specifications():
     assert 'escapeHtml(x.gross_weight)' in response.text
     assert 'escapeHtml(x.net_weight)' in response.text
     assert 'escapeHtml(x.labor_fee)' in response.text
-    assert 'data-edit-product="'+ ' in response.text
-    assert 'data-print-product-label="'+ ' in response.text
+    assert 'data-edit-product="' in response.text
+    assert 'data-print-product-label="' in response.text
+    assert 'escapeHtml(x.id)' in response.text
