@@ -358,6 +358,24 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  #inventoryStockPanel .stock-item-quantity{min-width:76px;padding:7px 8px}
  #inventoryStockPanel .stock-item-meta{grid-template-columns:minmax(0,1fr);gap:7px}
 }
+
+/* Product master cards: prioritize the product identity, then make specifications easy to scan. */
+#productList .product-results-count{margin:2px 0 9px;color:#68746c;font-size:12px;font-weight:700}
+#productList .product-item{gap:11px;padding:14px;border-color:#e8e2d5;background:#fffefa}
+#productList .product-item-identity{display:grid;gap:7px;min-width:0}
+#productList .product-item-identity>strong{font-size:15px;line-height:1.45;overflow-wrap:anywhere}
+#productList .product-item-identity .pill{max-width:100%;overflow-wrap:anywhere}
+#productList .product-item-meta,#productList .product-item-specs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding-top:10px;border-top:1px solid #eee9de}
+#productList .product-item-meta>span,#productList .product-item-specs>span{display:grid;gap:3px;min-width:0}
+#productList .product-item-meta small,#productList .product-item-specs small{font-size:10px;color:#7a827a}
+#productList .product-item-meta strong,#productList .product-item-specs strong{font-size:12px;font-weight:600;color:#47564b;overflow-wrap:anywhere}
+#productList .product-item-actions{padding-top:2px}
+#productList .product-item-actions button{flex:1 1 140px}
+@media(max-width:380px){
+ #productList .product-item{padding:12px}
+ #productList .product-item-meta,#productList .product-item-specs{grid-template-columns:minmax(0,1fr);gap:7px}
+ #productList .product-item-actions button{flex-basis:100%;width:100%}
+}
 </style>
 </head>
 <body>
@@ -1805,7 +1823,7 @@ async function loadProducts(){
  const q=$("search").value.trim();
  const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
  productsById=new Map(rows.map(x=>[x.id,x]));
- box.innerHTML=rows.length?rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span><span class="muted">條碼：'+escapeHtml(x.barcode||"未設定")+' · 分類：'+escapeHtml(categoryLabel)+'</span><span class="muted">總重 '+escapeHtml(x.gross_weight)+' / 淨重 '+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+' · 預設銷售工錢 '+escapeHtml(x.labor_fee)+' · 長度 '+escapeHtml(x.chain_length||"—")+' · 款式 '+escapeHtml(x.style_code||"—")+'</span><div class="actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 3×10 貼紙</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
+ box.innerHTML=rows.length?'<div class="product-results-count">符合 '+rows.length+' 件商品</div>'+rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item product-item"><div class="product-item-identity"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span></div><div class="product-item-meta"><span><small>條碼</small><strong>'+escapeHtml(x.barcode||"未設定")+'</strong></span><span><small>商品分類</small><strong>'+escapeHtml(categoryLabel)+'</strong></span></div><div class="product-item-specs"><span><small>總重／淨重</small><strong>'+escapeHtml(x.gross_weight)+'／'+escapeHtml(x.net_weight)+' '+escapeHtml(x.weight_unit_code)+'</strong></span><span><small>預設銷售工錢</small><strong>'+escapeHtml(x.labor_fee)+' 元</strong></span><span><small>長度</small><strong>'+escapeHtml(x.chain_length||"—")+'</strong></span><span><small>款式</small><strong>'+escapeHtml(x.style_code||"—")+'</strong></span></div><div class="actions product-item-actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 3×10 貼紙</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
 $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  event.preventDefault();
