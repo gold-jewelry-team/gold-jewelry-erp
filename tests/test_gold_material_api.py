@@ -13,7 +13,7 @@ from app.models.company import Company
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.gold_material import GoldMaterialMovement, GoldMaterialSettlementAllocation
-from app.models.supplier_payable import SupplierBill
+from app.models.supplier_payable import SupplierBill, SupplierPayment
 from app.routers import gold_material, supplier_payables
 
 
