@@ -555,7 +555,7 @@ button.secondary:disabled{opacity:.42}
 <div class="quote-step-card quote-catalog-card">
  <div class="quote-step-heading"><span class="quote-step-number">1</span><div><strong>選擇正式商品</strong><small>掃描條碼或搜尋款式，系統會帶入商品資料與庫存位置</small></div></div>
  <div class="grid">
- <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 查找"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
+ <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter／Tab 查找"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
  <div class="field wide"><label for="quoteProductSearch">搜尋正式商品（名稱／款式／編號／條碼）</label><input id="quoteProductSearch" type="search" placeholder="輸入關鍵字查找正式商品"></div>
  <div class="field wide"><div id="quoteSearchStatus" class="status" role="status"></div><div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div></div>
  <div class="field wide"><label for="quoteProduct">已選正式商品（找不到商品可留空）</label><select id="quoteProduct"><option value="">未選擇正式商品／使用臨時估價</option></select></div>
@@ -655,7 +655,7 @@ button.secondary:disabled{opacity:.42}
  <h2>條碼盤點</h2>
  <p class="sub">選擇儲存位置後逐件掃描商品；每個商品條碼在同一盤點批次只計一次。可手動修正實盤數量，確認差異後才寫入庫存異動。</p>
  <div class="grid"><div class="field"><label for="stocktakeLocation">盤點儲存位置</label><select id="stocktakeLocation"><option value="">請選擇位置</option></select></div>
- <div class="field"><label for="stocktakeBarcode">掃描／輸入商品條碼（Enter）</label><input id="stocktakeBarcode" autocomplete="off" inputmode="numeric" placeholder="掃描器輸入後按 Enter"></div></div>
+ <div class="field"><label for="stocktakeBarcode">掃描／輸入商品條碼（Enter／Tab）</label><input id="stocktakeBarcode" autocomplete="off" inputmode="numeric" placeholder="掃描器輸入後按 Enter／Tab"></div></div>
  <div class="actions"><button id="scanStocktakeButton" class="secondary" type="button">相機掃描</button><button id="refreshStocktake" class="secondary" type="button">重新讀取帳面庫存</button><button id="resetStocktake" class="secondary" type="button">清空本次盤點</button></div>
  <div id="stocktakeStatus" class="status" role="status">尚未開始盤點</div><div id="stocktakeList" aria-live="polite"><div class="empty">請先選擇盤點位置</div></div>
  <div class="actions"><button id="applyStocktake" type="button">確認差異並更新庫存</button></div>
@@ -3182,7 +3182,7 @@ $("stocktakeLocation").addEventListener("change",async()=>{
  stocktakeLines=[];stocktakeLocationId=next;
  try{await loadStocktakeBaseline();persistStocktakeDraft();renderStocktake();message("stocktakeStatus",next?"已載入帳面庫存清單；實盤數量預設為 0，掃描或人工清點後逐項核對。":"請選擇盤點位置。");}catch(error){message("stocktakeStatus",error.message,true);}
 });
-$("stocktakeBarcode").addEventListener("keydown",async event=>{if(event.key!=="Enter")return;event.preventDefault();const code=$("stocktakeBarcode").value.trim();if(code)await handleScannedProductCode(code,"stocktake");});
+$("stocktakeBarcode").addEventListener("keydown",event=>{handleKeyboardScannerInput(event,$("stocktakeBarcode").value,code=>handleScannedProductCode(code,"stocktake"));});
 $("refreshStocktake").addEventListener("click",async()=>{if(!window.confirm("重新讀取會更新尚未入帳商品的帳面數量與淨重快照，並清除這些商品的實盤數量及核對狀態。已入帳項目不變。確定繼續？"))return;try{await loadInventoryOptions();await loadStocktakeBaseline(true);message("stocktakeStatus","最新商品資料、帳面數量與淨重快照已更新；所有未入帳項目請重新清點及核對。");}catch(error){message("stocktakeStatus",error.message,true);}});
 $("resetStocktake").addEventListener("click",()=>{if(!window.confirm("清空未入帳的實盤數量？帳面庫存列與已入帳項目會保留。"))return;stocktakeLines=stocktakeLines.filter(line=>line.applied||Number(line.expected)>0);for(const line of stocktakeLines){if(line.applied)continue;line.counted=0;line.verified=false;}persistStocktakeDraft();renderStocktake();message("stocktakeStatus","未入帳實盤數量已清空；帳面庫存商品仍保留，請重新清點。");});
 $("stocktakeList").addEventListener("change",event=>{
@@ -3972,9 +3972,7 @@ $("quoteLines").addEventListener("click",event=>{
  quoteSelectedProducts.splice(Number(button.dataset.quoteRemove),1);renderQuoteLines();
 });
 $("quoteProductCode").addEventListener("keydown",event=>{
- if(event.key!=="Enter")return;event.preventDefault();
- const code=event.target.value.trim();if(!code)return;
- handleScannedProductCode(code,"quote");
+ handleKeyboardScannerInput(event,event.target.value,code=>handleScannedProductCode(code,"quote"));
 });
 $("quoteWeightUnit").addEventListener("change",renderQuoteEntryPreview);
 $("quoteScanButton").addEventListener("click",()=>openCameraScanner("quote"));
