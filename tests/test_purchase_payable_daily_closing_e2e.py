@@ -18,7 +18,7 @@ from app.models.purchase import Purchase
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.models.supplier_payable import SupplierBill, SupplierPayment
-from app.routers import daily_closing, purchases, supplier_payables, suppliers
+from app.routers import cash_counts, daily_closing, purchases, supplier_payables, suppliers
 from app.services.inventory import get_stock_balance
 
 
@@ -69,6 +69,7 @@ def test_purchase_receipt_supplier_bill_partial_payments_and_daily_close_e2e():
         purchases.get_db,
         supplier_payables.get_db,
         daily_closing.get_db,
+        cash_counts.get_db,
     )
     app.dependency_overrides.clear()
     for dependency in dependencies:
@@ -176,6 +177,19 @@ def test_purchase_receipt_supplier_bill_partial_payments_and_daily_close_e2e():
         }
         assert summaries["TRANSFER"]["supplier_paid_amount"] == "5000.00"
         assert summaries["CASH"]["supplier_paid_amount"] == "7350.00"
+
+        cash_count = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/"
+            f"{closing.json()['id']}/cash-count",
+            json={
+                "opening_cash_float": "10000.00",
+                "counted_cash_amount": "2650.00",
+                "counted_by_name": "盤點甲",
+            },
+        )
+        assert cash_count.status_code == 201, cash_count.text
+        assert cash_count.json()["expected_cash_amount"] == "2650.00"
+        assert cash_count.json()["cash_variance"] == "0.00"
 
         verify = TestSession()
         persisted_purchase = verify.get(Purchase, UUID(purchase["id"]))
