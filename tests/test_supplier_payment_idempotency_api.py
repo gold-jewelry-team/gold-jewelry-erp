@@ -3,6 +3,58 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app import models  # noqa: F401
+from app.db.base import Base
+from app.main import app
+from app.models.company import Company
+from app.models.site import Site
+from app.models.supplier import Supplier
+from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
+from app.routers import daily_closing, supplier_payables, suppliers
+
+
+def _payable_context():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    test_session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db = test_session()
+    company = Company(code="AP-RETRY", name="應付帳款重送測試銀樓")
+    db.add(company)
+    db.flush()
+    site = Site(company_id=company.id, code="MAIN", name="總店")
+    supplier = Supplier(company_id=company.id, code="SUP-RETRY", name="重送測試供應商")
+    db.add_all([site, supplier])
+    db.commit()
+    ids = (company.id, site.id, supplier.id)
+    db.close()
+
+    def override_db():
+        session = test_session()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides[supplier_payables.get_db] = override_db
+    app.dependency_overrides[suppliers.get_db] = override_db
+    app.dependency_overrides[daily_closing.get_db] = override_db
+    return engine, test_session, ids
+
+
+from datetime import datetime, timezone
+from decimal import Decimal
+from zoneinfo import ZoneInfo
+
+from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from app.models.supplier_payable import SupplierPaymentAllocation
