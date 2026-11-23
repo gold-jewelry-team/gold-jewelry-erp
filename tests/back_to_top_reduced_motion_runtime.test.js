@@ -7,7 +7,7 @@ const topStart = html.indexOf('const topButton=document.getElementById("backToTo
 const topEnd = html.indexOf("\n })();", topStart);
 assert.ok(topStart >= 0 && topEnd > topStart, "missing back-to-top controller");
 const topController = html.slice(topStart, topEnd);
-const reducedMotionBehavior = 'window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"';
+const reducedMotionBehavior = 'typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"';
 
 test("back-to-top appears after scrolling and initializes its visibility", () => {
   assert.ok(topController.includes("window.scrollY>500"), "button should appear after a meaningful scroll distance");
