@@ -470,6 +470,26 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  #quoteWorkbenchPanel .quote-step-heading small{font-size:10px}
  #quoteWorkbenchPanel .quote-step-card{padding:10px}
 }
+
+/* 商品新增與編輯表單：將欄位依現場建檔順序分組。 */
+.product-editor-form{display:grid;gap:12px}
+.product-form-section{padding:14px;border:1px solid #e7e4da;border-radius:15px;background:#fffefa}
+.product-form-section-heading{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.product-form-section-heading>span{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border-radius:9px;background:#edf2ec;color:#315b46;font-size:12px;font-weight:900}
+.product-form-section-heading>div{display:grid;gap:3px;min-width:0}
+.product-form-section-heading strong{font-size:13px;color:#304438}
+.product-form-section-heading small{font-size:11px;line-height:1.5;color:#778078}
+.product-form-section .grid{margin:0}
+.product-form-actions{margin-top:4px}
+.product-form-actions button{min-height:44px}
+@media(max-width:760px){
+ .product-form-section{padding:12px;border-radius:13px}
+ .product-form-actions button{width:100%}
+}
+@media(max-width:380px){
+ .product-form-section{padding:10px}
+ .product-form-section-heading small{font-size:10px}
+}
 </style>
 </head>
 <body>
@@ -1033,25 +1053,43 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <p class="sub">每筆資料代表一件獨立商品；商品編號可先手動輸入。此處設定的是預設銷售工錢；採購時另填進貨成本工錢，兩者分開記錄。</p><div class="grid"><div class="field wide"><label for="nextNumber">下一個流水號（可設定從 00001 或舊商品最後號碼之後開始）</label><input id="nextNumber" type="number" min="1" step="1" value="1"></div>
 <div class="field"><label for="numberWidth">流水號位數（1～12 位）</label><input id="numberWidth" type="number" min="1" max="12" step="1" value="5"></div>
 <div class="field"><label>&nbsp;</label><button class="secondary" id="saveSequence" type="button">儲存編號設定</button></div></div><div id="sequenceStatus" class="status" role="status"></div>
-<form id="productForm">
-<div class="grid">
-<div class="field"><label for="productPrefix">編號前綴</label><input id="productPrefix" maxlength="21" value="G00R-" placeholder="G00R-"></div>
-<div class="field"><label for="productCode">商品編號（可手動修改）</label><input id="productCode" required maxlength="50" placeholder="按鈕產生或手動輸入"></div>
-<div class="field wide"><button class="secondary" id="generateCode" type="button">產生下一個共用流水號</button></div>
-<div class="field"><label for="barcode">條碼</label><input id="barcode" maxlength="100" placeholder="可留空"></div>
-<div class="field wide"><label for="productName">商品名稱</label><input id="productName" required maxlength="200" placeholder="黃金戒指"></div>
-<div class="field"><label for="productCategory">商品分類</label><select id="productCategory"><option value="">未分類</option></select></div>
-<div class="field"><label for="materialCode">材質代碼</label><input id="materialCode" maxlength="30" placeholder="例如 G"></div>
-<div class="field"><label for="grossWeight">總重</label><input id="grossWeight" type="number" min="0" step="0.0001" value="0" required></div>
-<div class="field"><label for="netWeight">淨重</label><input id="netWeight" type="number" min="0" step="0.0001" value="0" required></div>
-<div class="field"><label for="weightUnit">重量單位</label><select id="weightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
-<div class="field"><label for="laborFee">預設銷售工錢</label><input id="laborFee" type="number" min="0" step="0.01" value="0" required></div>
-<div class="field"><label for="chainLength">項鍊長度／手圍</label><input id="chainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
-<div class="field"><label for="chainLengthUnit">長度單位</label><select id="chainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
-<div class="field"><label for="styleCode">款式代碼</label><input id="styleCode" maxlength="40" placeholder="選填"></div>
-<div class="field wide"><label for="productNote">備註</label><input id="productNote" maxlength="500"></div>
+<form id="productForm" class="product-editor-form">
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>1</span><div><strong>商品識別</strong><small>商品編號、條碼及名稱，用來快速辨識每一件商品</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="productPrefix">編號前綴</label><input id="productPrefix" maxlength="21" value="G00R-" placeholder="G00R-"></div>
+  <div class="field"><label for="productCode">商品編號（可手動修改）</label><input id="productCode" required maxlength="50" placeholder="按鈕產生或手動輸入"></div>
+  <div class="field wide"><button class="secondary" id="generateCode" type="button">產生下一個共用流水號</button></div>
+  <div class="field"><label for="barcode">條碼</label><input id="barcode" maxlength="100" placeholder="可留空"></div>
+  <div class="field wide"><label for="productName">商品名稱</label><input id="productName" required maxlength="200" placeholder="黃金戒指"></div>
+ </div>
 </div>
-<button type="submit">新增商品</button>
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>2</span><div><strong>商品分類與材質</strong><small>選擇商品類別，並記錄材質代碼</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="productCategory">商品分類</label><select id="productCategory"><option value="">未分類</option></select></div>
+  <div class="field"><label for="materialCode">材質代碼</label><input id="materialCode" maxlength="30" placeholder="例如 G"></div>
+ </div>
+</div>
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>3</span><div><strong>重量與工錢</strong><small>分別輸入總重、淨重及預設銷售工錢</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="grossWeight">總重</label><input id="grossWeight" type="number" min="0" step="0.0001" value="0" required></div>
+  <div class="field"><label for="netWeight">淨重</label><input id="netWeight" type="number" min="0" step="0.0001" value="0" required></div>
+  <div class="field"><label for="weightUnit">重量單位</label><select id="weightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
+  <div class="field"><label for="laborFee">預設銷售工錢</label><input id="laborFee" type="number" min="0" step="0.01" value="0" required></div>
+ </div>
+</div>
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>4</span><div><strong>商品規格與備註</strong><small>項鍊長度、手圍、款式及其他補充資訊</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="chainLength">項鍊長度／手圍</label><input id="chainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
+  <div class="field"><label for="chainLengthUnit">長度單位</label><select id="chainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
+  <div class="field"><label for="styleCode">款式代碼</label><input id="styleCode" maxlength="40" placeholder="選填"></div>
+  <div class="field wide"><label for="productNote">備註</label><input id="productNote" maxlength="500"></div>
+ </div>
+</div>
+<div class="actions product-form-actions"><button type="submit">新增商品</button></div>
 </form>
 <div id="productStatus" class="status" role="status"></div>
 </section>
@@ -1068,25 +1106,43 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <section id="productEditPanel" class="panel span2 hidden">
 <h2>編輯商品資料</h2>
 <p class="sub">修改後會重新檢查商品編號、流水號、條碼唯一性及重量規則。此處工錢是預設銷售工錢，不會改動採購明細中的進貨成本工錢。</p>
-<form id="productEditForm">
+<form id="productEditForm" class="product-editor-form">
 <input id="editProductId" type="hidden">
 <input id="editChainLengthRaw" type="hidden">
-<div class="grid">
-<div class="field"><label for="editProductCode">商品編號</label><input id="editProductCode" required maxlength="50"></div>
-<div class="field"><label for="editBarcode">條碼</label><input id="editBarcode" maxlength="100"></div>
-<div class="field wide"><label for="editProductName">商品名稱</label><input id="editProductName" required maxlength="200"></div>
-<div class="field"><label for="editProductCategory">商品分類</label><select id="editProductCategory"><option value="">未分類</option></select></div>
-<div class="field"><label for="editMaterialCode">材質代碼</label><input id="editMaterialCode" maxlength="30"></div>
-<div class="field"><label for="editGrossWeight">總重</label><input id="editGrossWeight" type="number" min="0" step="0.0001" required></div>
-<div class="field"><label for="editNetWeight">淨重</label><input id="editNetWeight" type="number" min="0" step="0.0001" required></div>
-<div class="field"><label for="editWeightUnit">重量單位</label><select id="editWeightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
-<div class="field"><label for="editLaborFee">預設銷售工錢</label><input id="editLaborFee" type="number" min="0" step="0.01" required></div>
-<div class="field"><label for="editChainLength">項鍊長度／手圍</label><input id="editChainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
-<div class="field"><label for="editChainLengthUnit">長度單位</label><select id="editChainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
-<div class="field"><label for="editStyleCode">款式代碼</label><input id="editStyleCode" maxlength="40" placeholder="選填"></div>
-<div class="field wide"><label for="editProductNote">備註</label><input id="editProductNote" maxlength="500"></div>
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>1</span><div><strong>商品識別</strong><small>檢查商品編號、條碼及名稱</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="editProductCode">商品編號</label><input id="editProductCode" required maxlength="50"></div>
+  <div class="field"><label for="editBarcode">條碼</label><input id="editBarcode" maxlength="100"></div>
+  <div class="field wide"><label for="editProductName">商品名稱</label><input id="editProductName" required maxlength="200"></div>
+ </div>
 </div>
-<div class="actions"><button type="submit">儲存修改</button><button class="secondary" id="cancelProductEdit" type="button">取消</button></div>
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>2</span><div><strong>商品分類與材質</strong><small>維持商品分類及材質資料正確</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="editProductCategory">商品分類</label><select id="editProductCategory"><option value="">未分類</option></select></div>
+  <div class="field"><label for="editMaterialCode">材質代碼</label><input id="editMaterialCode" maxlength="30"></div>
+ </div>
+</div>
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>3</span><div><strong>重量與工錢</strong><small>確認商品重量單位及預設銷售工錢</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="editGrossWeight">總重</label><input id="editGrossWeight" type="number" min="0" step="0.0001" required></div>
+  <div class="field"><label for="editNetWeight">淨重</label><input id="editNetWeight" type="number" min="0" step="0.0001" required></div>
+  <div class="field"><label for="editWeightUnit">重量單位</label><select id="editWeightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
+  <div class="field"><label for="editLaborFee">預設銷售工錢</label><input id="editLaborFee" type="number" min="0" step="0.01" required></div>
+ </div>
+</div>
+<div class="product-form-section">
+ <div class="product-form-section-heading"><span>4</span><div><strong>商品規格與備註</strong><small>項鍊長度、手圍、款式及其他補充資訊</small></div></div>
+ <div class="grid">
+  <div class="field"><label for="editChainLength">項鍊長度／手圍</label><input id="editChainLength" type="number" min="0" step="0.1" placeholder="輸入數字"></div>
+  <div class="field"><label for="editChainLengthUnit">長度單位</label><select id="editChainLengthUnit"><option value="尺">尺（項鍊）</option><option value="cm">cm（手圍）</option></select></div>
+  <div class="field"><label for="editStyleCode">款式代碼</label><input id="editStyleCode" maxlength="40" placeholder="選填"></div>
+  <div class="field wide"><label for="editProductNote">備註</label><input id="editProductNote" maxlength="500"></div>
+ </div>
+</div>
+<div class="actions product-form-actions"><button type="submit">儲存修改</button><button class="secondary" id="cancelProductEdit" type="button">取消</button></div>
 </form>
 <div id="productEditStatus" class="status" role="status"></div>
 </section>
