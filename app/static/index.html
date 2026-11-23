@@ -3478,6 +3478,13 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  label.className="category-shortcuts-label";
  label.textContent="本分類快速功能（點選直接定位）";
  shortcuts.appendChild(label);
+ const status=document.createElement("span");
+ status.className="category-shortcuts-status";
+ status.setAttribute("role","status");
+ status.setAttribute("aria-live","polite");
+ status.setAttribute("aria-atomic","true");
+ status.textContent="可展開或收合本分類功能區";
+ shortcuts.appendChild(status);
  categoryNav.after(shortcuts);
  const titleFor=panel=>{
   const h=panel.querySelector(":scope > h2");
@@ -3546,6 +3553,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  });
  const renderShortcuts=category=>{
   shortcuts.querySelectorAll("button").forEach(b=>b.remove());
+  status.textContent="可展開或收合本分類功能區";
   const categoryPanels=panels.filter(p=>p.dataset.category===category);
   const expandAll=document.createElement("button");
   expandAll.type="button";
@@ -3558,6 +3566,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
      if(toggle)toggle.click();
     }
    });
+   status.textContent="已展開 "+categoryPanels.length+" 個功能區";
   });
   shortcuts.appendChild(expandAll);
   const collapseAll=document.createElement("button");
@@ -3571,6 +3580,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
      if(toggle)toggle.click();
     }
    });
+   status.textContent="已收合 "+categoryPanels.length+" 個功能區";
   });
   shortcuts.appendChild(collapseAll);
   categoryPanels.forEach(panel=>{
