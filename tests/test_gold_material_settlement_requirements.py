@@ -61,7 +61,7 @@ def test_supplier_gold_delivery_requires_bill_allocation_without_stock_deduction
             "deduction_amount": "0", "allocations": [],
         })
         assert rejected.status_code == 422, rejected.text
-        assert "至少需要分攤至一張供應商帳單" in rejected.json()["detail"]
+        assert "必須分攤至至少一張供應商帳單" in rejected.json()["detail"]
         balance = client.get(f"{base}/balance", params={"site_id": str(site_id)})
         assert Decimal(balance.json()["fine_gold_weight_g"]) == Decimal("10.0000")
         check = TestSession()
