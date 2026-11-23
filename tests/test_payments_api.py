@@ -617,7 +617,8 @@ def test_mixed_sale_card_and_cash_installments_reconcile_to_daily_close_and_draw
         )
         assert closing.status_code == 201, closing.text
         snapshot = closing.json()
-        assert snapshot["gross_sales_amount"] == "30500.00"
+        # The shared fixture also contains a separate 1,000 sale and a -150 sale.
+        assert snapshot["gross_sales_amount"] == "31350.00"
         assert snapshot["collected_amount"] == "30500.00"
         summaries = {
             row["payment_method"]: row for row in snapshot["payment_summaries"]
