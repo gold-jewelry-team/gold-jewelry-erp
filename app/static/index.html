@@ -537,6 +537,59 @@ button.secondary:disabled{opacity:.42}
  main{width:100%;max-width:none;padding:16px 20px}
  #homeDashboard{width:100%;grid-column:1/-1}
 }
+
+/* Responsive gold summary: keep the live price board readable on phone, tablet and desktop. */
+#goldPriceSummary{width:100%;max-width:1180px;min-width:0}
+#goldPriceSummary .gold-summary-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0}
+#goldPriceSummary .gold-summary-head>strong{flex:1 1 auto;min-width:90px}
+#goldPriceSummary .gold-summary-head label{flex:0 0 auto}
+#goldPriceSummary .gold-summary-head select{flex:0 1 auto;max-width:100%}
+#goldPriceSummary .gold-summary-values{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+#goldPriceSummary .gold-summary-price{min-width:0;flex-wrap:wrap;align-items:baseline;gap:4px 6px}
+#goldPriceSummary .gold-summary-price strong{overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+#goldPriceSummary .gold-currency-tools{min-width:0}
+#goldPriceSummary .gold-currency-tools-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+#goldPriceSummary .gold-currency-rate-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#goldPriceSummary .gold-currency-rate-fields>div{min-width:0}
+#goldPriceSummary .gold-currency-rate-fields input{min-width:0;width:100%}
+#goldPriceSummary .gold-currency-values{grid-template-columns:repeat(2,minmax(0,1fr))}
+#goldPriceSummary .gold-currency-card{min-width:0;overflow-wrap:anywhere}
+#goldPriceSummary .gold-summary-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+#goldPriceSummary .gold-summary-actions{display:flex;flex:0 1 auto;flex-wrap:wrap;gap:6px}
+#goldPriceSummary .gold-summary-actions button{flex:0 1 auto;min-width:0;white-space:normal}
+#goldPriceSummary .gold-summary-reminder,#goldPriceSummary #goldSummaryStatus{overflow-wrap:anywhere}
+@media(min-width:640px) and (max-width:899px){
+ header{padding-left:20px;padding-right:20px}
+ #goldPriceSummary{max-width:none}
+ #goldPriceSummary .gold-summary-values{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #goldPriceSummary .gold-currency-values{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(min-width:900px){
+ #goldPriceSummary{max-width:1180px}
+ #goldPriceSummary .gold-summary-values{grid-template-columns:repeat(2,minmax(220px,1fr));max-width:620px}
+ #goldPriceSummary .gold-currency-values{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:520px){
+ header{padding:12px 12px 10px}
+ #goldPriceSummary{padding:10px}
+ #goldPriceSummary .gold-summary-head{gap:6px}
+ #goldPriceSummary .gold-summary-head>strong{flex:1 1 100%}
+ #goldPriceSummary .gold-summary-head label{margin-right:auto}
+ #goldPriceSummary .gold-summary-head select{flex:0 1 125px;min-width:0}
+ #goldPriceSummary .gold-summary-values{grid-template-columns:minmax(0,1fr)}
+ #goldPriceSummary .gold-summary-price{justify-content:space-between}
+ #goldPriceSummary .gold-currency-tools-head{align-items:flex-start}
+ #goldPriceSummary .gold-currency-rate-fields{grid-template-columns:minmax(0,1fr)}
+ #goldPriceSummary .gold-currency-values{grid-template-columns:minmax(0,1fr)}
+ #goldPriceSummary .gold-summary-foot{align-items:stretch;flex-direction:column}
+ #goldPriceSummary .gold-summary-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ #goldPriceSummary .gold-summary-actions button{width:100%;min-height:38px;padding:7px 8px;font-size:11px}
+}
+@media(max-width:360px){
+ #goldPriceSummary .gold-summary-head select{flex:1 1 100%;width:100%}
+ #goldPriceSummary .gold-summary-actions{grid-template-columns:minmax(0,1fr)}
+}
+
 </style>
 </head>
 <body>
