@@ -1038,6 +1038,7 @@ function stopCameraScanner(){
  scanDetector=null;scanBusy=false;
 }
 async function closeCameraScanner(){stopCameraScanner();$("scanModal").classList.add("hidden");}
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("scanModal").classList.contains("hidden")){event.preventDefault();closeCameraScanner();}});
 function scannerFormats(supported){
  const linear=["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar"];
  const selected=scanFormatMode==="qr"?["qr_code"]:scanFormatMode==="both"?[...linear,"qr_code"]:linear;
@@ -1070,7 +1071,7 @@ async function openCameraScanner(target){
   scanDetector=new window.BarcodeDetector({formats});
   scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:scanFacingMode},width:{ideal:1280},height:{ideal:720}},audio:false});
   const video=$("scanVideo");video.srcObject=scanStream;await video.play();
-  $("scanHint").textContent="辨識中…請將單一條碼完整放入畫面中央框線內。";$("scanModal").classList.remove("hidden");
+  $("scanHint").textContent="辨識中…請將單一條碼完整放入畫面中央框線內。";$("scanModal").classList.remove("hidden");$("closeScanner").focus();
   const detect=async()=>{
    if(!scanStream||!scanDetector||scanBusy)return;
    try{
