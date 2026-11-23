@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -177,7 +178,7 @@ def test_purchase_receipt_supplier_bill_partial_payments_and_daily_close_e2e():
         assert summaries["CASH"]["supplier_paid_amount"] == "7350.00"
 
         verify = TestSession()
-        persisted_purchase = verify.get(Purchase, purchase["id"])
+        persisted_purchase = verify.get(Purchase, UUID(purchase["id"]))
         assert persisted_purchase.status == "RECEIVED"
         assert verify.query(SupplierBill).count() == 1
         assert verify.query(SupplierPayment).count() == 2
