@@ -14,8 +14,7 @@ from app.main import app
 from app.models.company import Company
 from app.models.site import Site
 from app.models.payment_transaction import PaymentTransaction
-from app.services.daily_closing import create_daily_closing
-from app.routers import customer_orders
+from app.routers import cash_counts, customer_orders, daily_closing
 
 
 def test_customer_order_deposit_ledger_and_status_flow():
@@ -45,6 +44,8 @@ def test_customer_order_deposit_ledger_and_status_flow():
 
     app.dependency_overrides.clear()
     app.dependency_overrides[customer_orders.get_db] = override_db
+    app.dependency_overrides[daily_closing.get_db] = override_db
+    app.dependency_overrides[cash_counts.get_db] = override_db
     try:
         client = TestClient(app)
         created = client.post(f"/companies/{company_id}/customer-orders", json={
@@ -108,15 +109,34 @@ def test_customer_order_deposit_ledger_and_status_flow():
         ).all()
         assert len(receipts) == 2
         assert all(receipt.direction == "IN" for receipt in receipts)
-        closing = create_daily_closing(
-            ledger,
-            company_id=company_id,
-            site_id=site_id,
-            business_date=datetime.now(ZoneInfo("Asia/Taipei")).date(),
-        )
-        ledger.commit()
-        assert closing.collected_amount == Decimal("30000.00")
         ledger.close()
+
+        business_date = datetime.now(ZoneInfo("Asia/Taipei")).date()
+        closing_response = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing_response.status_code == 201, closing_response.text
+        closing = closing_response.json()
+        assert closing["collected_amount"] == "30000.00"
+        summaries = {
+            row["payment_method"]: row for row in closing["payment_summaries"]
+        }
+        assert summaries["CASH"]["collected_amount"] == "5000.00"
+        assert summaries["TRANSFER"]["collected_amount"] == "25000.00"
+
+        cash_count = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings/"
+            f"{closing['id']}/cash-count",
+            json={
+                "opening_cash_float": "1000.00",
+                "counted_cash_amount": "6000.00",
+                "counted_by_name": "盤點甲",
+            },
+        )
+        assert cash_count.status_code == 201, cash_count.text
+        assert cash_count.json()["expected_cash_amount"] == "6000.00"
+        assert cash_count.json()["cash_variance"] == "0.00"
 
         duplicate_overpayment = client.post(f"/companies/{company_id}/customer-orders/{order['id']}/payments", json={
             "amount": "1", "payment_method": "CASH",
