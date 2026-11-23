@@ -789,7 +789,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <div class="field"><label for="expenseReceiptNo">收據／發票號碼</label><input id="expenseReceiptNo" maxlength="100"></div>
 <div class="field wide"><label for="expenseNote">備註</label><input id="expenseNote" maxlength="500"></div>
 </div>
-<button type="submit">新增營業費用</button>
+<div class="actions"><button id="restorePendingExpense" class="secondary hidden" type="button">恢復尚未確認的費用</button><button type="submit">新增營業費用</button></div>
 </form>
 <div id="expenseStatus" class="status" role="status"></div>
 <h3>費用紀錄</h3>
@@ -2183,15 +2183,110 @@ async function loadPurchases(){
  renderBillPurchaseOptions();
  box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.purchase_no)+'</strong><span class="pill">'+escapeHtml(purchaseStatusLabels[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 下單日：'+escapeHtml(row.order_date)+' · 預計到貨：'+escapeHtml(row.expected_date||"未設定")+'</span><span class="muted">商品明細：'+row.lines.map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);return escapeHtml(product?.product_code||"商品")+" "+escapeHtml(line.received_quantity)+"/"+escapeHtml(line.quantity);}).join("、")+'</span><div class="actions">'+(row.status==="DRAFT"?'<button class="secondary" type="button" data-submit-purchase="'+escapeHtml(row.id)+'">送出採購單</button>':'')+(["DRAFT","ORDERED"].includes(row.status)?'<button class="secondary" type="button" data-cancel-purchase="'+escapeHtml(row.id)+'">取消採購單</button>':'')+(["ORDERED","PARTIALLY_RECEIVED"].includes(row.status)?'<button class="secondary" type="button" data-open-receive="'+escapeHtml(row.id)+'">到貨驗收</button>':'')+'</div></article>').join(""):'<div class="empty">沒有符合條件的採購單</div>';
 }
+function pendingExpenseStorageKey(company,site){
+ return "gold-erp-expense-create:"+company+":"+site;
+}
+function readPendingExpense(company,site){
+ try{
+  const raw=localStorage.getItem(pendingExpenseStorageKey(company,site));
+  if(!raw)return null;
+  const pending=JSON.parse(raw);
+  return pending&&pending.fingerprint&&pending.payload?pending:null;
+ }catch(error){
+  try{localStorage.removeItem(pendingExpenseStorageKey(company,site));}catch(storageError){}
+  return null;
+ }
+}
+function savePendingExpense(company,site,payload){
+ const key=pendingExpenseStorageKey(company,site);
+ const fingerprint=JSON.stringify(payload);
+ const existing=readPendingExpense(company,site);
+ if(existing){
+  if(existing.fingerprint!==fingerprint){
+   throw new Error("上一筆營業費用尚未確認結果，請先恢復原費用內容重試，不可修改內容另送。");
+  }
+  return existing;
+ }
+ const pending={fingerprint,payload};
+ try{localStorage.setItem(key,JSON.stringify(pending));}
+ catch(error){throw new Error("瀏覽器無法保存費用重送資料，請確認儲存空間後再試。");}
+ return pending;
+}
+function clearPendingExpense(company,site){
+ try{localStorage.removeItem(pendingExpenseStorageKey(company,site));}catch(error){}
+}
+function renderPendingExpenseRecovery(){
+ const button=$("restorePendingExpense");
+ if(!button)return;
+ const pending=companyId&&selectedSiteId?readPendingExpense(companyId,selectedSiteId):null;
+ button.classList.toggle("hidden",!pending);
+}
+function restorePendingExpenseDraft(){
+ const pending=companyId&&selectedSiteId?readPendingExpense(companyId,selectedSiteId):null;
+ if(!pending){message("expenseStatus","沒有尚未確認的營業費用。");return;}
+ const p=pending.payload;
+ $("expenseNo").value=p.expense_no;
+ $("expenseDate").value=p.expense_date;
+ $("expenseCategory").value=p.category_code;
+ $("expenseDescription").value=p.description;
+ $("expenseAmount").value=p.amount;
+ $("expensePayee").value=p.payee||"";
+ $("expensePaymentMethod").value=p.payment_method||"";
+ $("expenseReceiptNo").value=p.receipt_no||"";
+ $("expenseNote").value=p.note||"";
+ message("expenseStatus","已恢復尚未確認回應的費用；請使用原費用單號與內容重試。");
+ $("expenseForm").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function expensePaymentPendingStorageKey(company,site,expense){
+ return "gold-erp-expense-payment:"+company+":"+site+":"+expense;
+}
+function readPendingExpensePayment(company,site,expense){
+ try{
+  const raw=localStorage.getItem(expensePaymentPendingStorageKey(company,site,expense));
+  if(!raw)return null;
+  const pending=JSON.parse(raw);
+  return pending&&pending.payment_method?pending:null;
+ }catch(error){
+  try{localStorage.removeItem(expensePaymentPendingStorageKey(company,site,expense));}catch(storageError){}
+  return null;
+ }
+}
+function savePendingExpensePayment(company,site,expense,paymentMethod){
+ const key=expensePaymentPendingStorageKey(company,site,expense);
+ const existing=readPendingExpensePayment(company,site,expense);
+ if(existing){
+  if(existing.payment_method!==paymentMethod){
+   throw new Error("上一筆費用付款尚未確認結果，請使用原付款方式重試。");
+  }
+  return existing;
+ }
+ const pending={payment_method:paymentMethod};
+ try{localStorage.setItem(key,JSON.stringify(pending));}
+ catch(error){throw new Error("瀏覽器無法保存付款重送資料，請確認儲存空間後再試。");}
+ return pending;
+}
+function clearPendingExpensePayment(company,site,expense){
+ try{localStorage.removeItem(expensePaymentPendingStorageKey(company,site,expense));}catch(error){}
+}
 async function loadExpenses(){
  const box=$("expenseList");
+ renderPendingExpenseRecovery();
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
  const params=new URLSearchParams({site_id:selectedSiteId});
  if($("expenseFilterStatus").value)params.set("status",$("expenseFilterStatus").value);
  if($("expenseFilterCategory").value)params.set("category_code",$("expenseFilterCategory").value);
  const rows=await api("/companies/"+companyId+"/operating-expenses?"+params.toString());
- box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.expense_no)+' · '+escapeHtml(row.description)+'</strong><span class="pill">'+(row.status==="PAID"?"已付款":row.status==="UNPAID"?"未付款":"已作廢")+'</span><span class="muted">日期：'+escapeHtml(row.expense_date)+' · 分類：'+escapeHtml(expenseCategoryLabels[row.category_code]||row.category_code)+' · 金額：'+escapeHtml(row.amount)+' 元</span><span class="muted">收款對象：'+escapeHtml(row.payee||"未填")+' · 付款方式：'+escapeHtml(row.payment_method||"尚未付款")+'</span>'+(row.status==="UNPAID"?'<div class="actions"><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">登錄付款</button></div>':'')+'</article>').join(""):'<div class="empty">沒有符合條件的營業費用</div>';
+ box.innerHTML=rows.length?rows.map(row=>{
+  const pendingPayment=readPendingExpensePayment(companyId,selectedSiteId,row.id);
+  const action=pendingPayment
+   ?'<div class="actions"><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">恢復待確認付款</button></div>'
+   :(row.status==="UNPAID"
+     ?'<div class="actions"><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">登錄付款</button></div>'
+     :"");
+  return '<article class="item"><strong>'+escapeHtml(row.expense_no)+' · '+escapeHtml(row.description)+'</strong><span class="pill">'+(row.status==="PAID"?"已付款":row.status==="UNPAID"?"未付款":"已作廢")+'</span><span class="muted">日期：'+escapeHtml(row.expense_date)+' · 分類：'+escapeHtml(expenseCategoryLabels[row.category_code]||row.category_code)+' · 金額：'+escapeHtml(row.amount)+' 元</span><span class="muted">收款對象：'+escapeHtml(row.payee||"未填")+' · 付款方式：'+escapeHtml(row.payment_method||"尚未付款")+'</span>'+action+'</article>';
+ }).join(""):'<div class="empty">沒有符合條件的營業費用</div>';
 }
+
 async function loadCashDrawerMovements(){
  const box=$("cashDrawerList");
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
@@ -2330,16 +2425,25 @@ $("purchaseReceiveForm").addEventListener("submit",async event=>{
  }
  finally{button.disabled=false;}
 });
+$("restorePendingExpense").addEventListener("click",restorePendingExpenseDraft);
 $("expenseForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("expenseStatus","請先選擇公司與據點。",true);return;}
  const payload={site_id:selectedSiteId,expense_no:$("expenseNo").value.trim(),expense_date:$("expenseDate").value,category_code:$("expenseCategory").value,description:$("expenseDescription").value.trim(),amount:$("expenseAmount").value,payee:$("expensePayee").value.trim()||null,payment_method:$("expensePaymentMethod").value||null,receipt_no:$("expenseReceiptNo").value.trim()||null,note:$("expenseNote").value.trim()||null};
+ let pending;
+ try{pending=savePendingExpense(companyId,selectedSiteId,payload);}
+ catch(error){message("expenseStatus",error.message,true);return;}
  const button=$("expenseForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
   await api("/companies/"+companyId+"/operating-expenses",{method:"POST",body:JSON.stringify(payload)});
-  $("expenseForm").reset();$("expenseDate").value=taipeiDateValue();message("expenseStatus","營業費用已新增。");
-  await loadExpenses();
- }catch(error){message("expenseStatus",error.message,true);}
+  clearPendingExpense(companyId,selectedSiteId);
+  $("expenseForm").reset();$("expenseDate").value=taipeiDateValue();message("expenseStatus","營業費用已新增或確認原紀錄。");
+  try{await loadExpenses();}
+  catch(refreshError){message("expenseStatus","費用已完成，但清單更新失敗："+refreshError.message,true);}
+ }catch(error){
+  if(error.status===422)clearPendingExpense(companyId,selectedSiteId);
+  message("expenseStatus",error.message,true);
+ }
  finally{button.disabled=false;}
 });
 $("refreshExpenses").addEventListener("click",()=>loadExpenses().catch(error=>message("expenseStatus",error.message,true)));
@@ -2348,12 +2452,23 @@ $("expenseFilterCategory").addEventListener("change",()=>loadExpenses().catch(er
 $("expenseList").addEventListener("click",async event=>{
  const button=event.target.closest("[data-pay-expense]");
  if(!button)return;
+ const expenseId=button.dataset.payExpense;
+ let pending=readPendingExpensePayment(companyId,selectedSiteId,expenseId);
+ const paymentMethod=pending?pending.payment_method:$("expenseSettlementMethod").value;
+ if(pending)$("expenseSettlementMethod").value=paymentMethod;
+ try{pending=savePendingExpensePayment(companyId,selectedSiteId,expenseId,paymentMethod);}
+ catch(error){message("expenseStatus",error.message,true);return;}
  button.disabled=true;
  try{
-  await api("/companies/"+companyId+"/operating-expenses/"+button.dataset.payExpense+"/pay",{method:"POST",body:JSON.stringify({payment_method:$("expenseSettlementMethod").value})});
-  message("expenseStatus","營業費用已登錄付款。");
-  await loadExpenses();
- }catch(error){message("expenseStatus",error.message,true);}
+  await api("/companies/"+companyId+"/operating-expenses/"+expenseId+"/pay",{method:"POST",body:JSON.stringify({payment_method:pending.payment_method})});
+  clearPendingExpensePayment(companyId,selectedSiteId,expenseId);
+  message("expenseStatus","營業費用已付款或已確認原付款紀錄。");
+  try{await loadExpenses();}
+  catch(refreshError){message("expenseStatus","付款已完成，但清單更新失敗："+refreshError.message,true);}
+ }catch(error){
+  if(error.status===422)clearPendingExpensePayment(companyId,selectedSiteId,expenseId);
+  message("expenseStatus",error.message,true);
+ }
  finally{button.disabled=false;}
 });
 $("cashDrawerForm").addEventListener("submit",async event=>{
