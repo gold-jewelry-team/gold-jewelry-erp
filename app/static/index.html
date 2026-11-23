@@ -1369,7 +1369,7 @@ async function copyLastScannedCode(){
  catch(error){$("scanFeedbackMessage").textContent="瀏覽器未允許自動複製，請直接選取上方條碼複製。";}
 }
 $("copyScannedCode").addEventListener("click",copyLastScannedCode);
-$("manualLookupCode").addEventListener("click",()=>{const code=lastScannedCode;$("scanFeedback").classList.add("hidden");$("search").value=code;const productCategory=document.querySelector('.category-nav button[data-category="products"]');if(productCategory)productCategory.click();$("searchButton").click();$("search").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});$("search").focus();});
+$("manualLookupCode").addEventListener("click",()=>{const code=lastScannedCode;$("scanFeedback").classList.add("hidden");$("search").value=code;const productCategory=document.querySelector('.category-nav button[data-category="products"]');if(productCategory)productCategory.click();$("searchButton").click();$("search").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});$("search").focus();});
 $("rescanCode").addEventListener("click",()=>{const target=lastScannedTarget;$("scanFeedback").classList.add("hidden");openCameraScanner(target);});
 $("closeScanFeedback").addEventListener("click",()=>$("scanFeedback").classList.add("hidden"));
 renderScanHistory();
@@ -1867,7 +1867,7 @@ async function openCashCount(closing){
  $("cashCountReviewForm").classList.add("hidden");
  $("cashCountResult").innerHTML="";
  $("cashCountStatus").textContent="";
- $("cashCountPanel").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ $("cashCountPanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
  await loadCashCount();
 }
 async function loadCashCount(){
@@ -2109,7 +2109,7 @@ function openProductEditor(product){
  select.value=product.category_id||"";
  $("productEditStatus").textContent="";
  $("productEditPanel").classList.remove("hidden");
- $("productEditPanel").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ $("productEditPanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
 }
 
 $("labelLotSelect").addEventListener("change",renderLabelLotDetails);
@@ -2375,7 +2375,7 @@ $("supplierBillList").addEventListener("click",event=>{
   $("supplierPaymentNote").value="";
   $("supplierPaymentStatus").textContent="";
  }
- $("supplierPaymentPanel").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ $("supplierPaymentPanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
 });
 $("cancelSupplierPayment").addEventListener("click",()=>{$("supplierPaymentPanel").classList.add("hidden");selectedSupplierBill=null;});
 function supplierPaymentPendingStorageKey(company,site,bill){
@@ -2507,7 +2507,7 @@ function restorePendingExpenseDraft(){
  $("expenseReceiptNo").value=p.receipt_no||"";
  $("expenseNote").value=p.note||"";
  message("expenseStatus","已恢復尚未確認回應的費用；請使用原費用單號與內容重試。");
- $("expenseForm").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ $("expenseForm").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
 }
 function expensePaymentPendingStorageKey(company,site,expense){
  return "gold-erp-expense-payment:"+company+":"+site+":"+expense;
@@ -2617,7 +2617,7 @@ function restorePendingCashDrawerDraft(){
  $("drawerReference").value=p.reference_no||"";
  $("drawerNote").value=p.note||"";
  message("cashDrawerStatus","已恢復尚未確認回應的現金櫃異動；請使用原金額與內容重試。");
- $("cashDrawerForm").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ $("cashDrawerForm").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
 }
 async function loadCashDrawerMovements(){
  const box=$("cashDrawerList");
@@ -2680,7 +2680,7 @@ $("purchaseList").addEventListener("click",async event=>{
   $("purchaseReceiveLocation").innerHTML='<option value="">請選擇位置</option>'+inventoryLocations.filter(x=>x.is_active).map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
   $("selectedPurchaseLine").innerHTML=selectedPurchase.lines.filter(line=>Number(line.received_quantity)<Number(line.quantity)).map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);const remaining=Number(line.quantity)-Number(line.received_quantity);return '<article class="item transaction-item receive-line-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(product?.product_code||"商品")+' · '+escapeHtml(product?.name||"")+'</strong><span class="muted">此商品尚未完成驗收</span></div><div class="transaction-item-primary receive-remaining"><small>尚餘待驗收</small><strong>'+escapeHtml(remaining)+'</strong></div></div><div class="transaction-item-meta"><span><small>已驗收數量</small><strong>'+escapeHtml(line.received_quantity)+'</strong></span><span><small>訂購總數量</small><strong>'+escapeHtml(line.quantity)+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-receive-line="'+escapeHtml(line.id)+'" data-remaining="'+remaining+'">選取此明細驗收</button></div></article>';}).join("")||'<div class="empty">此採購單已全部驗收完成</div>';
   $("purchaseReceiveForm").classList.add("hidden");
-  $("purchaseReceivePanel").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  $("purchaseReceivePanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
  }
 });
 function purchaseReceiveStorageKey(purchaseId,lineId){
@@ -2851,7 +2851,7 @@ $("salesHistoryList").addEventListener("click",async event=>{
   }
   const sale=await api("/companies/"+companyId+"/sales/"+button.dataset.openSale);
   saleCartLines=[];renderSaleCart();renderSaleResult(sale);
-  $("saleDraftResult").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  $("saleDraftResult").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   message("saleStatus","已載入歷史銷售紀錄："+sale.sale_no);
  }catch(error){message("salesHistoryStatus",error.message,true);}
 });
@@ -2945,7 +2945,7 @@ function transferQuoteToSale(){
  if(!$("saleNo").value.trim())$("saleNo").value="SO-"+Date.now().toString();
  const panel=$("salesPanel");
  const categoryButton=document.querySelector('.category-nav button[data-category="sales"]');if(categoryButton)categoryButton.click();
- panel.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ panel.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
  message("saleStatus","已將共用報價明細帶入銷售購物車。請確認付款方式與單號，再建立銷售草稿。");
 }
 $("quoteTransferToSaleButton").addEventListener("click",transferQuoteToSale);
@@ -3327,7 +3327,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  const updateTopButton=()=>topButton.classList.toggle("visible",window.scrollY>500);
  window.addEventListener("scroll",updateTopButton,{passive:true});
  updateTopButton();
- topButton.addEventListener("click",()=>window.scrollTo({top:0,behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}));
+ topButton.addEventListener("click",()=>window.scrollTo({top:0,behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}));
 })();
 (function(){
  const collapsibleTitles=new Set([
@@ -3535,7 +3535,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
      jump.className="secondary";
      jump.textContent=item.textContent.trim().replace(/\s+/g," ").slice(0,18);
      jump.title="跳至："+item.textContent.trim();
-     jump.addEventListener("click",()=>item.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"}));
+     jump.addEventListener("click",()=>item.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"}));
      subnav.appendChild(jump);
     });
     content.insertBefore(subnav,content.firstChild);
@@ -3593,7 +3593,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
      const toggle=panel.querySelector(":scope > h2 .panel-toggle");
      if(toggle)toggle.click();
     }
-    panel.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+    panel.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
    });
    shortcuts.appendChild(button);
   });
@@ -3617,7 +3617,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
    const toggle=panel.querySelector(":scope > h2 .panel-toggle");
    if(toggle)toggle.click();
   }
-  panel.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  panel.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   window.setTimeout(()=>document.getElementById("goldPriceBuyValue")?.focus({preventScroll:true}),250);
  };
  quickButton.addEventListener("click",openGoldPrice);
@@ -4009,7 +4009,7 @@ $("quoteClearButton").addEventListener("click",()=>{
   const button=document.querySelector('.category-nav button[data-category="quote"]');if(button)button.click();
   const panel=$("quoteWorkbenchPanel");if(!panel)return;
   if(panel.classList.contains("panel-collapsed"))panel.querySelector(":scope > h2 .panel-toggle")?.click();
-  panel.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  panel.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   window.setTimeout(()=>$("quoteProductCode").focus({preventScroll:true}),200);
  };
  $("quickQuote").addEventListener("click",openQuote);
@@ -4036,7 +4036,7 @@ document.addEventListener("click",function(event){
   if(toggle)toggle.click();
  }
  window.requestAnimationFrame(()=>{
-  target.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  target.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   target.setAttribute("tabindex","-1");
   window.setTimeout(function(){try{target.focus({preventScroll:true});}catch(_){target.focus();}},350);
  });
