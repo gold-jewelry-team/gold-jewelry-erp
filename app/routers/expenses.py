@@ -9,7 +9,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.operating_expense import OperatingExpense
-from app.services.operating_expenses import create_expense, pay_expense
+from app.services.operating_expenses import (
+    OperatingExpensePaymentConflict,
+    create_expense,
+    pay_expense,
+)
 
 router = APIRouter(prefix="/companies/{company_id}/operating-expenses", tags=["operating expenses"])
 def get_db():
@@ -78,5 +82,7 @@ def post_expense_payment(company_id: UUID,expense_id: UUID,payload: ExpensePay,d
     try:
         row=pay_expense(db,company_id=company_id,expense_id=expense_id,payment_method=payload.payment_method)
         db.commit(); db.refresh(row); return row
+    except OperatingExpensePaymentConflict as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc
