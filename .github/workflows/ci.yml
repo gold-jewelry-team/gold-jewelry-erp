@@ -70,6 +70,8 @@ jobs:
         run: node --test tests/category_panel_bulk_status_runtime.test.js
       - name: Run mobile scroll target offset runtime tests
         run: node --test tests/mobile_scroll_target_offset_runtime.test.js
+      - name: Run back-to-top reduced motion runtime tests
+        run: node --test tests/back_to_top_reduced_motion_runtime.test.js
       - name: Run quick navigation category shortcut runtime tests
         run: node --test tests/quick_nav_category_shortcuts_runtime.test.js
       - name: Run quick navigation empty search runtime tests
