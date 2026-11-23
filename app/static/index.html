@@ -2383,7 +2383,10 @@ $("expenseList").addEventListener("click",async event=>{
  const expenseId=button.dataset.payExpense;
  const pending=readPendingExpensePayment(companyId,selectedSiteId,expenseId);
  const paymentMethod=pending?pending.payment_method:$("expenseSettlementMethod").value;
- if(pending)$("expenseSettlementMethod").value=paymentMethod;
+ if(pending){
+  $("expenseSettlementMethod").value=paymentMethod;
+  message("expenseStatus","已恢復上一筆尚未確認結果的營業費用付款，將使用原付款方式重試。");
+ }
  let saved;
  try{saved=savePendingExpensePayment(companyId,selectedSiteId,expenseId,paymentMethod);}
  catch(error){message("expenseStatus",error.message,true);return;}
