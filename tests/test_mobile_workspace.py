@@ -60,6 +60,8 @@ def test_mobile_workspace_serves_html():
     assert 'id="scanProductButton"' in response.text
     assert 'id="scanModal"' in response.text
     assert "BarcodeDetector" in response.text
+    assert 'event.key==="Escape"&&!$("scanModal").classList.contains("hidden")' in response.text
+    assert '$("closeScanner").focus()' in response.text
     assert "button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible" in response.text
     assert "outline:3px solid #789b83;outline-offset:2px" in response.text
     assert 'id="completeSale"' in response.text
