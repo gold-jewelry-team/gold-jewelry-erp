@@ -69,11 +69,22 @@ def test_customer_order_payment_retry_returns_existing_transaction_without_colle
         url = f"/companies/{company_id}/customer-orders/{order_id}/payments"
 
         first = client.post(url, json=payload)
-        replay = client.post(url, json=payload)
-
         assert first.status_code == 200, first.text
-        assert replay.status_code == 200, replay.text
         assert first.json()["deposit_amount"] == "1000.00"
+        assert len(first.json()["payments"]) == 2
+
+        for next_status in ("ARRIVED", "READY", "COMPLETED"):
+            changed = client.patch(
+                f"/companies/{company_id}/customer-orders/{order_id}/status",
+                params={"status": next_status},
+            )
+            assert changed.status_code == 200, changed.text
+            assert changed.json()["status"] == next_status
+
+        # A response-lost retry can arrive after the order has already been completed.
+        replay = client.post(url, json=payload)
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["status"] == "COMPLETED"
         assert replay.json()["deposit_amount"] == "1000.00"
         assert len(replay.json()["payments"]) == 2
 
