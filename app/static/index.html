@@ -1705,6 +1705,7 @@ function printProductQrLabel(product,lot,printWindow,config,copies=1){
  printWindow.document.open();printWindow.document.write(html);printWindow.document.close();
 }
 async function beginProductLabelPrint(product){
+  pendingLabelTrigger=document.activeElement;
  const printWindow=window.open("","_blank","width=800,height=400");
  if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
  printWindow.document.write("<p style='font-family:sans-serif;padding:20px'>正在讀取進貨批次…</p>");
@@ -1719,7 +1720,7 @@ async function beginProductLabelPrint(product){
   select.innerHTML=lots.length?lots.map((lot,index)=>'<option value="'+index+'">'+escapeHtml(lot.received_at?new Date(lot.received_at).toLocaleString("zh-TW"):"日期未記錄")+' · '+escapeHtml(lot.supplier_name)+' · '+escapeHtml(lot.location_name)+' · 數量 '+escapeHtml(lot.received_quantity)+'</option>').join(""):'<option value="">沒有進貨紀錄</option>';
   $("labelCopyCount").value="1";
   renderLabelLotDetails();
-  $("labelLotModal").classList.remove("hidden");
+  $("labelLotModal").classList.remove("hidden");$("labelLotSelect").focus();
  }catch(error){
   printWindow.close();
   message("globalStatus","讀取商品進貨批次失敗："+error.message,true);
@@ -1728,6 +1729,11 @@ async function beginProductLabelPrint(product){
 let pendingLabelProduct=null;
 let pendingLabelLots=[];
 let pendingLabelConfig=null;
+let pendingLabelTrigger=null;
+function closeLabelLotModal(){
+ $("labelLotModal").classList.add("hidden");pendingLabelProduct=null;pendingLabelLots=[];pendingLabelConfig=null;
+ const trigger=pendingLabelTrigger;pendingLabelTrigger=null;if(trigger&&trigger.isConnected)trigger.focus();
+}
 function renderLabelLotDetails(){
  const lot=pendingLabelLots[Number($("labelLotSelect").value)];
  if(!lot){$("labelLotDetails").textContent="尚無進貨紀錄；廠商、櫃位與進貨日期將顯示 —。";$("labelCopyCount").removeAttribute("max");return;}
@@ -1829,15 +1835,15 @@ function openProductEditor(product){
 }
 
 $("labelLotSelect").addEventListener("change",renderLabelLotDetails);
-$("cancelLabelLot").addEventListener("click",()=>{$("labelLotModal").classList.add("hidden");pendingLabelProduct=null;pendingLabelLots=[];pendingLabelConfig=null;});
+$("cancelLabelLot").addEventListener("click",closeLabelLotModal);
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("labelLotModal").classList.contains("hidden")){event.preventDefault();closeLabelLotModal();}});
 $("confirmLabelLot").addEventListener("click",()=>{
  const lot=pendingLabelLots.length?pendingLabelLots[Number($("labelLotSelect").value)]:null;
  const product=pendingLabelProduct;
  const copies=Number($("labelCopyCount").value);
  if(!product||!Number.isInteger(copies)||copies<1||(lot&&copies>Math.max(1,Math.floor(Number(lot.received_quantity)||1)))){message("globalStatus","請確認批次與列印張數。",true);return;}
- $("labelLotModal").classList.add("hidden");
  const config=pendingLabelConfig;
- pendingLabelProduct=null;pendingLabelLots=[];pendingLabelConfig=null;
+ closeLabelLotModal();
  const printWindow=window.open("","_blank","width=800,height=400");
  if(!printWindow){message("globalStatus","瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。",true);return;}
  printProductQrLabel(product,lot,printWindow,config,copies);
