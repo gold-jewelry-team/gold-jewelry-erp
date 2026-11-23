@@ -437,6 +437,39 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  .settlement-entry-amount{font-size:17px}
  .settlement-entry-meta{grid-template-columns:minmax(0,1fr)}
 }
+
+/* 現場報價工作台：依操作順序分組，計價行為維持既有邏輯。 */
+#quoteWorkbenchPanel .quote-step-card{margin:14px 0;padding:15px;border:1px solid #e7e4da;border-radius:16px;background:#fffefa}
+#quoteWorkbenchPanel .quote-step-heading{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+#quoteWorkbenchPanel .quote-step-heading>div{display:grid;gap:3px;min-width:0}
+#quoteWorkbenchPanel .quote-step-heading strong{font-size:14px;color:#304438}
+#quoteWorkbenchPanel .quote-step-heading small{font-size:11px;line-height:1.5;color:#778078}
+#quoteWorkbenchPanel .quote-step-number{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border-radius:10px;background:#edf2ec;color:#315b46;font-size:13px;font-weight:900}
+#quoteWorkbenchPanel .quote-catalog-card{background:#fbfcfa}
+#quoteWorkbenchPanel .quote-manual-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#quoteWorkbenchPanel .quote-manual-grid .field:nth-child(3){grid-column:1}
+#quoteWorkbenchPanel .quote-tradein-card{background:#fffdf8;border-color:#eadfca}
+#quoteWorkbenchPanel .quote-tradein-heading{margin-bottom:8px}
+#quoteWorkbenchPanel .quote-tradein-heading .quote-step-number{background:#f5eddd;color:#89662d}
+#quoteWorkbenchPanel .quote-tradein-card>.quote-note{background:transparent;padding:0}
+#quoteWorkbenchPanel .quote-primary-actions{margin:12px 0}
+#quoteWorkbenchPanel .quote-primary-actions button{min-height:44px;font-weight:800}
+#quoteWorkbenchPanel .quote-live-preview{margin:12px 0;border:1px solid #dce8dc;background:#f5faf5}
+#quoteWorkbenchPanel .quote-cart-card{background:#fbfcfa}
+#quoteWorkbenchPanel .quote-payment-grid{margin-top:12px}
+#quoteWorkbenchPanel .quote-total-summary{margin-top:12px;padding:14px;border:1px solid #dfe7dc;background:#f5f8f2}
+#quoteWorkbenchPanel .quote-total-summary strong{color:#315b46}
+@media(max-width:760px){
+ #quoteWorkbenchPanel .quote-step-card{padding:12px;margin:11px 0;border-radius:14px}
+ #quoteWorkbenchPanel .quote-step-heading{align-items:flex-start}
+ #quoteWorkbenchPanel .quote-manual-grid{grid-template-columns:minmax(0,1fr)}
+ #quoteWorkbenchPanel .quote-manual-grid .field:nth-child(3){grid-column:auto}
+ #quoteWorkbenchPanel .quote-primary-actions button{width:100%}
+}
+@media(max-width:380px){
+ #quoteWorkbenchPanel .quote-step-heading small{font-size:10px}
+ #quoteWorkbenchPanel .quote-step-card{padding:10px}
+}
 </style>
 </head>
 <body>
@@ -468,23 +501,31 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 <section class="panel span2" id="quoteWorkbenchPanel">
 <h2>現場報價／同款查找</h2>
 <p class="sub">掃描展示商品或搜尋款式，快速帶出商品重量、預設工錢及庫存位置。此工作區只供詢價，不會扣庫存或建立正式銷售。</p>
-<h3>掃碼／商品輸入（正式商品與臨時估價共用）</h3>
-<p class="sub">先掃描或搜尋正式商品；找不到時直接填寫商品名稱、重量與工錢。兩種商品都使用下方同一套舊金折抵及計價規則。</p>
-<div class="grid">
- <div class="field wide"><label for="quoteProductCode">① 掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 查找"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
+<div class="quote-step-card quote-catalog-card">
+ <div class="quote-step-heading"><span class="quote-step-number">1</span><div><strong>選擇正式商品</strong><small>掃描條碼或搜尋款式，系統會帶入商品資料與庫存位置</small></div></div>
+ <div class="grid">
+ <div class="field wide"><label for="quoteProductCode">掃描／輸入商品條碼或商品編號</label><div class="toolbar"><input id="quoteProductCode" autocomplete="off" placeholder="掃描器可直接輸入，按 Enter 查找"><button id="quoteScanButton" class="secondary" type="button">相機掃描</button></div></div>
  <div class="field wide"><label for="quoteProductSearch">搜尋正式商品（名稱／款式／編號／條碼）</label><input id="quoteProductSearch" type="search" placeholder="輸入關鍵字查找正式商品"></div>
  <div class="field wide"><div id="quoteSearchStatus" class="status" role="status"></div><div id="quoteSearchResults" class="quote-search-results"><div class="empty">請先選擇公司與據點，再掃描或搜尋商品。</div></div></div>
  <div class="field wide"><label for="quoteProduct">已選正式商品（找不到商品可留空）</label><select id="quoteProduct"><option value="">未選擇正式商品／使用臨時估價</option></select></div>
+ </div>
+</div>
+<div class="quote-step-card quote-manual-card">
+ <div class="quote-step-heading"><span class="quote-step-number">2</span><div><strong>臨時估價／修改報價規格</strong><small>沒有現貨或找不到商品時，可直接輸入名稱、重量及工錢；正式商品也可修改本次報價數值</small></div></div>
+ <div class="grid quote-manual-grid">
  <div class="field"><label for="quoteManualName">商品／款式名稱（選填）</label><input id="quoteManualName" maxlength="120" placeholder="可留空，直接輸入重量與工錢估價"></div>
  <div class="field"><label for="quoteManualSize">尺寸／長度（選填）</label><input id="quoteManualSize" maxlength="40" placeholder="例如：16號、1.6尺"></div>
  <div class="field"><label for="quoteWeight">本次重量</label><input id="quoteWeight" type="number" min="0.0001" step="0.0001" placeholder="正式商品自動帶入，可修改"></div>
  <div class="field"><label for="quoteWeightUnit">重量單位</label><select id="quoteWeightUnit"><option value="QIAN">錢</option><option value="GRAM">公克</option><option value="TAEL">兩</option></select></div>
  <div class="field"><label for="quoteLaborFee">本次工錢（元）</label><input id="quoteLaborFee" type="number" min="0" step="0.01" placeholder="正式商品自動帶入，可修改"></div>
+ </div>
 </div>
-<div class="quote-note" style="margin:10px 0">
+<div class="quote-step-card quote-tradein-card">
+ <div class="quote-step-heading quote-tradein-heading"><span class="quote-step-number">3</span><div><strong>舊金折抵（選填）</strong><small>只有本次交易要折抵客戶舊金時才需要設定</small></div></div>
+<div class="quote-note" style="margin:0">
  <label style="display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:#795b24">
   <input id="quoteHasTradeIn" type="checkbox" style="width:20px;min-height:20px;margin:0">
-  ② 本次商品包含舊金折抵
+  本次商品包含舊金折抵
  </label>
  <div id="quoteTradeInDetails" class="grid hidden" style="margin-top:12px">
   <div class="field"><label for="quoteOldGoldWeight">客戶舊金重量（與本商品同單位）</label><input id="quoteOldGoldWeight" type="number" min="0" step="0.0001" value="0" placeholder="輸入舊金重量"></div>
@@ -492,12 +533,15 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
   <div class="field hidden" id="quoteTradeInRatioField"><label for="quoteTradeInRatio">外店折算比例（%）</label><input id="quoteTradeInRatio" type="number" min="0.01" max="100" step="0.01" value="95" inputmode="decimal"></div>
  </div>
 </div>
-<div class="actions"><button id="quoteAddProductButton" type="button">加入報價清單</button></div>
-<div id="quoteEntryPreview" class="quote-note" aria-live="polite">選取正式商品，或不選商品直接輸入重量與工錢，即時顯示試算金額；名稱可不填。</div>
-<h3>已選商品／報價參考</h3>
-<div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
-<div class="grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳（不加價）</option><option value="CARD">全額刷卡（加 5%）</option><option value="MIXED">自訂刷卡＋現金</option></select></div><div id="quoteMixedTenderFields" class="grid wide hidden"><div class="field"><label for="quoteCardAmount">刷卡金額（元）</label><input id="quoteCardAmount" type="number" min="0" step="1" value="0" inputmode="numeric" placeholder="輸入刷卡金額"></div><div class="field"><label for="quoteCashAmount">現金金額（元）</label><input id="quoteCashAmount" type="number" min="0" step="1" value="0" inputmode="numeric" placeholder="輸入現金金額"></div><p class="sub wide">可直接修改刷卡或現金其中一欄，另一欄會自動補足。刷卡部分加收 5% 手續費，現金部分不加價。</p></div></div><div id="quoteCalcSummary" class="quote-note">選擇或新增商品後，會依目前有效金價、商品重量、工錢及舊金折抵，使用同一套規則試算。</div>
-<div class="actions"><button id="quoteTransferToSaleButton" type="button">確認要成交？轉入正式銷售</button></div>
+</div>
+<div class="actions quote-primary-actions"><button id="quoteAddProductButton" type="button">加入報價清單</button></div>
+<div id="quoteEntryPreview" class="quote-note quote-live-preview" aria-live="polite">選取正式商品，或不選商品直接輸入重量與工錢，即時顯示試算金額；名稱可不填。</div>
+<div class="quote-step-card quote-cart-card">
+ <div class="quote-step-heading"><span class="quote-step-number">4</span><div><strong>報價清單與付款試算</strong><small>確認每件商品重量、工錢、折抵方式，再核對付款組合</small></div></div>
+ <div id="quoteLines"><div class="empty">尚未選擇商品</div></div>
+ <div class="grid quote-payment-grid"><div class="field"><label for="quotePaymentMethod">付款試算</label><select id="quotePaymentMethod"><option value="CASH">現金／轉帳（不加價）</option><option value="CARD">全額刷卡（加 5%）</option><option value="MIXED">自訂刷卡＋現金</option></select></div><div id="quoteMixedTenderFields" class="grid wide hidden"><div class="field"><label for="quoteCardAmount">刷卡金額（元）</label><input id="quoteCardAmount" type="number" min="0" step="1" value="0" inputmode="numeric" placeholder="輸入刷卡金額"></div><div class="field"><label for="quoteCashAmount">現金金額（元）</label><input id="quoteCashAmount" type="number" min="0" step="1" value="0" inputmode="numeric" placeholder="輸入現金金額"></div><p class="sub wide">可直接修改刷卡或現金其中一欄，另一欄會自動補足。刷卡部分加收 5% 手續費，現金部分不加價。</p></div></div><div id="quoteCalcSummary" class="quote-note quote-total-summary">選擇或新增商品後，會依目前有效金價、商品重量、工錢及舊金折抵，使用同一套規則試算。</div>
+<div class="actions quote-primary-actions"><button id="quoteTransferToSaleButton" type="button">確認要成交？轉入正式銷售</button></div>
+</div>
 <h3>無現貨／需訂製：建立客戶訂購單</h3>
 <p class="sub">有現貨請直接進入銷售結帳；無現貨或需訂製時，使用同一份報價明細建立訂購單並收取訂金。訂購單不扣庫存，訂金獨立記錄。</p>
 <div class="grid">

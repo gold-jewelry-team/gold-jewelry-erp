@@ -172,7 +172,8 @@ def test_mobile_workspace_serves_html():
     assert "已載入帳面庫存清單" in response.text
 
     assert 'id="quoteWorkbenchPanel"' in response.text
-    assert "掃碼／商品輸入（正式商品與臨時估價共用）" in response.text
+    assert "選擇正式商品" in response.text
+    assert "臨時估價／修改報價規格" in response.text
     assert 'id="quoteProductCode"' in response.text
     assert 'id="quoteScanButton"' in response.text
     assert 'id="quoteProductSearch"' in response.text
@@ -374,3 +375,61 @@ def test_receiving_and_settlement_cards_highlight_remaining_and_payment_details(
         "escapeHtml(row.id)",
     ):
         assert expression in response.text
+
+
+def test_quote_workbench_groups_steps_without_changing_quote_controls():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    html = response.text
+    for class_name in (
+        "quote-step-card",
+        "quote-catalog-card",
+        "quote-manual-card",
+        "quote-tradein-card",
+        "quote-cart-card",
+        "quote-step-heading",
+        "quote-live-preview",
+        "quote-total-summary",
+        "quote-primary-actions",
+        "quote-manual-grid",
+    ):
+        assert class_name in html
+    for element_id in (
+        "quoteProductCode",
+        "quoteScanButton",
+        "quoteProductSearch",
+        "quoteSearchResults",
+        "quoteProduct",
+        "quoteManualName",
+        "quoteManualSize",
+        "quoteWeight",
+        "quoteWeightUnit",
+        "quoteLaborFee",
+        "quoteHasTradeIn",
+        "quoteOldGoldWeight",
+        "quoteTradeInSource",
+        "quoteTradeInRatio",
+        "quoteAddProductButton",
+        "quoteEntryPreview",
+        "quoteLines",
+        "quotePaymentMethod",
+        "quoteCardAmount",
+        "quoteCashAmount",
+        "quoteCalcSummary",
+        "quoteTransferToSaleButton",
+    ):
+        assert html.count(f'id="{element_id}"') == 1
+    # The existing quote calculation and trade-in logic remain in place.
+    for logic in (
+        "function quoteCalculateLineAmount(",
+        "function renderQuoteEntryPreview(",
+        "function renderQuoteCalculation(",
+        "function addQuoteProduct(",
+        "function transferQuoteToSale(",
+        'tradeInSource==="LOCAL"?1:tradeInRatio',
+        'cardAmount*0.05',
+        "loadQuoteStockBalances()",
+    ):
+        assert logic in html
+    assert "@media(max-width:760px)" in html
+    assert "@media(max-width:380px)" in html
