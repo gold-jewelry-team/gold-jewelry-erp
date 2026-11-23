@@ -112,6 +112,14 @@ def test_mobile_workspace_serves_html():
     assert 'id="scanPurchaseReceiveButton"' in response.text
     assert 'id="operatingExpensesPanel"' in response.text
     assert 'id="expenseForm"' in response.text
+    assert "function expensePaymentStorageKey(company,site,expenseId)" in response.text
+    assert "function readPendingExpensePayment(company,site,expenseId)" in response.text
+    assert "function savePendingExpensePayment(company,site,expenseId,paymentMethod)" in response.text
+    assert "existing.fingerprint!==fingerprint" in response.text
+    assert "readPendingExpensePayment(companyId,selectedSiteId,row.id)" in response.text
+    assert "恢復待確認付款" in response.text
+    assert "clearPendingExpensePayment(companyId,selectedSiteId,expenseId)" in response.text
+    assert "已恢復上一筆尚未確認結果的營業費用付款" in response.text
     assert 'id="cashDrawerPanel"' in response.text
     assert 'id="cashDrawerForm"' in response.text
     assert 'id="supplierForm"' in response.text
