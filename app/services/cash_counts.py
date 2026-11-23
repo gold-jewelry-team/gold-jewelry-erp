@@ -35,6 +35,11 @@ def create_cash_count(session: Session, *, company_id: UUID, site_id: UUID, clos
         if cash_summary else Decimal("0")
     )
     expected = opening_cash_float + cash_net + drawer_net
+    if expected < 0:
+        raise ValueError(
+            "帳面預期現金為負數，表示現金流出超過期初備用金與現金流入；"
+            "請先核對現金櫃異動及付款紀錄，再進行盤點。"
+        )
     variance = counted_cash_amount - expected
     row = DailyCashCount(
         company_id=company_id, site_id=site_id, closing_id=closing_id,
