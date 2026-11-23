@@ -376,6 +376,35 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  #productList .product-item-meta,#productList .product-item-specs{grid-template-columns:minmax(0,1fr);gap:7px}
  #productList .product-item-actions button{flex-basis:100%;width:100%}
 }
+
+/* Purchasing and sales: shared transaction-card hierarchy across draft, list, and history views. */
+.transaction-item{gap:11px;padding:14px;border-color:#e8e2d5;background:#fffefa}
+.transaction-item-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
+.transaction-item-identity{display:grid;gap:6px;min-width:0}
+.transaction-item-identity>strong{font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.transaction-item-identity .pill{max-width:100%;overflow-wrap:anywhere}
+.transaction-item-primary{display:grid;justify-items:end;gap:3px;min-width:96px;padding:8px 10px;border:1px solid #e4e9df;border-radius:11px;background:#f3f6f0}
+.transaction-item-primary>small{font-size:10px;color:#68746c;font-weight:700}
+.transaction-item-primary>strong{font-size:17px;line-height:1.2;color:#315b46;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
+.transaction-item-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding-top:10px;border-top:1px solid #eee9de}
+.transaction-item-meta>span{display:grid;gap:3px;min-width:0}
+.transaction-item-meta small,.transaction-item-lines>small{font-size:10px;color:#7a827a}
+.transaction-item-meta strong{font-size:12px;font-weight:600;color:#47564b;overflow-wrap:anywhere}
+.transaction-item-lines{display:grid;gap:6px;padding-top:10px;border-top:1px solid #eee9de}
+.transaction-item-lines>div{display:flex;flex-wrap:wrap;gap:6px}
+.transaction-item-lines>div>span{display:inline-flex;align-items:center;gap:4px;padding:5px 8px;border:1px solid #e9e6dd;border-radius:8px;background:#faf9f4;color:#536057;font-size:11px}
+.transaction-item-lines strong{color:#315b46;font-variant-numeric:tabular-nums}
+.transaction-item-actions{padding-top:2px}
+.transaction-item-actions button{flex:1 1 140px}
+@media(max-width:380px){
+ .transaction-item{padding:12px}
+ .transaction-item-head{gap:7px}
+ .transaction-item-primary{min-width:82px;padding:7px 8px}
+ .transaction-item-primary>strong{font-size:15px}
+ .transaction-item-meta{grid-template-columns:minmax(0,1fr);gap:7px}
+ .transaction-item-actions button{flex-basis:100%;width:100%}
+ .transaction-item-lines>div{display:grid;grid-template-columns:minmax(0,1fr)}
+}
 </style>
 </head>
 <body>
@@ -1684,7 +1713,7 @@ function renderSaleCart(){
  box.innerHTML=saleCartLines.length?saleCartLines.map((line,index)=>{
   const unit=line.product.weight_unit_code||"QIAN";
   const locationText=line.isEstimate?"臨時估價／不扣庫存":(line.location?.name||"未指定出貨位置");
-  return '<article class="item"><strong>'+(line.isEstimate?'<span class="pill">臨時估價</span> ':'')+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 出貨位置：'+escapeHtml(locationText)+'</span><span class="muted">淨重：'+escapeHtml(line.net_weight??line.product.net_weight)+' '+escapeHtml(goldUnitLabel(unit))+' · 銷售工錢：'+escapeHtml(line.labor_fee===null?"使用商品預設":line.labor_fee)+'</span><span class="muted">舊金折抵：'+escapeHtml(line.old_gold_weight)+' '+escapeHtml(goldUnitLabel(unit))+(line.old_gold_weight>0?' · '+(line.trade_in_source==="LOCAL"?"本店 100%":"外店 "+line.trade_in_ratio*100+"%"):'')+'</span><div class="actions"><button class="secondary" type="button" data-remove-sale-line="'+index+'">移除此商品</button></div></article>';
+  return '<article class="item transaction-item sale-line-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+(line.isEstimate?'<span class="pill">臨時估價</span> ':'')+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">'+(line.isEstimate?"此項不會扣庫存":"正式庫存商品")+'</span></div><div class="transaction-item-primary"><small>淨重</small><strong>'+escapeHtml(line.net_weight??line.product.net_weight)+' '+escapeHtml(goldUnitLabel(unit))+'</strong></div></div><div class="transaction-item-meta"><span><small>條碼</small><strong>'+escapeHtml(line.product.barcode||"未設定")+'</strong></span><span><small>出貨位置</small><strong>'+escapeHtml(locationText)+'</strong></span><span><small>銷售工錢</small><strong>'+escapeHtml(line.labor_fee===null?"使用商品預設":line.labor_fee)+' 元</strong></span><span><small>舊金折抵</small><strong>'+escapeHtml(line.old_gold_weight)+' '+escapeHtml(goldUnitLabel(unit))+(line.old_gold_weight>0?' · '+(line.trade_in_source==="LOCAL"?"本店 100%":"外店 "+line.trade_in_ratio*100+"%"):'')+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-remove-sale-line="'+index+'">移除此商品</button></div></article>';
  }).join(""):'<div class="empty">尚未加入商品</div>';
  $("createSaleDraft").disabled=!saleCartLines.length||!!currentSale;
 }
@@ -2232,7 +2261,7 @@ const purchaseStatusLabels={DRAFT:"草稿",ORDERED:"已下單",PARTIALLY_RECEIVE
 const expenseCategoryLabels={RENT:"租金",UTILITIES:"水電瓦斯",SALARIES:"薪資",SUPPLIES:"耗材",SHIPPING:"運費",REPAIR:"維修",OTHER:"其他"};
 const drawerTypeLabels={BANK_DEPOSIT:"存入銀行",BANK_WITHDRAWAL:"銀行提款",FLOAT_INCREASE:"增加備用金",FLOAT_DECREASE:"減少備用金",OTHER_IN:"其他收入",OTHER_OUT:"其他支出"};
 function renderPurchaseCart(){
- $("purchaseCartList").innerHTML=purchaseCartLines.length?purchaseCartLines.map((line,index)=>'<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">數量：'+escapeHtml(line.quantity)+' · 單位成本：'+escapeHtml(line.unit_cost)+' · 成本工錢：'+escapeHtml(line.cost_labor_fee)+' · 重量：'+escapeHtml(line.weight??"未填")+' '+escapeHtml(line.weight_unit_code||"")+'</span><div class="actions"><button class="secondary" type="button" data-remove-purchase-line="'+index+'">移除</button></div></article>').join(""):'<div class="empty">尚未加入採購商品</div>';
+ $("purchaseCartList").innerHTML=purchaseCartLines.length?purchaseCartLines.map((line,index)=>'<article class="item transaction-item purchase-line-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="pill">採購明細 '+(index+1)+'</span></div><div class="transaction-item-primary"><small>訂購數量</small><strong>'+escapeHtml(line.quantity)+'</strong></div></div><div class="transaction-item-meta"><span><small>單位成本</small><strong>'+escapeHtml(line.unit_cost)+' 元</strong></span><span><small>進貨成本工錢</small><strong>'+escapeHtml(line.cost_labor_fee)+' 元／件</strong></span><span><small>總重量</small><strong>'+escapeHtml(line.weight??"未填")+' '+escapeHtml(line.weight_unit_code||"")+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-remove-purchase-line="'+index+'">移除此明細</button></div></article>').join(""):'<div class="empty">尚未加入採購商品</div>';
  $("createPurchase").disabled=!purchaseCartLines.length;
 }
 function renderBillPurchaseOptions(){
@@ -2248,7 +2277,7 @@ async function loadPurchases(){
  const rows=await api("/companies/"+companyId+"/purchases?"+params.toString());
  purchasesById=new Map(rows.map(x=>[x.id,x]));
  renderBillPurchaseOptions();
- box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.purchase_no)+'</strong><span class="pill">'+escapeHtml(purchaseStatusLabels[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 下單日：'+escapeHtml(row.order_date)+' · 預計到貨：'+escapeHtml(row.expected_date||"未設定")+'</span><span class="muted">商品明細：'+row.lines.map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);return escapeHtml(product?.product_code||"商品")+" "+escapeHtml(line.received_quantity)+"/"+escapeHtml(line.quantity);}).join("、")+'</span><div class="actions">'+(row.status==="DRAFT"?'<button class="secondary" type="button" data-submit-purchase="'+escapeHtml(row.id)+'">送出採購單</button>':'')+(["DRAFT","ORDERED"].includes(row.status)?'<button class="secondary" type="button" data-cancel-purchase="'+escapeHtml(row.id)+'">取消採購單</button>':'')+(["ORDERED","PARTIALLY_RECEIVED"].includes(row.status)?'<button class="secondary" type="button" data-open-receive="'+escapeHtml(row.id)+'">到貨驗收</button>':'')+'</div></article>').join(""):'<div class="empty">沒有符合條件的採購單</div>';
+ box.innerHTML=rows.length?rows.map(row=>{const orderedQty=row.lines.reduce((sum,line)=>sum+Number(line.quantity||0),0);const receivedQty=row.lines.reduce((sum,line)=>sum+Number(line.received_quantity||0),0);const lineSummary=row.lines.map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);return '<span>'+escapeHtml(product?.product_code||"商品")+' <strong>'+escapeHtml(line.received_quantity)+'／'+escapeHtml(line.quantity)+'</strong></span>';}).join("");const actions=(row.status==="DRAFT"?'<button class="secondary" type="button" data-submit-purchase="'+escapeHtml(row.id)+'">送出採購單</button>':'')+(["DRAFT","ORDERED"].includes(row.status)?'<button class="secondary" type="button" data-cancel-purchase="'+escapeHtml(row.id)+'">取消採購單</button>':'')+(["ORDERED","PARTIALLY_RECEIVED"].includes(row.status)?'<button class="secondary" type="button" data-open-receive="'+escapeHtml(row.id)+'">到貨驗收</button>':'');return '<article class="item transaction-item purchase-order-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(row.purchase_no)+'</strong><span class="pill">'+escapeHtml(purchaseStatusLabels[row.status]||row.status)+'</span></div><div class="transaction-item-primary"><small>已驗收／訂購</small><strong>'+escapeHtml(receivedQty)+'／'+escapeHtml(orderedQty)+'</strong></div></div><div class="transaction-item-meta"><span><small>供應商</small><strong>'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+'</strong></span><span><small>下單日期</small><strong>'+escapeHtml(row.order_date)+'</strong></span><span><small>預計到貨</small><strong>'+escapeHtml(row.expected_date||"未設定")+'</strong></span></div><div class="transaction-item-lines"><small>商品驗收進度（已收／訂購）</small><div>'+lineSummary+'</div></div><div class="actions transaction-item-actions">'+actions+'</div></article>';}).join(""):'<div class="empty">沒有符合條件的採購單</div>';
 }
 function pendingExpenseStorageKey(company,site){
  return "gold-erp-expense-create:"+company+":"+site;
@@ -2633,7 +2662,7 @@ async function loadSalesHistory(){
  if($("salesHistoryFrom").value)params.set("from_date",$("salesHistoryFrom").value);
  if($("salesHistoryTo").value)params.set("to_date",$("salesHistoryTo").value);
  const rows=await api("/companies/"+companyId+"/sales"+(params.toString()?"?"+params.toString():""));
- box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.sale_no)+'</strong><span class="pill">'+escapeHtml(row.status)+'</span><span class="muted">商品 '+escapeHtml(row.lines.length)+' 件 · 應收／應付 '+escapeHtml(row.final_amount)+' 元</span><span class="muted">建立時間：'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span><div class="actions"><button class="secondary" type="button" data-open-sale="'+escapeHtml(row.id)+'">開啟銷售紀錄</button></div></article>').join(""):'<div class="empty">查無符合條件的銷售紀錄</div>';
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item transaction-item sales-history-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(row.sale_no)+'</strong><span class="pill">'+escapeHtml(row.status)+'</span></div><div class="transaction-item-primary"><small>'+(Number(row.final_amount)<0?"本店應付":"應收金額")+'</small><strong>'+escapeHtml(Math.abs(Number(row.final_amount||0)).toFixed(2))+' 元</strong></div></div><div class="transaction-item-meta"><span><small>商品件數</small><strong>'+escapeHtml(row.lines.length)+' 件</strong></span><span><small>建立時間</small><strong>'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-open-sale="'+escapeHtml(row.id)+'">開啟銷售紀錄</button></div></article>').join(""):'<div class="empty">查無符合條件的銷售紀錄</div>';
 }
 $("searchSalesHistory").addEventListener("click",()=>loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true)));
 $("salesHistoryQuery").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true));}});
