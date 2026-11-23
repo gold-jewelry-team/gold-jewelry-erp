@@ -45,6 +45,9 @@ def test_mobile_workspace_serves_html():
     assert 'id="scanStocktakeButton"' in response.text
     assert 'id="applyStocktake"' in response.text
     assert "persistStocktakeDraft" in response.text
+    assert "function newStocktakeAdjustmentKey()" in response.text
+    assert "idempotency_key:x.idempotency_key" in response.text
+    assert "idempotency_key:line.idempotency_key" in response.text
     assert 'id="inventoryAdjustmentForm"' in response.text
     assert 'id="inventoryTransferForm"' in response.text
     assert 'id="inventoryMovementPanel"' in response.text

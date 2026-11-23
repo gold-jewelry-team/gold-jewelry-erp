@@ -1239,9 +1239,13 @@ async function loadSupplierCatalogProducts(){
 }
 
 function stocktakeStorageKey(){return "gold-erp-stocktake:"+companyId+":"+selectedSiteId;}
+function newStocktakeAdjustmentKey(){
+ if(window.crypto&&typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
+ return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,char=>{const random=Math.random()*16|0;return (char==="x"?random:(random&3|8)).toString(16);});
+}
 function persistStocktakeDraft(){
  if(!companyId||!selectedSiteId)return;
- const draft={location_id:stocktakeLocationId,lines:stocktakeLines.map(x=>({product_id:x.product.id,expected:x.expected,counted:x.counted,verified:!!x.verified,applied:!!x.applied}))};
+ const draft={location_id:stocktakeLocationId,lines:stocktakeLines.map(x=>({product_id:x.product.id,expected:x.expected,counted:x.counted,verified:!!x.verified,applied:!!x.applied,idempotency_key:x.idempotency_key}))};
  try{localStorage.setItem(stocktakeStorageKey(),JSON.stringify(draft));}catch(error){message("stocktakeStatus","瀏覽器無法儲存盤點暫存，請勿關閉此頁面。",true);}
 }
 function renderStocktake(){
@@ -1267,7 +1271,7 @@ async function loadStocktakeBaseline(){
   if(expected<=0||existing.has(row.product_id))continue;
   const product=inventoryProducts.find(item=>item.id===row.product_id);
   if(!product)continue;
-  const line={product,expected,counted:0,verified:false,applied:false};
+  const line={product,expected,counted:0,verified:false,applied:false,idempotency_key:newStocktakeAdjustmentKey()};
   stocktakeLines.push(line);existing.set(product.id,line);
  }
  persistStocktakeDraft();renderStocktake();
@@ -1279,7 +1283,7 @@ function restoreStocktakeDraft(){
   const raw=localStorage.getItem(stocktakeStorageKey());
   if(raw){
    const saved=JSON.parse(raw);stocktakeLocationId=saved.location_id||"";
-   stocktakeLines=(saved.lines||[]).map(line=>{const product=inventoryProducts.find(x=>x.id===line.product_id);return product?{product,expected:Number(line.expected)||0,counted:Number(line.counted)||0,verified:!!line.verified,applied:!!line.applied}:null;}).filter(Boolean);
+   stocktakeLines=(saved.lines||[]).map(line=>{const product=inventoryProducts.find(x=>x.id===line.product_id);return product?{product,expected:Number(line.expected)||0,counted:Number(line.counted)||0,verified:!!line.verified,applied:!!line.applied,idempotency_key:line.idempotency_key||newStocktakeAdjustmentKey()}:null;}).filter(Boolean);
   }
  }catch(error){localStorage.removeItem(stocktakeStorageKey());stocktakeLines=[];stocktakeLocationId="";}
  const select=$("stocktakeLocation");
@@ -1297,7 +1301,7 @@ async function addStocktakeProduct(product){
   line.counted=1;line.verified=true;
  }else{
   const expected=stocktakeExpectedByProduct.get(product.id)||0;
-  line={product,expected,counted:1,verified:true,applied:false};
+  line={product,expected,counted:1,verified:true,applied:false,idempotency_key:newStocktakeAdjustmentKey()};
   stocktakeLines.push(line);
  }
  persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
@@ -2634,7 +2638,7 @@ $("applyStocktake").addEventListener("click",async()=>{
  const button=$("applyStocktake");button.disabled=true;let applied=0;
  try{
   for(const line of pending){const variance=Number(line.counted)-Number(line.expected);
-   if(variance!==0){const payload={site_id:selectedSiteId,product_id:line.product.id,location_id:stocktakeLocationId,direction:variance>0?"IN":"OUT",quantity:String(Math.abs(variance)),weight:line.product.net_weight,weight_unit_code:line.product.weight_unit_code,note:"條碼盤點差異（帳面："+line.expected+"；實盤："+line.counted+"）"};await api("/companies/"+companyId+"/inventory/adjustments",{method:"POST",body:JSON.stringify(payload)});}
+   if(variance!==0){const payload={site_id:selectedSiteId,product_id:line.product.id,location_id:stocktakeLocationId,direction:variance>0?"IN":"OUT",quantity:String(Math.abs(variance)),weight:line.product.net_weight,weight_unit_code:line.product.weight_unit_code,idempotency_key:line.idempotency_key,note:"條碼盤點差異（帳面："+line.expected+"；實盤："+line.counted+"）"};await api("/companies/"+companyId+"/inventory/adjustments",{method:"POST",body:JSON.stringify(payload)});}
    line.applied=true;line.verified=true;applied++;persistStocktakeDraft();renderStocktake();
   }
   await loadInventoryStock();await loadInventoryMovements();await loadStocktakeBaseline();message("stocktakeStatus","盤點完成：已處理 "+applied+" 件商品，差異已寫入庫存異動紀錄。");
