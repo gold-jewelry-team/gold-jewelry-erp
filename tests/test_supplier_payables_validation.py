@@ -81,3 +81,47 @@ def test_supplier_payment_rejects_unsupported_method_and_empty_allocations():
     finally:
         session.close()
         engine.dispose()
+
+def test_duplicate_supplier_payment_number_rolls_back_without_partial_allocation():
+    from sqlalchemy.exc import IntegrityError
+    from app.models.supplier_payable import SupplierPaymentAllocation
+
+    engine, Session, (company_id, site_id, supplier_id) = _payment_validation_context()
+    session = Session()
+    try:
+        bill1 = create_supplier_bill(
+            session, company_id=company_id, site_id=site_id, supplier_id=supplier_id,
+            bill_no="INV-ATOMIC-001", bill_date=date(2026, 11, 23),
+            due_date=None, currency_code="TWD", total_amount=Decimal("500.00"),
+        )
+        bill2 = create_supplier_bill(
+            session, company_id=company_id, site_id=site_id, supplier_id=supplier_id,
+            bill_no="INV-ATOMIC-002", bill_date=date(2026, 11, 23),
+            due_date=None, currency_code="TWD", total_amount=Decimal("300.00"),
+        )
+        session.commit()
+
+        record_supplier_payment(
+            session, company_id=company_id, site_id=site_id, supplier_id=supplier_id,
+            payment_no="SP-DUPLICATE-ATOMIC", payment_method="TRANSFER",
+            allocations=[{"bill_id": bill1.id, "amount": Decimal("100.00")}],
+        )
+        session.commit()
+
+        with pytest.raises(IntegrityError):
+            record_supplier_payment(
+                session, company_id=company_id, site_id=site_id, supplier_id=supplier_id,
+                payment_no="SP-DUPLICATE-ATOMIC", payment_method="CASH",
+                allocations=[{"bill_id": bill2.id, "amount": Decimal("75.00")}],
+            )
+        session.rollback()
+
+        assert session.query(SupplierPayment).count() == 1
+        assert session.query(SupplierPaymentAllocation).count() == 1
+        assert bill1.status == "PARTIALLY_PAID"
+        assert bill2.status == "OPEN"
+        assert bill2.paid_amount == Decimal("0")
+    finally:
+        session.close()
+        engine.dispose()
+
