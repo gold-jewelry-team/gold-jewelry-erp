@@ -405,6 +405,38 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
  .transaction-item-actions button{flex-basis:100%;width:100%}
  .transaction-item-lines>div{display:grid;grid-template-columns:minmax(0,1fr)}
 }
+
+/* Receiving and settlement: emphasize remaining quantities and unpaid balances. */
+.receive-line-item .receive-remaining{background:#fff7e9;border-color:#ead7b3}
+.receive-line-item .receive-remaining>strong{color:#91631e}
+.settlement-summary{gap:12px;padding:14px;border-color:#e5dfd1;background:#fffefa}
+.settlement-summary-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:10px;border-bottom:1px solid #eee9de}
+.settlement-summary-head>span{font-size:12px;font-weight:700;color:#59665d}
+.settlement-summary-head>strong{font-size:20px;color:#315b46;font-variant-numeric:tabular-nums;text-align:right}
+.settlement-summary-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.settlement-summary-meta>span{display:grid;gap:4px;min-width:0}
+.settlement-summary-meta small,.settlement-entry-meta small{font-size:10px;color:#7a827a}
+.settlement-summary-meta strong{font-size:14px;color:#47564b;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.settlement-summary-meta .settlement-outstanding{padding:8px 10px;border-radius:10px;background:#f5f1e7}
+.settlement-summary-meta .settlement-outstanding strong{color:#91631e}
+.settlement-summary-breakdown{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding-top:10px;border-top:1px solid #eee9de;font-size:12px;color:#68746c}
+.settlement-summary-breakdown strong{color:#47564b;font-variant-numeric:tabular-nums;text-align:right}
+.settlement-entry{gap:9px;padding:12px;border-color:#e8e2d5;background:#fffefa}
+.settlement-entry-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.settlement-entry-head>strong{font-size:13px;color:#405247;overflow-wrap:anywhere}
+.settlement-entry-amount{flex:0 0 auto;font-size:16px;font-weight:800;color:#315b46;font-variant-numeric:tabular-nums}
+.settlement-entry-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;padding-top:8px;border-top:1px solid #eee9de}
+.settlement-entry-meta>span{display:grid;gap:3px;min-width:0}
+.settlement-entry-meta strong{font-size:11px;font-weight:600;color:#536057;overflow-wrap:anywhere}
+.settlement-entry-meta .settlement-entry-note{grid-column:1/-1}
+@media(max-width:380px){
+ .settlement-summary{padding:12px}
+ .settlement-summary-head>strong{font-size:18px}
+ .settlement-summary-meta{grid-template-columns:minmax(0,1fr)}
+ .settlement-entry-head{align-items:flex-start;flex-direction:column}
+ .settlement-entry-amount{font-size:17px}
+ .settlement-entry-meta{grid-template-columns:minmax(0,1fr)}
+}
 </style>
 </head>
 <body>
@@ -2002,7 +2034,7 @@ async function loadSaleReturns(sale){
  const returnedIds=new Set(rows.flatMap(r=>(r.lines||[]).map(line=>line.sale_line_id)));
  const available=(sale.lines||[]).filter(line=>!returnedIds.has(line.id));
  $("saleReturnSelectableLines").innerHTML=available.length?available.map(line=>'<label class="item"><input type="checkbox" name="returnSaleLine" value="'+escapeHtml(line.id)+'"><strong>'+escapeHtml(line.product_code_snapshot||"商品")+' · '+escapeHtml(line.product_name_snapshot)+'</strong><span class="muted">條碼：'+escapeHtml(line.barcode_snapshot||"未設定")+' · 原銷售金額：'+escapeHtml(line.final_amount)+' 元（含原手續費分攤）</span></label>').join(""):'<div class="empty">所有商品均已退貨，沒有可再退的商品。</div>';
- $("saleReturnHistory").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>退貨單 '+escapeHtml(row.return_no)+'</strong><span class="muted">沖回金額：'+escapeHtml(row.settlement_reversal_amount)+' 元 · '+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span><span class="muted">'+(row.lines||[]).map(line=>escapeHtml(line.product_code_snapshot||"商品")+" "+escapeHtml(line.product_name_snapshot)).join("、")+'</span><div class="actions"><button class="secondary" type="button" data-select-return="'+escapeHtml(row.id)+'">退款／收款紀錄</button></div></article>').join(""):'<div class="empty">尚無退貨紀錄</div>';
+ $("saleReturnHistory").innerHTML=rows.length?rows.map(row=>'<article class="item transaction-item return-history-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>退貨單 '+escapeHtml(row.return_no)+'</strong><span class="muted">'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span></div><div class="transaction-item-primary"><small>沖回金額</small><strong>'+escapeHtml(Number(row.settlement_reversal_amount||0).toFixed(2))+' 元</strong></div></div><div class="transaction-item-lines"><small>退貨商品</small><div>'+(row.lines||[]).map(line=>'<span>'+escapeHtml(line.product_code_snapshot||"商品")+' '+escapeHtml(line.product_name_snapshot)+'</span>').join("")+'</div></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-select-return="'+escapeHtml(row.id)+'">退款／收款紀錄</button></div></article>').join(""):'<div class="empty">尚無退貨紀錄</div>';
 }
 async function loadReturnPayments(returned){
  selectedReturn=returned;
@@ -2013,11 +2045,11 @@ async function loadReturnPayments(returned){
  const direction=Number(returned.settlement_reversal_amount)<0?"OUT":"IN";
  $("returnPaymentPanel").classList.remove("hidden");
  $("returnPaymentHeading").textContent=direction==="OUT"?"退貨退款登錄":"退貨補收登錄";
- $("returnPaymentSummary").innerHTML='<article class="item"><strong>退貨結算：'+escapeHtml(obligation.toFixed(2))+' 元</strong><span class="muted">已'+(direction==="OUT"?"退款":"收款")+'：'+escapeHtml(paid.toFixed(2))+' 元</span><span class="pill">尚未結清：'+escapeHtml(remaining.toFixed(2))+' 元</span></article>';
+ $("returnPaymentSummary").innerHTML='<article class="item settlement-summary"><div class="settlement-summary-head"><span>'+(direction==="OUT"?"應退還顧客":"應向顧客補收")+'</span><strong>'+escapeHtml(obligation.toFixed(2))+' 元</strong></div><div class="settlement-summary-meta"><span><small>已'+(direction==="OUT"?"退款":"收款")+'</small><strong>'+escapeHtml(paid.toFixed(2))+' 元</strong></span><span class="settlement-outstanding"><small>尚未結清</small><strong>'+escapeHtml(remaining.toFixed(2))+' 元</strong></span></div></article>';
  $("returnPaymentForm").classList.toggle("hidden",remaining<=0);
  $("returnPaymentAmount").max=remaining.toFixed(2);
  $("returnPaymentAmount").value=remaining>0?remaining.toFixed(2):"";
- $("returnPaymentList").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+(row.direction==="OUT"?"退款":"補收")+' · '+escapeHtml(paymentMethodLabels[row.payment_method]||row.payment_method)+'</strong><span class="muted">'+escapeHtml(Number(row.amount).toFixed(2))+' 元 · '+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無退款／收款紀錄</div>';
+ $("returnPaymentList").innerHTML=rows.length?rows.map(row=>'<article class="item settlement-entry"><div class="settlement-entry-head"><strong>'+(row.direction==="OUT"?"退款":"補收")+' · '+escapeHtml(paymentMethodLabels[row.payment_method]||row.payment_method)+'</strong><span class="settlement-entry-amount">'+escapeHtml(Number(row.amount).toFixed(2))+' 元</span></div><div class="settlement-entry-meta"><span><small>登錄時間</small><strong>'+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</strong></span>'+(row.reference_no?'<span><small>交易編號</small><strong>'+escapeHtml(row.reference_no)+'</strong></span>':'')+'</div></article>').join(""):'<div class="empty">尚無退款／收款紀錄</div>';
 }
 $("saleReturnHistory").addEventListener("click",async event=>{
  const button=event.target.closest("[data-select-return]");
@@ -2502,7 +2534,7 @@ $("purchaseList").addEventListener("click",async event=>{
   if(!selectedPurchase)return;
   $("purchaseReceivePanel").classList.remove("hidden");
   $("purchaseReceiveLocation").innerHTML='<option value="">請選擇位置</option>'+inventoryLocations.filter(x=>x.is_active).map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
-  $("selectedPurchaseLine").innerHTML=selectedPurchase.lines.filter(line=>Number(line.received_quantity)<Number(line.quantity)).map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);return '<article class="item"><strong>'+escapeHtml(product?.product_code||"商品")+' · '+escapeHtml(product?.name||"")+'</strong><span class="muted">已驗收 '+escapeHtml(line.received_quantity)+' / 訂購 '+escapeHtml(line.quantity)+' · 尚餘 '+(Number(line.quantity)-Number(line.received_quantity))+'</span><div class="actions"><button class="secondary" type="button" data-receive-line="'+escapeHtml(line.id)+'" data-remaining="'+(Number(line.quantity)-Number(line.received_quantity))+'">選取此明細驗收</button></div></article>';}).join("")||'<div class="empty">此採購單已全部驗收完成</div>';
+  $("selectedPurchaseLine").innerHTML=selectedPurchase.lines.filter(line=>Number(line.received_quantity)<Number(line.quantity)).map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);const remaining=Number(line.quantity)-Number(line.received_quantity);return '<article class="item transaction-item receive-line-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(product?.product_code||"商品")+' · '+escapeHtml(product?.name||"")+'</strong><span class="muted">此商品尚未完成驗收</span></div><div class="transaction-item-primary receive-remaining"><small>尚餘待驗收</small><strong>'+escapeHtml(remaining)+'</strong></div></div><div class="transaction-item-meta"><span><small>已驗收數量</small><strong>'+escapeHtml(line.received_quantity)+'</strong></span><span><small>訂購總數量</small><strong>'+escapeHtml(line.quantity)+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-receive-line="'+escapeHtml(line.id)+'" data-remaining="'+remaining+'">選取此明細驗收</button></div></article>';}).join("")||'<div class="empty">此採購單已全部驗收完成</div>';
   $("purchaseReceiveForm").classList.add("hidden");
   $("purchaseReceivePanel").scrollIntoView({behavior:"smooth",block:"start"});
  }
@@ -2711,7 +2743,7 @@ async function loadSalePayments(sale){
  const verb=direction==="OUT"?"本店付款／退款":"顧客收款";
  $("salePaymentHeading").textContent=verb+"登錄";
  $("salePaymentHint").textContent=direction==="OUT"?"此銷售單結算為應付顧客，請依實際付款逐筆登錄。":"依實際收到的款項逐筆登錄；可分次收款，紀錄不可覆寫。";
- $("salePaymentSummary").innerHTML='<article class="item"><strong>應收／應付：'+escapeHtml(obligation.toFixed(2))+' 元</strong><span class="muted">已'+(direction==="OUT"?"付款":"收款")+'：'+escapeHtml(paid.toFixed(2))+' 元</span><span class="pill">尚未結清：'+escapeHtml(remaining.toFixed(2))+' 元</span>'+(direction==="IN"&&sale.payment_method==="MIXED"?'<span class="muted">刷卡應收（含 5% 手續費）：'+escapeHtml((Number(sale.card_amount)+Number(sale.card_fee)).toFixed(2))+' 元 · 現金應收：'+escapeHtml(Number(sale.cash_amount).toFixed(2))+' 元</span>':'')+'</article>';
+ $("salePaymentSummary").innerHTML='<article class="item settlement-summary"><div class="settlement-summary-head"><span>'+(direction==="OUT"?"本店應付顧客":"顧客應付總額")+'</span><strong>'+escapeHtml(obligation.toFixed(2))+' 元</strong></div><div class="settlement-summary-meta"><span><small>已'+(direction==="OUT"?"付款":"收款")+'</small><strong>'+escapeHtml(paid.toFixed(2))+' 元</strong></span><span class="settlement-outstanding"><small>尚未結清</small><strong>'+escapeHtml(remaining.toFixed(2))+' 元</strong></span></div>'+(direction==="IN"&&sale.payment_method==="MIXED"?'<div class="settlement-summary-breakdown"><span>刷卡應收（含 5% 手續費）</span><strong>'+escapeHtml((Number(sale.card_amount)+Number(sale.card_fee)).toFixed(2))+' 元</strong><span>現金應收</span><strong>'+escapeHtml(Number(sale.cash_amount).toFixed(2))+' 元</strong></div>':'')+'</article>';
  const methodSelect=$("actualPaymentMethod");
  if(direction==="OUT"){
   methodSelect.innerHTML='<option value="CASH">現金</option><option value="CARD">刷卡</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option>';
@@ -2723,7 +2755,7 @@ async function loadSalePayments(sale){
  }
  $("salePaymentForm").classList.toggle("hidden",remaining<=0);
  $("salePaymentAmount").disabled=remaining<=0;
- $("salePaymentList").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+(row.direction==="OUT"?"付款／退款":"收款")+' · '+escapeHtml(paymentMethodLabels[row.payment_method]||row.payment_method)+'</strong><span class="muted">'+escapeHtml(Number(row.amount).toFixed(2))+' 元 · '+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+(row.note?'<span class="muted">備註：'+escapeHtml(row.note)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無收付款紀錄</div>';
+ $("salePaymentList").innerHTML=rows.length?rows.map(row=>'<article class="item settlement-entry"><div class="settlement-entry-head"><strong>'+(row.direction==="OUT"?"付款／退款":"收款")+' · '+escapeHtml(paymentMethodLabels[row.payment_method]||row.payment_method)+'</strong><span class="settlement-entry-amount">'+escapeHtml(Number(row.amount).toFixed(2))+' 元</span></div><div class="settlement-entry-meta"><span><small>登錄時間</small><strong>'+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</strong></span>'+(row.reference_no?'<span><small>交易編號</small><strong>'+escapeHtml(row.reference_no)+'</strong></span>':'')+(row.note?'<span class="settlement-entry-note"><small>備註</small><strong>'+escapeHtml(row.note)+'</strong></span>':'')+'</div></article>').join(""):'<div class="empty">尚無收付款紀錄</div>';
  updateSalePaymentAmountForTender();
 }
 $("actualPaymentMethod").addEventListener("change",updateSalePaymentAmountForTender);

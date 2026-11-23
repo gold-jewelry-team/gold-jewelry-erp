@@ -334,3 +334,43 @@ def test_purchasing_and_sales_cards_share_clear_mobile_transaction_hierarchy():
     assert 'data-cancel-purchase="' in response.text
     assert 'data-open-receive="' in response.text
     assert 'data-open-sale="' in response.text
+
+
+def test_receiving_and_settlement_cards_highlight_remaining_and_payment_details():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    for class_name in (
+        "receive-line-item",
+        "receive-remaining",
+        "settlement-summary",
+        "settlement-summary-head",
+        "settlement-summary-meta",
+        "settlement-summary-breakdown",
+        "settlement-outstanding",
+        "settlement-entry",
+        "settlement-entry-head",
+        "settlement-entry-amount",
+        "settlement-entry-meta",
+        "settlement-entry-note",
+        "return-history-item",
+    ):
+        assert class_name in response.text
+    assert '<small>尚餘待驗收</small>' in response.text
+    assert '<small>已驗收數量</small>' in response.text
+    assert '<small>訂購總數量</small>' in response.text
+    assert 'data-receive-line="' in response.text
+    assert 'data-remaining="' in response.text
+    assert 'data-select-return="' in response.text
+    assert '交易編號' in response.text
+    assert '登錄時間' in response.text
+    # Keep settlement and return values escaped before inserting into HTML.
+    for expression in (
+        "escapeHtml(obligation.toFixed(2))",
+        "escapeHtml(paid.toFixed(2))",
+        "escapeHtml(remaining.toFixed(2))",
+        "escapeHtml(Number(row.amount).toFixed(2))",
+        "escapeHtml(row.reference_no)",
+        "escapeHtml(row.return_no)",
+        "escapeHtml(row.id)",
+    ):
+        assert expression in response.text
