@@ -946,7 +946,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 </section>
 </main>
 <div id="labelLotModal" class="label-lot-modal hidden" role="dialog" aria-modal="true" aria-labelledby="labelLotTitle">
- <div class="label-lot-dialog">
+ <div class="label-lot-dialog" tabindex="-1">
   <h2 id="labelLotTitle">選擇貼紙的進貨批次</h2>
   <p class="sub">同一商品可能有不同供應商、進貨日期或櫃位，請選擇這張貼紙對應的實際批次。</p>
   <div class="field"><label for="labelLotSelect">進貨批次</label><select id="labelLotSelect"></select></div>
@@ -1836,7 +1836,7 @@ function openProductEditor(product){
 
 $("labelLotSelect").addEventListener("change",renderLabelLotDetails);
 $("cancelLabelLot").addEventListener("click",closeLabelLotModal);
-document.addEventListener("keydown",event=>{if(event.key==="Escape"&&!$("labelLotModal").classList.contains("hidden")){event.preventDefault();closeLabelLotModal();}});
+document.addEventListener("keydown",event=>{const modal=$("labelLotModal");if(modal.classList.contains("hidden"))return;if(event.key==="Escape"){event.preventDefault();closeLabelLotModal();return;}if(event.key!=="Tab")return;const dialog=modal.querySelector(".label-lot-dialog");const focusable=Array.from(dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length);if(!focusable.length){event.preventDefault();dialog.focus();return;}const first=focusable[0],last=focusable[focusable.length-1];if(event.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){event.preventDefault();first.focus();}});
 $("confirmLabelLot").addEventListener("click",()=>{
  const lot=pendingLabelLots.length?pendingLabelLots[Number($("labelLotSelect").value)]:null;
  const product=pendingLabelProduct;
