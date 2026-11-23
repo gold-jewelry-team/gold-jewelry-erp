@@ -49,6 +49,29 @@ def test_bank_account_deposit_withdrawal_transfer_and_atomic_cash_links():
         assert transfer.status_code==201,transfer.text
         assert len(transfer.json())==2
         assert transfer.json()[0]["transfer_group_id"]==transfer.json()[1]["transfer_group_id"]
+
+        business_date=datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing=client.post(
+            f"/companies/{cid}/sites/{sid}/daily-closings",
+            json={"business_date":business_date.isoformat()},
+        )
+        assert closing.status_code==201,closing.text
+        snapshot=closing.json()
+        assert snapshot["cash_drawer_out_amount"]=="1500.00"
+        assert snapshot["cash_drawer_in_amount"]=="500.00"
+        assert snapshot["net_cash_flow"]=="0.00"
+        counted=client.post(
+            f"/companies/{cid}/sites/{sid}/daily-closings/{snapshot['id']}/cash-count",
+            json={
+                "opening_cash_float":"5000.00",
+                "counted_cash_amount":"4000.00",
+                "counted_by_name":"盤點甲",
+            },
+        )
+        assert counted.status_code==201,counted.text
+        assert counted.json()["expected_cash_amount"]=="4000.00"
+        assert counted.json()["cash_variance"]=="0.00"
+
         accounts=client.get(url)
         assert accounts.status_code==200,accounts.text
         balances={x["account"]["id"]:x["current_balance"] for x in accounts.json()}
