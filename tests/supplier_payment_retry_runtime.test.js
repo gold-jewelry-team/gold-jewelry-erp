@@ -72,7 +72,7 @@ test("supplier payment pending payload survives page reload and exact retry", ()
   const restored = reloadedPage.context.readPendingSupplierPayment(
     "company-1", "site-1", "bill-1",
   );
-  assert.deepEqual(restored.payload, payload);
+  assert.deepEqual(JSON.parse(JSON.stringify(restored.payload)), payload);
   assert.equal(restored.fingerprint, JSON.stringify(payload));
 
   const sameRequest = reloadedPage.context.savePendingSupplierPayment(
@@ -98,7 +98,9 @@ test("supplier payment pending payload blocks edits until original request is re
     /上一筆供應商付款尚未確認結果/,
   );
   assert.deepEqual(
-    context.readPendingSupplierPayment("company-1", "site-1", "bill-2").payload,
+    JSON.parse(JSON.stringify(
+      context.readPendingSupplierPayment("company-1", "site-1", "bill-2").payload
+    )),
     original,
   );
 });
