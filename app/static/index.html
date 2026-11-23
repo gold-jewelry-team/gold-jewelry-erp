@@ -1280,6 +1280,11 @@ function stopCameraScanner(){
 let scanTrigger=null;
 async function closeCameraScanner(){stopCameraScanner();$("scanModal").classList.add("hidden");const trigger=scanTrigger;scanTrigger=null;if(trigger&&trigger.isConnected)trigger.focus();}
 document.addEventListener("keydown",event=>{const modal=$("scanModal");if(modal.classList.contains("hidden"))return;if(event.key==="Escape"){event.preventDefault();closeCameraScanner();return;}if(event.key!=="Tab")return;const dialog=modal.querySelector(".scan-dialog");const focusable=Array.from(dialog.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),a[href],[tabindex]:not([tabindex="-1"])')).filter(el=>el.getClientRects().length);if(!focusable.length){event.preventDefault();dialog.focus();return;}const first=focusable[0],last=focusable[focusable.length-1];if(event.shiftKey&&(document.activeElement===first||!dialog.contains(document.activeElement))){event.preventDefault();last.focus();}else if(!event.shiftKey&&(document.activeElement===last||!dialog.contains(document.activeElement))){event.preventDefault();first.focus();}});
+function scannerFormats(supported){
+ const linear=["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar"];
+ const selected=scanFormatMode==="qr"?["qr_code"]:scanFormatMode==="both"?[...linear,"qr_code"]:linear;
+ return selected.filter(format=>supported.includes(format));
+}
 function handleKeyboardScannerInput(event,value,callback){
  if(event.key!=="Enter"&&event.key!=="Tab")return false;
  const code=String(value||"").trim();
@@ -1287,11 +1292,6 @@ function handleKeyboardScannerInput(event,value,callback){
  event.preventDefault();
  callback(code);
  return true;
-}
-function scannerFormats(supported){
- const linear=["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar"];
- const selected=scanFormatMode==="qr"?["qr_code"]:scanFormatMode==="both"?[...linear,"qr_code"]:linear;
- return selected.filter(format=>supported.includes(format));
 }
 function scanResultInCenter(item,video){
  const box=item.boundingBox;if(!box||!video.videoWidth||!video.videoHeight)return false;
