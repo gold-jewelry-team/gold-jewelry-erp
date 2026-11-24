@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#202522">
+<meta name="robots" content="noindex,nofollow">
+<title>營運報表｜黃金珠寶進銷存</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202923;background:#f3f1eb;--green:#234b3a;--line:#e6e0d3;--muted:#68746c}
+*{box-sizing:border-box}body{margin:0;padding-bottom:env(safe-area-inset-bottom)}
+header{background:#202522;color:#fff;padding:14px 16px}.head,main{max-width:1120px;margin:auto}.head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}h1{font-size:19px;margin:0}.back{color:#eef4ef;text-decoration:none;border:1px solid #ffffff45;border-radius:999px;padding:8px 12px;font-size:12px}header p{max-width:1120px;margin:7px auto 0;color:#c8d0ca;font-size:12px}
+main{padding:14px;display:grid;gap:13px}.panel{background:#fffefa;border:1px solid var(--line);border-radius:15px;padding:15px;box-shadow:0 5px 18px #2430270b}
+h2{font-size:16px;margin:0 0 8px;color:#2d3b31}.sub{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.field{min-width:0}label{display:block;font-size:12px;color:#536158;font-weight:600;margin-bottom:5px}input,select{width:100%;min-height:43px;border:1px solid #d8ded6;border-radius:9px;padding:8px 10px;background:#fffefa;color:#202124;font:inherit;font-size:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}button{min-height:42px;border:0;border-radius:9px;padding:9px 14px;background:linear-gradient(180deg,#234b3a,#193b2d);color:#fff;font:inherit;font-size:13px;font-weight:650;cursor:pointer}button.secondary{background:#edf2ed;color:#294b39;border:1px solid #dce6dc}button:disabled{opacity:.55;cursor:wait}
+.status{font-size:12px;min-height:20px;margin-top:8px;color:#526257;overflow-wrap:anywhere}.status.error{color:#b42318}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}.metric{border:1px solid #e8e5dc;border-radius:12px;padding:11px;background:#fff}.metric span{display:block;color:var(--muted);font-size:11px}.metric strong{display:block;margin-top:5px;font-size:18px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.metric small{display:block;margin-top:3px;color:#7b837c;font-size:10px}
+.currency-block{margin-top:14px}.currency-title{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}.currency-title span{font-size:11px;background:#f2ead8;color:#795b24;border-radius:30px;padding:3px 8px}
+.table-wrap{overflow-x:auto;border:1px solid #e8ebe7;border-radius:10px;margin-top:9px}table{width:100%;border-collapse:collapse;min-width:850px;font-size:12px}th,td{padding:9px 10px;text-align:right;border-bottom:1px solid #edf0ec;white-space:nowrap;font-variant-numeric:tabular-nums}th{background:#f6f8f5;color:#4a574d}td:first-child,th:first-child{text-align:left}tr:last-child td{border-bottom:0}
+.empty{padding:22px 10px;text-align:center;color:#788079;font-size:13px}.note{font-size:11px;color:#737d75;line-height:1.6;margin-top:10px}
+@media(max-width:760px){main{padding:10px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:12px}.metric strong{font-size:16px}}
+@media(max-width:380px){.grid{grid-template-columns:1fr 1fr}.head{align-items:flex-start}.back{padding:7px 9px}}
+</style>
+</head>
+<body>
+<header><div class="head"><h1>營運報表</h1><a class="back" href="/app">← 返回門市工作台</a></div><p>依營業日期彙整銷售、退貨、實際收付款、供應商付款與已付款費用；不同幣別分開呈現。</p></header>
+<main>
+<section class="panel">
+ <h2>查詢條件</h2><p class="sub">請選擇公司、據點與日期區間。日期以台灣時間計算，開始日與結束日皆包含。</p>
+ <div class="grid">
+  <div class="field"><label for="company">公司</label><select id="company"><option value="">載入中…</option></select></div>
+  <div class="field"><label for="site">據點</label><select id="site"><option value="">請先選擇公司</option></select></div>
+  <div class="field"><label for="start">開始日期</label><input id="start" type="date"></div>
+  <div class="field"><label for="end">結束日期</label><input id="end" type="date"></div>
+ </div>
+ <div class="actions"><button type="button" class="secondary" id="today">今天</button><button type="button" class="secondary" id="month">本月</button><button type="button" id="query">查詢報表</button></div>
+ <div id="status" class="status" role="status" aria-live="polite"></div>
+</section>
+<section class="panel"><h2>期間總覽</h2><p class="sub" id="periodLabel">選擇查詢條件後顯示。</p><div id="summary"><div class="empty">尚未查詢報表</div></div></section>
+<section class="panel"><h2>每日營運明細</h2><p class="sub">每日一列、每種幣別分開。銷售淨額以銷售完成日及退貨日計算；收付款則依實際入帳時間計算。</p><div id="daily"><div class="empty">尚未查詢報表</div></div></section>
+<section class="panel"><h2>收付款方式分析</h2><p class="sub">依實際收付款、供應商付款及已付款費用的支付方式彙整；現金櫃存提款另列於期間總覽。</p><div id="methods"><div class="empty">尚未查詢報表</div></div><p class="note">提醒：客訂訂金與客訂退款會與一般銷售收款分開；營業費用只統計已付款項。現金櫃存提款是現金移動，不會當作營業費用。</p></section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const api=async(path)=>{const r=await fetch(path,{headers:{Accept:"application/json"},cache:"no-store"});const d=await r.json().catch(()=>({detail:"伺服器回應格式錯誤"}));if(!r.ok){const e=new Error(d.detail||"讀取失敗（HTTP "+r.status+"）");e.status=r.status;throw e;}return d;};
+const todayTaipei=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());
+const money=v=>{const n=Number(v??0);return Number.isFinite(n)?n.toLocaleString("zh-TW",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";};
+const methodName=v=>({CASH:"現金",CARD:"刷卡",TRANSFER:"轉帳",OTHER:"其他"}[v]||v||"未指定");
+const metric=(label,value,sub="")=>'<div class="metric"><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong>'+(sub?'<small>'+esc(sub)+'</small>':"")+'</div>';
+const state={companies:[],sites:[],report:null};
+function setStatus(message,error=false){$("status").textContent=message;$("status").className="status"+(error?" error":"");}
+function setMonth(){const t=todayTaipei();$("start").value=t.slice(0,7)+"-01";$("end").value=t;}
+function setToday(){const t=todayTaipei();$("start").value=t;$("end").value=t;}
+async function loadCompanies(){state.companies=await api("/companies");$("company").innerHTML='<option value="">請選擇公司</option>'+state.companies.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.code+" · "+x.name)+'</option>').join("");if(state.companies.length===1){$("company").value=state.companies[0].id;await loadSites();}}
+async function loadSites(){const id=$("company").value;$("site").innerHTML='<option value="">載入中…</option>';if(!id){$("site").innerHTML='<option value="">請先選擇公司</option>';return;}state.sites=await api("/companies/"+encodeURIComponent(id)+"/sites");$("site").innerHTML='<option value="">請選擇據點</option>'+state.sites.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.code+" · "+x.name)+'</option>').join("");if(state.sites.length===1)$("site").value=state.sites[0].id;}
+function renderSummary(rows){if(!rows.length){$("summary").innerHTML='<div class="empty">此期間沒有營運資料。</div>';return;}$("summary").innerHTML=rows.map(r=>'<div class="currency-block"><div class="currency-title">'+esc(r.currency_code)+'<span>期間合計</span></div><div class="cards">'+
+metric("銷售筆數",r.sales_count+" 筆")+metric("銷售總額",money(r.gross_sales_amount), "退貨 "+r.returns_count+" 筆 / "+money(r.return_reversal_amount))+
+metric("銷售淨額",money(r.net_sales_amount))+metric("客戶實際收款",money(r.customer_collected_amount),"含客訂收款 "+money(r.customer_order_collected_amount))+
+metric("客戶實際退款",money(r.customer_refunded_amount),"含客訂退款 "+money(r.customer_order_refunded_amount))+
+metric("供應商付款",money(r.supplier_paid_amount),r.supplier_payment_count+" 筆")+metric("已付款營業費用",money(r.expenses_paid_amount),r.paid_expense_count+" 筆")+
+metric("營運現金流",money(r.net_operating_cash_flow),"收款－退款－供應商付款－費用")+
+metric("現金櫃預期變動",money(r.expected_cash_change),"現金收付及現金櫃存提款")+
+metric("現金櫃存入",money(r.cash_drawer_in_amount))+metric("現金櫃支出",money(r.cash_drawer_out_amount))+
+'</div></div>').join("");}
+function renderDaily(rows){if(!rows.length){$("daily").innerHTML='<div class="empty">此期間沒有每日明細。</div>';return;}const groups={};rows.forEach(r=>(groups[r.currency_code]??=[]).push(r));$("daily").innerHTML=Object.entries(groups).map(([currency,list])=>'<div class="currency-block"><div class="currency-title">'+esc(currency)+'</div><div class="table-wrap"><table><thead><tr><th>日期</th><th>銷售筆數</th><th>銷售淨額</th><th>客戶收款</th><th>客戶退款</th><th>供應商付款</th><th>營業費用</th><th>現金櫃預期變動</th></tr></thead><tbody>'+list.map(r=>'<tr><td>'+esc(r.business_date)+'</td><td>'+esc(r.sales_count)+'</td><td>'+money(r.net_sales_amount)+'</td><td>'+money(r.customer_collected_amount)+'</td><td>'+money(r.customer_refunded_amount)+'</td><td>'+money(r.supplier_paid_amount)+'</td><td>'+money(r.expenses_paid_amount)+'</td><td>'+money(r.expected_cash_change)+'</td></tr>').join("")+'</tbody></table></div></div>').join("");}
+function renderMethods(rows){const methods=[];rows.forEach(r=>(r.payment_methods||[]).forEach(m=>methods.push({...m,currency_code:r.currency_code})));if(!methods.length){$("methods").innerHTML='<div class="empty">此期間沒有收付款方式資料。</div>';return;}const byCurrency={};methods.forEach(m=>(byCurrency[m.currency_code]??=[]).push(m));$("methods").innerHTML=Object.entries(byCurrency).map(([currency,list])=>'<div class="currency-block"><div class="currency-title">'+esc(currency)+'</div><div class="table-wrap"><table><thead><tr><th>方式</th><th>客戶收款</th><th>客戶退款</th><th>供應商付款</th><th>已付費用</th><th>淨營運現金流</th></tr></thead><tbody>'+list.map(m=>'<tr><td>'+esc(methodName(m.payment_method))+'</td><td>'+money(m.customer_collected_amount)+'</td><td>'+money(m.customer_refunded_amount)+'</td><td>'+money(m.supplier_paid_amount)+'</td><td>'+money(m.expenses_paid_amount)+'</td><td>'+money(m.net_operating_cash_flow)+'</td></tr>').join("")+'</tbody></table></div></div>').join("");}
+async function queryReport(){const company=$("company").value,site=$("site").value,start=$("start").value,end=$("end").value;if(!company||!site||!start||!end){setStatus("請完整選擇公司、據點與日期區間。",true);return;}if(end<start){setStatus("結束日期不可早於開始日期。",true);return;}const button=$("query");button.disabled=true;setStatus("報表讀取中…");try{const q=new URLSearchParams({period_start:start,period_end:end});const data=await api("/companies/"+encodeURIComponent(company)+"/sites/"+encodeURIComponent(site)+"/operational-report?"+q.toString());state.report=data;$("periodLabel").textContent=data.site_name+"｜"+data.period_start+" 至 "+data.period_end+"｜"+data.timezone;renderSummary(data.totals_by_currency||[]);renderDaily(data.daily||[]);renderMethods(data.totals_by_currency||[]);setStatus("查詢完成。報表為唯讀，不會修改任何帳務資料。");}catch(e){setStatus(e.message,true);}finally{button.disabled=false;}}
+$("company").addEventListener("change",async()=>{try{await loadSites();}catch(e){setStatus(e.message,true);}});
+$("query").addEventListener("click",queryReport);
+$("today").addEventListener("click",()=>{setToday();queryReport();});
+$("month").addEventListener("click",()=>{setMonth();queryReport();});
+setMonth();loadCompanies().catch(e=>setStatus(e.message,true));
+</script>
+</body></html>
