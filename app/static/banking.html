@@ -202,6 +202,27 @@ const api=async(path,options={})=>{
  if(!response.ok){const error=new Error(data.detail||"操作失敗（HTTP "+response.status+"）");error.status=response.status;throw error;}
  return data;
 };
+
+function pendingBankOperationKey(storageKey,payload){
+ const fingerprint=JSON.stringify(payload);
+ const raw=localStorage.getItem(storageKey);
+ if(raw){
+  try{
+   const saved=JSON.parse(raw);
+   if(saved&&saved.key&&saved.fingerprint===fingerprint)return saved.key;
+  }catch(_error){}
+  throw new Error("上一筆銀行作業尚未確認是否入帳。請保持原帳戶、金額與內容不變，使用相同資料重新送出；確認完成前不要另建不同內容。");
+ }
+ if(!globalThis.crypto||typeof globalThis.crypto.randomUUID!=="function")
+  throw new Error("瀏覽器無法產生安全的作業識別碼，請更新瀏覽器後再操作。");
+ const key=globalThis.crypto.randomUUID();
+ localStorage.setItem(storageKey,JSON.stringify({key,fingerprint}));
+ return key;
+}
+function clearRejectedBankOperationKey(storageKey,error){
+ if(Number.isInteger(error?.status)&&error.status>=400&&error.status<500)
+  localStorage.removeItem(storageKey);
+}
 function status(id,msg="",kind=""){const el=$(id);el.textContent=msg;el.className="status"+(kind?" "+kind:"");}
 function fmtMoney(v){const n=Number(v);return Number.isFinite(n)?n.toLocaleString("zh-TW",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";}
 function fmtDate(v){if(!v)return"—";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("zh-TW",{timeZone:"Asia/Taipei"});}
@@ -356,10 +377,19 @@ $("cashBankForm").addEventListener("submit",async e=>{
   if(!state.siteId)throw new Error("請先選擇存提款所屬據點。");
   const kind=$("cashOperationType").value;
   const path="/companies/"+state.companyId+"/bank-accounts/"+state.accountId+(kind==="deposit"?"/cash-deposits":"/cash-withdrawals");
-  await api(path,{method:"POST",body:JSON.stringify({
+  const requestPayload={
    site_id:state.siteId,amount:$("cashBankAmount").value,created_by_name:$("cashBankActor").value.trim(),
    reference_no:$("cashBankReference").value.trim()||null,note:$("cashBankNote").value.trim()||null
-  })});
+  };
+  const storageKey="gold-erp:bank-cash-operation:"+state.companyId+":"+state.accountId;
+  const idempotencyKey=pendingBankOperationKey(storageKey,requestPayload);
+  try{
+   await api(path,{method:"POST",body:JSON.stringify({...requestPayload,idempotency_key:idempotencyKey})});
+   localStorage.removeItem(storageKey);
+  }catch(err){
+   clearRejectedBankOperationKey(storageKey,err);
+   throw err;
+  }
   $("cashBankForm").reset();await refreshAll();status("cashBankStatus","銀行流水及現金櫃異動已同步建立。","success");
  }catch(err){status("cashBankStatus",err.message,"error");}finally{button.disabled=false;}
 });
@@ -367,10 +397,19 @@ $("transferForm").addEventListener("submit",async e=>{
  e.preventDefault();const button=e.submitter;button.disabled=true;status("transferStatus","正在建立轉帳…");
  try{
   if(!state.companyId)throw new Error("請先選擇公司。");
-  await api("/companies/"+state.companyId+"/bank-accounts/transfers",{method:"POST",body:JSON.stringify({
+  const requestPayload={
    from_account_id:$("transferFrom").value,to_account_id:$("transferTo").value,amount:$("transferAmount").value,
    created_by_name:$("transferActor").value.trim(),reference_no:$("transferReference").value.trim()||null,note:$("transferNote").value.trim()||null
-  })});
+  };
+  const storageKey="gold-erp:bank-account-transfer:"+state.companyId;
+  const idempotencyKey=pendingBankOperationKey(storageKey,requestPayload);
+  try{
+   await api("/companies/"+state.companyId+"/bank-accounts/transfers",{method:"POST",body:JSON.stringify({...requestPayload,idempotency_key:idempotencyKey})});
+   localStorage.removeItem(storageKey);
+  }catch(err){
+   clearRejectedBankOperationKey(storageKey,err);
+   throw err;
+  }
   $("transferForm").reset();await refreshAll();status("transferStatus","轉出與轉入兩筆銀行流水已建立。","success");
  }catch(err){status("transferStatus",err.message,"error");}finally{button.disabled=false;}
 });
