@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.bank_account import BankAccount, BankTransaction
-from app.services.bank_accounts import (BankTransferLinkConflict, create_bank_account, get_bank_account_balance, link_transfer_source_to_bank_account, list_unlinked_transfer_sources, record_cash_deposit, record_cash_withdrawal, transfer_between_bank_accounts)
+from app.services.bank_accounts import (BankTransactionIdempotencyConflict, BankTransferLinkConflict, create_bank_account, get_bank_account_balance, link_transfer_source_to_bank_account, list_unlinked_transfer_sources, record_cash_deposit, record_cash_withdrawal, transfer_between_bank_accounts)
 
 router=APIRouter(prefix="/companies/{company_id}/bank-accounts",tags=["bank accounts"])
 def get_db():
@@ -68,6 +68,7 @@ class CashBankOperation(BaseModel):
     created_by_name:str=Field(min_length=1,max_length=120)
     reference_no:str|None=Field(default=None,max_length=100)
     note:str|None=Field(default=None,max_length=500)
+    idempotency_key:UUID|None=None
 
 class TransferSourceLinkCreate(BaseModel):
     source_type:str=Field(pattern="^(PAYMENT_TRANSACTION|SUPPLIER_PAYMENT|OPERATING_EXPENSE)$")
@@ -82,6 +83,7 @@ class BankTransferCreate(BaseModel):
     created_by_name:str=Field(min_length=1,max_length=120)
     reference_no:str|None=Field(default=None,max_length=100)
     note:str|None=Field(default=None,max_length=500)
+    idempotency_key:UUID|None=None
 
 def _commit(db,row):
     db.commit()
@@ -156,27 +158,48 @@ def get_bank_transactions(company_id:UUID,account_id:UUID,from_at:datetime|None=
     return list(db.scalars(q).all())
 
 @router.post("/{account_id}/cash-deposits",response_model=BankTransactionRead,status_code=201)
-def post_cash_deposit(company_id:UUID,account_id:UUID,payload:CashBankOperation,db:Session=Depends(get_db)):
+def post_cash_deposit(company_id:UUID,account_id:UUID,payload:CashBankOperation,response:Response,db:Session=Depends(get_db)):
     try:
-        row=record_cash_deposit(db,company_id=company_id,bank_account_id=account_id,**payload.model_dump())
+        row,created=record_cash_deposit(
+            db,company_id=company_id,bank_account_id=account_id,return_created=True,**payload.model_dump()
+        )
+        if not created: response.status_code=200
         db.commit(); db.refresh(row); return row
+    except BankTransactionIdempotencyConflict as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail="此銀行作業識別碼已被其他請求使用，請重新整理流水後確認。") from exc
     except ValueError as exc:
         db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 @router.post("/{account_id}/cash-withdrawals",response_model=BankTransactionRead,status_code=201)
-def post_cash_withdrawal(company_id:UUID,account_id:UUID,payload:CashBankOperation,db:Session=Depends(get_db)):
+def post_cash_withdrawal(company_id:UUID,account_id:UUID,payload:CashBankOperation,response:Response,db:Session=Depends(get_db)):
     try:
-        row=record_cash_withdrawal(db,company_id=company_id,bank_account_id=account_id,**payload.model_dump())
+        row,created=record_cash_withdrawal(
+            db,company_id=company_id,bank_account_id=account_id,return_created=True,**payload.model_dump()
+        )
+        if not created: response.status_code=200
         db.commit(); db.refresh(row); return row
+    except BankTransactionIdempotencyConflict as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail="此銀行作業識別碼已被其他請求使用，請重新整理流水後確認。") from exc
     except ValueError as exc:
         db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc
 
 @router.post("/transfers",response_model=list[BankTransactionRead],status_code=201)
-def post_bank_transfer(company_id:UUID,payload:BankTransferCreate,db:Session=Depends(get_db)):
+def post_bank_transfer(company_id:UUID,payload:BankTransferCreate,response:Response,db:Session=Depends(get_db)):
     try:
-        rows=transfer_between_bank_accounts(db,company_id=company_id,**payload.model_dump())
+        rows,created=transfer_between_bank_accounts(
+            db,company_id=company_id,return_created=True,**payload.model_dump()
+        )
+        if not created: response.status_code=200
         db.commit()
         for row in rows: db.refresh(row)
         return list(rows)
+    except BankTransactionIdempotencyConflict as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback(); raise HTTPException(status_code=409,detail="此銀行作業識別碼已被其他請求使用，請重新整理流水後確認。") from exc
     except ValueError as exc:
         db.rollback(); raise HTTPException(status_code=422,detail=str(exc)) from exc

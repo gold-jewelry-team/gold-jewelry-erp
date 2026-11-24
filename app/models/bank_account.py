@@ -47,6 +47,12 @@ class BankTransaction(Base):
             postgresql_where=text("source_type IS NOT NULL AND source_id IS NOT NULL"),
             sqlite_where=text("source_type IS NOT NULL AND source_id IS NOT NULL"),
         ),
+        Index(
+            "uq_bank_transactions_company_idempotency_key",
+            "company_id", "idempotency_key", unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+            sqlite_where=text("idempotency_key IS NOT NULL"),
+        ),
         UniqueConstraint("id", "company_id", "bank_account_id", name="uq_bank_transactions_id_scope"),
         ForeignKeyConstraint(["bank_account_id", "company_id"], ["bank_accounts.id", "bank_accounts.company_id"], ondelete="RESTRICT", name="fk_bank_transactions_account_company"),
         ForeignKeyConstraint(["statement_line_id", "company_id", "bank_account_id"], ["bank_statement_lines.id", "bank_statement_lines.company_id", "bank_statement_lines.bank_account_id"], ondelete="RESTRICT", name="fk_bank_transactions_statement_line_scope"),
@@ -59,6 +65,7 @@ class BankTransaction(Base):
     transfer_group_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     source_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     source_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    idempotency_key: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     transaction_type: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(String(3), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18,2), nullable=False)

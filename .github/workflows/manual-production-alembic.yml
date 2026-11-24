@@ -58,7 +58,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          expected_revision="0031_bank_transfer_source_links"
+          expected_revision="0032_bank_operation_idempotency"
           current_revision="$(alembic current)"
           printf '%s\n' "$current_revision"
 
