@@ -673,7 +673,27 @@ button.secondary:disabled{opacity:.42}
  <div class="field wide"><label for="quoteOrderNote">訂購備註／客製需求</label><textarea id="quoteOrderNote" rows="2" maxlength="1000" placeholder="例如尺寸、刻字、指定款式、交期等"></textarea></div>
 </div>
 <div class="actions"><button id="createCustomerOrderButton" type="button">建立客訂單並收訂金</button></div>
-<div id="quoteOrderStatus" class="status" role="status"></div><div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可修改重量作預估，但不會建立庫存商品。試算不扣庫存、不建立正式交易；實際成交仍以銷售結帳當下的有效金價為準。</div>
+<div id="quoteOrderStatus" class="status" role="status"></div>
+<div class="customer-order-management">
+ <h3>客訂單管理</h3>
+ <p class="sub">進行中的客訂單可修改客戶與交期基本資料；已收訂金、商品明細及金額快照不在此處改寫。取消訂單需先完成退款流程。</p>
+ <div class="grid">
+  <div class="field"><label for="customerOrderSearch">搜尋訂單／客戶</label><input id="customerOrderSearch" placeholder="訂單編號、姓名或電話"></div>
+  <div class="field"><label for="customerOrderStatusFilter">訂單狀態</label><select id="customerOrderStatusFilter"><option value="">全部狀態</option><option value="IN_PROGRESS">進行中</option><option value="ARRIVED">已到貨</option><option value="READY">待交貨</option><option value="COMPLETED">已完成</option><option value="CANCELLED">已取消</option></select></div>
+ </div>
+ <div class="actions"><button id="refreshCustomerOrders" class="secondary" type="button">更新客訂單</button></div>
+ <div id="customerOrderList"><div class="empty">請先選擇公司與據點</div></div>
+ <form id="customerOrderEditForm" class="hidden">
+  <h3>編輯客訂單基本資料</h3>
+  <div class="grid">
+   <div class="field"><label for="customerOrderEditNo">訂單編號</label><input id="customerOrderEditNo" maxlength="40" required></div>
+   <div class="field"><label for="customerOrderEditName">客戶姓名</label><input id="customerOrderEditName" maxlength="120" required></div>
+   <div class="field"><label for="customerOrderEditPhone">聯絡電話</label><input id="customerOrderEditPhone" maxlength="40"></div>
+   <div class="field"><label for="customerOrderEditDelivery">預計交貨日期</label><input id="customerOrderEditDelivery" type="date"></div>
+   <div class="field wide"><label for="customerOrderEditNote">訂購備註</label><textarea id="customerOrderEditNote" rows="2" maxlength="1000"></textarea></div>
+  </div>
+  <div class="actions"><button id="customerOrderEditSubmit" type="submit">儲存客訂單修改</button><button id="customerOrderEditCancel" class="secondary" type="button">取消編輯</button></div>
+ </form><div class="quote-note">重量與工錢會帶入該件商品自己的資料，不會用其他尺寸的數值代替。無現貨規格可修改重量作預估，但不會建立庫存商品。試算不扣庫存、不建立正式交易；實際成交仍以銷售結帳當下的有效金價為準。</div>
 <div class="actions"><button id="quoteClearButton" class="secondary" type="button">清空報價清單</button></div>
 </section>
 
@@ -4112,6 +4132,8 @@ let quoteSelectedProducts=[];
 let quoteCurrentTotal=null;
 let latestCreatedCustomerOrder=null;
 let pendingCustomerOrderCreate=null;
+let customerOrdersById=new Map();
+let editingCustomerOrderId="";
 const quoteMoney=value=>Number(value||0).toLocaleString("zh-TW",{minimumFractionDigits:0,maximumFractionDigits:2});
 function quoteProductSearchText(product){
  const category=product.category_id?(categoryNames.get(product.category_id)||""):"";
