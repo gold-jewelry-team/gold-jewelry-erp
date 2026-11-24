@@ -99,7 +99,6 @@ def test_unpaid_expense_can_be_edited_and_voided_but_paid_expense_is_immutable(e
 
     paid = _create_expense(
         client, company_id, site_id, "EXP-PAID-001",
-        expense_no="EXP-PAID-001",
         payment_method="CASH",
     )
     cannot_edit_paid = client.patch(
