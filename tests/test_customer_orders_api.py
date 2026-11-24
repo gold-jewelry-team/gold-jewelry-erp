@@ -226,3 +226,76 @@ def test_customer_order_basic_fields_can_be_edited_without_rewriting_deposit_or_
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_customer_order_refund_is_append_only_and_required_before_cancellation():
+    from uuid import uuid4
+
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with TestSession() as db:
+        company = Company(code="ORDER-REFUND", name="客訂退款測試公司")
+        db.add(company)
+        db.flush()
+        site = Site(company_id=company.id, code="MAIN", name="總店")
+        db.add(site)
+        db.commit()
+        company_id, site_id = company.id, site.id
+
+    def override_db():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides[customer_orders.get_db] = override_db
+    try:
+        client = TestClient(app)
+        created = client.post(f"/companies/{company_id}/customer-orders", json={
+            "site_id": str(site_id), "order_no": "CO-REFUND-001",
+            "customer_name": "退款測試客戶",
+            "items": [{"product_name": "客訂商品"}],
+            "total_amount": "10000", "initial_deposit": "3000",
+            "payment_method": "CASH",
+        })
+        assert created.status_code == 201, created.text
+        order_id = created.json()["id"]
+        blocked = client.post(f"/companies/{company_id}/customer-orders/{order_id}/cancel")
+        assert blocked.status_code == 409
+
+        key = str(uuid4())
+        refund_payload = {
+            "amount": "3000.00", "payment_method": "TRANSFER",
+            "note": "全額退還訂金", "idempotency_key": key,
+        }
+        refunded = client.post(
+            f"/companies/{company_id}/customer-orders/{order_id}/refunds",
+            json=refund_payload,
+        )
+        assert refunded.status_code == 200, refunded.text
+        assert refunded.json()["deposit_amount"] == "0.00"
+        assert len(refunded.json()["payments"]) == 2
+        assert refunded.json()["payments"][-1]["direction"] == "OUT"
+
+        retried = client.post(
+            f"/companies/{company_id}/customer-orders/{order_id}/refunds",
+            json=refund_payload,
+        )
+        assert retried.status_code == 200, retried.text
+        assert retried.json()["deposit_amount"] == "0.00"
+        assert len(retried.json()["payments"]) == 2
+
+        cancelled = client.post(f"/companies/{company_id}/customer-orders/{order_id}/cancel")
+        assert cancelled.status_code == 200, cancelled.text
+        assert cancelled.json()["status"] == "CANCELLED"
+        assert len(cancelled.json()["payments"]) == 2
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
