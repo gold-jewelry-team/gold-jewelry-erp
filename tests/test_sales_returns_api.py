@@ -336,3 +336,83 @@ def test_sale_can_be_returned_in_separate_partial_transactions():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_sale_return_exact_retry_is_idempotent_and_survives_daily_closing():
+    from zoneinfo import ZoneInfo
+    from app.services.daily_closing import create_daily_closing
+
+    engine, TestSession, (company_id, site_id, product_id, _product2_id, location_id) = _return_test_context(
+        "RETURN-IDEMPOTENT"
+    )
+    try:
+        client = TestClient(app)
+        sale_response = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id),
+            "sale_no": "SO-RETURN-IDEMPOTENT",
+            "payment_method": "CASH",
+            "lines": [{"product_id": str(product_id), "source_location_id": str(location_id)}],
+        })
+        assert sale_response.status_code == 201, sale_response.text
+        sale = sale_response.json()
+        completed = client.post(f"/companies/{company_id}/sales/{sale['id']}/complete")
+        assert completed.status_code == 200, completed.text
+
+        payload = {
+            "return_no": " RT-IDEMPOTENT-001 ",
+            "sale_line_ids": [sale["lines"][0]["id"]],
+            "reason": "顧客退貨",
+            "note": "原始退貨備註",
+        }
+        first = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json=payload,
+        )
+        assert first.status_code == 201, first.text
+
+        exact_retry = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json={**payload, "return_no": "RT-IDEMPOTENT-001"},
+        )
+        assert exact_retry.status_code == 200, exact_retry.text
+        assert exact_retry.json()["id"] == first.json()["id"]
+        assert exact_retry.json()["settlement_reversal_amount"] == first.json()["settlement_reversal_amount"]
+
+        conflicting_retry = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json={**payload, "return_no": "RT-IDEMPOTENT-001", "reason": "不同退貨原因"},
+        )
+        assert conflicting_retry.status_code == 409, conflicting_retry.text
+
+        business_date = datetime.now(timezone.utc).astimezone(
+            ZoneInfo("Asia/Taipei")
+        ).date()
+        closing_session = TestSession()
+        create_daily_closing(
+            closing_session,
+            company_id=company_id,
+            site_id=site_id,
+            business_date=business_date,
+        )
+        closing_session.commit()
+        closing_session.close()
+
+        # An exact retry after the close returns the original committed record;
+        # it must not be rejected by the day lock or restock the item again.
+        after_close_retry = client.post(
+            f"/companies/{company_id}/sales/{sale['id']}/returns",
+            json={**payload, "return_no": "RT-IDEMPOTENT-001"},
+        )
+        assert after_close_retry.status_code == 200, after_close_retry.text
+        assert after_close_retry.json()["id"] == first.json()["id"]
+
+        check = TestSession()
+        assert check.query(SaleReturn).count() == 1
+        assert check.query(InventoryMovement).filter_by(
+            reference_type="SALE_RETURN_LINE"
+        ).count() == 1
+        assert get_stock_balance(check, product_id=product_id, location_id=location_id) == Decimal("1")
+        check.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
