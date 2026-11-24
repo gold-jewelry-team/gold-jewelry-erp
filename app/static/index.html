@@ -1388,20 +1388,28 @@ function getPaymentIdempotencyKey(kind,sourceId,payload){
   reference_no:payload.reference_no??null,
   note:payload.note??null
  });
+ let saved=paymentIdempotencyMemory.get(storageKey)||null;
  try{
-  const saved=JSON.parse(localStorage.getItem(storageKey)||"null");
-  if(saved&&saved.fingerprint===fingerprint&&saved.key)return saved.key;
-  const key=newPaymentIdempotencyKey();
-  localStorage.setItem(storageKey,JSON.stringify({fingerprint,key}));
-  paymentIdempotencyMemory.set(storageKey,{fingerprint,key});
-  return key;
- }catch(error){
-  const saved=paymentIdempotencyMemory.get(storageKey);
-  if(saved&&saved.fingerprint===fingerprint)return saved.key;
-  const key=newPaymentIdempotencyKey();
-  paymentIdempotencyMemory.set(storageKey,{fingerprint,key});
-  return key;
+  const raw=localStorage.getItem(storageKey);
+  if(raw){
+   const stored=JSON.parse(raw);
+   if(stored&&stored.key&&stored.fingerprint)saved=stored;
+  }
+ }catch(error){}
+ if(saved&&saved.key){
+  if(saved.fingerprint!==fingerprint){
+   throw new Error("上一筆收付款尚未確認結果。請先恢復原本的付款方式、金額、交易編號及備註後重試；不可修改內容另送。");
+  }
+  paymentIdempotencyMemory.set(storageKey,saved);
+  return saved.key;
  }
+ const key=newPaymentIdempotencyKey();
+ const pending={fingerprint,key};
+ paymentIdempotencyMemory.set(storageKey,pending);
+ try{
+  localStorage.setItem(storageKey,JSON.stringify(pending));
+ }catch(error){}
+ return key;
 }
 function clearPaymentIdempotencyKey(kind,sourceId,key){
  const storageKey=paymentIdempotencyStorageKey(kind,sourceId);
@@ -2548,16 +2556,17 @@ $("returnPaymentForm").addEventListener("submit",async event=>{
  if(!(Number(amount)>0)){message("returnPaymentStatus","請輸入大於 0 的收付款金額。",true);return;}
  const button=$("returnPaymentForm").querySelector('button[type="submit"]');button.disabled=true;
  const payload={payment_method:$("returnPaymentMethod").value,amount,reference_no:$("returnPaymentReference").value.trim()||null,note:$("returnPaymentNote").value.trim()||null};
- const idempotencyKey=getPaymentIdempotencyKey("return",selectedReturn.id,payload);
- payload.idempotency_key=idempotencyKey;
+ let idempotencyKey=null;
  try{
+  idempotencyKey=getPaymentIdempotencyKey("return",selectedReturn.id,payload);
+  payload.idempotency_key=idempotencyKey;
   await api("/companies/"+companyId+"/sales/returns/"+selectedReturn.id+"/payments",{method:"POST",body:JSON.stringify(payload)});
   clearPaymentIdempotencyKey("return",selectedReturn.id,idempotencyKey);
   $("returnPaymentReference").value="";$("returnPaymentNote").value="";
   message("returnPaymentStatus","退貨收付款紀錄已新增。");
   try{await loadReturnPayments(selectedReturn);}catch(refreshError){message("returnPaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
  }catch(error){
-  if(error.status>=400&&error.status<500)clearPaymentIdempotencyKey("return",selectedReturn.id,idempotencyKey);
+  if(idempotencyKey&&error.status>=400&&error.status<500)clearPaymentIdempotencyKey("return",selectedReturn.id,idempotencyKey);
   message("returnPaymentStatus",error.message,true);
  }
  finally{button.disabled=false;}
@@ -3487,16 +3496,17 @@ $("salePaymentForm").addEventListener("submit",async event=>{
  if(!(Number(amount)>0)){message("salePaymentStatus","請輸入大於 0 的收付款金額。",true);return;}
  const button=$("salePaymentForm").querySelector('button[type="submit"]');button.disabled=true;
  const payload={payment_method:$("actualPaymentMethod").value,amount,reference_no:$("salePaymentReference").value.trim()||null,note:$("salePaymentNote").value.trim()||null};
- const idempotencyKey=getPaymentIdempotencyKey("sale",currentSale.id,payload);
- payload.idempotency_key=idempotencyKey;
+ let idempotencyKey=null;
  try{
+  idempotencyKey=getPaymentIdempotencyKey("sale",currentSale.id,payload);
+  payload.idempotency_key=idempotencyKey;
   await api("/companies/"+companyId+"/sales/"+currentSale.id+"/payments",{method:"POST",body:JSON.stringify(payload)});
   clearPaymentIdempotencyKey("sale",currentSale.id,idempotencyKey);
   $("salePaymentReference").value="";$("salePaymentNote").value="";
   message("salePaymentStatus","收付款紀錄已新增。");
   try{await loadSalePayments(currentSale);}catch(refreshError){message("salePaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
  }catch(error){
-  if(error.status>=400&&error.status<500)clearPaymentIdempotencyKey("sale",currentSale.id,idempotencyKey);
+  if(idempotencyKey&&error.status>=400&&error.status<500)clearPaymentIdempotencyKey("sale",currentSale.id,idempotencyKey);
   message("salePaymentStatus",error.message,true);
  }
  finally{button.disabled=false;}
