@@ -2470,7 +2470,7 @@ $("supplierOfferingList").addEventListener("click",async event=>{
   $("supplierOfferingAlias").value=row.supplier_category_name||"";$("supplierOfferingNote").value=row.note||"";
   $("supplierOfferingSupplier").disabled=true;$("supplierOfferingCategory").disabled=true;
   $("supplierCategoryOfferingSubmit").textContent="儲存供貨分類修改";$("supplierCategoryOfferingCancel").classList.remove("hidden");
-  $("supplierOfferingStatus").focus();
+  $("supplierOfferingState").focus();
  }catch(error){message("supplierOfferingStatus",error.message,true);}
 });
 $("supplierOfferingIncludeInactive").addEventListener("change",()=>loadSupplierOfferings().catch(error=>message("supplierOfferingStatus",error.message,true)));
