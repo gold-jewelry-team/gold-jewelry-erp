@@ -21,6 +21,12 @@ class CustomerOrderPaymentIdempotencyConflict(ValueError):
     """Raised when a retry key is reused for a different customer-order payment."""
 
 
+class PaymentIdempotencyConflict(ValueError):
+    """Raised when a sale/return payment retry key is reused with different details."""
+
+
+
+
 def _validate_amount(amount: Decimal) -> None:
     if not isinstance(amount, Decimal) or amount <= 0:
         raise ValueError("收付款金額必須是正數 Decimal。")
@@ -47,6 +53,48 @@ def _existing_amount(
     return Decimal(session.scalar(statement) or 0)
 
 
+def _existing_idempotent_payment(
+    session: Session,
+    *,
+    company_id: UUID,
+    idempotency_key: UUID | None,
+    source_field: str,
+    source_id: UUID,
+    direction: str,
+    payment_method: str,
+    amount: Decimal,
+    currency_code: str,
+    reference_no: str | None,
+    note: str | None,
+) -> PaymentTransaction | None:
+    if idempotency_key is None:
+        return None
+    existing = session.scalar(
+        select(PaymentTransaction)
+        .where(
+            PaymentTransaction.company_id == company_id,
+            PaymentTransaction.idempotency_key == idempotency_key,
+        )
+        .with_for_update()
+    )
+    if existing is None:
+        return None
+    same_request = (
+        getattr(existing, source_field) == source_id
+        and existing.direction == direction
+        and existing.payment_method == payment_method
+        and existing.amount == amount
+        and existing.currency_code == currency_code
+        and existing.reference_no == reference_no
+        and existing.note == note
+    )
+    if not same_request:
+        raise PaymentIdempotencyConflict(
+            "此收付款識別碼已用於不同交易內容，請先查閱原收付款紀錄。"
+        )
+    return existing
+
+
 def record_sale_payment(
     session: Session,
     *,
@@ -56,7 +104,9 @@ def record_sale_payment(
     amount: Decimal,
     reference_no: str | None = None,
     note: str | None = None,
-) -> PaymentTransaction:
+    idempotency_key: UUID | None = None,
+    return_created: bool = False,
+) -> PaymentTransaction | tuple[PaymentTransaction, bool]:
     """Record a partial or full collection/payment against a completed sale."""
     _validate_amount(amount)
     _validate_method(payment_method)
@@ -74,6 +124,15 @@ def record_sale_payment(
     if obligation == 0:
         raise ValueError("此銷售單金額為零，無需建立收付款紀錄。")
     direction = "IN" if obligation > 0 else "OUT"
+    existing = _existing_idempotent_payment(
+        session, company_id=company_id, idempotency_key=idempotency_key,
+        source_field="sale_id", source_id=sale.id, direction=direction,
+        payment_method=payment_method, amount=amount, currency_code=sale.currency_code,
+        reference_no=reference_no, note=note,
+    )
+    if existing is not None:
+        return (existing, False) if return_created else existing
+
     assert_business_day_open(
         session, site_id=sale.site_id, at=datetime.now(timezone.utc)
     )
@@ -121,12 +180,13 @@ def record_sale_payment(
         amount=amount,
         currency_code=sale.currency_code,
         reference_no=reference_no,
+        idempotency_key=idempotency_key,
         paid_at=datetime.now(timezone.utc),
         note=note,
     )
     session.add(transaction)
     session.flush()
-    return transaction
+    return (transaction, True) if return_created else transaction
 
 
 def record_return_payment(
@@ -138,7 +198,9 @@ def record_return_payment(
     amount: Decimal,
     reference_no: str | None = None,
     note: str | None = None,
-) -> PaymentTransaction:
+    idempotency_key: UUID | None = None,
+    return_created: bool = False,
+) -> PaymentTransaction | tuple[PaymentTransaction, bool]:
     """Record the actual refund or customer collection for a return obligation."""
     _validate_amount(amount)
     _validate_method(payment_method)
@@ -154,6 +216,15 @@ def record_return_payment(
     if obligation == 0:
         raise ValueError("此退貨單結算金額為零，無需建立收付款紀錄。")
     direction = "IN" if obligation > 0 else "OUT"
+    existing = _existing_idempotent_payment(
+        session, company_id=company_id, idempotency_key=idempotency_key,
+        source_field="sale_return_id", source_id=returned.id, direction=direction,
+        payment_method=payment_method, amount=amount, currency_code=returned.currency_code,
+        reference_no=reference_no, note=note,
+    )
+    if existing is not None:
+        return (existing, False) if return_created else existing
+
     assert_business_day_open(
         session, site_id=returned.site_id, at=datetime.now(timezone.utc)
     )
@@ -173,12 +244,13 @@ def record_return_payment(
         amount=amount,
         currency_code=returned.currency_code,
         reference_no=reference_no,
+        idempotency_key=idempotency_key,
         paid_at=datetime.now(timezone.utc),
         note=note,
     )
     session.add(transaction)
     session.flush()
-    return transaction
+    return (transaction, True) if return_created else transaction
 
 
 

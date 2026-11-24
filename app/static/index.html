@@ -1370,6 +1370,47 @@ const api=async(path,options={})=>{
  if(!response.ok){const error=new Error(data.detail||"操作失敗");error.status=response.status;throw error;}
  return data;
 };
+const paymentIdempotencyMemory=new Map();
+function newPaymentIdempotencyKey(){
+ if(window.crypto&&typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
+ return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,char=>{
+  const random=Math.random()*16|0;return (char==="x"?random:(random&3|8)).toString(16);
+ });
+}
+function paymentIdempotencyStorageKey(kind,sourceId){
+ return "gold-erp-payment:"+kind+":"+companyId+":"+sourceId;
+}
+function getPaymentIdempotencyKey(kind,sourceId,payload){
+ const storageKey=paymentIdempotencyStorageKey(kind,sourceId);
+ const fingerprint=JSON.stringify({
+  payment_method:payload.payment_method,
+  amount:String(payload.amount),
+  reference_no:payload.reference_no??null,
+  note:payload.note??null
+ });
+ try{
+  const saved=JSON.parse(localStorage.getItem(storageKey)||"null");
+  if(saved&&saved.fingerprint===fingerprint&&saved.key)return saved.key;
+  const key=newPaymentIdempotencyKey();
+  localStorage.setItem(storageKey,JSON.stringify({fingerprint,key}));
+  paymentIdempotencyMemory.set(storageKey,{fingerprint,key});
+  return key;
+ }catch(error){
+  const saved=paymentIdempotencyMemory.get(storageKey);
+  if(saved&&saved.fingerprint===fingerprint)return saved.key;
+  const key=newPaymentIdempotencyKey();
+  paymentIdempotencyMemory.set(storageKey,{fingerprint,key});
+  return key;
+ }
+}
+function clearPaymentIdempotencyKey(kind,sourceId,key){
+ const storageKey=paymentIdempotencyStorageKey(kind,sourceId);
+ try{
+  const saved=JSON.parse(localStorage.getItem(storageKey)||"null");
+  if(saved?.key===key)localStorage.removeItem(storageKey);
+ }catch(error){}
+ if(paymentIdempotencyMemory.get(storageKey)?.key===key)paymentIdempotencyMemory.delete(storageKey);
+}
 const statusMessageTimers=new Map();
 const message=(id,text,error=false)=>{
  const el=$(id);
@@ -2507,12 +2548,18 @@ $("returnPaymentForm").addEventListener("submit",async event=>{
  if(!(Number(amount)>0)){message("returnPaymentStatus","請輸入大於 0 的收付款金額。",true);return;}
  const button=$("returnPaymentForm").querySelector('button[type="submit"]');button.disabled=true;
  const payload={payment_method:$("returnPaymentMethod").value,amount,reference_no:$("returnPaymentReference").value.trim()||null,note:$("returnPaymentNote").value.trim()||null};
+ const idempotencyKey=getPaymentIdempotencyKey("return",selectedReturn.id,payload);
+ payload.idempotency_key=idempotencyKey;
  try{
   await api("/companies/"+companyId+"/sales/returns/"+selectedReturn.id+"/payments",{method:"POST",body:JSON.stringify(payload)});
+  clearPaymentIdempotencyKey("return",selectedReturn.id,idempotencyKey);
   $("returnPaymentReference").value="";$("returnPaymentNote").value="";
   message("returnPaymentStatus","退貨收付款紀錄已新增。");
   try{await loadReturnPayments(selectedReturn);}catch(refreshError){message("returnPaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
- }catch(error){message("returnPaymentStatus",error.message,true);}
+ }catch(error){
+  if(error.status>=400&&error.status<500)clearPaymentIdempotencyKey("return",selectedReturn.id,idempotencyKey);
+  message("returnPaymentStatus",error.message,true);
+ }
  finally{button.disabled=false;}
 });
 async function loadSuppliers(){
@@ -3440,12 +3487,18 @@ $("salePaymentForm").addEventListener("submit",async event=>{
  if(!(Number(amount)>0)){message("salePaymentStatus","請輸入大於 0 的收付款金額。",true);return;}
  const button=$("salePaymentForm").querySelector('button[type="submit"]');button.disabled=true;
  const payload={payment_method:$("actualPaymentMethod").value,amount,reference_no:$("salePaymentReference").value.trim()||null,note:$("salePaymentNote").value.trim()||null};
+ const idempotencyKey=getPaymentIdempotencyKey("sale",currentSale.id,payload);
+ payload.idempotency_key=idempotencyKey;
  try{
   await api("/companies/"+companyId+"/sales/"+currentSale.id+"/payments",{method:"POST",body:JSON.stringify(payload)});
+  clearPaymentIdempotencyKey("sale",currentSale.id,idempotencyKey);
   $("salePaymentReference").value="";$("salePaymentNote").value="";
   message("salePaymentStatus","收付款紀錄已新增。");
   try{await loadSalePayments(currentSale);}catch(refreshError){message("salePaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
- }catch(error){message("salePaymentStatus",error.message,true);}
+ }catch(error){
+  if(error.status>=400&&error.status<500)clearPaymentIdempotencyKey("sale",currentSale.id,idempotencyKey);
+  message("salePaymentStatus",error.message,true);
+ }
  finally{button.disabled=false;}
 });
 function transferQuoteToSale(){

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.payment_transaction import PaymentTransaction
 from app.routers.schemas.payments import PaymentCreate, PaymentRead
-from app.services.payments import record_return_payment, record_sale_payment
+from app.services.payments import PaymentIdempotencyConflict, record_return_payment, record_sale_payment
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["payments"])
 
@@ -26,10 +26,11 @@ def post_sale_payment(
     company_id: UUID,
     sale_id: UUID,
     payload: PaymentCreate,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     try:
-        transaction = record_sale_payment(
+        transaction, created = record_sale_payment(
             db,
             company_id=company_id,
             sale_id=sale_id,
@@ -37,10 +38,17 @@ def post_sale_payment(
             amount=payload.amount,
             reference_no=payload.reference_no,
             note=payload.note,
+            idempotency_key=payload.idempotency_key,
+            return_created=True,
         )
+        if not created:
+            response.status_code = 200
         transaction_id = transaction.id
         db.commit()
         return db.get(PaymentTransaction, transaction_id)
+    except PaymentIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -70,10 +78,11 @@ def post_return_payment(
     company_id: UUID,
     return_id: UUID,
     payload: PaymentCreate,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     try:
-        transaction = record_return_payment(
+        transaction, created = record_return_payment(
             db,
             company_id=company_id,
             return_id=return_id,
@@ -81,10 +90,17 @@ def post_return_payment(
             amount=payload.amount,
             reference_no=payload.reference_no,
             note=payload.note,
+            idempotency_key=payload.idempotency_key,
+            return_created=True,
         )
+        if not created:
+            response.status_code = 200
         transaction_id = transaction.id
         db.commit()
         return db.get(PaymentTransaction, transaction_id)
+    except PaymentIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc

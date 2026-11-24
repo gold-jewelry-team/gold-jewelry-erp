@@ -10,6 +10,7 @@ class PaymentCreate(BaseModel):
     amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
     reference_no: str | None = Field(default=None, max_length=100)
     note: str | None = Field(default=None, max_length=500)
+    idempotency_key: UUID | None = None
 
 
 class PaymentRead(BaseModel):
