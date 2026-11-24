@@ -136,6 +136,14 @@ def _utc_datetime(value: datetime) -> datetime:
     return value.astimezone(timezone.utc)
 
 
+def _validate_source_site(session: Session, *, company_id: UUID, site_id: UUID) -> None:
+    site = session.scalar(
+        select(Site).where(Site.id == site_id, Site.company_id == company_id)
+    )
+    if site is None:
+        raise ValueError("轉帳來源據點不存在或不屬於指定公司。")
+
+
 def _transfer_source_details(
     session: Session,
     *,
@@ -156,17 +164,25 @@ def _transfer_source_details(
             raise ValueError("找不到指定收付款紀錄。")
         if source.payment_method != "TRANSFER" or source.currency_code != "TWD":
             raise ValueError("只有新台幣轉帳收付款可以連結銀行流水。")
+        if source.direction not in {"IN", "OUT"}:
+            raise ValueError("收付款方向不正確，無法連結銀行流水。")
         if source.sale_id:
             document = session.get(Sale, source.sale_id)
-            source_no = document.sale_no if document else "銷售單"
-            label = "銷售收付款" if source.direction == "IN" else "銷售退款"
+            if document is None or document.company_id != company_id or document.site_id != source.site_id:
+                raise ValueError("銷售收付款的來源公司或據點不一致。")
+            source_no = document.sale_no
+            label = "銷售收款" if source.direction == "IN" else "銷售退款"
         elif source.sale_return_id:
             document = session.get(SaleReturn, source.sale_return_id)
-            source_no = document.return_no if document else "退貨單"
+            if document is None or document.company_id != company_id or document.site_id != source.site_id:
+                raise ValueError("退貨收付款的來源公司或據點不一致。")
+            source_no = document.return_no
             label = "退貨收款" if source.direction == "IN" else "退貨退款"
         elif source.customer_order_id:
             document = session.get(CustomerOrder, source.customer_order_id)
-            source_no = document.order_no if document else "客訂單"
+            if document is None or document.company_id != company_id or document.site_id != source.site_id:
+                raise ValueError("客訂收付款的來源公司或據點不一致。")
+            source_no = document.order_no
             label = "客訂收款" if source.direction == "IN" else "客訂退款"
         else:
             raise ValueError("收付款來源不完整，無法連結銀行流水。")
@@ -195,6 +211,7 @@ def _transfer_source_details(
             raise ValueError("找不到指定供應商付款紀錄。")
         if source.payment_method != "TRANSFER" or source.currency_code != "TWD":
             raise ValueError("只有新台幣轉帳付款可以連結銀行流水。")
+        _validate_source_site(session, company_id=company_id, site_id=source.site_id)
         return {
             "source": source,
             "site_id": source.site_id,
@@ -222,6 +239,7 @@ def _transfer_source_details(
             raise ValueError("只有已付款的新台幣轉帳費用可以連結銀行流水。")
         if source.paid_at is None:
             raise ValueError("費用付款時間不存在，無法連結銀行流水。")
+        _validate_source_site(session, company_id=company_id, site_id=source.site_id)
         return {
             "source": source,
             "site_id": source.site_id,
