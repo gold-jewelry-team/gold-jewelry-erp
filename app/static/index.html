@@ -685,9 +685,11 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="companyCode">公司代碼</label><input id="companyCode" required maxlength="30" placeholder="例如 JEWEL"></div>
 <div class="field"><label for="companyName">公司名稱</label><input id="companyName" required maxlength="120" placeholder="銀樓名稱"></div>
 <div class="field"><label for="companyTaxId">統一編號（選填）</label><input id="companyTaxId" maxlength="20" placeholder="例如 12345678"></div>
-<button type="submit">建立公司</button>
+<div class="actions"><button id="companySubmit" type="submit">建立公司</button><button id="companyCancelEdit" class="secondary hidden" type="button">取消編輯</button></div>
 </form>
 <div id="companyStatus" class="status" role="status"></div>
+<label class="muted"><input id="companyIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用公司</label>
+<div id="companyList"></div>
 </section>
 <section class="panel span2">
 <h2>門市／據點設定</h2>
@@ -698,7 +700,9 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="siteName">據點名稱</label><input id="siteName" required maxlength="120" placeholder="例如 總店"></div>
 <div class="field wide"><label for="siteAddress">地址（選填）</label><input id="siteAddress" maxlength="255"></div>
 <div class="field wide"><label for="sitePhone">電話（選填）</label><input id="sitePhone" maxlength="30"></div></div>
-<button type="submit">新增據點</button></form><div id="siteStatus" class="status" role="status"></div>
+<div class="actions"><button id="siteSubmit" type="submit">新增據點</button><button id="siteCancelEdit" class="secondary hidden" type="button">取消編輯</button></div></form><div id="siteStatus" class="status" role="status"></div>
+<label class="muted"><input id="siteIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用據點</label>
+<div id="siteList"></div>
 </section>
 <section class="panel span2">
 <h2>庫存儲存位置</h2><p class="sub">每個據點可建立多個位置，例如展示櫃、保險櫃、倉庫及維修區。</p>
@@ -706,7 +710,8 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="locationName">位置名稱</label><input id="locationName" required maxlength="120" placeholder="例如 展示櫃"></div>
 <div class="field"><label for="locationType">位置類型</label><select id="locationType"><option value="STORE_FLOOR">展示／營業區</option><option value="SAFE">保險櫃</option><option value="WAREHOUSE">倉庫</option><option value="REPAIR">維修區</option><option value="TRANSIT">調撥中</option><option value="OTHER">其他</option></select></div>
 <div class="field"><label for="locationDescription">說明（選填）</label><input id="locationDescription" maxlength="255"></div></div>
-<button type="submit">新增儲存位置</button></form>
+<div class="actions"><button id="locationSubmit" type="submit">新增儲存位置</button><button id="locationCancelEdit" class="secondary hidden" type="button">取消編輯</button></div></form>
+<label class="muted"><input id="locationIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用儲存位置</label>
 <div id="locationList" class="empty">請先選擇據點</div><div id="locationStatus" class="status" role="status"></div>
 </section>
 <section class="panel span2" id="inventoryStockPanel">
@@ -1295,6 +1300,8 @@ button.secondary:disabled{opacity:.42}
 const $=id=>document.getElementById(id);
 let companyId="";
 let selectedSiteId="";
+let companiesById=new Map(),sitesById=new Map(),storageLocationsById=new Map();
+let editingCompanyId="",editingSiteId="",editingLocationId="";
 let currentGoldPriceRows={BUY:null,SELL:null};
 let goldDisplayUnit=localStorage.getItem("goldDisplayUnit")||"QIAN";
 let categoryNames=new Map();
