@@ -321,3 +321,41 @@ def test_category_deactivation_blocks_active_children_and_reactivation_can_chang
     assert child_reactivated.status_code == 200, child_reactivated.text
     assert child_reactivated.json()["parent_id"] == new_parent["id"]
     assert child_reactivated.json()["is_active"] is True
+
+
+def test_product_deactivation_is_visible_only_when_requested_and_can_be_reactivated():
+    company_id = setup_company()
+    product = client.post(
+        f"/companies/{company_id}/products",
+        json={"product_code": "ACTIVE-00001", "name": "狀態測試商品"},
+    )
+    assert product.status_code == 201, product.text
+    product_id = product.json()["id"]
+
+    deactivated = client.patch(
+        f"/companies/{company_id}/products/{product_id}",
+        json={"is_active": False},
+    )
+    assert deactivated.status_code == 200, deactivated.text
+    assert deactivated.json()["is_active"] is False
+
+    default_list = client.get(f"/companies/{company_id}/products")
+    all_list = client.get(
+        f"/companies/{company_id}/products",
+        params={"include_inactive": True},
+    )
+    assert all(row["id"] != product_id for row in default_list.json())
+    assert any(row["id"] == product_id for row in all_list.json())
+
+    lookup = client.get(
+        f"/companies/{company_id}/products/lookup",
+        params={"code": "ACTIVE-00001"},
+    )
+    assert lookup.status_code == 404
+
+    reactivated = client.patch(
+        f"/companies/{company_id}/products/{product_id}",
+        json={"is_active": True},
+    )
+    assert reactivated.status_code == 200, reactivated.text
+    assert reactivated.json()["is_active"] is True

@@ -1254,6 +1254,8 @@ button.secondary:disabled{opacity:.42}
 <section class="panel products">
 <h2>商品清單</h2>
 <div class="toolbar"><input id="search" placeholder="搜尋編號、條碼或名稱" aria-label="搜尋商品"><button id="searchButton" type="button">搜尋</button><button id="scanProductButton" class="secondary" type="button">掃描</button></div>
+<label class="muted"><input id="productIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用商品</label>
+<p class="sub">停用商品不會刪除庫存或歷史交易，但不會出現在一般銷售、採購選單；需要時可重新啟用。</p>
 <div id="productList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
 </section>
 </main>
@@ -2102,10 +2104,16 @@ async function loadProducts(){
  const box=$("productList");
  if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
  box.innerHTML='<div class="empty">載入中…</div>';
+ const params=new URLSearchParams();
  const q=$("search").value.trim();
- const rows=await api("/companies/"+companyId+"/products"+(q?"?q="+encodeURIComponent(q):""));
+ if(q)params.set("q",q);
+ if($("productIncludeInactive").checked)params.set("include_inactive","true");
+ const rows=await api("/companies/"+companyId+"/products"+(params.size?"?"+params.toString():""));
  productsById=new Map(rows.map(x=>[x.id,x]));
- box.innerHTML=rows.length?'<div class="product-results-count">符合 '+rows.length+' 件商品</div>'+rows.map(x=>{const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";return '<article class="item product-item"><div class="product-item-identity"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span></div><div class="product-item-meta"><span><small>條碼</small><strong>'+escapeHtml(x.barcode||"未設定")+'</strong></span><span><small>商品分類</small><strong>'+escapeHtml(categoryLabel)+'</strong></span></div><div class="product-item-specs"><span><small>總重／淨重</small><strong>'+escapeHtml(x.gross_weight)+'／'+escapeHtml(x.net_weight)+' '+escapeHtml(goldUnitLabel(x.weight_unit_code||"QIAN"))+'</strong></span><span><small>預設銷售工錢</small><strong>'+escapeHtml(x.labor_fee)+' 元</strong></span><span><small>長度</small><strong>'+escapeHtml(x.chain_length||"—")+'</strong></span><span><small>款式</small><strong>'+escapeHtml(x.style_code||"—")+'</strong></span></div><div class="actions product-item-actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 3×10 貼紙</button></div></article>';}).join(""):'<div class="empty">尚無符合條件的商品</div>';
+ box.innerHTML=rows.length?'<div class="product-results-count">符合 '+rows.length+' 件商品</div>'+rows.map(x=>{
+  const categoryLabel=x.category_id?(categoryNames.get(x.category_id)||"分類已停用或不存在"):"未分類";
+  return '<article class="item product-item">'+(!x.is_active?'<span class="pill">已停用</span>':'')+'<div class="product-item-identity"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span></div><div class="product-item-meta"><span><small>條碼</small><strong>'+escapeHtml(x.barcode||"未設定")+'</strong></span><span><small>商品分類</small><strong>'+escapeHtml(categoryLabel)+'</strong></span></div><div class="product-item-specs"><span><small>總重／淨重</small><strong>'+escapeHtml(x.gross_weight)+'／'+escapeHtml(x.net_weight)+' '+escapeHtml(goldUnitLabel(x.weight_unit_code||"QIAN"))+'</strong></span><span><small>預設銷售工錢</small><strong>'+escapeHtml(x.labor_fee)+' 元</strong></span><span><small>長度</small><strong>'+escapeHtml(x.chain_length||"—")+'</strong></span><span><small>款式</small><strong>'+escapeHtml(x.style_code||"—")+'</strong></span></div><div class="actions product-item-actions"><button class="secondary" type="button" data-edit-product="'+escapeHtml(x.id)+'">編輯商品</button><button class="secondary" type="button" data-toggle-product="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用商品":"重新啟用")+'</button>'+(x.is_active?'<button class="secondary" type="button" data-print-product-label="'+escapeHtml(x.id)+'">列印 3×10 貼紙</button>':'')+'</div></article>';
+ }).join(""):'<div class="empty">尚無符合條件的商品</div>';
 }
 $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  event.preventDefault();
@@ -2238,9 +2246,24 @@ $("confirmLabelLot").addEventListener("click",()=>{
  printProductQrLabel(product,lot,printWindow,config,copies);
 });
 
-$("productList").addEventListener("click",event=>{
+$("productIncludeInactive").addEventListener("change",()=>loadProducts().catch(error=>message("productStatus",error.message,true)));
+$("productList").addEventListener("click",async event=>{
  const printButton=event.target.closest("[data-print-product-label]");
  if(printButton){const product=productsById.get(printButton.dataset.printProductLabel);if(product)beginProductLabelPrint(product);return;}
+ const toggleButton=event.target.closest("[data-toggle-product]");
+ if(toggleButton){
+  const product=productsById.get(toggleButton.dataset.toggleProduct);
+  if(!product)return;
+  toggleButton.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/products/"+product.id,{method:"PATCH",body:JSON.stringify({is_active:!product.is_active})});
+   await loadProducts();
+   await loadInventoryOptions();
+   message("productStatus",product.is_active?"商品已停用；庫存與歷史交易仍保留。":"商品已重新啟用。");
+  }catch(error){message("productStatus",error.message,true);}
+  finally{toggleButton.disabled=false;}
+  return;
+ }
  const button=event.target.closest("[data-edit-product]");
  if(!button)return;
  const product=productsById.get(button.dataset.editProduct);
