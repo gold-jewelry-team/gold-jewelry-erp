@@ -47,6 +47,7 @@ function setup(values = {}) {
     quoteStockRowsByProduct: new Map(),
     saleCartLines: [],
     currentSale: null,
+    editingSaleId: "",
     document: {
       querySelector(selector) {
         if (selector === ".category-nav button[data-category=\"sales\"]") return { click() {} };
@@ -79,6 +80,7 @@ function setup(values = {}) {
     message(id, messageText) { get(id).textContent = messageText; },
     updateQuoteTradeInRatioVisibility() {},
     async loadQuoteStockBalances() {},
+    async loadSalesHistory() {},
   };
   context.quoteTradeInInput = undefined;
   vm.createContext(context);
