@@ -164,7 +164,7 @@ async function onSiteChange(){
  ]);
  renderBalance(balance);state.movements=movements;state.purchases=purchases.filter(x=>["ORDERED","PARTIALLY_RECEIVED","RECEIVED"].includes(x.status));
  $("purchaseSelect").innerHTML='<option value="">不指定</option>'+state.purchases.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.purchase_no)+' · '+esc(x.status)+'</option>').join("");
- renderMovementList();await loadBills();
+ renderMovementList();await loadBills();await restorePendingMovement();
 }
 async function loadBills(){
  const supplierId=$("supplierSelect").value;
@@ -175,6 +175,54 @@ async function loadBills(){
   state.bills=[...open,...partial].filter(x=>x.currency_code==="TWD"&&Number(x.outstanding_amount)>0);
  }
  renderAllocationRows();
+}
+function pendingMovementStorageKey(){
+ return state.companyId&&state.siteId
+  ?"gold-erp:gold-material-movement:"+state.companyId+":"+state.siteId
+  :null;
+}
+function setMovementFormLocked(locked){
+ const form=$("movementForm");
+ form.querySelectorAll("input,select,textarea,button[type=button]").forEach(el=>{el.disabled=locked;});
+ const submit=form.querySelector('button[type="submit"]');
+ submit.textContent=locked?"重試尚未確認的金料異動":"建立金料異動";
+}
+async function restorePendingMovement(){
+ const key=pendingMovementStorageKey();
+ if(!key)return;
+ const raw=localStorage.getItem(key);
+ if(!raw)return;
+ let saved;
+ try{saved=JSON.parse(raw);}catch(_error){
+  status("movementStatus","找到無法讀取的待確認金料異動資料。請先檢查異動紀錄，再處理此瀏覽器的待確認資料。","error");
+  setMovementFormLocked(true);return;
+ }
+ const payload=saved?.payload;
+ if(!payload||payload.site_id!==state.siteId){
+  status("movementStatus","找到與目前據點不符的待確認金料異動。請切回原據點核對後再操作。","error");
+  setMovementFormLocked(true);return;
+ }
+ $("movementType").value=payload.movement_type;
+ $("movementNo").value=payload.movement_no;
+ $("purityLabel").value=payload.purity_label;
+ $("purityRatio").value=payload.purity_ratio;
+ $("grossWeight").value=payload.gross_weight;
+ $("lossWeight").value=payload.loss_weight;
+ $("weightUnit").value=payload.weight_unit_code;
+ $("goldPrice").value=payload.gold_price_value;
+ $("priceUnit").value=payload.gold_price_unit_code;
+ $("deduction").value=payload.deduction_amount;
+ $("sourceType").value=payload.source_type||"";
+ $("movementNote").value=payload.note||"";
+ $("supplierSelect").value=payload.supplier_id||"";
+ $("purchaseSelect").value=payload.purchase_id||"";
+ toggleDeliveryFields();
+ await loadBills();
+ if(payload.movement_type==="SUPPLIER_DELIVERY")
+  renderAllocationRows(payload.allocations||[]);
+ valuePreview();updateAllocationTotal();
+ setMovementFormLocked(true);
+ status("movementStatus","偵測到一筆尚未確認結果的金料異動。已還原原始內容，請按「重試尚未確認的金料異動」；確認前不要更改單號或內容。","error");
 }
 function allocationRows(){
  return [...$("allocationRows").querySelectorAll(".allocation-row")].map(row=>({
@@ -233,28 +281,62 @@ $("allocationRows").addEventListener("change",updateAllocationTotal);
 ["grossWeight","lossWeight","purityRatio","goldPrice","deduction","weightUnit","priceUnit"].forEach(id=>$(id).addEventListener("input",updateAllocationTotal));
 $("refreshMovements").addEventListener("click",()=>refreshAll().catch(e=>status("movementStatus",e.message,"error")));
 $("resetMovement").addEventListener("click",()=>{
+ const key=pendingMovementStorageKey();
+ if(key&&localStorage.getItem(key)){status("movementStatus","待確認金料異動尚未解除。請先使用原單號重試並核對異動紀錄。","error");return;}
  $("movementForm").reset();$("movementNo").value=newMovementNo();$("purityLabel").value="9999";$("purityRatio").value="0.9999";$("lossWeight").value="0";$("deduction").value="0";
  toggleDeliveryFields();valuePreview();status("movementStatus","");
 });
 $("movementForm").addEventListener("submit",async e=>{
- e.preventDefault();const button=e.submitter;button.disabled=true;status("movementStatus","正在計算並建立金料異動…");
+ e.preventDefault();const button=e.submitter;button.disabled=true;
+ const storageKey=pendingMovementStorageKey();
  try{
   if(!state.companyId||!state.siteId)throw new Error("請先選擇公司及據點。");
-  const type=$("movementType").value;
-  const allocations=type==="SUPPLIER_DELIVERY"?allocationRows().map(x=>({bill_id:x.bill_id,amount:x.amount})):[];
-  if(type==="SUPPLIER_DELIVERY"&&!allocations.length)throw new Error("供應商折抵至少要選擇一張帳單並填寫分攤金額。");
-  const row=await api("/companies/"+state.companyId+"/gold-material/movements",{method:"POST",body:JSON.stringify({
-   site_id:state.siteId,supplier_id:$("supplierSelect").value||null,purchase_id:$("purchaseSelect").value||null,
-   movement_no:$("movementNo").value.trim(),movement_type:type,source_type:$("sourceType").value.trim()||null,
-   purity_label:$("purityLabel").value.trim(),purity_ratio:$("purityRatio").value,
-   gross_weight:$("grossWeight").value,loss_weight:$("lossWeight").value,weight_unit_code:$("weightUnit").value,
-   gold_price_value:$("goldPrice").value,gold_price_unit_code:$("priceUnit").value,
-   deduction_amount:$("deduction").value,allocations,note:$("movementNote").value.trim()||null
-  })});
+  if(!storageKey)throw new Error("無法確認目前公司及據點，請重新選擇。");
+  let payload;
+  const pendingRaw=localStorage.getItem(storageKey);
+  if(pendingRaw){
+   const pending=JSON.parse(pendingRaw);
+   payload=pending.payload;
+   if(!payload||payload.site_id!==state.siteId)throw new Error("待確認金料異動與目前據點不符，請切回原據點核對。");
+   setMovementFormLocked(true);
+   status("movementStatus","使用原本的金料異動單號重新確認入帳結果…");
+  }else{
+   const type=$("movementType").value;
+   const allocations=type==="SUPPLIER_DELIVERY"?allocationRows().map(x=>({bill_id:x.bill_id,amount:x.amount})): [];
+   if(type==="SUPPLIER_DELIVERY"&&!allocations.length)throw new Error("供應商折抵至少要選擇一張帳單並填寫分攤金額。");
+   payload={
+    site_id:state.siteId,supplier_id:$("supplierSelect").value||null,purchase_id:$("purchaseSelect").value||null,
+    movement_no:$("movementNo").value.trim(),movement_type:type,source_type:$("sourceType").value.trim()||null,
+    purity_label:$("purityLabel").value.trim(),purity_ratio:$("purityRatio").value,
+    gross_weight:$("grossWeight").value,loss_weight:$("lossWeight").value,weight_unit_code:$("weightUnit").value,
+    gold_price_value:$("goldPrice").value,gold_price_unit_code:$("priceUnit").value,
+    deduction_amount:$("deduction").value,allocations,note:$("movementNote").value.trim()||null
+   };
+   localStorage.setItem(storageKey,JSON.stringify({payload}));
+   setMovementFormLocked(true);
+   status("movementStatus","正在計算並建立金料異動…");
+  }
+  const row=await api("/companies/"+state.companyId+"/gold-material/movements",{method:"POST",body:JSON.stringify(payload)});
+  localStorage.removeItem(storageKey);
+  setMovementFormLocked(false);
   $("movementForm").reset();$("movementNo").value=newMovementNo();$("purityLabel").value="9999";$("purityRatio").value="0.9999";$("lossWeight").value="0";$("deduction").value="0";
-  toggleDeliveryFields();valuePreview();await refreshAll();
-  status("movementStatus","金料異動已建立。足金量 "+fmt(row.fine_gold_weight_g)+" 公克；估值 NT$ "+money(row.valuation_amount)+"。","success");
- }catch(err){status("movementStatus",err.message,"error");}finally{button.disabled=false;}
+  toggleDeliveryFields();valuePreview();
+  const successText="金料異動已成功入帳。足金量 "+fmt(row.fine_gold_weight_g)+" 公克；估值 NT$ "+money(row.valuation_amount)+"。";
+  try{
+   await refreshAll();
+   status("movementStatus",successText,"success");
+  }catch(_refreshError){
+   status("movementStatus",successText+"但清單更新失敗，請按「更新紀錄」重新整理；不要再次建立新單號。","error");
+  }
+ }catch(err){
+  if(Number.isInteger(err.status)&&err.status>=400&&err.status<500&&err.status!==409&&storageKey){
+   localStorage.removeItem(storageKey);
+   setMovementFormLocked(false);
+  }else if(storageKey&&localStorage.getItem(storageKey)){
+   setMovementFormLocked(true);
+  }
+  status("movementStatus",err.message,"error");
+ }finally{button.disabled=false;}
 });
 $("movementNo").value=newMovementNo();toggleDeliveryFields();valuePreview();
 loadCompanies().catch(e=>status("scopeStatus",e.message,"error"));

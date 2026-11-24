@@ -14,7 +14,7 @@ from app.models.site import Site
 from app.routers import gold_material
 
 
-def test_duplicate_gold_material_movement_number_is_rejected_atomically():
+def test_duplicate_gold_material_movement_number_returns_original_atomically():
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -63,8 +63,8 @@ def test_duplicate_gold_material_movement_number_is_rejected_atomically():
         assert first.json()["fine_gold_weight_g"] == "9.9990"
 
         duplicate = client.post(base, json=payload)
-        assert duplicate.status_code == 409, duplicate.text
-        assert "單號重複" in duplicate.json()["detail"]
+        assert duplicate.status_code == 200, duplicate.text
+        assert duplicate.json()["id"] == first.json()["id"]
 
         balance = client.get(
             f"/companies/{company_id}/gold-material/balance",
