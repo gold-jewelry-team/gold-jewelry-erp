@@ -500,3 +500,25 @@ def test_responsive_workspace_prevents_narrow_viewport_overflow():
     assert "#quoteWorkbenchPanel .quote-product-result .quote-stock{flex:0 1 auto;min-width:0;max-width:38%;overflow-wrap:anywhere}" in html
     assert "#quoteWorkbenchPanel .quote-product-result{flex-direction:column;gap:7px}" in html
     assert ".panel-subnav" in html and ".quick-nav" in html and ".category-nav" in html
+
+
+
+def test_bank_and_gold_material_workspaces_are_served():
+    client = TestClient(app)
+
+    banking = client.get("/banking")
+    assert banking.status_code == 200
+    assert "銀行帳戶與對帳" in banking.text
+    assert 'id="accountForm"' in banking.text
+    assert 'id="importForm"' in banking.text
+    assert "/statement-imports" in banking.text
+    assert "/reconciliation-snapshots" in banking.text
+    assert "/reconciliation-report/export.csv" in banking.text
+
+    gold_material = client.get("/gold-material")
+    assert gold_material.status_code == 200
+    assert "金料往來管理" in gold_material.text
+    assert 'id="movementForm"' in gold_material.text
+    assert 'id="allocationPanel"' in gold_material.text
+    assert "/gold-material/balance" in gold_material.text
+    assert "/supplier-payables/bills" in gold_material.text
