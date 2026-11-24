@@ -11,7 +11,7 @@ test("unpaid expense rows support edit and void while paid and void rows remain 
   assert.match(html, /row\.status==="UNPAID"/);
   assert.match(html, /editingExpenseId/);
   assert.match(router, /@router\.patch\("\/\{expense_id\}"/);
-  assert.match(router, /@router\.post\("\{expense_id\}\/void"/);
+  assert.match(router, /@router\.post\("\/\{expense_id\}\/void"/);
   assert.match(router, /只有未付款費用可以修改/);
   assert.match(router, /只有未付款費用可以作廢/);
 });
