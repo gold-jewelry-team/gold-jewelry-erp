@@ -536,3 +536,16 @@ def test_sale_and_return_payment_forms_use_retry_safe_idempotency_keys():
     assert 'getPaymentIdempotencyKey("sale",currentSale.id,payload)' in html
     assert 'getPaymentIdempotencyKey("return",selectedReturn.id,payload)' in html
     assert 'error.status>=400&&error.status<500' in html
+
+
+
+def test_banking_workspace_exposes_pending_transfer_link_controls():
+    response = TestClient(app).get("/banking")
+    assert response.status_code == 200
+    html = response.text
+    assert 'id="pendingTransferPanel"' in html
+    assert 'id="pendingTransferList"' in html
+    assert 'id="transferLinkActor"' in html
+    assert "/bank-accounts/pending-transfers" in html
+    assert "/transfer-links" in html
+    assert "opening_balance_at" in html or "期初餘額日期" in html
