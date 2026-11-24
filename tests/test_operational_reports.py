@@ -243,6 +243,19 @@ def test_operational_period_report_keeps_sales_obligations_receipts_and_outflows
         assert twd["customer_collected_amount"] != "1080.00"
 
         assert len(result["daily"]) == 2
+        checks = result["integrity_checks"]
+        assert len(checks) == 14  # Seven arithmetic checks for each currency.
+        assert {check["status"] for check in checks} == {"PASS"}
+        assert {check["code"] for check in checks} == {
+            "net_sales",
+            "customer_collected_sources",
+            "customer_refunded_sources",
+            "net_operating_cash_flow",
+            "expected_cash_change",
+            "daily_totals",
+            "payment_method_totals",
+        }
+        assert {check["currency_code"] for check in checks} == {"TWD", "USD"}
         assert {row["business_date"] for row in result["daily"]} == {"2026-11-19"}
     finally:
         app.dependency_overrides.clear()
