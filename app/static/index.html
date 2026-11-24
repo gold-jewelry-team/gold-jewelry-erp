@@ -1144,11 +1144,14 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="categoryCode">分類代碼</label><input id="categoryCode" required maxlength="40" placeholder="例如 RING"></div>
 <div class="field"><label for="categoryName">分類名稱</label><input id="categoryName" required maxlength="120" placeholder="例如 戒指"></div>
 <div class="field"><label for="parentCategory">上層分類（選填）</label><select id="parentCategory"><option value="">無</option></select></div>
-<button type="submit">新增分類</button>
+<div class="field"><label for="categorySortOrder">排序</label><input id="categorySortOrder" type="number" step="1" value="0"></div>
+<div class="actions"><button id="categorySubmit" type="submit">新增分類</button><button id="categoryCancelEdit" class="secondary hidden" type="button">取消編輯</button></div>
 </form>
 <div class="actions" style="margin-top:10px"><button class="secondary" id="applyCategoryTemplates" type="button">套用建議分類（4 項）</button></div>
 <p class="sub" style="margin-top:8px">只會補上尚未存在的分類代碼，不會刪除或修改既有分類；四項分類先以平行分類建立。</p>
 <div id="categoryStatus" class="status" role="status"></div>
+<label class="muted"><input id="categoryIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用分類</label>
+<div id="categoryList" class="list"></div>
 </section>
 <section class="panel span2">
 <h2>新增單件商品</h2>
@@ -1291,6 +1294,8 @@ let selectedSiteId="";
 let currentGoldPriceRows={BUY:null,SELL:null};
 let goldDisplayUnit=localStorage.getItem("goldDisplayUnit")||"QIAN";
 let categoryNames=new Map();
+let productCategoriesById=new Map();
+let editingCategoryId="";
 let productsById=new Map();
 let editingProduct=null;
 let inventoryProducts=[];
@@ -1530,8 +1535,10 @@ async function loadCategories(){
  for(const id of ["supplierOfferingCategory","supplierOfferingFilterCategory","supplierProductFilterCategory"]){
   if($(id))$(id).innerHTML='<option value="">'+(id==="supplierOfferingCategory"?"請選擇分類":"全部分類")+'</option>';
  }
- if(!companyId){categoryNames=new Map();supplierCatalogProductsById=new Map();return;}
+ if(!companyId){categoryNames=new Map();productCategoriesById=new Map();supplierCatalogProductsById=new Map();$("categoryList").innerHTML='<div class="empty">請先選擇公司</div>';return;}
  const rows=await api("/companies/"+companyId+"/product-categories");
+ const allRows=$("categoryIncludeInactive").checked?await api("/companies/"+companyId+"/product-categories?include_inactive=true"):rows;
+ productCategoriesById=new Map(allRows.map(x=>[x.id,x]));
  categoryNames=new Map(rows.map(x=>[x.id,x.name+"（"+x.code+"）"]));
  const opts=rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("parentCategory").insertAdjacentHTML("beforeend",opts);
@@ -1539,6 +1546,7 @@ async function loadCategories(){
  for(const id of ["supplierOfferingCategory","supplierOfferingFilterCategory","supplierProductFilterCategory"]){
   if($(id))$(id).insertAdjacentHTML("beforeend",opts);
  }
+ $("categoryList").innerHTML=allRows.length?allRows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span>'+(!x.is_active?'<span class="pill">已停用</span>':'')+'<span class="muted">排序：'+escapeHtml(x.sort_order)+' · 上層：'+escapeHtml(x.parent_id?(allRows.find(p=>p.id===x.parent_id)?.name||"上層分類"):"無")+'</span><div class="actions"><button class="secondary" type="button" data-edit-category="'+escapeHtml(x.id)+'">編輯</button><button class="secondary" type="button" data-toggle-category="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用":"重新啟用")+'</button></div></article>').join(""):'<div class="empty">尚未建立商品分類</div>';
  await loadSupplierCatalogProducts();
  await loadSupplierOfferings();
  await loadSupplierProductOfferings();
@@ -2147,7 +2155,41 @@ $("applyCategoryTemplates").addEventListener("click",async()=>{
   message("categoryStatus","套用未完整完成："+err.message+"。已成功建立的分類會保留，可再次按下按鈕補齊。",true);
  }finally{button.disabled=false;}
 });
-$("categoryForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("categoryStatus","請先選擇公司",true);return;}try{await api("/companies/"+companyId+"/product-categories",{method:"POST",body:JSON.stringify({code:$("categoryCode").value.trim(),name:$("categoryName").value.trim(),parent_id:$("parentCategory").value||null})});$("categoryForm").reset();await loadCategories();message("categoryStatus","分類已新增");}catch(err){message("categoryStatus",err.message,true);}});
+function resetCategoryEditor(){
+ editingCategoryId="";$("categoryForm").reset();$("categorySortOrder").value="0";
+ $("categorySubmit").textContent="新增分類";$("categoryCancelEdit").classList.add("hidden");
+}
+$("categoryForm").addEventListener("submit",async e=>{
+ e.preventDefault();if(!companyId){message("categoryStatus","請先選擇公司",true);return;}
+ const button=$("categorySubmit");button.disabled=true;
+ const payload={code:$("categoryCode").value.trim(),name:$("categoryName").value.trim(),parent_id:$("parentCategory").value||null,sort_order:Number($("categorySortOrder").value||0)};
+ try{
+  const wasEditing=Boolean(editingCategoryId);
+  await api("/companies/"+companyId+"/product-categories"+(editingCategoryId?"/"+editingCategoryId:""),{method:editingCategoryId?"PATCH":"POST",body:JSON.stringify(payload)});
+  resetCategoryEditor();await loadCategories();message("categoryStatus",wasEditing?"商品分類已更新。":"分類已新增。");
+ }catch(err){message("categoryStatus",err.message,true);}
+ finally{button.disabled=false;}
+});
+$("categoryCancelEdit").addEventListener("click",()=>{resetCategoryEditor();loadCategories().catch(err=>message("categoryStatus",err.message,true));});
+$("categoryIncludeInactive").addEventListener("change",()=>loadCategories().catch(err=>message("categoryStatus",err.message,true)));
+$("categoryList").addEventListener("click",async event=>{
+ const edit=event.target.closest("[data-edit-category]"),toggle=event.target.closest("[data-toggle-category]");
+ if(edit){
+  const category=productCategoriesById.get(edit.dataset.editCategory);if(!category)return;
+  editingCategoryId=category.id;$("categoryCode").value=category.code;$("categoryName").value=category.name;
+  $("categorySortOrder").value=String(category.sort_order??0);$("parentCategory").value=category.parent_id||"";
+  Array.from($("parentCategory").options).forEach(option=>{if(option.value===category.id)option.remove();});
+  $("categorySubmit").textContent="儲存分類修改";$("categoryCancelEdit").classList.remove("hidden");$("categoryCode").focus();return;
+ }
+ if(toggle){
+  const active=toggle.dataset.active==="true",id=toggle.dataset.toggleCategory;toggle.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/product-categories/"+id,{method:"PATCH",body:JSON.stringify({is_active:!active})});
+   await loadCategories();message("categoryStatus",active?"商品分類已停用。":"商品分類已重新啟用。");
+  }catch(err){message("categoryStatus",err.message,true);}
+  finally{toggle.disabled=false;}
+ }
+});
 $("productForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("productStatus","請先選擇公司",true);return;}try{const payload={product_code:$("productCode").value.trim(),barcode:$("barcode").value.trim()||null,name:$("productName").value.trim(),category_id:$("productCategory").value||null,material_code:$("materialCode").value.trim()||null,gross_weight:$("grossWeight").value,net_weight:$("netWeight").value,weight_unit_code:$("weightUnit").value,labor_fee:$("laborFee").value,chain_length:$("chainLength").value.trim()?$("chainLength").value.trim()+$("chainLengthUnit").value:null,style_code:$("styleCode").value.trim()||null,note:$("productNote").value.trim()||null};await api("/companies/"+companyId+"/products",{method:"POST",body:JSON.stringify(payload)});$("productForm").reset();$("grossWeight").value="0";$("netWeight").value="0";$("laborFee").value="0";await loadProducts();await loadSequence();await loadInventoryOptions();message("productStatus","商品已新增");}catch(err){message("productStatus",err.message,true);}});
 function openProductEditor(product){
  editingProduct=product;
