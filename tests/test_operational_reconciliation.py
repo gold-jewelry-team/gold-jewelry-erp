@@ -205,8 +205,9 @@ def test_operational_report_flags_missing_daily_close_and_missing_bank_drawer_pa
         )
         assert response.status_code == 200, response.text
         result = response.json()
-        assert result["daily_closings"] == []
-        assert result["daily_closing_summary"]["days_checked"] == 0
+        assert len(result["daily_closings"]) == 1
+        assert result["daily_closings"][0]["status"] == "NOT_CLOSED"
+        assert result["daily_closing_summary"]["days_checked"] == 1
         assert result["bank_cash_movement_summary"]["errors"] == 1
         assert result["bank_cash_movements"][0]["status"] == "ERROR"
         assert result["bank_cash_movements"][0]["actual_drawer_movement"] is None
