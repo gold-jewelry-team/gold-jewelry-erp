@@ -1,9 +1,28 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.core.config import settings
+from app.core.login_rate_limit import reset_login_rate_limits
 from app.main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def clear_rate_limit_state():
+    reset_login_rate_limits()
+    yield
+    reset_login_rate_limits()
+
+
+def _configure_auth(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "admin_username", "owner")
+    monkeypatch.setattr(settings, "admin_password", "test-password-12345")
+    monkeypatch.setattr(settings, "session_secret_key", "test-session-secret-key-at-least-32-chars")
+    monkeypatch.setattr(settings, "session_cookie_secure", False)
+    monkeypatch.setattr(settings, "session_max_age_seconds", 3600)
+    monkeypatch.setattr(settings, "app_maintenance_mode", False)
 
 
 def test_production_fails_closed_without_auth_configuration(monkeypatch) -> None:
@@ -19,25 +38,20 @@ def test_production_fails_closed_without_auth_configuration(monkeypatch) -> None
 
 
 def test_admin_login_protects_app_and_api(monkeypatch) -> None:
-    monkeypatch.setattr(settings, "environment", "production")
-    monkeypatch.setattr(settings, "admin_username", "owner")
-    monkeypatch.setattr(settings, "admin_password", "test-password-12345")
-    monkeypatch.setattr(settings, "session_secret_key", "test-session-secret-key-at-least-32-chars")
-    monkeypatch.setattr(settings, "session_cookie_secure", False)
-    monkeypatch.setattr(settings, "session_max_age_seconds", 3600)
-    monkeypatch.setattr(settings, "app_maintenance_mode", False)
+    _configure_auth(monkeypatch)
+    test_client = TestClient(app)
 
-    unauthenticated = client.get("/app", follow_redirects=False)
+    unauthenticated = test_client.get("/app", follow_redirects=False)
     assert unauthenticated.status_code == 303
     assert unauthenticated.headers["location"] == "/login"
 
-    denied = client.get("/auth/me")
+    denied = test_client.get("/auth/me")
     assert denied.status_code == 401
 
-    bad_login = client.post("/auth/login", json={"username": "owner", "password": "wrong-password"})
+    bad_login = test_client.post("/auth/login", json={"username": "owner", "password": "wrong-password"})
     assert bad_login.status_code == 401
 
-    login = client.post(
+    login = test_client.post(
         "/auth/login",
         json={"username": "owner", "password": "test-password-12345"},
     )
@@ -45,21 +59,90 @@ def test_admin_login_protects_app_and_api(monkeypatch) -> None:
     assert login.json() == {"authenticated": True}
     assert settings.session_cookie_name in login.cookies
 
-    current = client.get("/auth/me")
+    current = test_client.get("/auth/me")
     assert current.status_code == 200
     assert current.json() == {"username": "owner", "role": "administrator"}
 
-    logout = client.post("/auth/logout")
+    workspace = test_client.get("/app")
+    assert workspace.status_code == 200
+
+    logout = test_client.post("/auth/logout")
     assert logout.status_code == 200
-    assert client.get("/auth/me").status_code == 401
+    assert test_client.get("/auth/me").status_code == 401
 
 
 def test_health_remains_public_when_auth_is_enabled(monkeypatch) -> None:
-    monkeypatch.setattr(settings, "environment", "production")
-    monkeypatch.setattr(settings, "admin_username", "owner")
-    monkeypatch.setattr(settings, "admin_password", "test-password-12345")
-    monkeypatch.setattr(settings, "session_secret_key", "test-session-secret-key-at-least-32-chars")
-    monkeypatch.setattr(settings, "app_maintenance_mode", False)
-
+    _configure_auth(monkeypatch)
     response = client.get("/health")
     assert response.status_code == 200
+
+
+def test_login_is_rate_limited_after_five_failed_attempts(monkeypatch) -> None:
+    _configure_auth(monkeypatch)
+    test_client = TestClient(app)
+    headers = {"cf-connecting-ip": "203.0.113.10"}
+
+    for _ in range(4):
+        response = test_client.post(
+            "/auth/login",
+            headers=headers,
+            json={"username": "owner", "password": "wrong-password"},
+        )
+        assert response.status_code == 401
+
+    limited = test_client.post(
+        "/auth/login",
+        headers=headers,
+        json={"username": "owner", "password": "wrong-password"},
+    )
+    assert limited.status_code == 429
+    assert limited.headers["retry-after"] == "900"
+
+    correct_password_while_locked = test_client.post(
+        "/auth/login",
+        headers=headers,
+        json={"username": "owner", "password": "test-password-12345"},
+    )
+    assert correct_password_while_locked.status_code == 429
+
+
+def test_successful_login_clears_previous_failures(monkeypatch) -> None:
+    _configure_auth(monkeypatch)
+    test_client = TestClient(app)
+    headers = {"cf-connecting-ip": "203.0.113.11"}
+
+    for _ in range(4):
+        response = test_client.post(
+            "/auth/login",
+            headers=headers,
+            json={"username": "owner", "password": "wrong-password"},
+        )
+        assert response.status_code == 401
+
+    login = test_client.post(
+        "/auth/login",
+        headers=headers,
+        json={"username": "owner", "password": "test-password-12345"},
+    )
+    assert login.status_code == 200
+
+    for _ in range(4):
+        response = test_client.post(
+            "/auth/login",
+            headers=headers,
+            json={"username": "owner", "password": "wrong-password"},
+        )
+        assert response.status_code == 401
+
+
+def test_login_rejects_cross_site_submission(monkeypatch) -> None:
+    _configure_auth(monkeypatch)
+    response = client.post(
+        "/auth/login",
+        headers={
+            "origin": "https://attacker.example",
+            "sec-fetch-site": "cross-site",
+        },
+        json={"username": "owner", "password": "test-password-12345"},
+    )
+    assert response.status_code == 403
