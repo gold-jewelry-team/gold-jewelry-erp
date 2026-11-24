@@ -5,7 +5,6 @@ payments, supplier disbursements, paid expenses and cash-drawer movements are
 reported on their own event timestamps. Amounts are never combined across
 currencies.
 """
-from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
@@ -222,7 +221,6 @@ def build_operational_period_report(
     for payment in payments:
         if payment.direction == "IN":
             total_key = "customer_collected_amount"
-            method_key = "customer_collected_amount"
             source_key = (
                 "sales_collected_amount" if payment.sale_id is not None
                 else "return_collected_amount" if payment.sale_return_id is not None
@@ -230,7 +228,6 @@ def build_operational_period_report(
             )
         else:
             total_key = "customer_refunded_amount"
-            method_key = "customer_refunded_amount"
             source_key = (
                 "sales_refunded_amount" if payment.sale_id is not None
                 else "return_refunded_amount" if payment.sale_return_id is not None
