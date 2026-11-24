@@ -11,7 +11,6 @@ test("customer order list supports editing basic data and fulfillment status tra
   assert.match(html, /data-edit-customer-order=/);
   assert.match(html, /data-next-customer-order-status=/);
   assert.ok(html.includes('"/customer-orders/"+editingCustomerOrderId'));
-  assert.match(html, /customer-orders\/\+editingCustomerOrderId/);
 });
 
 test("customer order edit keeps paid amounts and item snapshots immutable", () => {
