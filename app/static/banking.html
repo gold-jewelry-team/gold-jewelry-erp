@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#202522">
+<meta name="robots" content="noindex,nofollow">
+<title>銀行帳戶與對帳｜黃金珠寶進銷存</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202124;background:#f5f5f2;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:5;background:#202522;color:#fff;padding:14px 16px}
+.header-row{max-width:1040px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:19px;margin:0}.back{color:#e9eee9;text-decoration:none;border:1px solid #ffffff40;border-radius:999px;padding:8px 12px;font-size:12px}
+header p{max-width:1040px;margin:7px auto 0;color:#c8d0ca;font-size:12px}
+main{max-width:1040px;margin:0 auto;padding:14px;display:grid;gap:13px}
+.panel{background:#fff;border:1px solid #e5e7e3;border-radius:15px;padding:15px;box-shadow:0 2px 10px #1111}
+h2{font-size:16px;margin:0 0 7px;color:#2d3b31}h3{font-size:14px;margin:14px 0 8px}
+.sub{font-size:12px;color:#68716b;line-height:1.6;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.field{min-width:0;margin-bottom:6px}.wide{grid-column:1/-1}
+label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}
+input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:9px;padding:9px 11px;font:inherit;font-size:14px;background:#fff;color:#202124}
+textarea{min-height:120px;resize:vertical}button{border:0;border-radius:9px;min-height:42px;padding:9px 14px;background:#263b30;color:white;font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+button.secondary{background:#edf1ed;color:#263b30}button.danger{background:#fff0ed;color:#9a352d;border:1px solid #f0d0ca}
+button:disabled{opacity:.55;cursor:wait}a{color:#2c5c41}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.status{font-size:12px;min-height:20px;color:#526257;margin-top:8px;overflow-wrap:anywhere}.status.error{color:#b42318}.status.success{color:#267047}
+.item{border:1px solid #e7eae6;border-radius:11px;padding:11px;margin-top:8px;display:grid;gap:5px}
+.item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.item strong{font-size:14px}.muted{font-size:12px;color:#6a746d;line-height:1.5}
+.pill{display:inline-block;font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px}
+.empty{font-size:13px;color:#788079;padding:16px 0;text-align:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.table-wrap{overflow-x:auto;border:1px solid #e8ebe7;border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:660px;font-size:12px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #edf0ec;vertical-align:top}
+th{background:#f6f8f5;color:#4a574d;white-space:nowrap}td{color:#3b433d}tr:last-child td{border-bottom:0}
+.row-actions{display:flex;flex-wrap:wrap;gap:6px;min-width:150px}
+.row-actions button{min-height:34px;padding:6px 9px;font-size:11px}
+.notice{padding:10px 12px;border-radius:10px;background:#f7f5ef;color:#665637;font-size:12px;line-height:1.6;margin:8px 0}
+@media(max-width:700px){main{padding:10px}.two{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.panel{padding:12px}.header-row{align-items:flex-start;flex-direction:column}.back{align-self:flex-start}}
+</style>
+</head>
+<body>
+<header>
+ <div class="header-row"><h1>銀行帳戶與對帳</h1><a class="back" href="/app">← 返回門市工作台</a></div>
+ <p>銀行餘額、存提款、帳戶轉帳、對帳單匯入與月結核對</p>
+</header>
+<main>
+<section class="panel">
+ <h2>作業範圍</h2>
+ <p class="sub">先選擇公司與據點。銀行帳戶屬於公司；存提款會同步產生現金櫃異動，銀行帳戶互轉則只影響兩個銀行帳戶。</p>
+ <div class="grid">
+  <div class="field"><label for="companySelect">公司</label><select id="companySelect"><option value="">載入中…</option></select></div>
+  <div class="field"><label for="siteSelect">存提款所屬據點</label><select id="siteSelect"><option value="">請先選擇公司</option></select></div>
+  <div class="field wide"><label for="accountSelect">目前銀行帳戶</label><select id="accountSelect"><option value="">請先新增或選擇帳戶</option></select></div>
+ </div>
+ <div id="scopeStatus" class="status" role="status"></div>
+</section>
+
+<section class="two">
+ <div class="panel">
+  <h2>新增銀行帳戶</h2>
+  <p class="sub">目前銀行帳戶功能使用新台幣（TWD）。帳號只記錄末四碼，不輸入完整帳號。</p>
+  <form id="accountForm">
+   <div class="grid">
+    <div class="field"><label for="bankName">銀行名稱</label><input id="bankName" required maxlength="100" placeholder="例如：台灣銀行"></div>
+    <div class="field"><label for="accountName">帳戶名稱</label><input id="accountName" required maxlength="120" placeholder="例如：營運帳戶"></div>
+    <div class="field"><label for="accountLast4">帳號末四碼</label><input id="accountLast4" required pattern="[0-9]{4}" maxlength="4" inputmode="numeric" placeholder="1234"></div>
+    <div class="field"><label for="openingBalance">期初餘額（TWD）</label><input id="openingBalance" type="number" min="0" step="0.01" required value="0"></div>
+    <div class="field wide"><label for="openingAt">期初餘額日期時間</label><input id="openingAt" type="datetime-local" required></div>
+   </div>
+   <div class="actions"><button type="submit">建立銀行帳戶</button></div>
+  </form>
+  <div id="accountStatus" class="status" role="status"></div>
+ </div>
+ <div class="panel">
+  <h2>帳戶餘額</h2>
+  <p class="sub">餘額依期初餘額加總所有銀行入帳，再扣除銀行出帳計算。</p>
+  <div id="accountList"><div class="empty">請先選擇公司</div></div>
+ </div>
+</section>
+
+<section class="panel">
+ <h2>銀行存提款</h2>
+ <p class="sub">此處的存提款會同時建立銀行流水及現金櫃異動，並受據點日結狀態限制。</p>
+ <form id="cashBankForm">
+  <div class="grid">
+   <div class="field"><label for="cashOperationType">操作</label><select id="cashOperationType"><option value="deposit">現金存入銀行</option><option value="withdrawal">銀行提款至現金櫃</option></select></div>
+   <div class="field"><label for="cashBankAmount">金額（TWD）</label><input id="cashBankAmount" type="number" min="0.01" step="0.01" required></div>
+   <div class="field"><label for="cashBankActor">經手人</label><input id="cashBankActor" required maxlength="120" placeholder="輸入經手人"></div>
+   <div class="field"><label for="cashBankReference">交易／存款編號</label><input id="cashBankReference" maxlength="100"></div>
+   <div class="field wide"><label for="cashBankNote">備註</label><input id="cashBankNote" maxlength="500"></div>
+  </div>
+  <div class="actions"><button type="submit">確認存提款</button><button class="secondary" type="button" id="refreshBankData">更新帳戶與流水</button></div>
+ </form>
+ <div id="cashBankStatus" class="status" role="status"></div>
+</section>
+
+<section class="panel">
+ <h2>銀行帳戶互轉</h2>
+ <p class="sub">同一公司內的兩個銀行帳戶互轉；系統會以同一組轉帳識別碼建立轉出與轉入兩筆流水，不產生現金櫃異動。</p>
+ <form id="transferForm">
+  <div class="grid">
+   <div class="field"><label for="transferFrom">轉出帳戶</label><select id="transferFrom" required></select></div>
+   <div class="field"><label for="transferTo">轉入帳戶</label><select id="transferTo" required></select></div>
+   <div class="field"><label for="transferAmount">轉帳金額（TWD）</label><input id="transferAmount" type="number" min="0.01" step="0.01" required></div>
+   <div class="field"><label for="transferActor">經手人</label><input id="transferActor" required maxlength="120"></div>
+   <div class="field"><label for="transferReference">交易編號</label><input id="transferReference" maxlength="100"></div>
+   <div class="field"><label for="transferNote">備註</label><input id="transferNote" maxlength="500"></div>
+  </div>
+  <div class="actions"><button type="submit">建立帳戶互轉</button></div>
+ </form>
+ <div id="transferStatus" class="status" role="status"></div>
+</section>
+
+<section class="panel">
+ <div class="item-head"><div><h2>銀行流水</h2><p class="sub">查看目前帳戶最近 100 筆流水。</p></div><button class="secondary" type="button" id="refreshTransactions">更新流水</button></div>
+ <div id="transactionList"><div class="empty">請先選擇銀行帳戶</div></div>
+</section>
+
+<section class="panel">
+ <h2>匯入銀行對帳單 CSV</h2>
+ <p class="sub">選擇銀行提供的 CSV 檔。檔案須包含 transaction_date、description、amount、direction 欄位；日期格式 YYYY-MM-DD，方向使用 IN 或 OUT，金額最多兩位小數。</p>
+ <div class="notice">支援欄位：transaction_date, description, amount, direction, reference_no。系統會依日期、摘要、金額、方向及參考編號偵測重複資料，並嘗試自動配對已有銀行流水。</div>
+ <form id="importForm">
+  <div class="grid">
+   <div class="field"><label for="statementFile">銀行 CSV 檔案（最大 2 MB）</label><input id="statementFile" type="file" accept=".csv,text/csv" required></div>
+   <div class="field"><label for="importActor">匯入人</label><input id="importActor" required maxlength="120" placeholder="輸入匯入人"></div>
+  </div>
+  <div class="actions"><button type="submit">匯入對帳單</button></div>
+ </form>
+ <div id="importStatus" class="status" role="status"></div>
+ <h3>匯入批次</h3>
+ <div class="grid">
+  <div class="field"><label for="importSelect">選擇對帳單批次</label><select id="importSelect"><option value="">尚無匯入批次</option></select></div>
+  <div class="field"><label for="lineStatusFilter">明細狀態</label><select id="lineStatusFilter"><option value="">全部狀態</option><option value="UNMATCHED">未配對</option><option value="MATCHED">已配對</option><option value="DUPLICATE">重複</option><option value="IGNORED">已忽略</option></select></div>
+ </div>
+ <div id="statementLines"><div class="empty">請選擇匯入批次</div></div>
+ <div class="grid" style="margin-top:12px">
+  <div class="field"><label for="adjustmentType">未配對明細調整類型</label><select id="adjustmentType"><option value="BANK_FEE">銀行手續費</option><option value="INTEREST_IN">利息收入</option><option value="OTHER_ADJUSTMENT">其他調整</option></select></div>
+  <div class="field"><label for="adjustmentActor">調整經手人</label><input id="adjustmentActor" maxlength="120"></div>
+  <div class="field wide"><label for="adjustmentReason">調整原因</label><input id="adjustmentReason" maxlength="500" placeholder="說明建立此銀行流水的原因"></div>
+ </div>
+ <div id="lineActionStatus" class="status" role="status"></div>
+</section>
+
+<section class="two">
+ <div class="panel">
+  <h2>建立對帳快照</h2>
+  <p class="sub">快照會保存指定匯入批次的對帳結果，不會自動改寫銀行流水。</p>
+  <form id="snapshotForm">
+   <div class="grid">
+    <div class="field"><label for="periodStart">對帳開始日</label><input id="periodStart" type="date" required></div>
+    <div class="field"><label for="periodEnd">對帳結束日</label><input id="periodEnd" type="date" required></div>
+    <div class="field"><label for="statementOpening">銀行期初餘額（TWD）</label><input id="statementOpening" type="number" step="0.01" required></div>
+    <div class="field"><label for="statementClosing">銀行期末餘額（TWD）</label><input id="statementClosing" type="number" step="0.01" required></div>
+    <div class="field wide"><label for="reconciledBy">對帳人</label><input id="reconciledBy" required maxlength="120"></div>
+    <div class="field wide"><label for="snapshotNote">備註</label><input id="snapshotNote" maxlength="500"></div>
+   </div>
+   <div class="actions"><button type="submit">建立對帳快照</button></div>
+  </form>
+  <div id="snapshotStatus" class="status" role="status"></div>
+  <div id="snapshotList"></div>
+ </div>
+ <div class="panel">
+  <h2>對帳報表</h2>
+  <p class="sub">依期間彙整銀行對帳單、配對狀態與最新快照。</p>
+  <form id="reportForm">
+   <div class="grid">
+    <div class="field"><label for="reportStart">開始日</label><input id="reportStart" type="date" required></div>
+    <div class="field"><label for="reportEnd">結束日</label><input id="reportEnd" type="date" required></div>
+   </div>
+   <div class="actions"><button type="submit">查詢報表</button></div>
+  </form>
+  <div id="reportStatus" class="status" role="status"></div>
+  <div id="reportResult"></div>
+ </div>
+</section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const state={companyId:"",siteId:"",accountId:"",accounts:[],sites:[],imports:[],lines:[],transactions:[],snapshots:[]};
+const api=async(path,options={})=>{
+ const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
+ const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
+ if(!response.ok){const error=new Error(data.detail||"操作失敗（HTTP "+response.status+"）");error.status=response.status;throw error;}
+ return data;
+};
+function status(id,msg="",kind=""){const el=$(id);el.textContent=msg;el.className="status"+(kind?" "+kind:"");}
+function fmtMoney(v){const n=Number(v);return Number.isFinite(n)?n.toLocaleString("zh-TW",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";}
+function fmtDate(v){if(!v)return"—";const d=new Date(v);return Number.isNaN(d.getTime())?String(v):d.toLocaleString("zh-TW",{timeZone:"Asia/Taipei"});}
+function dateLocalNow(){const d=new Date();const local=new Date(d.getTime()-d.getTimezoneOffset()*60000);return local.toISOString().slice(0,16);}
+function todayLocal(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());}
+function dateTaipei(v){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date(v));}
+function selectedAccount(){return state.accounts.find(x=>x.account.id===state.accountId)||null;}
+function accountText(x){return x.account.bank_name+" · "+x.account.account_name+"（末四碼 "+x.account.account_last4+"）";}
+function rebuildAccountSelectors(){
+ const opts='<option value="">請選擇帳戶</option>'+state.accounts.map(x=>'<option value="'+esc(x.account.id)+'">'+esc(accountText(x))+'</option>').join("");
+ $("accountSelect").innerHTML=opts;$("transferFrom").innerHTML=opts;$("transferTo").innerHTML=opts;
+ if(state.accountId&&state.accounts.some(x=>x.account.id===state.accountId))$("accountSelect").value=state.accountId;
+ if(state.accounts.length){$("transferFrom").value=state.accountId||state.accounts[0].account.id;$("transferTo").value=state.accounts.find(x=>x.account.id!==$("transferFrom").value)?.account.id||"";}
+}
+function renderAccounts(){
+ $("accountList").innerHTML=state.accounts.length?state.accounts.map(x=>'<article class="item"><div class="item-head"><strong>'+esc(accountText(x))+'</strong><span class="pill">'+(x.account.is_active?"使用中":"已停用")+'</span></div><strong>目前餘額：NT$ '+fmtMoney(x.current_balance)+'</strong><div class="muted">期初餘額 NT$ '+fmtMoney(x.account.opening_balance)+' · 起算 '+esc(fmtDate(x.account.opening_balance_at))+'</div><div class="actions"><button type="button" class="secondary" data-use-account="'+esc(x.account.id)+'">查看此帳戶</button></div></article>').join(""):'<div class="empty">尚未建立銀行帳戶</div>';
+ rebuildAccountSelectors();
+}
+function renderTransactions(){
+ $("transactionList").innerHTML=state.transactions.length?'<div class="table-wrap"><table><thead><tr><th>日期</th><th>類型</th><th>方向</th><th>金額</th><th>交易編號</th><th>說明／經手人</th></tr></thead><tbody>'+state.transactions.map(x=>'<tr><td>'+esc(fmtDate(x.occurred_at))+'</td><td>'+esc(x.transaction_type)+'</td><td><span class="pill">'+(x.direction==="IN"?"收入":"支出")+'</span></td><td>NT$ '+fmtMoney(x.amount)+'</td><td>'+esc(x.reference_no||"—")+'</td><td>'+esc(x.description)+'<br><span class="muted">'+esc(x.created_by_name)+'</span></td></tr>').join("")+'</tbody></table></div>':'<div class="empty">此帳戶尚無流水</div>';
+}
+function renderImports(){
+ $("importSelect").innerHTML='<option value="">請選擇批次</option>'+state.imports.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.source_file_name)+' · '+esc(x.row_count)+' 筆 · '+esc(fmtDate(x.created_at))+'</option>').join("");
+}
+function lineCandidateOptions(line){
+ const targetDate=line.transaction_date;
+ const candidates=state.transactions.filter(tx=>tx.direction===line.direction&&Number(tx.amount)===Number(line.amount)&&dateTaipei(tx.occurred_at)===targetDate&&(!line.reference_no||tx.reference_no===line.reference_no));
+ return '<option value="">選擇相符銀行流水</option>'+candidates.map(tx=>'<option value="'+esc(tx.id)+'">'+esc(fmtDate(tx.occurred_at))+' · '+(tx.direction==="IN"?"收入":"支出")+' NT$ '+fmtMoney(tx.amount)+' · '+esc(tx.reference_no||tx.description)+'</option>').join("");
+}
+function statusName(s){return({UNMATCHED:"未配對",MATCHED:"已配對",DUPLICATE:"重複",IGNORED:"已忽略"})[s]||s;}
+function renderLines(){
+ const rows=state.lines;
+ $("statementLines").innerHTML=rows.length?'<div class="table-wrap"><table><thead><tr><th>日期／摘要</th><th>方向</th><th>金額</th><th>參考編號</th><th>狀態</th><th>操作</th></tr></thead><tbody>'+rows.map(line=>{
+  const action=line.status==="UNMATCHED"?'<div class="row-actions"><select data-match-select="'+esc(line.id)+'">'+lineCandidateOptions(line)+'</select><button type="button" data-match="'+esc(line.id)+'">配對</button><button type="button" class="secondary" data-ignore="'+esc(line.id)+'">忽略</button><button type="button" class="secondary" data-adjust="'+esc(line.id)+'">建立調整</button></div>':"—";
+  return '<tr><td>'+esc(line.transaction_date)+'<br>'+esc(line.description)+'</td><td>'+(line.direction==="IN"?"收入":"支出")+'</td><td>NT$ '+fmtMoney(line.amount)+'</td><td>'+esc(line.reference_no||"—")+'</td><td><span class="pill">'+esc(statusName(line.status))+'</span></td><td>'+action+'</td></tr>';
+ }).join("")+'</tbody></table></div>':'<div class="empty">此批次沒有符合篩選條件的明細</div>';
+}
+function renderSnapshots(){
+ $("snapshotList").innerHTML=state.snapshots.length?'<h3>最近對帳快照</h3>'+state.snapshots.slice(0,5).map(x=>'<article class="item"><div class="item-head"><strong>'+esc(x.period_start)+' ～ '+esc(x.period_end)+'</strong><span class="pill">'+(x.status==="RECONCILED"?"已對平":"需檢查")+'</span></div><div class="muted">帳單／流水淨額差異：NT$ '+fmtMoney(x.net_difference)+' · 期初期末差異：NT$ '+fmtMoney(x.balance_difference)+'</div><div class="muted">未配對帳單 '+x.unmatched_line_count+' 筆 · 未配對銀行流水 '+x.unmatched_ledger_count+' 筆 · 對帳人 '+esc(x.reconciled_by_name)+'</div></article>').join(""):'<div class="empty">尚無對帳快照</div>';
+}
+async function loadCompanies(){
+ const rows=await api("/companies");
+ $("companySelect").innerHTML='<option value="">請選擇公司</option>'+rows.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'（'+esc(x.code)+'）</option>').join("");
+ const fromQuery=new URLSearchParams(location.search).get("company_id");
+ if(fromQuery&&rows.some(x=>x.id===fromQuery))$("companySelect").value=fromQuery;
+ else if(rows.length===1)$("companySelect").value=rows[0].id;
+ state.companyId=$("companySelect").value;
+ if(state.companyId)await onCompanyChange();
+ else status("scopeStatus","請先選擇公司。");
+}
+async function onCompanyChange(){
+ state.companyId=$("companySelect").value;state.siteId="";state.accountId="";state.sites=[];state.accounts=[];state.imports=[];state.lines=[];state.transactions=[];state.snapshots=[];
+ if(!state.companyId){$("siteSelect").innerHTML='<option value="">請先選擇公司</option>';renderAccounts();renderTransactions();renderImports();renderLines();status("scopeStatus","請先選擇公司。");return;}
+ const [sites]=await Promise.all([api("/companies/"+state.companyId+"/sites"),loadAccounts()]);
+ state.sites=sites;$("siteSelect").innerHTML='<option value="">選擇據點</option>'+sites.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'（'+esc(x.code)+'）</option>').join("");
+ if(sites.length===1)$("siteSelect").value=sites[0].id;
+ state.siteId=$("siteSelect").value;
+ status("scopeStatus","公司資料已載入。","success");
+}
+async function loadAccounts(){
+ if(!state.companyId)return;
+ state.accounts=await api("/companies/"+state.companyId+"/bank-accounts");
+ renderAccounts();
+ if(!state.accounts.some(x=>x.account.id===state.accountId))state.accountId=state.accounts[0]?.account.id||"";
+ $("accountSelect").value=state.accountId;
+ if(state.accountId)await loadAccountDetails();
+}
+async function loadAccountDetails(){
+ if(!state.companyId||!state.accountId){state.transactions=[];state.imports=[];state.snapshots=[];renderTransactions();renderImports();renderSnapshots();return;}
+ const base="/companies/"+state.companyId+"/bank-accounts/"+state.accountId;
+ const [transactions,imports,snapshots]=await Promise.all([
+  api(base+"/transactions?limit=500"),api(base+"/statement-imports"),api(base+"/reconciliation-snapshots")
+ ]);
+ state.transactions=transactions;state.imports=imports;state.snapshots=snapshots;
+ renderTransactions();renderImports();renderSnapshots();
+ const currentImport=$("importSelect").value;
+ if(currentImport&&state.imports.some(x=>x.id===currentImport))await loadLines(currentImport);
+ else {$("statementLines").innerHTML='<div class="empty">請選擇匯入批次</div>';state.lines=[];}
+}
+async function loadLines(importId){
+ if(!importId||!state.accountId)return;
+ const base="/companies/"+state.companyId+"/bank-accounts/"+state.accountId+"/statement-imports/"+importId+"/lines";
+ const filter=$("lineStatusFilter").value;
+ state.lines=await api(base+(filter?"?status="+encodeURIComponent(filter):""));
+ renderLines();
+}
+async function refreshAll(){
+ if(!state.companyId)return;
+ await loadAccounts();await loadAccountDetails();
+}
+$("companySelect").addEventListener("change",()=>onCompanyChange().catch(e=>status("scopeStatus",e.message,"error")));
+$("siteSelect").addEventListener("change",()=>{state.siteId=$("siteSelect").value;});
+$("accountSelect").addEventListener("change",async()=>{state.accountId=$("accountSelect").value;await loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error"));});
+$("refreshBankData").addEventListener("click",()=>refreshAll().catch(e=>status("cashBankStatus",e.message,"error")));
+$("refreshTransactions").addEventListener("click",()=>loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error")));
+$("accountList").addEventListener("click",async e=>{const b=e.target.closest("[data-use-account]");if(!b)return;state.accountId=b.dataset.useAccount;$("accountSelect").value=state.accountId;await loadAccountDetails().catch(err=>status("scopeStatus",err.message,"error"));});
+$("accountForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;status("accountStatus","正在建立帳戶…");
+ try{
+  if(!state.companyId)throw new Error("請先選擇公司。");
+  const value=$("openingAt").value;if(!value)throw new Error("請輸入期初日期時間。");
+  const row=await api("/companies/"+state.companyId+"/bank-accounts",{method:"POST",body:JSON.stringify({
+   bank_name:$("bankName").value.trim(),account_name:$("accountName").value.trim(),account_last4:$("accountLast4").value.trim(),
+   opening_balance:$("openingBalance").value,opening_balance_at:new Date(value).toISOString()
+  })});
+  $("accountForm").reset();$("openingAt").value=dateLocalNow();await loadAccounts();state.accountId=row.id;$("accountSelect").value=row.id;await loadAccountDetails();
+  status("accountStatus","銀行帳戶已建立。","success");
+ }catch(err){status("accountStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("cashBankForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;status("cashBankStatus","正在寫入銀行與現金櫃流水…");
+ try{
+  if(!state.companyId||!state.accountId)throw new Error("請先選擇公司及銀行帳戶。");
+  if(!state.siteId)throw new Error("請先選擇存提款所屬據點。");
+  const kind=$("cashOperationType").value;
+  const path="/companies/"+state.companyId+"/bank-accounts/"+state.accountId+(kind==="deposit"?"/cash-deposits":"/cash-withdrawals");
+  await api(path,{method:"POST",body:JSON.stringify({
+   site_id:state.siteId,amount:$("cashBankAmount").value,created_by_name:$("cashBankActor").value.trim(),
+   reference_no:$("cashBankReference").value.trim()||null,note:$("cashBankNote").value.trim()||null
+  })});
+  $("cashBankForm").reset();await refreshAll();status("cashBankStatus","銀行流水及現金櫃異動已同步建立。","success");
+ }catch(err){status("cashBankStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("transferForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;status("transferStatus","正在建立轉帳…");
+ try{
+  if(!state.companyId)throw new Error("請先選擇公司。");
+  await api("/companies/"+state.companyId+"/bank-accounts/transfers",{method:"POST",body:JSON.stringify({
+   from_account_id:$("transferFrom").value,to_account_id:$("transferTo").value,amount:$("transferAmount").value,
+   created_by_name:$("transferActor").value.trim(),reference_no:$("transferReference").value.trim()||null,note:$("transferNote").value.trim()||null
+  })});
+  $("transferForm").reset();await refreshAll();status("transferStatus","轉出與轉入兩筆銀行流水已建立。","success");
+ }catch(err){status("transferStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("importForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;status("importStatus","正在讀取並匯入 CSV…");
+ try{
+  if(!state.companyId||!state.accountId)throw new Error("請先選擇公司及銀行帳戶。");
+  const file=$("statementFile").files[0];if(!file)throw new Error("請選擇 CSV 檔案。");
+  if(file.size>2*1024*1024)throw new Error("CSV 檔案不可超過 2 MB。");
+  const csv=await file.text();
+  const row=await api("/companies/"+state.companyId+"/bank-accounts/"+state.accountId+"/statement-imports",{method:"POST",body:JSON.stringify({
+   csv_content:csv,source_file_name:file.name,imported_by_name:$("importActor").value.trim()
+  })});
+  $("importForm").reset();await loadAccountDetails();$("importSelect").value=row.id;await loadLines(row.id);
+  status("importStatus","匯入完成，共 "+row.row_count+" 筆明細；請檢查未配對及重複項目。","success");
+ }catch(err){status("importStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("importSelect").addEventListener("change",()=>loadLines($("importSelect").value).catch(e=>status("lineActionStatus",e.message,"error")));
+$("lineStatusFilter").addEventListener("change",()=>loadLines($("importSelect").value).catch(e=>status("lineActionStatus",e.message,"error")));
+$("statementLines").addEventListener("click",async e=>{
+ const lineId=e.target.dataset.match||e.target.dataset.ignore||e.target.dataset.adjust;if(!lineId)return;
+ const button=e.target;button.disabled=true;status("lineActionStatus","正在處理對帳明細…");
+ try{
+  const base="/companies/"+state.companyId+"/bank-accounts/"+state.accountId+"/statement-imports/"+$("importSelect").value+"/lines/"+lineId;
+  if(button.dataset.match){
+   const select=$("statementLines").querySelector('[data-match-select="'+CSS.escape(lineId)+'"]');
+   if(!select?.value)throw new Error("請先選擇要配對的銀行流水。");
+   await api(base+"/match",{method:"POST",body:JSON.stringify({bank_transaction_id:select.value})});
+   status("lineActionStatus","銀行流水配對完成。","success");
+  }else if(button.dataset.ignore){
+   if(!confirm("確定將這筆未配對明細標記為忽略？"))return;
+   await api(base+"/ignore",{method:"POST"});
+   status("lineActionStatus","已標記為忽略。","success");
+  }else{
+   const actor=$("adjustmentActor").value.trim(),reason=$("adjustmentReason").value.trim();
+   if(!actor||!reason)throw new Error("建立調整前，請填寫經手人及調整原因。");
+   if(!confirm("確定依這筆銀行對帳單明細建立調整流水？"))return;
+   await api(base+"/adjustment",{method:"POST",body:JSON.stringify({transaction_type:$("adjustmentType").value,created_by_name:actor,reason})});
+   status("lineActionStatus","銀行調整流水已建立並完成配對。","success");
+  }
+  await loadLines($("importSelect").value);await loadAccountDetails();
+ }catch(err){status("lineActionStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("snapshotForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;status("snapshotStatus","正在建立不可變對帳快照…");
+ try{
+  if(!state.companyId||!state.accountId)throw new Error("請先選擇公司及銀行帳戶。");
+  const importId=$("importSelect").value;if(!importId)throw new Error("請先選擇對帳單匯入批次。");
+  const row=await api("/companies/"+state.companyId+"/bank-accounts/"+state.accountId+"/reconciliation-snapshots",{method:"POST",body:JSON.stringify({
+   import_id:importId,period_start:$("periodStart").value,period_end:$("periodEnd").value,
+   statement_opening_balance:$("statementOpening").value,statement_closing_balance:$("statementClosing").value,
+   reconciled_by_name:$("reconciledBy").value.trim(),note:$("snapshotNote").value.trim()||null
+  })});
+  await loadAccountDetails();
+  status("snapshotStatus","快照已建立："+(row.status==="RECONCILED"?"已對平":"需檢查")+"；淨額差異 NT$ "+fmtMoney(row.net_difference)+"，餘額差異 NT$ "+fmtMoney(row.balance_difference),"success");
+ }catch(err){status("snapshotStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("reportForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;status("reportStatus","正在查詢報表…");$("reportResult").innerHTML="";
+ try{
+  if(!state.companyId||!state.accountId)throw new Error("請先選擇公司及銀行帳戶。");
+  const start=$("reportStart").value,end=$("reportEnd").value;
+  const q="?period_start="+encodeURIComponent(start)+"&period_end="+encodeURIComponent(end);
+  const base="/companies/"+state.companyId+"/bank-accounts/"+state.accountId+"/reconciliation-report";
+  const row=await api(base+q);
+  const snap=row.latest_snapshot;
+  $("reportResult").innerHTML='<article class="item"><strong>'+esc(row.bank_name)+' · '+esc(row.account_name)+'（末四碼 '+esc(row.account_last4)+'）</strong><div class="muted">期間：'+esc(start)+' ～ '+esc(end)+'</div><div class="muted">明細 '+row.statement_line_count+' 筆 · 已配對 '+row.status_counts.MATCHED+' · 未配對 '+row.status_counts.UNMATCHED+' · 重複 '+row.status_counts.DUPLICATE+' · 忽略 '+row.status_counts.IGNORED+'</div><div class="muted">收入 NT$ '+fmtMoney(row.statement_in_amount)+' · 支出 NT$ '+fmtMoney(row.statement_out_amount)+' · 淨變動 NT$ '+fmtMoney(row.statement_net_amount)+'</div><div class="muted">最新快照：'+(snap?esc(snap.status)+" · 淨額差異 NT$ "+fmtMoney(snap.net_difference)+" · 餘額差異 NT$ "+fmtMoney(snap.balance_difference):"尚無快照")+'</div><div class="actions"><a href="'+esc(base+"/export.csv"+q)+'">下載 CSV 報表</a></div></article>';
+  status("reportStatus","報表已載入。","success");
+ }catch(err){status("reportStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("openingAt").value=dateLocalNow();
+$("periodStart").value=todayLocal().slice(0,8)+"01";$("periodEnd").value=todayLocal();
+$("reportStart").value=todayLocal().slice(0,8)+"01";$("reportEnd").value=todayLocal();
+loadCompanies().catch(e=>status("scopeStatus",e.message,"error"));
+</script>
+</body>
+</html>
