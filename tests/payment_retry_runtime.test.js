@@ -45,9 +45,15 @@ class MemoryStorage {
 }
 
 function setup(storage = new MemoryStorage()) {
+  let randomUuidCounter = 0;
   const context = {
     localStorage: storage,
-    window: { crypto: { randomUUID: () => "11111111-2222-4333-8444-555555555555" } },
+    window: {
+      crypto: {
+        randomUUID: () =>
+          `11111111-2222-4333-8444-${String(++randomUuidCounter).padStart(12, "0")}`,
+      },
+    },
     companyId: "company-1",
   };
   vm.createContext(context);
