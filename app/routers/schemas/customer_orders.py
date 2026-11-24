@@ -43,6 +43,15 @@ class CustomerOrderPaymentRead(BaseModel):
     paid_at: datetime
 
 
+class CustomerOrderUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    order_no: str | None = Field(default=None, min_length=1, max_length=40)
+    customer_name: str | None = Field(default=None, min_length=1, max_length=120)
+    customer_phone: str | None = Field(default=None, max_length=40)
+    expected_delivery_date: datetime | None = None
+    note: str | None = Field(default=None, max_length=1000)
+
+
 class CustomerOrderRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
