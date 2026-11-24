@@ -3,7 +3,6 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -14,7 +13,7 @@ from app.models.gold_material import GoldMaterialMovement, GoldMaterialSettlemen
 from app.models.site import Site
 from app.models.supplier import Supplier
 from app.models.supplier_payable import SupplierBill
-from app.services.gold_material import record_gold_material_movement
+from app.services.gold_material import GoldMaterialMovementIdempotencyConflict, record_gold_material_movement
 from app.services.supplier_payables import create_supplier_bill
 
 
@@ -64,7 +63,7 @@ def test_duplicate_gold_movement_number_rolls_back_bill_settlement():
         )
         session.commit()
 
-        with pytest.raises(IntegrityError):
+        with pytest.raises(GoldMaterialMovementIdempotencyConflict):
             record_gold_material_movement(
                 session,
                 company_id=company.id,
