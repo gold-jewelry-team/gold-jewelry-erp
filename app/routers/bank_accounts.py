@@ -49,6 +49,8 @@ class BankTransactionRead(BaseModel):
     site_id:UUID|None
     statement_line_id:UUID|None
     transfer_group_id:UUID|None
+    source_type:str|None
+    source_id:UUID|None
     transaction_type:str
     direction:str
     amount:Decimal
