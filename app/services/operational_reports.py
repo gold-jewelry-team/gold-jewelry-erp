@@ -20,6 +20,7 @@ from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
 from app.services.operational_reconciliation import build_daily_closing_reconciliation
+from app.services.outstanding_balances import build_outstanding_balance_report
 from app.models.supplier_payable import SupplierPayment
 
 BUSINESS_TIMEZONE = ZoneInfo("Asia/Taipei")
@@ -439,6 +440,9 @@ def build_operational_period_report(
         }
         for (business_date, currency), bucket in sorted(daily.items())
     ]
+    outstanding_balances = build_outstanding_balance_report(
+        session, company_id=company_id, site_id=site_id
+    )
     reconciliation = build_daily_closing_reconciliation(
         session,
         company_id=company_id,
@@ -458,4 +462,5 @@ def build_operational_period_report(
         "daily": daily_rows,
         "integrity_checks": _build_integrity_checks(totals, daily),
         **reconciliation,
+        "outstanding_balances": outstanding_balances,
     }
