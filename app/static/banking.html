@@ -390,7 +390,9 @@ $("cashBankForm").addEventListener("submit",async e=>{
    clearRejectedBankOperationKey(storageKey,err);
    throw err;
   }
-  $("cashBankForm").reset();await refreshAll();status("cashBankStatus","銀行流水及現金櫃異動已同步建立。","success");
+  $("cashBankForm").reset();
+  try{await refreshAll();status("cashBankStatus","銀行流水及現金櫃異動已同步建立。","success");}
+  catch(_refreshError){status("cashBankStatus","銀行作業已成功寫入；但清單更新失敗，請按「更新帳戶與流水」重新整理。","error");}
  }catch(err){status("cashBankStatus",err.message,"error");}finally{button.disabled=false;}
 });
 $("transferForm").addEventListener("submit",async e=>{
@@ -410,7 +412,9 @@ $("transferForm").addEventListener("submit",async e=>{
    clearRejectedBankOperationKey(storageKey,err);
    throw err;
   }
-  $("transferForm").reset();await refreshAll();status("transferStatus","轉出與轉入兩筆銀行流水已建立。","success");
+  $("transferForm").reset();
+  try{await refreshAll();status("transferStatus","轉出與轉入兩筆銀行流水已建立。","success");}
+  catch(_refreshError){status("transferStatus","帳戶轉帳已成功寫入；但清單更新失敗，請重新整理銀行流水。","error");}
  }catch(err){status("transferStatus",err.message,"error");}finally{button.disabled=false;}
 });
 $("importForm").addEventListener("submit",async e=>{
