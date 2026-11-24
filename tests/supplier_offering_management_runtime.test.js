@@ -19,3 +19,9 @@ test("supplier product offerings can edit quote details and status", () => {
   assert.match(html, /quoted_unit_cost/);
   assert.match(html, /supplierProductOfferingCancel/);
 });
+
+test("supplier category offering form uses distinct select and status message identifiers", () => {
+  assert.match(html, /<select id="supplierOfferingState"/);
+  assert.match(html, /<div id="supplierOfferingStatus" class="status"/);
+  assert.equal((html.match(/id="supplierOfferingStatus"/g) || []).length, 1);
+});
