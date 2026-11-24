@@ -21,21 +21,23 @@ def _context():
     )
     Base.metadata.create_all(engine)
     TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    session = TestSession()
-    company = Company(code="CASH-REVIEW", name="現金覆核測試銀樓")
-    session.add(company)
-    session.flush()
-    site = Site(company_id=company.id, code="MAIN", name="總店")
-    session.add(site)
-    session.flush()
-    closing = DailyClosing(
-        company_id=company.id,
-        site_id=site.id,
-        business_date=date(2026, 11, 24),
-    )
-    session.add(closing)
-    session.flush()
-    return engine, TestSession, company.id, site.id, closing.id
+    with TestSession() as session:
+        company = Company(code="CASH-REVIEW", name="現金覆核測試銀樓")
+        session.add(company)
+        session.flush()
+        site = Site(company_id=company.id, code="MAIN", name="總店")
+        session.add(site)
+        session.flush()
+        closing = DailyClosing(
+            company_id=company.id,
+            site_id=site.id,
+            business_date=date(2026, 11, 24),
+        )
+        session.add(closing)
+        session.flush()
+        ids = (company.id, site.id, closing.id)
+        session.commit()
+    return (engine, TestSession, *ids)
 
 
 def test_cash_count_variance_requires_nonblank_review_note():
