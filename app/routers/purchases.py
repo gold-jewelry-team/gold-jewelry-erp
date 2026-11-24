@@ -81,6 +81,8 @@ def get_purchase(company_id: UUID, purchase_id: UUID, db: Session = Depends(get_
 
 @router.patch("/{purchase_id}", response_model=PurchaseRead)
 def patch_purchase(company_id: UUID, purchase_id: UUID, payload: PurchaseCreate, db: Session = Depends(get_db)):
+    if _get_purchase(db, company_id, purchase_id) is None:
+        raise HTTPException(status_code=404, detail="找不到指定採購單。")
     try:
         purchase = update_purchase(
             db, company_id=company_id, purchase_id=purchase_id,
