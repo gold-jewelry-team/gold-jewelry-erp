@@ -523,3 +523,16 @@ def test_bank_and_gold_material_workspaces_are_served():
     assert 'id="allocationPanel"' in gold_material.text
     assert "/gold-material/balance" in gold_material.text
     assert "/supplier-payables/bills" in gold_material.text
+
+
+
+def test_sale_and_return_payment_forms_use_retry_safe_idempotency_keys():
+    response = TestClient(app).get("/app")
+    assert response.status_code == 200
+    html = response.text
+    assert "function getPaymentIdempotencyKey" in html
+    assert "function clearPaymentIdempotencyKey" in html
+    assert 'payload.idempotency_key=idempotencyKey' in html
+    assert 'getPaymentIdempotencyKey("sale",currentSale.id,payload)' in html
+    assert 'getPaymentIdempotencyKey("return",selectedReturn.id,payload)' in html
+    assert 'error.status>=400&&error.status<500' in html
