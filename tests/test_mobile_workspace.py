@@ -513,7 +513,8 @@ def test_bank_and_gold_material_workspaces_are_served():
     assert 'id="importForm"' in banking.text
     assert "/statement-imports" in banking.text
     assert "/reconciliation-snapshots" in banking.text
-    assert "/reconciliation-report/export.csv" in banking.text
+    assert "/reconciliation-report" in banking.text
+    assert '"/export.csv"' in banking.text
 
     gold_material = client.get("/gold-material")
     assert gold_material.status_code == 200
