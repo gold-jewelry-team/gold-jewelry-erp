@@ -183,7 +183,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
         item["days_overdue"] is None,
         -(item["days_overdue"] or 0),
         item["due_date"] or date.max,
-        item["event_date"] or datetime.max.replace(tzinfo=timezone.utc),
+        str(item["event_date"] or ""),
     ))
     return {
         "as_of": now,
