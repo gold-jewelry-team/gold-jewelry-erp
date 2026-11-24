@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Numeric, String, Uuid, UniqueConstraint, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Index, Numeric, String, Uuid, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
@@ -36,6 +36,17 @@ class BankTransaction(Base):
         Index("ix_bank_transactions_account_occurred", "bank_account_id", "occurred_at"),
         Index("ix_bank_transactions_company_site_occurred", "company_id", "site_id", "occurred_at"),
         Index("ix_bank_transactions_statement_line", "statement_line_id", unique=True),
+        CheckConstraint(
+            "(source_type IS NULL AND source_id IS NULL) OR "
+            "(source_type IS NOT NULL AND source_id IS NOT NULL)",
+            name="ck_bank_transactions_source_pair",
+        ),
+        Index(
+            "uq_bank_transactions_company_source",
+            "company_id", "source_type", "source_id", unique=True,
+            postgresql_where=text("source_type IS NOT NULL AND source_id IS NOT NULL"),
+            sqlite_where=text("source_type IS NOT NULL AND source_id IS NOT NULL"),
+        ),
         UniqueConstraint("id", "company_id", "bank_account_id", name="uq_bank_transactions_id_scope"),
         ForeignKeyConstraint(["bank_account_id", "company_id"], ["bank_accounts.id", "bank_accounts.company_id"], ondelete="RESTRICT", name="fk_bank_transactions_account_company"),
         ForeignKeyConstraint(["statement_line_id", "company_id", "bank_account_id"], ["bank_statement_lines.id", "bank_statement_lines.company_id", "bank_statement_lines.bank_account_id"], ondelete="RESTRICT", name="fk_bank_transactions_statement_line_scope"),
@@ -46,6 +57,8 @@ class BankTransaction(Base):
     site_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=True)
     statement_line_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("bank_statement_lines.id", ondelete="RESTRICT"), nullable=True)
     transfer_group_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    source_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    source_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     transaction_type: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(String(3), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18,2), nullable=False)
