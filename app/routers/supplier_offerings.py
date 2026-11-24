@@ -117,6 +117,10 @@ def update_supplier_category_offering(
     if offering is None:
         raise HTTPException(status_code=404, detail="找不到供貨分類紀錄。")
     changes = payload.model_dump(exclude_unset=True)
+    if "status" in changes and changes["status"] is None:
+        raise HTTPException(status_code=422, detail="供貨狀態不可為空。")
+    if "is_preferred" in changes and changes["is_preferred"] is None:
+        raise HTTPException(status_code=422, detail="主要供應商設定不可為空。")
     if changes.get("is_preferred"):
         db.query(SupplierCategoryOffering).filter(
             SupplierCategoryOffering.company_id == company_id,
@@ -240,6 +244,10 @@ def update_supplier_product_offering(
     if offering is None:
         raise HTTPException(status_code=404, detail="找不到廠商商品供貨紀錄。")
     changes = payload.model_dump(exclude_unset=True)
+    if "status" in changes and changes["status"] is None:
+        raise HTTPException(status_code=422, detail="供貨狀態不可為空。")
+    if "is_preferred" in changes and changes["is_preferred"] is None:
+        raise HTTPException(status_code=422, detail="主要供應商設定不可為空。")
     if changes.get("quoted_unit_cost") is not None or changes.get("currency_code") is not None:
         offering.last_quoted_at = datetime.now(timezone.utc)
     if changes.get("is_preferred"):
