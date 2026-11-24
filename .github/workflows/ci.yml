@@ -118,6 +118,8 @@ jobs:
         run: node --test tests/purchase_draft_edit_runtime.test.js
       - name: Run supplier bill management runtime tests
         run: node --test tests/supplier_bill_management_runtime.test.js
+      - name: Run customer order management runtime tests
+        run: node --test tests/customer_order_management_runtime.test.js
       - name: Run tests
         run: pytest -q
       - name: Upgrade PostgreSQL schema to head
