@@ -976,7 +976,7 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="billAmount">帳單總額</label><input id="billAmount" type="number" min="0.01" step="0.01" required></div>
 <div class="field wide"><label for="billNote">備註</label><input id="billNote" maxlength="500"></div>
 </div>
-<button type="submit">建立供應商帳單</button>
+<div class="actions"><button id="billSubmit" type="submit">建立供應商帳單</button><button id="billCancelEdit" class="secondary hidden" type="button">取消編輯</button></div>
 </form>
 <div id="supplierBillStatus" class="status" role="status"></div>
 <h3>應付帳款清單</h3>
@@ -1329,6 +1329,7 @@ let editingExpenseId="";
 let expensesById=new Map();
 let supplierCatalogProductsById=new Map();
 let supplierBillsById=new Map();
+let editingSupplierBillId="";
 let selectedSupplierBill=null;
 let purchaseCartLines=[];
 let editingPurchaseId="";
@@ -2167,7 +2168,7 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 
-$("siteSelect").addEventListener("change",async()=>{resetPurchaseEditor();resetExpenseEditor();resetLocationEditor();selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{resetSupplierBillEditor();resetPurchaseEditor();resetExpenseEditor();resetLocationEditor();selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async event=>{
  event.preventDefault();if(!companyId){message("siteStatus","請先選擇公司。",true);return;}
  const button=$("siteSubmit");button.disabled=true;
@@ -2228,7 +2229,7 @@ $("locationList").addEventListener("click",async event=>{
   finally{toggle.disabled=false;}
  }
 });
-$("companySelect").addEventListener("change",async()=>{resetPurchaseEditor();resetExpenseEditor();companyId=$("companySelect").value;renderHeaderCompanyName();resetSiteEditor();resetLocationEditor();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{resetSupplierBillEditor();resetPurchaseEditor();resetExpenseEditor();companyId=$("companySelect").value;renderHeaderCompanyName();resetSiteEditor();resetLocationEditor();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -2522,7 +2523,13 @@ async function loadSupplierBills(){
  if(selectedSiteId)params.set("site_id",selectedSiteId);
  const rows=await api("/companies/"+companyId+"/supplier-payables/bills"+(params.toString()?"?"+params.toString():""));
  supplierBillsById=new Map(rows.map(x=>[x.id,x]));
- $("supplierBillList").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.bill_no)+'</strong><span class="pill">'+({OPEN:"未付款",PARTIALLY_PAID:"部分付款",PAID:"已付清",VOID:"已作廢"}[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 帳單日：'+escapeHtml(row.bill_date)+' · 到期日：'+escapeHtml(row.due_date||"未設定")+'</span><span class="muted">總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+' · 已付：'+escapeHtml(row.paid_amount)+' · 未付：'+escapeHtml(row.outstanding_amount)+'</span>'+(readPendingSupplierPayment(companyId,selectedSiteId,row.id)?'<div class="actions"><button class="secondary" type="button" data-pay-supplier-bill="'+escapeHtml(row.id)+'">恢復待確認付款</button></div>':(row.status!=="PAID"&&row.status!=="VOID"&&row.currency_code==="TWD"?'<div class="actions"><button class="secondary" type="button" data-pay-supplier-bill="'+escapeHtml(row.id)+'">登錄付款</button></div>':''))+'</article>').join(""):'<div class="empty">沒有符合條件的供應商帳單</div>';
+ $("supplierBillList").innerHTML=rows.length?rows.map(row=>{
+  const pending=readPendingSupplierPayment(companyId,selectedSiteId,row.id);
+  const editable=row.status==="OPEN"&&Number(row.paid_amount)===0&&!pending;
+  const actions=editable?'<button class="secondary" type="button" data-edit-supplier-bill="'+escapeHtml(row.id)+'">編輯帳單</button><button class="secondary" type="button" data-void-supplier-bill="'+escapeHtml(row.id)+'">作廢帳單</button>':'';
+  const pay=pending?'<button class="secondary" type="button" data-pay-supplier-bill="'+escapeHtml(row.id)+'">恢復待確認付款</button>':(row.status!=="PAID"&&row.status!=="VOID"&&row.currency_code==="TWD"?'<button class="secondary" type="button" data-pay-supplier-bill="'+escapeHtml(row.id)+'">登錄付款</button>':'');
+  return '<article class="item"><strong>'+escapeHtml(row.bill_no)+'</strong><span class="pill">'+({OPEN:"未付款",PARTIALLY_PAID:"部分付款",PAID:"已付清",VOID:"已作廢"}[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 帳單日：'+escapeHtml(row.bill_date)+' · 到期日：'+escapeHtml(row.due_date||"未設定")+'</span><span class="muted">總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+' · 已付：'+escapeHtml(row.paid_amount)+' · 未付：'+escapeHtml(row.outstanding_amount)+'</span><div class="actions">'+actions+pay+'</div></article>';
+ }).join(""):'<div class="empty">沒有符合條件的供應商帳單</div>';
 }
 async function loadSupplierPayments(){
  if(!companyId){$("supplierPaymentHistory").innerHTML='<div class="empty">請先選擇公司</div>';return;}
@@ -2688,26 +2695,68 @@ $("supplierList").addEventListener("click",async event=>{
   finally{toggle.disabled=false;}
  }
 });
+function resetSupplierBillEditor(){
+ editingSupplierBillId="";$("supplierBillForm").reset();$("billDate").value=taipeiDateValue();
+ $("billSupplier").disabled=false;$("billPurchase").disabled=false;
+ Array.from($("billSupplier").options).forEach(option=>{if(option.dataset.billTemp==="true")option.remove();});
+ Array.from($("billPurchase").options).forEach(option=>{if(option.dataset.billTemp==="true")option.remove();});
+ $("billSubmit").textContent="建立供應商帳單";$("billCancelEdit").classList.add("hidden");
+}
 $("supplierBillForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("supplierBillStatus","請先選擇公司與據點。",true);return;}
- const payload={site_id:selectedSiteId,supplier_id:$("billSupplier").value,purchase_id:$("billPurchase").value||null,bill_no:$("billNo").value.trim(),bill_date:$("billDate").value,due_date:$("billDueDate").value||null,currency_code:$("billCurrency").value,total_amount:$("billAmount").value,note:$("billNote").value.trim()||null};
- const button=$("supplierBillForm").querySelector('button[type="submit"]');button.disabled=true;
+ const button=$("billSubmit");button.disabled=true;
  try{
-  await api("/companies/"+companyId+"/supplier-payables/bills",{method:"POST",body:JSON.stringify(payload)});
-  $("supplierBillForm").reset();$("purchaseOrderDate").value=taipeiDateValue();
-$("expenseDate").value=taipeiDateValue();
-$("billDate").value=taipeiDateValue();message("supplierBillStatus","供應商帳單已建立。");
+  if(editingSupplierBillId){
+   const payload={bill_no:$("billNo").value.trim(),bill_date:$("billDate").value,due_date:$("billDueDate").value||null,currency_code:$("billCurrency").value,total_amount:$("billAmount").value,note:$("billNote").value.trim()||null};
+   await api("/companies/"+companyId+"/supplier-payables/bills/"+editingSupplierBillId,{method:"PATCH",body:JSON.stringify(payload)});
+   resetSupplierBillEditor();message("supplierBillStatus","供應商帳單已更新。");
+  }else{
+   const payload={site_id:selectedSiteId,supplier_id:$("billSupplier").value,purchase_id:$("billPurchase").value||null,bill_no:$("billNo").value.trim(),bill_date:$("billDate").value,due_date:$("billDueDate").value||null,currency_code:$("billCurrency").value,total_amount:$("billAmount").value,note:$("billNote").value.trim()||null};
+   await api("/companies/"+companyId+"/supplier-payables/bills",{method:"POST",body:JSON.stringify(payload)});
+   resetSupplierBillEditor();message("supplierBillStatus","供應商帳單已建立。");
+  }
   await loadSupplierBills();await loadSupplierPayments();
  }catch(error){message("supplierBillStatus",error.message,true);}
  finally{button.disabled=false;}
 });
+$("billCancelEdit").addEventListener("click",resetSupplierBillEditor);
+
 $("refreshSupplierBills").addEventListener("click",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
 $("billFilterSupplier").addEventListener("change",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
 $("billSupplier").addEventListener("change",renderBillPurchaseOptions);
 $("billPurchase").addEventListener("change",()=>{const purchase=purchasesById.get($("billPurchase").value);if(purchase){$("billSupplier").value=purchase.supplier_id;$("billCurrency").value=purchase.currency_code;renderBillPurchaseOptions();$("billPurchase").value=purchase.id;}});
 $("billFilterStatus").addEventListener("change",()=>loadSupplierBills().then(loadSupplierPayments).catch(error=>message("supplierBillStatus",error.message,true)));
-$("supplierBillList").addEventListener("click",event=>{
+$("supplierBillList").addEventListener("click",async event=>{
+ const edit=event.target.closest("[data-edit-supplier-bill]");
+ const voidButton=event.target.closest("[data-void-supplier-bill]");
+ if(edit){
+  const bill=supplierBillsById.get(edit.dataset.editSupplierBill);if(!bill||bill.status!=="OPEN"||Number(bill.paid_amount)!==0)return;
+  editingSupplierBillId=bill.id;
+  $("billSupplier").value=bill.supplier_id;
+  if($("billSupplier").value!==bill.supplier_id){
+   const option=document.createElement("option");option.value=bill.supplier_id;option.textContent="原供應商（可能已停用）";option.dataset.billTemp="true";$("billSupplier").appendChild(option);$("billSupplier").value=bill.supplier_id;
+  }
+  $("billPurchase").value=bill.purchase_id||"";
+  if(bill.purchase_id&&$("billPurchase").value!==bill.purchase_id){
+   const option=document.createElement("option");option.value=bill.purchase_id;option.textContent="原關聯採購單";option.dataset.billTemp="true";$("billPurchase").appendChild(option);$("billPurchase").value=bill.purchase_id;
+  }
+  $("billNo").value=bill.bill_no;$("billDate").value=bill.bill_date;$("billDueDate").value=bill.due_date||"";
+  $("billCurrency").value=bill.currency_code;$("billAmount").value=bill.total_amount;$("billNote").value=bill.note||"";
+  $("billSupplier").disabled=true;$("billPurchase").disabled=true;
+  $("billSubmit").textContent="儲存帳單修改";$("billCancelEdit").classList.remove("hidden");$("billNo").focus();return;
+ }
+ if(voidButton){
+  const bill=supplierBillsById.get(voidButton.dataset.voidSupplierBill);if(!bill||bill.status!=="OPEN"||Number(bill.paid_amount)!==0)return;
+  if(!window.confirm("確定要作廢這筆尚未付款的供應商帳單？帳單紀錄會保留。"))return;
+  voidButton.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/supplier-payables/bills/"+bill.id+"/void",{method:"POST"});
+   message("supplierBillStatus","供應商帳單已作廢。");await loadSupplierBills();await loadSupplierPayments();
+  }catch(error){message("supplierBillStatus",error.message,true);}
+  finally{voidButton.disabled=false;}
+  return;
+ }
  const button=event.target.closest("[data-pay-supplier-bill]");
  if(!button)return;
  const bill=supplierBillsById.get(button.dataset.paySupplierBill);
