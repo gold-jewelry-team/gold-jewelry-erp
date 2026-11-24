@@ -124,7 +124,7 @@ def record_gold_material_movement(
         # When the supplier is inferred from a linked purchase, preserve the
         # original effective supplier on exact retries.
         effective_supplier_id = supplier_id
-        if effective_supplier_id is None and existing.purchase_id == purchase_id:
+        if effective_supplier_id is None and purchase_id is not None and existing.purchase_id == purchase_id:
             effective_supplier_id = existing.supplier_id
         existing_allocations = {
             row.bill_id: row.amount
