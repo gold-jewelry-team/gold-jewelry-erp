@@ -66,8 +66,14 @@ def review_cash_count(session: Session, *, company_id: UUID, site_id: UUID, cash
         raise ValueError("此現金盤點已完成覆核，不可重複覆核。")
     if reviewer.casefold() == row.counted_by_name.casefold():
         raise ValueError("覆核人必須與盤點人不同。")
+
+    normalized_note = (review_note or "").strip() or None
+    if row.cash_variance != Decimal("0.00") and normalized_note is None:
+        raise ValueError("現金盤點存在差異，必須填寫覆核原因後才能完成覆核。")
+
     row.reviewed_by_name = reviewer
     row.reviewed_at = datetime.now(timezone.utc)
-    row.review_note = review_note
+    row.review_note = normalized_note
     session.flush()
     return row
+"
