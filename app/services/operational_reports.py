@@ -117,6 +117,12 @@ def _serialize_bucket(bucket: dict) -> dict:
         + bucket["cash_drawer_in_amount"]
         - bucket["cash_drawer_out_amount"]
     )
+    # Keep monetary values as fixed-point strings in JSON. Returning Decimal
+    # through an untyped dict would otherwise be encoded as binary floats.
+    for key, value in list(result.items()):
+        if isinstance(value, Decimal):
+            result[key] = format(value, ".2f")
+
     result["payment_methods"] = []
     for method, values in sorted(bucket["payment_methods"].items()):
         method_result = {"payment_method": method, **values}
@@ -126,6 +132,9 @@ def _serialize_bucket(bucket: dict) -> dict:
             - values["supplier_paid_amount"]
             - values["expenses_paid_amount"]
         )
+        for key, value in list(method_result.items()):
+            if isinstance(value, Decimal):
+                method_result[key] = format(value, ".2f")
         result["payment_methods"].append(method_result)
     return result
 
