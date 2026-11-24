@@ -1,3 +1,5 @@
+import hmac
+
 from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
@@ -17,13 +19,14 @@ def login(payload: LoginRequest, response: Response) -> dict[str, bool]:
     if not settings.auth_configured:
         raise HTTPException(status_code=503, detail="管理者登入尚未完成部署設定。")
 
-    username_matches = payload.username == settings.admin_username
-    password_matches = payload.password == settings.admin_password
-    # Compare both values without short-circuiting to reduce timing leakage.
-    import hmac
-
-    username_matches = hmac.compare_digest(payload.username, settings.admin_username)
-    password_matches = hmac.compare_digest(payload.password, settings.admin_password)
+    username_matches = hmac.compare_digest(
+        payload.username.encode("utf-8"),
+        settings.admin_username.encode("utf-8"),
+    )
+    password_matches = hmac.compare_digest(
+        payload.password.encode("utf-8"),
+        settings.admin_password.encode("utf-8"),
+    )
     if not (username_matches and password_matches):
         raise HTTPException(status_code=401, detail="帳號或密碼錯誤。")
 
