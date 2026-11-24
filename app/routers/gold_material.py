@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import case, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -11,7 +11,7 @@ from app.models.site import Site
 from app.routers.schemas.gold_material import (
     GoldMaterialBalanceRead, GoldMaterialMovementCreate, GoldMaterialMovementRead,
 )
-from app.services.gold_material import INCOMING_TYPES, WEIGHT_GRAMS, record_gold_material_movement
+from app.services.gold_material import (GoldMaterialMovementIdempotencyConflict, INCOMING_TYPES, WEIGHT_GRAMS, record_gold_material_movement)
 
 router = APIRouter(prefix="/companies/{company_id}/gold-material", tags=["gold material"])
 
@@ -65,10 +65,11 @@ def list_gold_material_movements(
 
 @router.post("/movements", response_model=GoldMaterialMovementRead, status_code=201)
 def post_gold_material_movement(
-    company_id: UUID, payload: GoldMaterialMovementCreate, db: Session = Depends(get_db)
+    company_id: UUID, payload: GoldMaterialMovementCreate, response: Response,
+    db: Session = Depends(get_db)
 ):
     try:
-        movement = record_gold_material_movement(
+        movement, created = record_gold_material_movement(
             db, company_id=company_id, site_id=payload.site_id,
             supplier_id=payload.supplier_id, purchase_id=payload.purchase_id,
             movement_no=payload.movement_no, movement_type=payload.movement_type,
@@ -79,13 +80,18 @@ def post_gold_material_movement(
             gold_price_unit_code=payload.gold_price_unit_code,
             deduction_amount=payload.deduction_amount,
             allocations=[item.model_dump() for item in payload.allocations],
-            note=payload.note,
+            note=payload.note, return_created=True,
         )
         movement_id = movement.id
+        if not created:
+            response.status_code = 200
         db.commit()
         return db.scalar(select(GoldMaterialMovement).options(
             selectinload(GoldMaterialMovement.allocations)
         ).where(GoldMaterialMovement.id == movement_id))
+    except GoldMaterialMovementIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
