@@ -13,6 +13,7 @@ from app.services.purchasing import (
     PurchaseReceiptIdempotencyConflict,
     cancel_purchase,
     create_purchase,
+    update_purchase,
     receive_purchase_line,
     submit_purchase,
 )
@@ -76,6 +77,29 @@ def get_purchase(company_id: UUID, purchase_id: UUID, db: Session = Depends(get_
     if purchase is None:
         raise HTTPException(status_code=404, detail="找不到指定採購單。")
     return purchase
+
+
+@router.patch("/{purchase_id}", response_model=PurchaseRead)
+def patch_purchase(company_id: UUID, purchase_id: UUID, payload: PurchaseCreate, db: Session = Depends(get_db)):
+    if _get_purchase(db, company_id, purchase_id) is None:
+        raise HTTPException(status_code=404, detail="找不到指定採購單。")
+    try:
+        purchase = update_purchase(
+            db, company_id=company_id, purchase_id=purchase_id,
+            site_id=payload.site_id, supplier_id=payload.supplier_id,
+            purchase_no=payload.purchase_no, order_date=payload.order_date,
+            expected_date=payload.expected_date, currency_code=payload.currency_code,
+            note=payload.note, lines=[line.model_dump() for line in payload.lines],
+        )
+        purchase_id = purchase.id
+        db.commit()
+        return _get_purchase(db, company_id, purchase_id)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="採購單號或資料關聯重複／不合法。") from exc
 
 
 @router.post("/{purchase_id}/submit", response_model=PurchaseActionResult)
