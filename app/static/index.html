@@ -2898,16 +2898,30 @@ $("supplierPaymentForm").addEventListener("submit",async event=>{
  catch(error){message("supplierPaymentStatus",error.message,true);return;}
  const button=$("supplierPaymentForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
-  await api("/companies/"+companyId+"/supplier-payables/payments",{method:"POST",body:JSON.stringify(payload)});
+  try{
+   await api("/companies/"+companyId+"/supplier-payables/payments",{method:"POST",body:JSON.stringify(payload)});
+  }catch(error){
+   if(error.status===422)clearPendingSupplierPayment(companyId,selectedSiteId,selectedSupplierBill.id);
+   message("supplierPaymentStatus",error.message,true);
+   return;
+  }
+
+  // The payment is committed. Clear the retry payload before refreshing any
+  // lists so a read failure cannot make a successful payment look uncommitted.
   clearPendingSupplierPayment(companyId,selectedSiteId,selectedSupplierBill.id);
-  message("supplierPaymentStatus","供應商付款已登錄。");
-  $("supplierPaymentForm").reset();$("supplierPaymentPanel").classList.add("hidden");selectedSupplierBill=null;
-  await loadSupplierBills();await loadSupplierPayments();
- }catch(error){
-  if(error.status===422)clearPendingSupplierPayment(companyId,selectedSiteId,selectedSupplierBill.id);
-  message("supplierPaymentStatus",error.message,true);
- }
- finally{button.disabled=false;}
+  $("supplierPaymentForm").reset();
+  $("supplierPaymentPanel").classList.add("hidden");
+  selectedSupplierBill=null;
+  message("supplierBillStatus","供應商付款已成功登錄。");
+
+  try{
+   await loadSupplierBills();
+   await loadSupplierPayments();
+   message("supplierBillStatus","供應商付款已成功登錄，帳單及付款紀錄已更新。");
+  }catch(refreshError){
+   message("supplierBillStatus","供應商付款已成功入帳，但清單更新失敗。請按「更新帳單」重新整理；不要再次登錄同一筆付款。",true);
+  }
+ }finally{button.disabled=false;}
 });
 const purchaseStatusLabels={DRAFT:"草稿",ORDERED:"已下單",PARTIALLY_RECEIVED:"部分到貨",RECEIVED:"已收貨",CANCELLED:"已取消"};
 const expenseCategoryLabels={RENT:"租金",UTILITIES:"水電瓦斯",SALARIES:"薪資",SUPPLIES:"耗材",SHIPPING:"運費",REPAIR:"維修",OTHER:"其他"};
