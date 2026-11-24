@@ -51,6 +51,8 @@ def create_daily_closing(
     session: Session, *, company_id: UUID, site_id: UUID, business_date: date, note: str | None = None,
 ) -> DailyClosing:
     """Create a one-time snapshot of completed sales and returns for a Taipei day."""
+    if business_date > datetime.now(BUSINESS_TIMEZONE).date():
+        raise ValueError("不可提前結帳尚未到來的營業日。")
     site = session.execute(select(Site).where(Site.id == site_id).with_for_update()).scalar_one_or_none()
     if site is None or site.company_id != company_id:
         raise ValueError("據點不存在或不屬於指定公司。")
