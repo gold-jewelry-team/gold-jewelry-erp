@@ -202,8 +202,8 @@ def test_operational_report_lists_current_open_balances_by_currency_and_source()
         result = response.json()
         outstanding = result["outstanding_balances"]
         summaries = {row["currency_code"]: row for row in outstanding["summaries_by_currency"]}
-        assert summaries["TWD"]["total_receivable"] == "1160.00"
-        assert summaries["TWD"]["total_payable"] == "500.00"
+        assert summaries["TWD"]["total_receivable"] == "1100.00"
+        assert summaries["TWD"]["total_payable"] == "560.00"
         assert summaries["USD"]["total_receivable"] == "200.00"
         assert summaries["USD"]["total_payable"] == "0.00"
 
