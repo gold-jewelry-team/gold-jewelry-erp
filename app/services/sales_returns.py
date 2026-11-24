@@ -12,6 +12,10 @@ from app.services.inventory import create_inventory_movement
 from app.services.daily_closing import assert_business_day_open
 
 
+class SaleReturnIdempotencyConflict(ValueError):
+    """Raised when a return number is reused for different return details."""
+
+
 def create_sale_return(
     session: Session,
     *,
@@ -21,7 +25,8 @@ def create_sale_return(
     sale_line_ids: list[UUID],
     reason: str | None = None,
     note: str | None = None,
-) -> SaleReturn:
+    return_created: bool = False,
+) -> SaleReturn | tuple[SaleReturn, bool]:
     """Return individually tracked items from a completed sale.
 
     The signed reversal uses the opposite sign of the original line settlement:
@@ -42,6 +47,40 @@ def create_sale_return(
         raise ValueError("找不到指定銷售單。")
     if sale.status != "COMPLETED":
         raise ValueError("只有已完成的銷售單可以退貨。")
+
+    normalized_return_no = return_no.strip()
+    if not normalized_return_no:
+        raise ValueError("退貨單號不可空白。")
+
+    # A repeated request must return the committed return before checking the
+    # business-day lock. This covers a lost HTTP response followed by a retry
+    # after the business day has already been closed.
+    existing = session.execute(
+        select(SaleReturn).where(
+            SaleReturn.site_id == sale.site_id,
+            SaleReturn.return_no == normalized_return_no,
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing_line_ids = set(session.scalars(
+            select(SaleReturnLine.sale_line_id).where(
+                SaleReturnLine.return_id == existing.id
+            )
+        ).all())
+        same_request = (
+            existing.company_id == company_id
+            and existing.sale_id == sale.id
+            and existing.return_no == normalized_return_no
+            and existing_line_ids == set(sale_line_ids)
+            and existing.reason == reason
+            and existing.note == note
+        )
+        if not same_request:
+            raise SaleReturnIdempotencyConflict(
+                "此退貨單號已用於不同退貨內容；請查閱原退貨紀錄，不可使用相同單號重複退貨。"
+            )
+        return (existing, False) if return_created else existing
+
     returned_at = datetime.now(timezone.utc)
     assert_business_day_open(session, site_id=sale.site_id, at=returned_at)
 
@@ -69,7 +108,7 @@ def create_sale_return(
         company_id=company_id,
         site_id=sale.site_id,
         sale_id=sale.id,
-        return_no=return_no,
+        return_no=normalized_return_no,
         settlement_reversal_amount=Decimal("0"),
         currency_code=sale.currency_code,
         created_at=returned_at,
@@ -110,10 +149,10 @@ def create_sale_return(
                 weight_unit_code=sale_line.weight_unit_code,
                 reference_type="SALE_RETURN_LINE",
                 reference_id=return_line.id,
-                note=f"退貨單 {return_no}；原銷售單 {sale.sale_no}",
+                note=f"退貨單 {normalized_return_no}；原銷售單 {sale.sale_no}",
             )
         total_reversal += reversal
 
     return_record.settlement_reversal_amount = total_reversal
     session.flush()
-    return return_record
+    return (return_record, True) if return_created else return_record
