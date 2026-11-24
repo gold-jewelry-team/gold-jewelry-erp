@@ -90,6 +90,8 @@ jobs:
         run: node --test tests/label_dialog_close_runtime.test.js
       - name: Run sticker print formatting runtime tests
         run: node --test tests/sticker_print_formatting_runtime.test.js
+      - name: Run customer order print formatting runtime tests
+        run: node --test tests/customer_order_print_formatting_runtime.test.js
       - name: Run operating expense retry runtime tests
         run: node --test tests/operating_expense_retry_runtime.test.js
       - name: Run cash drawer retry runtime tests
