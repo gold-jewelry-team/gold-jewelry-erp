@@ -1069,9 +1069,10 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="expenseReceiptNo">收據／發票號碼</label><input id="expenseReceiptNo" maxlength="100"></div>
 <div class="field wide"><label for="expenseNote">備註</label><input id="expenseNote" maxlength="500"></div>
 </div>
-<div class="actions"><button id="restorePendingExpense" class="secondary hidden" type="button">恢復尚未確認的費用</button><button type="submit">新增營業費用</button></div>
+<div class="actions"><button id="restorePendingExpense" class="secondary hidden" type="button">恢復尚未確認的費用</button><button id="expenseSubmit" type="submit">新增營業費用</button><button id="expenseCancelEdit" class="secondary hidden" type="button">取消編輯</button></div>
 </form>
 <div id="expenseStatus" class="status" role="status"></div>
+<p class="sub">只有未付款費用可以編輯或作廢；已付款紀錄保留，不直接刪除或改寫。</p>
 <h3>費用紀錄</h3>
 <div class="field"><label for="expenseSettlementMethod">未付款費用付款方式</label><select id="expenseSettlementMethod"><option value="CASH">現金</option><option value="CARD">刷卡</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option></select></div>
 <div class="grid">
@@ -1324,6 +1325,8 @@ let suppliersById=new Map();
 let editingSupplierId="";
 let editingSupplierCategoryOfferingId="";
 let editingSupplierProductOfferingId="";
+let editingExpenseId="";
+let expensesById=new Map();
 let supplierCatalogProductsById=new Map();
 let supplierBillsById=new Map();
 let selectedSupplierBill=null;
@@ -2163,7 +2166,7 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 
-$("siteSelect").addEventListener("change",async()=>{resetLocationEditor();selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{resetExpenseEditor();resetLocationEditor();selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async event=>{
  event.preventDefault();if(!companyId){message("siteStatus","請先選擇公司。",true);return;}
  const button=$("siteSubmit");button.disabled=true;
@@ -2224,7 +2227,7 @@ $("locationList").addEventListener("click",async event=>{
   finally{toggle.disabled=false;}
  }
 });
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;renderHeaderCompanyName();resetSiteEditor();resetLocationEditor();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{resetExpenseEditor();companyId=$("companySelect").value;renderHeaderCompanyName();resetSiteEditor();resetLocationEditor();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -2894,18 +2897,20 @@ function clearPendingExpensePayment(company,site,expense){
 async function loadExpenses(){
  const box=$("expenseList");
  renderPendingExpenseRecovery();
- if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';expensesById=new Map();return;}
  const params=new URLSearchParams({site_id:selectedSiteId});
  if($("expenseFilterStatus").value)params.set("status",$("expenseFilterStatus").value);
  if($("expenseFilterCategory").value)params.set("category_code",$("expenseFilterCategory").value);
  const rows=await api("/companies/"+companyId+"/operating-expenses?"+params.toString());
+ expensesById=new Map(rows.map(row=>[row.id,row]));
  box.innerHTML=rows.length?rows.map(row=>{
   const pendingPayment=readPendingExpensePayment(companyId,selectedSiteId,row.id);
-  const action=pendingPayment
-   ?'<div class="actions"><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">恢復待確認付款</button></div>'
-   :(row.status==="UNPAID"
-     ?'<div class="actions"><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">登錄付款</button></div>'
-     :"");
+  let action="";
+  if(pendingPayment){
+   action='<div class="actions"><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">恢復待確認付款</button></div>';
+  }else if(row.status==="UNPAID"){
+   action='<div class="actions"><button class="secondary" type="button" data-edit-expense="'+escapeHtml(row.id)+'">編輯</button><button class="secondary" type="button" data-void-expense="'+escapeHtml(row.id)+'">作廢</button><button class="secondary" type="button" data-pay-expense="'+escapeHtml(row.id)+'">登錄付款</button></div>';
+  }
   return '<article class="item"><strong>'+escapeHtml(row.expense_no)+' · '+escapeHtml(row.description)+'</strong><span class="pill">'+(row.status==="PAID"?"已付款":row.status==="UNPAID"?"未付款":"已作廢")+'</span><span class="muted">日期：'+escapeHtml(row.expense_date)+' · 分類：'+escapeHtml(expenseCategoryLabels[row.category_code]||row.category_code)+' · 金額：'+escapeHtml(row.amount)+' 元</span><span class="muted">收款對象：'+escapeHtml(row.payee||"未填")+' · 付款方式：'+escapeHtml(row.payment_method||"尚未付款")+'</span>'+action+'</article>';
  }).join(""):'<div class="empty">沒有符合條件的營業費用</div>';
 }
@@ -3110,31 +3115,61 @@ $("purchaseReceiveForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 $("restorePendingExpense").addEventListener("click",restorePendingExpenseDraft);
+function resetExpenseEditor(){
+ editingExpenseId="";$("expenseForm").reset();$("expenseDate").value=taipeiDateValue();
+ $("expensePaymentMethod").disabled=false;$("expenseSubmit").textContent="新增營業費用";
+ $("expenseCancelEdit").classList.add("hidden");
+}
 $("expenseForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("expenseStatus","請先選擇公司與據點。",true);return;}
- const payload={site_id:selectedSiteId,expense_no:$("expenseNo").value.trim(),expense_date:$("expenseDate").value,category_code:$("expenseCategory").value,description:$("expenseDescription").value.trim(),amount:$("expenseAmount").value,payee:$("expensePayee").value.trim()||null,payment_method:$("expensePaymentMethod").value||null,receipt_no:$("expenseReceiptNo").value.trim()||null,note:$("expenseNote").value.trim()||null};
- let pending;
- try{pending=savePendingExpense(companyId,selectedSiteId,payload);}
- catch(error){message("expenseStatus",error.message,true);return;}
- const button=$("expenseForm").querySelector('button[type="submit"]');button.disabled=true;
+ const button=$("expenseSubmit");button.disabled=true;
  try{
+  if(editingExpenseId){
+   const payload={expense_no:$("expenseNo").value.trim(),expense_date:$("expenseDate").value,category_code:$("expenseCategory").value,description:$("expenseDescription").value.trim(),amount:$("expenseAmount").value,payee:$("expensePayee").value.trim()||null,receipt_no:$("expenseReceiptNo").value.trim()||null,note:$("expenseNote").value.trim()||null};
+   await api("/companies/"+companyId+"/operating-expenses/"+editingExpenseId,{method:"PATCH",body:JSON.stringify(payload)});
+   resetExpenseEditor();message("expenseStatus","未付款費用已更新。");await loadExpenses();return;
+  }
+  const payload={site_id:selectedSiteId,expense_no:$("expenseNo").value.trim(),expense_date:$("expenseDate").value,category_code:$("expenseCategory").value,description:$("expenseDescription").value.trim(),amount:$("expenseAmount").value,payee:$("expensePayee").value.trim()||null,payment_method:$("expensePaymentMethod").value||null,receipt_no:$("expenseReceiptNo").value.trim()||null,note:$("expenseNote").value.trim()||null};
+  try{savePendingExpense(companyId,selectedSiteId,payload);}
+  catch(error){message("expenseStatus",error.message,true);return;}
   await api("/companies/"+companyId+"/operating-expenses",{method:"POST",body:JSON.stringify(payload)});
-  clearPendingExpense(companyId,selectedSiteId);
-  $("expenseForm").reset();$("expenseDate").value=taipeiDateValue();message("expenseStatus","營業費用已新增或確認原紀錄。");
+  clearPendingExpense(companyId,selectedSiteId);resetExpenseEditor();message("expenseStatus","營業費用已新增或確認原紀錄。");
   try{await loadExpenses();}
   catch(refreshError){message("expenseStatus","費用已完成，但清單更新失敗："+refreshError.message,true);}
  }catch(error){
-  if(error.status===422)clearPendingExpense(companyId,selectedSiteId);
+  if(error.status===422&&!editingExpenseId)clearPendingExpense(companyId,selectedSiteId);
   message("expenseStatus",error.message,true);
- }
- finally{button.disabled=false;}
+ }finally{button.disabled=false;}
 });
+$("expenseCancelEdit").addEventListener("click",resetExpenseEditor);
 $("refreshExpenses").addEventListener("click",()=>loadExpenses().catch(error=>message("expenseStatus",error.message,true)));
 $("expenseFilterStatus").addEventListener("change",()=>loadExpenses().catch(error=>message("expenseStatus",error.message,true)));
 $("expenseFilterCategory").addEventListener("change",()=>loadExpenses().catch(error=>message("expenseStatus",error.message,true)));
 $("expenseList").addEventListener("click",async event=>{
+ const editButton=event.target.closest("[data-edit-expense]");
+ const voidButton=event.target.closest("[data-void-expense]");
  const button=event.target.closest("[data-pay-expense]");
+ if(editButton){
+  const row=expensesById.get(editButton.dataset.editExpense);if(!row||row.status!=="UNPAID")return;
+  editingExpenseId=row.id;$("expenseNo").value=row.expense_no;$("expenseDate").value=row.expense_date;
+  $("expenseCategory").value=row.category_code;$("expenseDescription").value=row.description;
+  $("expenseAmount").value=row.amount;$("expensePayee").value=row.payee||"";
+  $("expenseReceiptNo").value=row.receipt_no||"";$("expenseNote").value=row.note||"";
+  $("expensePaymentMethod").value="";$("expensePaymentMethod").disabled=true;
+  $("expenseSubmit").textContent="儲存費用修改";$("expenseCancelEdit").classList.remove("hidden");
+  $("expenseDescription").focus();return;
+ }
+ if(voidButton){
+  const row=expensesById.get(voidButton.dataset.voidExpense);if(!row||row.status!=="UNPAID")return;
+  voidButton.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/operating-expenses/"+row.id+"/void",{method:"POST"});
+   message("expenseStatus","未付款費用已作廢。");await loadExpenses();
+  }catch(error){message("expenseStatus",error.message,true);}
+  finally{voidButton.disabled=false;}
+  return;
+ }
  if(!button)return;
  const expenseId=button.dataset.payExpense;
  let pending=readPendingExpensePayment(companyId,selectedSiteId,expenseId);
