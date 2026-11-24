@@ -10,6 +10,13 @@ class CompanyCreate(BaseModel):
     tax_id: str | None = Field(default=None, max_length=20)
 
 
+class CompanyUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=1, max_length=30)
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    tax_id: str | None = Field(default=None, max_length=20)
+    is_active: bool | None = None
+
+
 class CompanyRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -26,6 +33,14 @@ class SiteCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     address: str | None = Field(default=None, max_length=255)
     phone: str | None = Field(default=None, max_length=30)
+
+
+class SiteUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=1, max_length=30)
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    address: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=30)
+    is_active: bool | None = None
 
 
 class SiteRead(BaseModel):
@@ -46,6 +61,14 @@ class StorageLocationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     location_type: str = Field(default="OTHER", pattern="^(STORE_FLOOR|SAFE|WAREHOUSE|REPAIR|TRANSIT|OTHER)$")
     description: str | None = Field(default=None, max_length=255)
+
+
+class StorageLocationUpdate(BaseModel):
+    code: str | None = Field(default=None, min_length=1, max_length=30)
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    location_type: str | None = Field(default=None, pattern="^(STORE_FLOOR|SAFE|WAREHOUSE|REPAIR|TRANSIT|OTHER)$")
+    description: str | None = Field(default=None, max_length=255)
+    is_active: bool | None = None
 
 
 class StorageLocationRead(BaseModel):
