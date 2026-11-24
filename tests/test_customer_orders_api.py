@@ -145,3 +145,157 @@ def test_customer_order_deposit_ledger_and_status_flow():
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)
+
+
+def test_customer_order_basic_fields_can_be_edited_without_rewriting_deposit_or_items():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with TestSession() as db:
+        company = Company(code="ORDER-EDIT", name="客訂單編輯測試")
+        db.add(company)
+        db.flush()
+        site = Site(company_id=company.id, code="MAIN", name="總店")
+        db.add(site)
+        db.commit()
+        company_id, site_id = company.id, site.id
+
+    def override_db():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides[customer_orders.get_db] = override_db
+    try:
+        client = TestClient(app)
+        created = client.post(f"/companies/{company_id}/customer-orders", json={
+            "site_id": str(site_id),
+            "order_no": "CO-EDIT-001",
+            "customer_name": "王小姐",
+            "customer_phone": "0912000000",
+            "items": [{"product_name": "客訂黃金戒指", "weight": 1.2, "weight_unit_code": "QIAN"}],
+            "total_amount": "30000",
+            "initial_deposit": "5000",
+            "payment_method": "CASH",
+        })
+        assert created.status_code == 201, created.text
+        order = created.json()
+
+        updated = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}",
+            json={
+                "order_no": "CO-EDIT-UPDATED",
+                "customer_name": "王小姐（已更名）",
+                "customer_phone": "0922000000",
+                "expected_delivery_date": "2026-12-15T12:00:00+08:00",
+                "note": "客戶改約交期",
+            },
+        )
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["order_no"] == "CO-EDIT-UPDATED"
+        assert updated.json()["customer_name"] == "王小姐（已更名）"
+        assert updated.json()["customer_phone"] == "0922000000"
+        assert updated.json()["total_amount"] == "30000.00"
+        assert updated.json()["deposit_amount"] == "5000.00"
+        assert updated.json()["items"] == order["items"]
+        assert len(updated.json()["payments"]) == 1
+
+        financial_edit = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}",
+            json={"total_amount": "10000"},
+        )
+        assert financial_edit.status_code == 422
+
+        arrived = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "ARRIVED"},
+        )
+        assert arrived.status_code == 200, arrived.text
+        locked = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}",
+            json={"customer_name": "到貨後不應修改"},
+        )
+        assert locked.status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_customer_order_refund_is_append_only_and_required_before_cancellation():
+    from uuid import uuid4
+
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    with TestSession() as db:
+        company = Company(code="ORDER-REFUND", name="客訂退款測試公司")
+        db.add(company)
+        db.flush()
+        site = Site(company_id=company.id, code="MAIN", name="總店")
+        db.add(site)
+        db.commit()
+        company_id, site_id = company.id, site.id
+
+    def override_db():
+        session = TestSession()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides.clear()
+    app.dependency_overrides[customer_orders.get_db] = override_db
+    try:
+        client = TestClient(app)
+        created = client.post(f"/companies/{company_id}/customer-orders", json={
+            "site_id": str(site_id), "order_no": "CO-REFUND-001",
+            "customer_name": "退款測試客戶",
+            "items": [{"product_name": "客訂商品"}],
+            "total_amount": "10000", "initial_deposit": "3000",
+            "payment_method": "CASH",
+        })
+        assert created.status_code == 201, created.text
+        order_id = created.json()["id"]
+        blocked = client.post(f"/companies/{company_id}/customer-orders/{order_id}/cancel")
+        assert blocked.status_code == 409
+
+        key = str(uuid4())
+        refund_payload = {
+            "amount": "3000.00", "payment_method": "TRANSFER",
+            "note": "全額退還訂金", "idempotency_key": key,
+        }
+        refunded = client.post(
+            f"/companies/{company_id}/customer-orders/{order_id}/refunds",
+            json=refund_payload,
+        )
+        assert refunded.status_code == 200, refunded.text
+        assert refunded.json()["deposit_amount"] == "0.00"
+        assert len(refunded.json()["payments"]) == 2
+        assert refunded.json()["payments"][-1]["direction"] == "OUT"
+
+        retried = client.post(
+            f"/companies/{company_id}/customer-orders/{order_id}/refunds",
+            json=refund_payload,
+        )
+        assert retried.status_code == 200, retried.text
+        assert retried.json()["deposit_amount"] == "0.00"
+        assert len(retried.json()["payments"]) == 2
+
+        cancelled = client.post(f"/companies/{company_id}/customer-orders/{order_id}/cancel")
+        assert cancelled.status_code == 200, cancelled.text
+        assert cancelled.json()["status"] == "CANCELLED"
+        assert len(cancelled.json()["payments"]) == 2
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
