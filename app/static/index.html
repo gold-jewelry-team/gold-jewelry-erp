@@ -1319,6 +1319,8 @@ button.secondary:disabled{opacity:.42}
 <button id="backToTop" class="secondary" type="button" aria-label="回到頁面頂端">↑ 回到頂端</button>
 <script>
 const $=id=>document.getElementById(id);
+// Escape dynamic values before inserting them into HTML templates.
+const escapeHtml=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
 let companyId="";
 let selectedSiteId="";
 let companiesById=new Map(),sitesById=new Map(),storageLocationsById=new Map();
