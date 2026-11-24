@@ -17,6 +17,15 @@ class SupplierBillCreate(BaseModel):
     note: str | None = Field(default=None, max_length=500)
 
 
+class SupplierBillUpdate(BaseModel):
+    bill_no: str | None = Field(default=None, min_length=1, max_length=50)
+    bill_date: date | None = None
+    due_date: date | None = None
+    currency_code: str | None = Field(default=None, min_length=3, max_length=3, pattern="^[A-Za-z]{3}$")
+    total_amount: Decimal | None = Field(default=None, gt=0, max_digits=18, decimal_places=2)
+    note: str | None = Field(default=None, max_length=500)
+
+
 class SupplierBillRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID

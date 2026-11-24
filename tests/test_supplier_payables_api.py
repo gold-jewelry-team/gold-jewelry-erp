@@ -836,3 +836,72 @@ def test_supplier_payment_overpayment_on_second_bill_is_atomic():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_unpaid_supplier_bill_can_be_edited_and_voided():
+    engine, _TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        created = client.post(f"{base}/bills", json={
+            "site_id": str(site_id), "supplier_id": str(supplier_id),
+            "bill_no": "INV-EDIT-001", "bill_date": "2026-11-20",
+            "due_date": "2026-12-20", "currency_code": "TWD",
+            "total_amount": "1500.00", "note": "原始備註",
+        })
+        assert created.status_code == 201, created.text
+        bill_id = created.json()["id"]
+
+        updated = client.patch(f"{base}/bills/{bill_id}", json={
+            "bill_no": "INV-EDIT-UPDATED", "bill_date": "2026-11-21",
+            "due_date": "2026-12-31", "currency_code": "USD",
+            "total_amount": "1800.00", "note": "修改後備註",
+        })
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["bill_no"] == "INV-EDIT-UPDATED"
+        assert updated.json()["currency_code"] == "USD"
+        assert updated.json()["total_amount"] == "1800.00"
+        assert updated.json()["status"] == "OPEN"
+
+        invalid_dates = client.patch(f"{base}/bills/{bill_id}", json={
+            "bill_date": "2026-12-10", "due_date": "2026-12-01",
+        })
+        assert invalid_dates.status_code == 422
+
+        voided = client.post(f"{base}/bills/{bill_id}/void")
+        assert voided.status_code == 200, voided.text
+        assert voided.json()["status"] == "VOID"
+        blocked = client.patch(f"{base}/bills/{bill_id}", json={"note": "不可修改"})
+        assert blocked.status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_partially_paid_supplier_bill_cannot_be_edited_or_voided():
+    engine, _TestSession, (company_id, site_id, supplier_id) = _payable_context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}/supplier-payables"
+        bill = client.post(f"{base}/bills", json={
+            "site_id": str(site_id), "supplier_id": str(supplier_id),
+            "bill_no": "INV-PARTIAL-001", "bill_date": "2026-11-20",
+            "currency_code": "TWD", "total_amount": "2000.00",
+        })
+        assert bill.status_code == 201, bill.text
+        payment = client.post(f"{base}/payments", json={
+            "site_id": str(site_id), "supplier_id": str(supplier_id),
+            "payment_no": "PAY-PARTIAL-001", "payment_method": "TRANSFER",
+            "allocations": [{"bill_id": bill.json()["id"], "amount": "500.00"}],
+        })
+        assert payment.status_code == 201, payment.text
+
+        edit = client.patch(
+            f"{base}/bills/{bill.json()['id']}", json={"total_amount": "1900.00"}
+        )
+        assert edit.status_code == 409
+        void = client.post(f"{base}/bills/{bill.json()['id']}/void")
+        assert void.status_code == 409
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
