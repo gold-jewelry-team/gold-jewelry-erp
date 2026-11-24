@@ -224,6 +224,20 @@ jobs:
                   missing_scope_fks.append(f"{table}.{expected_name}")
           assert not missing_scope_fks, f"Missing ownership-scope foreign keys: {missing_scope_fks}"
 
+          bank_tx_columns = {
+              column.get("name")
+              for column in inspector.get_columns("bank_transactions")
+          }
+          assert "idempotency_key" in bank_tx_columns, (
+              "Missing bank_transactions.idempotency_key column"
+          )
+          bank_tx_indexes = inspector.get_indexes("bank_transactions")
+          assert any(
+              index.get("name") == "uq_bank_transactions_company_idempotency_key"
+              and index.get("unique")
+              for index in bank_tx_indexes
+          ), "Missing bank transaction idempotency unique index"
+
           cash_drawer_columns = {
               column.get("name")
               for column in inspector.get_columns("cash_drawer_movements")
@@ -252,6 +266,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0031_bank_transfer_source_links"
+          alembic current | grep -q "0032_bank_operation_idempotency"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
