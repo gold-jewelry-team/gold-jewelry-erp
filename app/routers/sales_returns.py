@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.db.session import SessionLocal
 from app.models.sale_return import SaleReturn
 from app.routers.schemas.sales_returns import SaleReturnCreate, SaleReturnRead
-from app.services.sales_returns import create_sale_return
+from app.services.sales_returns import SaleReturnIdempotencyConflict, create_sale_return
 
 router = APIRouter(
     prefix="/companies/{company_id}/sales/{sale_id}/returns",
@@ -57,10 +57,11 @@ def post_sale_return(
     company_id: UUID,
     sale_id: UUID,
     payload: SaleReturnCreate,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     try:
-        record = create_sale_return(
+        record, created = create_sale_return(
             db,
             company_id=company_id,
             sale_id=sale_id,
@@ -68,10 +69,16 @@ def post_sale_return(
             sale_line_ids=payload.sale_line_ids,
             reason=payload.reason,
             note=payload.note,
+            return_created=True,
         )
         return_id = record.id
+        if not created:
+            response.status_code = 200
         db.commit()
         return _load_return(db, company_id, sale_id, return_id)
+    except SaleReturnIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
