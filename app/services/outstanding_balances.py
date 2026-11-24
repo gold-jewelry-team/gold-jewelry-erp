@@ -46,6 +46,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
     grouped: dict[str, list[dict]] = {}
 
     def add_item(currency: str, item: dict) -> None:
+        item["currency_code"] = currency
         grouped.setdefault(currency, []).append(item)
 
     sales = session.scalars(select(Sale).where(
