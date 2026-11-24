@@ -1531,7 +1531,6 @@ async function loadCompanies(selectId){
  $("companyList").innerHTML=allRows.length?allRows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span>'+(x.tax_id?'<span class="muted">統編：'+escapeHtml(x.tax_id)+'</span>':'')+(!x.is_active?'<span class="pill">已停用</span>':'')+'<div class="actions"><button class="secondary" type="button" data-edit-company="'+escapeHtml(x.id)+'">編輯</button><button class="secondary" type="button" data-toggle-company="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用":"重新啟用")+'</button></div></article>').join(""):'<div class="empty">尚未建立公司</div>';
  await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();
 }
-function renderHeaderCompanyName(){const select=$("companySelect");$("headerCompanyName").textContent=select?.selectedOptions?.[0]?.textContent||"尚未選擇";}
 function resetCompanyEditor(){
  editingCompanyId="";$("companyForm").reset();$("companySubmit").textContent="建立公司";$("companyCancelEdit").classList.add("hidden");
 }
