@@ -21,3 +21,18 @@ test("customer order edit keeps paid amounts and item snapshots immutable", () =
   assert.match(html, /已收訂金、商品明細及金額快照不在此處改寫/);
   assert.match(html, /取消訂單需先完成退款流程/);
 });
+
+
+test("customer order refunds are append-only and cancellation requires full refund", () => {
+  const paymentService = fs.readFileSync("app/services/payments.py", "utf8");
+  assert.match(html, /data-refund-customer-order=/);
+  assert.match(html, /data-cancel-customer-order=/);
+  assert.ok(html.includes('"/customer-orders/"+row.id+"/refunds"'));
+  assert.ok(html.includes('"/customer-orders/"+row.id+"/cancel"'));
+  assert.match(router, /@router\.post\("\/\{order_id\}\/refunds"/);
+  assert.match(router, /@router\.post\("\/\{order_id\}\/cancel"/);
+  assert.match(paymentService, /direction="OUT"/);
+  assert.match(paymentService, /CO-REFUND:/);
+  assert.match(paymentService, /order\.deposit_amount -= amount/);
+  assert.match(schema, /if self\.status == "CANCELLED"/);
+});
