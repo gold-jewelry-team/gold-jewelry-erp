@@ -3268,6 +3268,7 @@ $("salesHistoryList").addEventListener("click",async event=>{
  const button=event.target.closest("[data-open-sale]");
  try{
   if(edit){
+   if(editingSaleId&&editingSaleId!==edit.dataset.editSale){message("salesHistoryStatus","請先儲存或取消目前正在編輯的銷售草稿。",true);return;}
    if(currentSale&&currentSale.status==="DRAFT"&&currentSale.id!==edit.dataset.editSale){
     message("salesHistoryStatus","目前已有另一筆銷售草稿尚未完成，請先完成或作廢。",true);return;
    }
@@ -3301,6 +3302,7 @@ $("salesHistoryList").addEventListener("click",async event=>{
    message("saleStatus","已載入銷售草稿，可修改商品明細及付款方式。");return;
   }
   if(!button)return;
+  if(editingSaleId){message("salesHistoryStatus","請先儲存或取消目前正在編輯的銷售草稿。",true);return;}
   if(currentSale&&currentSale.status==="DRAFT"&&currentSale.id!==button.dataset.openSale){
    message("salesHistoryStatus","目前有尚未處理的銷售草稿，請先完成或作廢後再開啟其他銷售。",true);return;
   }
@@ -3501,6 +3503,7 @@ $("voidSale").addEventListener("click",async()=>{
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
 $("newSale").addEventListener("click",()=>{
+ editingSaleId="";$("createSaleDraft").textContent="建立銷售草稿";$("cancelSaleEdit").classList.add("hidden");
  currentSale=null;saleCartLines=[];saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");
  renderSaleCart();$("saleDraftResult").innerHTML="";
  $("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
