@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field
 
 from app.core.auth import create_session_token
 from app.core.config import settings
+from app.core.login_rate_limit import (
+    clear_login_failures,
+    get_login_retry_after,
+    record_failed_login,
+)
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -15,9 +20,17 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login")
-def login(payload: LoginRequest, response: Response) -> dict[str, bool]:
+def login(payload: LoginRequest, request: Request, response: Response) -> dict[str, bool]:
     if not settings.auth_configured:
         raise HTTPException(status_code=503, detail="管理者登入尚未完成部署設定。")
+
+    retry_after = get_login_retry_after(request)
+    if retry_after:
+        raise HTTPException(
+            status_code=429,
+            detail="登入嘗試次數過多，請稍後再試。",
+            headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+        )
 
     username_matches = hmac.compare_digest(
         payload.username.encode("utf-8"),
@@ -28,8 +41,20 @@ def login(payload: LoginRequest, response: Response) -> dict[str, bool]:
         settings.admin_password.encode("utf-8"),
     )
     if not (username_matches and password_matches):
-        raise HTTPException(status_code=401, detail="帳號或密碼錯誤。")
+        retry_after = record_failed_login(request)
+        if retry_after:
+            raise HTTPException(
+                status_code=429,
+                detail="登入嘗試次數過多，請稍後再試。",
+                headers={"Retry-After": str(retry_after), "Cache-Control": "no-store"},
+            )
+        raise HTTPException(
+            status_code=401,
+            detail="帳號或密碼錯誤。",
+            headers={"Cache-Control": "no-store"},
+        )
 
+    clear_login_failures(request)
     response.set_cookie(
         key=settings.session_cookie_name,
         value=create_session_token(settings.admin_username),

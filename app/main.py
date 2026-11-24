@@ -83,10 +83,17 @@ async def security_middleware(request: Request, call_next):
     if path in health_paths:
         return await call_next(request)
 
-    if path == "/login" or (path == "/auth/login" and request.method == "POST"):
-        # Reject cross-site login submissions when the browser supplies Origin.
+    if path == "/login":
+        return await call_next(request)
+
+    if path == "/auth/login" and request.method == "POST":
+        # Login is public, so protect it separately against cross-site submissions.
         origin = request.headers.get("origin")
-        if origin and urlsplit(origin).netloc.lower() != request.headers.get("host", "").lower():
+        fetch_site = request.headers.get("sec-fetch-site", "").lower()
+        if (
+            (origin and urlsplit(origin).netloc.lower() != request.headers.get("host", "").lower())
+            or fetch_site == "cross-site"
+        ):
             return JSONResponse(status_code=403, content={"detail": "跨來源請求已拒絕。"})
         return await call_next(request)
 
