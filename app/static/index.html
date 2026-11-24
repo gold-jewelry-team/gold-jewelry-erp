@@ -319,7 +319,7 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 #homeDashboard .home-section-title{display:flex;align-items:center;gap:8px;margin:20px 0 10px;color:#34483a;font-size:14px;font-weight:900}
 #homeDashboard .home-section-title:before{content:"";width:4px;height:16px;border-radius:4px;background:#b88a43}
 #homeDashboard .home-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-#homeDashboard .home-action{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:14px;min-height:112px;padding:14px;border:1px solid #e7e7df;border-radius:16px;background:rgba(255,255,255,.92);color:#304237;text-align:left;box-shadow:0 3px 10px rgba(36,48,39,.035);transition:transform .15s,border-color .15s,box-shadow .15s}
+#homeDashboard .home-actions a.home-action{text-decoration:none}\n#homeDashboard .home-action{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:14px;min-height:112px;padding:14px;border:1px solid #e7e7df;border-radius:16px;background:rgba(255,255,255,.92);color:#304237;text-align:left;box-shadow:0 3px 10px rgba(36,48,39,.035);transition:transform .15s,border-color .15s,box-shadow .15s}
 #homeDashboard .home-action:active{transform:scale(.98)}
 #homeDashboard .home-action:hover{border-color:#c9aa72;box-shadow:0 7px 18px rgba(36,48,39,.08)}
 #homeDashboard .home-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#f5efe2;font-size:20px}
@@ -610,6 +610,8 @@ button.secondary:disabled{opacity:.42}
     <button class="home-action" type="button" data-home-target="dailyClosingPanel"><span class="home-icon">📊</span><span><strong>每日結帳</strong><small>核對現金、刷卡與營業額</small></span></button>
     <button class="home-action" type="button" data-home-target="salesHistoryPanel"><span class="home-icon">🗂️</span><span><strong>交易紀錄</strong><small>查詢銷售、退貨與歷史資料</small></span></button>
   </div>
+    <a class="home-action" href="/banking" aria-label="銀行帳戶與對帳"><span class="home-icon">🏦</span><span><strong>銀行帳戶／對帳</strong><small>帳戶餘額、存提款、CSV 匯入與對帳</small></span></a>
+    <a class="home-action" href="/gold-material" aria-label="金料往來管理"><span class="home-icon">⚖️</span><span><strong>金料往來</strong><small>足金餘額、舊金收受與供應商折抵</small></span></a>
   <div class="home-section-title">門市管理</div>
   <div class="home-lower">
     <div class="home-info"><strong>🧭 作業小提醒</strong><p>每日營業前先確認買入／賣出金價；交易完成後核對收付款，打烊前執行每日結帳。</p><button type="button" data-home-target="goldPricePanel">前往金價管理　→</button></div>
