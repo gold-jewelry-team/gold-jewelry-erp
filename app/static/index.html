@@ -2164,7 +2164,7 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
 });
 
 $("siteSelect").addEventListener("change",async()=>{resetLocationEditor();selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
-$("$("siteForm").addEventListener("submit",async event=>{
+$("siteForm").addEventListener("submit",async event=>{
  event.preventDefault();if(!companyId){message("siteStatus","請先選擇公司。",true);return;}
  const button=$("siteSubmit");button.disabled=true;
  const payload={code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null};
