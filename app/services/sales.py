@@ -1,7 +1,7 @@
 """Sales draft pricing and inventory completion services."""
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_FLOOR
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -263,6 +263,51 @@ def create_sale_draft(
     sale.card_amount = card_amount
     sale.card_fee = card_fee_total
     sale.final_amount = final_total
+    session.flush()
+    return sale
+
+
+
+def update_sale_draft(
+    session: Session, *, company_id: UUID, sale_id: UUID, sale_no: str,
+    payment_method: str, lines: list[dict], card_amount: Decimal | None = None,
+    note: str | None = None, at: datetime | None = None,
+) -> Sale:
+    """Reprice and replace all lines of an uncompleted sale without changing its identity."""
+    sale = session.execute(
+        select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
+    ).scalar_one_or_none()
+    if sale is None:
+        raise ValueError("找不到指定銷售單。")
+    if sale.status != "DRAFT":
+        raise ValueError("只有尚未完成的銷售草稿可以修改；已完成銷售請走退貨流程。")
+    if not lines:
+        raise ValueError("銷售明細不可空白。")
+
+    temporary = create_sale_draft(
+        session, company_id=company_id, site_id=sale.site_id,
+        sale_no="TMP-" + uuid4().hex[:24], payment_method=payment_method,
+        lines=lines, card_amount=card_amount, note=note, at=at,
+    )
+    old_lines = list(session.scalars(
+        select(SaleLine).where(SaleLine.sale_id == sale.id)
+    ).all())
+    for old_line in old_lines:
+        session.delete(old_line)
+    session.flush()
+
+    for line in list(temporary.lines):
+        line.sale = sale
+    sale.sale_no = sale_no
+    sale.payment_method = temporary.payment_method
+    sale.currency_code = temporary.currency_code
+    sale.subtotal = temporary.subtotal
+    sale.card_amount = temporary.card_amount
+    sale.card_fee = temporary.card_fee
+    sale.final_amount = temporary.final_amount
+    sale.note = note
+    session.flush()
+    session.delete(temporary)
     session.flush()
     return sale
 
