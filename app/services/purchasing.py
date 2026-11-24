@@ -54,6 +54,64 @@ def create_purchase(session: Session, *, company_id: UUID, site_id: UUID, suppli
     return purchase
 
 
+def update_purchase(
+    session: Session, *, company_id: UUID, purchase_id: UUID, site_id: UUID,
+    supplier_id: UUID, purchase_no: str, order_date: date, expected_date: date | None,
+    currency_code: str, note: str | None, lines: list[dict],
+) -> Purchase:
+    purchase = session.execute(select(Purchase).where(
+        Purchase.id == purchase_id, Purchase.company_id == company_id
+    ).with_for_update()).scalar_one_or_none()
+    if purchase is None:
+        raise ValueError("找不到指定採購單。")
+    if purchase.status != "DRAFT":
+        raise ValueError("只有草稿採購單可以修改。")
+    if not lines:
+        raise ValueError("採購單至少需要一筆商品明細。")
+    if len(currency_code) != 3:
+        raise ValueError("幣別必須使用三碼代碼。")
+    linked_bill = session.scalar(select(SupplierBill.id).where(
+        SupplierBill.purchase_id == purchase_id, SupplierBill.status != "VOID"
+    ).limit(1))
+    if linked_bill is not None:
+        raise ValueError("採購單已有有效供應商帳單，請先處理帳款後再修改。")
+    site = session.get(Site, site_id)
+    if site is None or site.company_id != company_id:
+        raise ValueError("據點不存在或不屬於指定公司。")
+    supplier = session.get(Supplier, supplier_id)
+    if supplier is None or supplier.company_id != company_id:
+        raise ValueError("供應商不存在或不屬於指定公司。")
+    if not supplier.is_active and supplier_id != purchase.supplier_id:
+        raise ValueError("不可將草稿採購單改為停用中的供應商。")
+
+    existing_product_ids = set(session.scalars(select(PurchaseLine.product_id).where(
+        PurchaseLine.purchase_id == purchase_id
+    )).all())
+    product_ids = {item["product_id"] for item in lines}
+    products = {p.id: p for p in session.scalars(select(Product).where(
+        Product.id.in_(product_ids), Product.company_id == company_id
+    )).all()}
+    if len(products) != len(product_ids):
+        raise ValueError("部分商品不存在或不屬於指定公司。")
+    if any(not p.is_active and product_id not in existing_product_ids for product_id, p in products.items()):
+        raise ValueError("不可新增停用中的商品至採購草稿。")
+
+    purchase.site_id = site_id
+    purchase.supplier_id = supplier_id
+    purchase.purchase_no = purchase_no
+    purchase.order_date = order_date
+    purchase.expected_date = expected_date
+    purchase.currency_code = currency_code.upper()
+    purchase.note = note
+    for old_line in list(purchase.lines):
+        session.delete(old_line)
+    session.flush()
+    for item in lines:
+        session.add(PurchaseLine(purchase_id=purchase.id, **item))
+    session.flush()
+    return purchase
+
+
 def submit_purchase(session: Session, *, purchase_id: UUID) -> Purchase:
     purchase = session.execute(select(Purchase).where(Purchase.id == purchase_id).with_for_update()).scalar_one_or_none()
     if purchase is None:
