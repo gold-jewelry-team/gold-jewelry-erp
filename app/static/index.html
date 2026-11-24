@@ -898,10 +898,12 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="supplierContact">聯絡人</label><input id="supplierContact" maxlength="80"></div>
 <div class="field"><label for="supplierPhone">電話</label><input id="supplierPhone" maxlength="40"></div>
 <div class="field"><label for="supplierAddress">地址</label><input id="supplierAddress" maxlength="255"></div>
+<div class="field wide"><label for="supplierNote">備註</label><input id="supplierNote" maxlength="500"></div>
 </div>
-<button type="submit">新增供應商</button>
+<div class="actions"><button id="supplierSubmit" type="submit">新增供應商</button><button id="supplierCancelEdit" class="secondary hidden" type="button">取消編輯</button></div>
 </form>
 <div id="supplierStatus" class="status" role="status"></div>
+<label class="muted"><input id="supplierIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用供應商</label>
 <div id="supplierList" aria-live="polite"><div class="empty">請先選擇公司</div></div>
 </section>
 <section class="panel" id="supplierOfferingPanel">
@@ -1303,6 +1305,7 @@ let currentSalePaymentRows=[];
 let saleReturns=[];
 let selectedReturn=null;
 let suppliersById=new Map();
+let editingSupplierId="";
 let supplierCatalogProductsById=new Map();
 let supplierBillsById=new Map();
 let selectedSupplierBill=null;
@@ -2308,7 +2311,7 @@ async function loadSuppliers(){
   $("supplierProductOfferingList").innerHTML='<div class="empty">請先選擇公司</div>';
   return;
  }
- const rows=await api("/companies/"+companyId+"/suppliers");
+ const rows=await api("/companies/"+companyId+"/suppliers"+($("supplierIncludeInactive")?.checked?"?include_inactive=true":""));
  suppliersById=new Map(rows.map(x=>[x.id,x]));
  const options=rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("billSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
@@ -2320,7 +2323,7 @@ async function loadSuppliers(){
  $("supplierProductFilterSupplier").innerHTML='<option value="">全部供應商</option>'+options;
  await loadSupplierOfferings().catch(error=>message("supplierOfferingStatus",error.message,true));
  await loadSupplierProductOfferings().catch(error=>message("supplierProductOfferingStatus",error.message,true));
- $("supplierList").innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span><span class="muted">統編：'+escapeHtml(x.tax_id||"未填")+' · 聯絡人：'+escapeHtml(x.contact_name||"未填")+' · 電話：'+escapeHtml(x.phone||"未填")+'</span>'+(x.address?'<span class="muted">'+escapeHtml(x.address)+'</span>':'')+'</article>').join(""):'<div class="empty">尚未建立供應商</div>';
+ $("supplierList").innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span>'+(!x.is_active?'<span class="pill">已停用</span>':'')+'<span class="muted">統編：'+escapeHtml(x.tax_id||"未填")+' · 聯絡人：'+escapeHtml(x.contact_name||"未填")+' · 電話：'+escapeHtml(x.phone||"未填")+'</span>'+(x.address?'<span class="muted">'+escapeHtml(x.address)+'</span>':'')+'<div class="actions"><button class="secondary" type="button" data-edit-supplier="'+escapeHtml(x.id)+'">編輯</button><button class="secondary" type="button" data-toggle-supplier="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用":"重新啟用")+'</button></div></article>').join(""):'<div class="empty">尚未建立供應商</div>';
 }
 async function loadSupplierBills(){
  if(!companyId){$("supplierBillList").innerHTML='<div class="empty">請先選擇公司</div>';return;}
@@ -2387,17 +2390,50 @@ $("refreshSupplierOfferings").addEventListener("click",()=>loadSupplierOfferings
 $("refreshSupplierProductOfferings").addEventListener("click",()=>loadSupplierProductOfferings().catch(error=>message("supplierProductOfferingStatus",error.message,true)));
 ["supplierOfferingFilterCategory","supplierOfferingFilterSupplier"].forEach(id=>$(id).addEventListener("change",()=>loadSupplierOfferings().catch(error=>message("supplierOfferingStatus",error.message,true))));
 ["supplierProductFilterSupplier","supplierProductFilterCategory","supplierProductFilterProduct"].forEach(id=>$(id).addEventListener("change",()=>loadSupplierProductOfferings().catch(error=>message("supplierProductOfferingStatus",error.message,true))));
+function resetSupplierEditor(){
+ editingSupplierId="";
+ $("supplierForm").reset();
+ $("supplierSubmit").textContent="新增供應商";
+ $("supplierCancelEdit").classList.add("hidden");
+}
 $("supplierForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId)return;
- const button=$("supplierForm").querySelector('button[type="submit"]');button.disabled=true;
- const payload={code:$("supplierCode").value.trim(),name:$("supplierName").value.trim(),tax_id:$("supplierTaxId").value.trim()||null,contact_name:$("supplierContact").value.trim()||null,phone:$("supplierPhone").value.trim()||null,address:$("supplierAddress").value.trim()||null};
+ const button=$("supplierSubmit");button.disabled=true;
+ const payload={code:$("supplierCode").value.trim(),name:$("supplierName").value.trim(),tax_id:$("supplierTaxId").value.trim()||null,contact_name:$("supplierContact").value.trim()||null,phone:$("supplierPhone").value.trim()||null,address:$("supplierAddress").value.trim()||null,note:$("supplierNote").value.trim()||null};
  try{
-  await api("/companies/"+companyId+"/suppliers",{method:"POST",body:JSON.stringify(payload)});
-  $("supplierForm").reset();message("supplierStatus","供應商已新增。");
+  const wasEditing=Boolean(editingSupplierId);
+  await api("/companies/"+companyId+"/suppliers"+(editingSupplierId?"/"+editingSupplierId:""),{method:editingSupplierId?"PATCH":"POST",body:JSON.stringify(payload)});
+  resetSupplierEditor();message("supplierStatus",wasEditing?"供應商資料已更新。":"供應商已新增。");
   await loadSuppliers();
  }catch(error){message("supplierStatus",error.message,true);}
  finally{button.disabled=false;}
+});
+$("supplierCancelEdit").addEventListener("click",resetSupplierEditor);
+$("supplierIncludeInactive").addEventListener("change",()=>loadSuppliers().catch(error=>message("supplierStatus",error.message,true)));
+$("supplierList").addEventListener("click",async event=>{
+ const edit=event.target.closest("[data-edit-supplier]");
+ const toggle=event.target.closest("[data-toggle-supplier]");
+ if(edit){
+  const supplier=suppliersById.get(edit.dataset.editSupplier);
+  if(!supplier)return;
+  editingSupplierId=supplier.id;
+  $("supplierCode").value=supplier.code||"";$("supplierName").value=supplier.name||"";
+  $("supplierTaxId").value=supplier.tax_id||"";$("supplierContact").value=supplier.contact_name||"";
+  $("supplierPhone").value=supplier.phone||"";$("supplierAddress").value=supplier.address||"";$("supplierNote").value=supplier.note||"";
+  $("supplierSubmit").textContent="儲存供應商修改";$("supplierCancelEdit").classList.remove("hidden");
+  $("supplierCode").focus();return;
+ }
+ if(toggle){
+  const id=toggle.dataset.toggleSupplier;const active=toggle.dataset.active==="true";
+  toggle.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/suppliers/"+id,{method:"PATCH",body:JSON.stringify({is_active:!active})});
+   message("supplierStatus",active?"供應商已停用。":"供應商已重新啟用。");
+   await loadSuppliers();
+  }catch(error){message("supplierStatus",error.message,true);}
+  finally{toggle.disabled=false;}
+ }
 });
 $("supplierBillForm").addEventListener("submit",async event=>{
  event.preventDefault();
