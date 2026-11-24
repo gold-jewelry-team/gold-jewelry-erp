@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.cash_count import DailyCashCount
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
 
+
 def create_cash_count(session: Session, *, company_id: UUID, site_id: UUID, closing_id: UUID,
                       opening_cash_float: Decimal, counted_cash_amount: Decimal,
                       counted_by_name: str, count_note: str | None = None) -> DailyCashCount:
@@ -51,6 +52,7 @@ def create_cash_count(session: Session, *, company_id: UUID, site_id: UUID, clos
     session.flush()
     return row
 
+
 def review_cash_count(session: Session, *, company_id: UUID, site_id: UUID, cash_count_id: UUID,
                       reviewed_by_name: str, review_note: str | None = None) -> DailyCashCount:
     reviewer = reviewed_by_name.strip()
@@ -76,4 +78,3 @@ def review_cash_count(session: Session, *, company_id: UUID, site_id: UUID, cash
     row.review_note = normalized_note
     session.flush()
     return row
-"
