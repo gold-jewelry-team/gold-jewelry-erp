@@ -190,6 +190,10 @@ def _build_integrity_checks(
     )
 
     for currency, bucket in sorted(totals.items()):
+        daily_buckets = [
+            day_bucket for (business_date, day_currency), day_bucket in daily.items()
+            if day_currency == currency
+        ]
         daily_net_sales = sum(
             (row["gross_sales_amount"] + row["return_reversal_amount"]
              for row in daily_buckets),
@@ -212,10 +216,6 @@ def _build_integrity_checks(
             bucket["sales_refunded_amount"] + bucket["return_refunded_amount"]
             + bucket["customer_order_refunded_amount"],
         )
-        daily_buckets = [
-            day_bucket for (business_date, day_currency), day_bucket in daily.items()
-            if day_currency == currency
-        ]
         period_net_operating = (
             bucket["customer_collected_amount"] - bucket["customer_refunded_amount"]
             - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"]
