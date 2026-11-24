@@ -282,19 +282,17 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert updated.json()["lines"][0]["net_weight"] == "1.1000"
         assert updated.json()["note"] == "修改後草稿"
 
-        locked_edit = client.patch(f"/companies/{company_id}/sales/{sale['id']}", json={
-            "site_id": str(site_id), "sale_no": "SO-EDIT-COMPLETED",
-            "payment_method": "CASH",
-            "lines": [{"product_id": str(product_id), "source_location_id": str(location_id)}],
-        })
-        # The original sale remains a draft at this point; completion guard is
-        # asserted immediately after the original sale is completed below.
-
         completed = client.post(
             f"/companies/{company_id}/sales/{sale['id']}/complete"
         )
         assert completed.status_code == 200, completed.text
         assert completed.json()["status"] == "COMPLETED"
+        locked_edit = client.patch(f"/companies/{company_id}/sales/{sale['id']}", json={
+            "site_id": str(site_id), "sale_no": "SO-EDIT-COMPLETED",
+            "payment_method": "CASH",
+            "lines": [{"product_id": str(product_id), "source_location_id": str(location_id)}],
+        })
+        assert locked_edit.status_code == 422
 
         check_session = TestSession()
         assert get_stock_balance(
