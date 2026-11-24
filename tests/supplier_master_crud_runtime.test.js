@@ -9,7 +9,7 @@ const schema = fs.readFileSync("app/routers/schemas/purchasing.py", "utf8");
 test("supplier editor supports create and update without changing the company scope", () => {
   assert.match(html, /data-edit-supplier=/);
   assert.match(html, /method:editingSupplierId\?"PATCH":"POST"/);
-  assert.match(html, /\/companies\/\+companyId\+"\/suppliers"\+\(editingSupplierId\?/);
+  assert.ok(html.includes('api("/companies/"+companyId+"/suppliers"+(editingSupplierId?"/"+editingSupplierId:""),{method:editingSupplierId?"PATCH":"POST"'));
   assert.match(schema, /class SupplierUpdate[\s\S]*?is_active: bool \| None = None/);
 });
 
