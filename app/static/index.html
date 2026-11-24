@@ -3162,6 +3162,7 @@ $("expenseList").addEventListener("click",async event=>{
  }
  if(voidButton){
   const row=expensesById.get(voidButton.dataset.voidExpense);if(!row||row.status!=="UNPAID")return;
+  if(!window.confirm("確定要作廢這筆未付款費用？作廢後會保留紀錄，不能直接復原。"))return;
   voidButton.disabled=true;
   try{
    await api("/companies/"+companyId+"/operating-expenses/"+row.id+"/void",{method:"POST"});
