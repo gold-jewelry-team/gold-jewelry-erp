@@ -51,12 +51,19 @@ jobs:
           from pathlib import Path
           import re
 
-          html = Path("app/static/index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script\b[^>]*>(.*?)</script>", html, re.DOTALL | re.IGNORECASE)
-          assert scripts, "No inline browser script found in app/static/index.html"
-          Path("/tmp/gold-erp-inline.js").write_text("\n".join(scripts), encoding="utf-8")
+          html_files = sorted(Path("app/static").glob("*.html"))
+          assert html_files, "No static HTML pages found"
+          for index, html_file in enumerate(html_files):
+              html = html_file.read_text(encoding="utf-8")
+              scripts = re.findall(r"<script\\b[^>]*>(.*?)</script>", html, re.DOTALL | re.IGNORECASE)
+              if scripts:
+                  target = Path(f"/tmp/gold-erp-inline-{index}.js")
+                  target.write_text("\\n".join(scripts), encoding="utf-8")
+                  print(f"Extracted {len(scripts)} inline script(s) from {html_file}")
           PY
-          node --check /tmp/gold-erp-inline.js
+          for script in /tmp/gold-erp-inline-*.js; do
+            node --check "$script"
+          done
       - name: Run quote workspace runtime tests
         run: node --test tests/quote_workspace_runtime.test.js
       - name: Run dialog focus runtime tests
