@@ -685,9 +685,11 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="companyCode">公司代碼</label><input id="companyCode" required maxlength="30" placeholder="例如 JEWEL"></div>
 <div class="field"><label for="companyName">公司名稱</label><input id="companyName" required maxlength="120" placeholder="銀樓名稱"></div>
 <div class="field"><label for="companyTaxId">統一編號（選填）</label><input id="companyTaxId" maxlength="20" placeholder="例如 12345678"></div>
-<button type="submit">建立公司</button>
+<div class="actions"><button id="companySubmit" type="submit">建立公司</button><button id="companyCancelEdit" class="secondary hidden" type="button">取消編輯</button></div>
 </form>
 <div id="companyStatus" class="status" role="status"></div>
+<label class="muted"><input id="companyIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用公司</label>
+<div id="companyList"></div>
 </section>
 <section class="panel span2">
 <h2>門市／據點設定</h2>
@@ -698,7 +700,9 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="siteName">據點名稱</label><input id="siteName" required maxlength="120" placeholder="例如 總店"></div>
 <div class="field wide"><label for="siteAddress">地址（選填）</label><input id="siteAddress" maxlength="255"></div>
 <div class="field wide"><label for="sitePhone">電話（選填）</label><input id="sitePhone" maxlength="30"></div></div>
-<button type="submit">新增據點</button></form><div id="siteStatus" class="status" role="status"></div>
+<div class="actions"><button id="siteSubmit" type="submit">新增據點</button><button id="siteCancelEdit" class="secondary hidden" type="button">取消編輯</button></div></form><div id="siteStatus" class="status" role="status"></div>
+<label class="muted"><input id="siteIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用據點</label>
+<div id="siteList"></div>
 </section>
 <section class="panel span2">
 <h2>庫存儲存位置</h2><p class="sub">每個據點可建立多個位置，例如展示櫃、保險櫃、倉庫及維修區。</p>
@@ -706,7 +710,8 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="locationName">位置名稱</label><input id="locationName" required maxlength="120" placeholder="例如 展示櫃"></div>
 <div class="field"><label for="locationType">位置類型</label><select id="locationType"><option value="STORE_FLOOR">展示／營業區</option><option value="SAFE">保險櫃</option><option value="WAREHOUSE">倉庫</option><option value="REPAIR">維修區</option><option value="TRANSIT">調撥中</option><option value="OTHER">其他</option></select></div>
 <div class="field"><label for="locationDescription">說明（選填）</label><input id="locationDescription" maxlength="255"></div></div>
-<button type="submit">新增儲存位置</button></form>
+<div class="actions"><button id="locationSubmit" type="submit">新增儲存位置</button><button id="locationCancelEdit" class="secondary hidden" type="button">取消編輯</button></div></form>
+<label class="muted"><input id="locationIncludeInactive" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示已停用儲存位置</label>
 <div id="locationList" class="empty">請先選擇據點</div><div id="locationStatus" class="status" role="status"></div>
 </section>
 <section class="panel span2" id="inventoryStockPanel">
@@ -1295,6 +1300,8 @@ button.secondary:disabled{opacity:.42}
 const $=id=>document.getElementById(id);
 let companyId="";
 let selectedSiteId="";
+let companiesById=new Map(),sitesById=new Map(),storageLocationsById=new Map();
+let editingCompanyId="",editingSiteId="",editingLocationId="";
 let currentGoldPriceRows={BUY:null,SELL:null};
 let goldDisplayUnit=localStorage.getItem("goldDisplayUnit")||"QIAN";
 let categoryNames=new Map();
@@ -1515,26 +1522,48 @@ async function loadLaborCodeConfig(){
 function renderHeaderCompanyName(){const select=$("companySelect");$("headerCompanyName").textContent=select?.selectedOptions?.[0]?.textContent||"尚未選擇";}
 async function loadCompanies(selectId){
  const rows=await api("/companies");
+ const allRows=$("companyIncludeInactive").checked?await api("/companies?include_inactive=true"):rows;
+ companiesById=new Map(allRows.map(x=>[x.id,x]));
  $("companySelect").innerHTML='<option value="">請選擇公司</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
- if(selectId&&rows.some(x=>x.id===selectId)) $("companySelect").value=selectId;
- else if(rows.length===1) $("companySelect").value=rows[0].id;
+ if(selectId&&rows.some(x=>x.id===selectId))$("companySelect").value=selectId;
+ else if(rows.length===1)$("companySelect").value=rows[0].id;
  companyId=$("companySelect").value;renderHeaderCompanyName();
- await loadSites(); await loadCategories(); await loadSequence(); await loadProducts(); await loadLaborCodeConfig();
+ $("companyList").innerHTML=allRows.length?allRows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span>'+(x.tax_id?'<span class="muted">統編：'+escapeHtml(x.tax_id)+'</span>':'')+(!x.is_active?'<span class="pill">已停用</span>':'')+'<div class="actions"><button class="secondary" type="button" data-edit-company="'+escapeHtml(x.id)+'">編輯</button><button class="secondary" type="button" data-toggle-company="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用":"重新啟用")+'</button></div></article>').join(""):'<div class="empty">尚未建立公司</div>';
+ await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();
 }
-function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function resetCompanyEditor(){
+ editingCompanyId="";$("companyForm").reset();$("companySubmit").textContent="建立公司";$("companyCancelEdit").classList.add("hidden");
+}
 async function loadSites(selectId){
  const select=$("siteSelect");selectedSiteId="";selectedClosing=null;$("cashCountPanel").classList.add("hidden");
- if(!companyId){select.innerHTML='<option value="">請先選擇公司</option>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();return;}
+ if(!companyId){
+  select.innerHTML='<option value="">請先選擇公司</option>';$("siteList").innerHTML='<div class="empty">請先選擇公司</div>';$("locationList").innerHTML='<div class="empty">請先選擇據點</div>';
+  await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();return;
+ }
  const rows=await api("/companies/"+companyId+"/sites");
+ const allRows=$("siteIncludeInactive").checked?await api("/companies/"+companyId+"/sites?include_inactive=true"):rows;
+ sitesById=new Map(allRows.map(x=>[x.id,x]));
  select.innerHTML='<option value="">請選擇據點</option>'+rows.map(x=>'<option value="'+x.id+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  if(selectId&&rows.some(x=>x.id===selectId))select.value=selectId;else if(rows.length===1)select.value=rows[0].id;
+ $("siteList").innerHTML=allRows.length?allRows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span>'+(x.address?'<span class="muted">'+escapeHtml(x.address)+'</span>':'')+(x.phone?'<span class="muted">電話：'+escapeHtml(x.phone)+'</span>':'')+(!x.is_active?'<span class="pill">已停用</span>':'')+'<div class="actions"><button class="secondary" type="button" data-edit-site="'+escapeHtml(x.id)+'">編輯</button><button class="secondary" type="button" data-toggle-site="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用":"重新啟用")+'</button></div></article>').join(""):'<div class="empty">此公司尚未建立據點</div>';
  selectedSiteId=select.value;await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();
 }
-async function loadStorageLocations(){
- const box=$("locationList");if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';return;}
- const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations");
- box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.location_type)+'</span><span class="muted">代碼：'+escapeHtml(x.code)+(x.description?' · '+escapeHtml(x.description):'')+'</span></article>').join(""):'<div class="empty">此據點尚未建立儲存位置</div>';
+function resetSiteEditor(){
+ editingSiteId="";$("siteForm").reset();$("siteSubmit").textContent="新增據點";$("siteCancelEdit").classList.add("hidden");
 }
+async function loadStorageLocations(){
+ const box=$("locationList");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇據點</div>';storageLocationsById=new Map();return;}
+ const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations");
+ const allRows=$("locationIncludeInactive").checked?await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations?include_inactive=true"):rows;
+ storageLocationsById=new Map(allRows.map(x=>[x.id,x]));
+ const labels={STORE_FLOOR:"展示／營業區",SAFE:"保險櫃",WAREHOUSE:"倉庫",REPAIR:"維修區",TRANSIT:"調撥中",OTHER:"其他"};
+ box.innerHTML=allRows.length?allRows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(labels[x.location_type]||x.location_type)+'</span><span class="muted">代碼：'+escapeHtml(x.code)+(x.description?' · '+escapeHtml(x.description):'')+'</span>'+(!x.is_active?'<span class="pill">已停用</span>':'')+'<div class="actions"><button class="secondary" type="button" data-edit-location="'+escapeHtml(x.id)+'">編輯</button><button class="secondary" type="button" data-toggle-location="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用":"重新啟用")+'</button></div></article>').join(""):'<div class="empty">此據點尚未建立儲存位置</div>';
+}
+function resetLocationEditor(){
+ editingLocationId="";$("locationForm").reset();$("locationSubmit").textContent="新增儲存位置";$("locationCancelEdit").classList.add("hidden");
+}
+
 async function loadCategories(){
  $("parentCategory").innerHTML='<option value="">無</option>';
  $("productCategory").innerHTML='<option value="">未分類</option>';
@@ -2134,14 +2163,100 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 
-$("siteSelect").addEventListener("change",async()=>{selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
-$("siteForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId){message("siteStatus","請先選擇公司",true);return;}try{const x=await api("/companies/"+companyId+"/sites",{method:"POST",body:JSON.stringify({code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null})});$("siteForm").reset();await loadSites(x.id);message("siteStatus","據點已建立");}catch(err){message("siteStatus",err.message,true);}});
-$("locationForm").addEventListener("submit",async e=>{e.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點",true);return;}try{await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations",{method:"POST",body:JSON.stringify({code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null})});$("locationForm").reset();await loadStorageLocations();await loadInventoryOptions();message("locationStatus","儲存位置已建立");}catch(err){message("locationStatus",err.message,true);}});
-$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;renderHeaderCompanyName();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{resetLocationEditor();selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
+$("siteForm").addEventListener("submit",async event=>{
+ event.preventDefault();if(!companyId){message("siteStatus","請先選擇公司。",true);return;}
+ const button=$("siteSubmit");button.disabled=true;
+ const payload={code:$("siteCode").value.trim(),name:$("siteName").value.trim(),address:$("siteAddress").value.trim()||null,phone:$("sitePhone").value.trim()||null};
+ try{
+  const wasEditing=Boolean(editingSiteId);
+  const result=await api("/companies/"+companyId+"/sites"+(editingSiteId?"/"+editingSiteId:""),{method:editingSiteId?"PATCH":"POST",body:JSON.stringify(payload)});
+  resetSiteEditor();await loadSites(result.id||selectedSiteId);message("siteStatus",wasEditing?"據點資料已更新。":"據點已建立。");
+ }catch(error){message("siteStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("siteCancelEdit").addEventListener("click",resetSiteEditor);
+$("siteIncludeInactive").addEventListener("change",()=>loadSites(selectedSiteId).catch(error=>message("siteStatus",error.message,true)));
+$("siteList").addEventListener("click",async event=>{
+ const edit=event.target.closest("[data-edit-site]"),toggle=event.target.closest("[data-toggle-site]");
+ if(edit){
+  const row=sitesById.get(edit.dataset.editSite);if(!row)return;
+  editingSiteId=row.id;$("siteCode").value=row.code;$("siteName").value=row.name;$("siteAddress").value=row.address||"";$("sitePhone").value=row.phone||"";
+  $("siteSubmit").textContent="儲存據點修改";$("siteCancelEdit").classList.remove("hidden");$("siteCode").focus();return;
+ }
+ if(toggle){
+  const row=sitesById.get(toggle.dataset.toggleSite);if(!row)return;
+  toggle.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/sites/"+row.id,{method:"PATCH",body:JSON.stringify({is_active:!row.is_active})});
+   await loadSites(selectedSiteId);message("siteStatus",row.is_active?"據點已停用。":"據點已重新啟用。");
+  }catch(error){message("siteStatus",error.message,true);}
+  finally{toggle.disabled=false;}
+ }
+});
+$("locationForm").addEventListener("submit",async event=>{
+ event.preventDefault();if(!companyId||!selectedSiteId){message("locationStatus","請先選擇公司與據點。",true);return;}
+ const button=$("locationSubmit");button.disabled=true;
+ const payload={code:$("locationCode").value.trim(),name:$("locationName").value.trim(),location_type:$("locationType").value,description:$("locationDescription").value.trim()||null};
+ try{
+  const wasEditing=Boolean(editingLocationId);
+  await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations"+(editingLocationId?"/"+editingLocationId:""),{method:editingLocationId?"PATCH":"POST",body:JSON.stringify(payload)});
+  resetLocationEditor();await loadStorageLocations();await loadInventoryOptions();message("locationStatus",wasEditing?"儲存位置已更新。":"儲存位置已建立。");
+ }catch(error){message("locationStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("locationCancelEdit").addEventListener("click",resetLocationEditor);
+$("locationIncludeInactive").addEventListener("change",()=>loadStorageLocations().catch(error=>message("locationStatus",error.message,true)));
+$("locationList").addEventListener("click",async event=>{
+ const edit=event.target.closest("[data-edit-location]"),toggle=event.target.closest("[data-toggle-location]");
+ if(edit){
+  const row=storageLocationsById.get(edit.dataset.editLocation);if(!row)return;
+  editingLocationId=row.id;$("locationCode").value=row.code;$("locationName").value=row.name;$("locationType").value=row.location_type;$("locationDescription").value=row.description||"";
+  $("locationSubmit").textContent="儲存位置修改";$("locationCancelEdit").classList.remove("hidden");$("locationCode").focus();return;
+ }
+ if(toggle){
+  const row=storageLocationsById.get(toggle.dataset.toggleLocation);if(!row)return;
+  toggle.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/storage-locations/"+row.id,{method:"PATCH",body:JSON.stringify({is_active:!row.is_active})});
+   await loadStorageLocations();await loadInventoryOptions();message("locationStatus",row.is_active?"儲存位置已停用。":"儲存位置已重新啟用。");
+  }catch(error){message("locationStatus",error.message,true);}
+  finally{toggle.disabled=false;}
+ }
+});
+$("companySelect").addEventListener("change",async()=>{companyId=$("companySelect").value;renderHeaderCompanyName();resetSiteEditor();resetLocationEditor();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
-$("companyForm").addEventListener("submit",async e=>{e.preventDefault();try{const x=await api("/companies",{method:"POST",body:JSON.stringify({code:$("companyCode").value.trim(),name:$("companyName").value.trim(),tax_id:$("companyTaxId").value.trim()||null})});$("companyForm").reset();await loadCompanies(x.id);message("companyStatus","公司已建立");}catch(err){message("companyStatus",err.message,true);}});
+$("companyForm").addEventListener("submit",async event=>{
+ event.preventDefault();const button=$("companySubmit");button.disabled=true;
+ const payload={code:$("companyCode").value.trim(),name:$("companyName").value.trim(),tax_id:$("companyTaxId").value.trim()||null};
+ try{
+  const wasEditing=Boolean(editingCompanyId);
+  const result=await api("/companies"+(editingCompanyId?"/"+editingCompanyId:""),{method:editingCompanyId?"PATCH":"POST",body:JSON.stringify(payload)});
+  resetCompanyEditor();await loadCompanies(result.id);message("companyStatus",wasEditing?"公司資料已更新。":"公司已建立。");
+ }catch(error){message("companyStatus",error.message,true);}
+ finally{button.disabled=false;}
+});
+$("companyCancelEdit").addEventListener("click",resetCompanyEditor);
+$("companyIncludeInactive").addEventListener("change",()=>loadCompanies(companyId).catch(error=>message("companyStatus",error.message,true)));
+$("companyList").addEventListener("click",async event=>{
+ const edit=event.target.closest("[data-edit-company]"),toggle=event.target.closest("[data-toggle-company]");
+ if(edit){
+  const row=companiesById.get(edit.dataset.editCompany);if(!row)return;
+  editingCompanyId=row.id;$("companyCode").value=row.code;$("companyName").value=row.name;$("companyTaxId").value=row.tax_id||"";
+  $("companySubmit").textContent="儲存公司修改";$("companyCancelEdit").classList.remove("hidden");$("companyCode").focus();return;
+ }
+ if(toggle){
+  const row=companiesById.get(toggle.dataset.toggleCompany);if(!row)return;
+  toggle.disabled=true;
+  try{
+   await api("/companies/"+row.id,{method:"PATCH",body:JSON.stringify({is_active:!row.is_active})});
+   await loadCompanies(companyId);message("companyStatus",row.is_active?"公司已停用。":"公司已重新啟用。");
+  }catch(error){message("companyStatus",error.message,true);}
+  finally{toggle.disabled=false;}
+ }
+});
 $("applyCategoryTemplates").addEventListener("click",async()=>{
  if(!companyId){message("categoryStatus","請先選擇公司",true);return;}
  const templates=[
