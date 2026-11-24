@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -641,6 +642,70 @@ def test_mixed_sale_card_and_cash_installments_reconcile_to_daily_close_and_draw
         verify = TestSession()
         assert verify.query(PaymentTransaction).count() == 2
         verify.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+
+def test_return_refund_exact_retry_is_idempotent_and_survives_daily_closing():
+    from zoneinfo import ZoneInfo
+
+    engine, TestSession, ids, now = _payment_context()
+    company_id, site_id, _, _, return_id, _ = ids
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}"
+        url = f"{base}/sales/returns/{return_id}/payments"
+        idempotency_key = str(uuid4())
+        payload = {
+            "payment_method": "TRANSFER",
+            "amount": "120.00",
+            "reference_no": "REFUND-IDEMPOTENT-001",
+            "note": "顧客退貨轉帳退款",
+            "idempotency_key": idempotency_key,
+        }
+
+        first = client.post(url, json=payload)
+        assert first.status_code == 201, first.text
+        assert first.json()["direction"] == "OUT"
+
+        exact_retry = client.post(url, json=payload)
+        assert exact_retry.status_code == 200, exact_retry.text
+        assert exact_retry.json()["id"] == first.json()["id"]
+        assert exact_retry.json()["amount"] == "120.00"
+
+        conflicting_retry = client.post(
+            url, json={**payload, "amount": "121.00"}
+        )
+        assert conflicting_retry.status_code == 409, conflicting_retry.text
+
+        # Close the business day after the original refund was committed.
+        # The exact replay must be served before the daily-closing guard.
+        business_date = now.astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"{base}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+
+        after_close_retry = client.post(url, json=payload)
+        assert after_close_retry.status_code == 200, after_close_retry.text
+        assert after_close_retry.json()["id"] == first.json()["id"]
+
+        listed = client.get(url)
+        assert listed.status_code == 200, listed.text
+        assert len(listed.json()) == 1
+        assert listed.json()[0]["id"] == first.json()["id"]
+
+        check = TestSession()
+        transactions = list(check.query(PaymentTransaction).filter_by(
+            sale_return_id=return_id
+        ).all())
+        assert len(transactions) == 1
+        assert transactions[0].amount == Decimal("120.00")
+        assert transactions[0].idempotency_key.hex == idempotency_key.replace("-", "")
+        check.close()
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
