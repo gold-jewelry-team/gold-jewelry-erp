@@ -10,7 +10,7 @@ test("customer order list supports editing basic data and fulfillment status tra
   assert.match(html, /customerOrderList/);
   assert.match(html, /data-edit-customer-order=/);
   assert.match(html, /data-next-customer-order-status=/);
-  assert.match(html, /customerOrderEditForm/);
+  assert.ok(html.includes('"/customer-orders/"+editingCustomerOrderId'));
   assert.match(html, /customer-orders\/\+editingCustomerOrderId/);
 });
 
