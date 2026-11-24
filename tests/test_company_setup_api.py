@@ -162,6 +162,15 @@ def test_company_site_and_location_update_activation_safety():
     assert stock_blocked.status_code == 409
 
     with TestingSessionLocal() as db:
+        db.add(InventoryMovement(
+            company_id=UUID(company_id),
+            site_id=UUID(site_id),
+            product_id=product_id,
+            movement_type="SALE",
+            from_location_id=UUID(location_id),
+            quantity=1,
+        ))
+        db.commit()
 
     location_off = client.patch(
         f"/companies/{company_id}/sites/{site_id}/storage-locations/{location_id}",
