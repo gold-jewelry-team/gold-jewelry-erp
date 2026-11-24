@@ -5,7 +5,7 @@ import vm from "node:vm";
 
 const html = fs.readFileSync("app/static/index.html", "utf8");
 const startMarker = "const paymentIdempotencyMemory=new Map();";
-const endMarker = "\\nconst statusMessageTimers=new Map();";
+const endMarker = "\nconst statusMessageTimers=new Map();";
 const start = html.indexOf(startMarker);
 const end = html.indexOf(endMarker, start);
 assert.notEqual(start, -1, "Payment idempotency helpers must exist");
@@ -13,9 +13,9 @@ assert.notEqual(end, -1, "Payment retry helpers must end before status message h
 const source = html.slice(start, end);
 
 const saleHandlerStart = html.indexOf('$("salePaymentForm").addEventListener("submit"');
-const saleHandlerEnd = html.indexOf("\\n});", saleHandlerStart) + 4;
+const saleHandlerEnd = html.indexOf("\n});", saleHandlerStart) + 4;
 const returnHandlerStart = html.indexOf('$("returnPaymentForm").addEventListener("submit"');
-const returnHandlerEnd = html.indexOf("\\n});", returnHandlerStart) + 4;
+const returnHandlerEnd = html.indexOf("\n});", returnHandlerStart) + 4;
 assert.notEqual(saleHandlerStart, -1, "Sale payment form handler must exist");
 assert.notEqual(returnHandlerStart, -1, "Return payment form handler must exist");
 const saleHandler = html.slice(saleHandlerStart, saleHandlerEnd);
@@ -174,12 +174,12 @@ test("confirmed success or explicit 4xx rejection can clear the pending payment 
 test("sale and return form handlers catch pending-payload mismatch and always re-enable submit", () => {
   assert.match(
     saleHandler,
-    /let idempotencyKey=null;\\s*try\\s*\\{\\s*idempotencyKey=getPaymentIdempotencyKey\\("sale"/,
+    /let idempotencyKey=null;\s*try\s*\{\s*idempotencyKey=getPaymentIdempotencyKey\("sale"/,
   );
   assert.match(
     returnHandler,
-    /let idempotencyKey=null;\\s*try\\s*\\{\\s*idempotencyKey=getPaymentIdempotencyKey\\("return"/,
+    /let idempotencyKey=null;\s*try\s*\{\s*idempotencyKey=getPaymentIdempotencyKey\("return"/,
   );
-  assert.match(saleHandler, /finally\\s*\\{button.disabled=false;\\}/);
-  assert.match(returnHandler, /finally\\s*\\{button.disabled=false;\\}/);
+  assert.match(saleHandler, /finally\s*\{button.disabled=false;\}/);
+  assert.match(returnHandler, /finally\s*\{button.disabled=false;\}/);
 });
