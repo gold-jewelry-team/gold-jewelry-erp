@@ -52,19 +52,86 @@ def create_bank_account(session: Session, *, company_id: UUID, bank_name: str, a
     session.add(row); session.flush()
     return row
 
-def _site_for_operation(session: Session, company_id: UUID, site_id: UUID, at: datetime) -> Site:
+def _locked_site(session: Session, company_id: UUID, site_id: UUID) -> Site:
     site=session.execute(select(Site).where(Site.id==site_id).with_for_update()).scalar_one_or_none()
     if site is None or site.company_id!=company_id: raise ValueError("據點不存在或不屬於指定公司。")
     if not site.is_active: raise ValueError("據點已停用。")
+    return site
+
+
+def _site_for_operation(session: Session, company_id: UUID, site_id: UUID, at: datetime) -> Site:
+    site=_locked_site(session,company_id,site_id)
     assert_business_day_open(session,site_id=site_id,at=at)
     return site
 
-def _transaction(session: Session, *, account: BankAccount, site_id: UUID, tx_type: str,
+
+class BankTransactionIdempotencyConflict(ValueError):
+    """Raised when a bank operation retry key is reused for different details."""
+
+
+def _find_idempotent_bank_transaction(
+    session: Session, *, company_id: UUID, idempotency_key: UUID | None
+) -> BankTransaction | None:
+    if idempotency_key is None:
+        return None
+    return session.scalar(
+        select(BankTransaction).where(
+            BankTransaction.company_id == company_id,
+            BankTransaction.idempotency_key == idempotency_key,
+        ).with_for_update()
+    )
+
+
+def _validate_cash_operation_retry(
+    session: Session, *, existing: BankTransaction, bank_account_id: UUID,
+    site_id: UUID, transaction_type: str, movement_type: str,
+    movement_direction: str, amount: Decimal, description: str,
+    actor: str, reference_no: str | None, note: str | None,
+) -> BankTransaction:
+    matches = (
+        existing.bank_account_id == bank_account_id
+        and existing.site_id == site_id
+        and existing.transaction_type == transaction_type
+        and existing.direction == ("IN" if transaction_type == "CASH_DEPOSIT" else "OUT")
+        and existing.amount == amount
+        and existing.currency_code == "TWD"
+        and existing.description == description
+        and existing.created_by_name == actor
+        and existing.reference_no == reference_no
+        and existing.note == note
+    )
+    if not matches:
+        raise BankTransactionIdempotencyConflict(
+            "此銀行作業識別碼已用於不同內容，請先核對原銀行流水後再操作。"
+        )
+    movement = session.scalar(
+        select(CashDrawerMovement).where(
+            CashDrawerMovement.bank_transaction_id == existing.id
+        ).with_for_update()
+    )
+    if movement is None or not (
+        movement.company_id == existing.company_id
+        and movement.site_id == site_id
+        and movement.movement_type == movement_type
+        and movement.direction == movement_direction
+        and movement.amount == amount
+        and movement.reference_no == reference_no
+        and movement.description == description
+        and movement.created_by_name == actor
+        and movement.note == note
+    ):
+        raise BankTransactionIdempotencyConflict(
+            "原銀行流水與現金櫃異動未完整配對，請先核對紀錄，不可再次建立。"
+        )
+    return existing
+
+def _transaction(session: Session, *, account: BankAccount, site_id: UUID | None, tx_type: str,
                  direction: str, amount: Decimal, description: str, actor: str,
                  reference_no: str|None, note: str|None, transfer_group_id: UUID|None=None,
-                 occurred_at: datetime) -> BankTransaction:
+                 idempotency_key: UUID | None = None, occurred_at: datetime) -> BankTransaction:
     row=BankTransaction(company_id=account.company_id,bank_account_id=account.id,site_id=site_id,
-        transfer_group_id=transfer_group_id,transaction_type=tx_type,direction=direction,
+        transfer_group_id=transfer_group_id,idempotency_key=idempotency_key,
+        transaction_type=tx_type,direction=direction,
         amount=amount,currency_code="TWD",description=description,created_by_name=actor,
         reference_no=reference_no,note=note,occurred_at=occurred_at)
     session.add(row); session.flush()
@@ -82,49 +149,122 @@ def _cash_movement(session: Session, *, company_id: UUID, site_id: UUID, bank_tx
 
 def record_cash_deposit(session: Session, *, company_id: UUID, site_id: UUID, bank_account_id: UUID,
                         amount: Decimal, created_by_name: str, reference_no: str|None=None,
-                        note: str|None=None) -> BankTransaction:
+                        note: str|None=None, idempotency_key: UUID|None=None,
+                        return_created: bool=False) -> BankTransaction | tuple[BankTransaction, bool]:
     amount=_amount(amount); actor=_actor_text(created_by_name,"經手人")
     description="現金存入銀行"; now=datetime.now(timezone.utc)
-    _site_for_operation(session,company_id,site_id,now)
+    _locked_site(session,company_id,site_id)
+    existing=_find_idempotent_bank_transaction(
+        session,company_id=company_id,idempotency_key=idempotency_key
+    )
+    if existing is not None:
+        row=_validate_cash_operation_retry(
+            session,existing=existing,bank_account_id=bank_account_id,site_id=site_id,
+            transaction_type="CASH_DEPOSIT",movement_type="BANK_DEPOSIT",
+            movement_direction="OUT",amount=amount,description=description,actor=actor,
+            reference_no=reference_no,note=note,
+        )
+        return (row,False) if return_created else row
+    assert_business_day_open(session,site_id=site_id,at=now)
     account=_account(session,company_id,bank_account_id)
     tx=_transaction(session,account=account,site_id=site_id,tx_type="CASH_DEPOSIT",direction="IN",
-        amount=amount,description=description,actor=actor,reference_no=reference_no,note=note,occurred_at=now)
+        amount=amount,description=description,actor=actor,reference_no=reference_no,note=note,
+        idempotency_key=idempotency_key,occurred_at=now)
     _cash_movement(session,company_id=company_id,site_id=site_id,bank_tx=tx,movement_type="BANK_DEPOSIT",
         direction="OUT",amount=amount,description=description,actor=actor,reference_no=reference_no,note=note,occurred_at=now)
-    return tx
+    return (tx,True) if return_created else tx
+
 
 def record_cash_withdrawal(session: Session, *, company_id: UUID, site_id: UUID, bank_account_id: UUID,
                            amount: Decimal, created_by_name: str, reference_no: str|None=None,
-                           note: str|None=None) -> BankTransaction:
+                           note: str|None=None, idempotency_key: UUID|None=None,
+                           return_created: bool=False) -> BankTransaction | tuple[BankTransaction, bool]:
     amount=_amount(amount); actor=_actor_text(created_by_name,"經手人")
     description="銀行提款補充現金櫃"; now=datetime.now(timezone.utc)
-    _site_for_operation(session,company_id,site_id,now)
+    _locked_site(session,company_id,site_id)
+    existing=_find_idempotent_bank_transaction(
+        session,company_id=company_id,idempotency_key=idempotency_key
+    )
+    if existing is not None:
+        row=_validate_cash_operation_retry(
+            session,existing=existing,bank_account_id=bank_account_id,site_id=site_id,
+            transaction_type="CASH_WITHDRAWAL",movement_type="BANK_WITHDRAWAL",
+            movement_direction="IN",amount=amount,description=description,actor=actor,
+            reference_no=reference_no,note=note,
+        )
+        return (row,False) if return_created else row
+    assert_business_day_open(session,site_id=site_id,at=now)
     account=_account(session,company_id,bank_account_id)
     if get_bank_account_balance(session,account)<amount: raise ValueError("銀行帳戶餘額不足，無法提款。")
     tx=_transaction(session,account=account,site_id=site_id,tx_type="CASH_WITHDRAWAL",direction="OUT",
-        amount=amount,description=description,actor=actor,reference_no=reference_no,note=note,occurred_at=now)
+        amount=amount,description=description,actor=actor,reference_no=reference_no,note=note,
+        idempotency_key=idempotency_key,occurred_at=now)
     _cash_movement(session,company_id=company_id,site_id=site_id,bank_tx=tx,movement_type="BANK_WITHDRAWAL",
         direction="IN",amount=amount,description=description,actor=actor,reference_no=reference_no,note=note,occurred_at=now)
-    return tx
+    return (tx,True) if return_created else tx
+
 
 def transfer_between_bank_accounts(session: Session, *, company_id: UUID, from_account_id: UUID,
                                    to_account_id: UUID, amount: Decimal, created_by_name: str,
-                                   reference_no: str|None=None, note: str|None=None) -> tuple[BankTransaction,BankTransaction]:
+                                   reference_no: str|None=None, note: str|None=None,
+                                   idempotency_key: UUID|None=None, return_created: bool=False
+                                   ) -> tuple[BankTransaction,BankTransaction] | tuple[tuple[BankTransaction,BankTransaction], bool]:
     amount=_amount(amount); actor=_actor_text(created_by_name,"經手人")
     if from_account_id==to_account_id: raise ValueError("轉出與轉入不可為同一銀行帳戶。")
     ids=sorted([from_account_id,to_account_id],key=str)
     locked={i:_account(session,company_id,i) for i in ids}
     source,destination=locked[from_account_id],locked[to_account_id]
     if source.currency_code!=destination.currency_code: raise ValueError("不同幣別帳戶不可直接互轉。")
+
+    existing=_find_idempotent_bank_transaction(
+        session,company_id=company_id,idempotency_key=idempotency_key
+    )
+    if existing is not None:
+        pair = None
+        if existing.transaction_type == "TRANSFER_OUT" and existing.transfer_group_id is not None:
+            pair = session.scalar(
+                select(BankTransaction).where(
+                    BankTransaction.company_id == company_id,
+                    BankTransaction.transfer_group_id == existing.transfer_group_id,
+                    BankTransaction.transaction_type == "TRANSFER_IN",
+                ).with_for_update()
+            )
+        matches = (
+            existing.transaction_type == "TRANSFER_OUT"
+            and existing.direction == "OUT"
+            and existing.bank_account_id == source.id
+            and existing.amount == amount
+            and existing.reference_no == reference_no
+            and existing.note == note
+            and existing.created_by_name == actor
+            and pair is not None
+            and pair.transaction_type == "TRANSFER_IN"
+            and pair.direction == "IN"
+            and pair.bank_account_id == destination.id
+            and pair.amount == amount
+            and pair.transfer_group_id == existing.transfer_group_id
+            and pair.reference_no == reference_no
+            and pair.note == note
+            and pair.created_by_name == actor
+        )
+        if not matches:
+            raise BankTransactionIdempotencyConflict(
+                "此銀行作業識別碼已用於不同或不完整的帳戶轉帳，請先核對原銀行流水。"
+            )
+        rows=(existing,pair)
+        return (rows,False) if return_created else rows
+
     if get_bank_account_balance(session,source)<amount: raise ValueError("轉出帳戶餘額不足。")
     now=datetime.now(timezone.utc); group=uuid4()
     out_tx=_transaction(session,account=source,site_id=None,tx_type="TRANSFER_OUT",direction="OUT",
         amount=amount,description=f"轉帳至 {destination.bank_name} {destination.account_last4}",
-        actor=actor,reference_no=reference_no,note=note,transfer_group_id=group,occurred_at=now)
+        actor=actor,reference_no=reference_no,note=note,transfer_group_id=group,
+        idempotency_key=idempotency_key,occurred_at=now)
     in_tx=_transaction(session,account=destination,site_id=None,tx_type="TRANSFER_IN",direction="IN",
         amount=amount,description=f"由 {source.bank_name} {source.account_last4} 轉入",
         actor=actor,reference_no=reference_no,note=note,transfer_group_id=group,occurred_at=now)
-    return out_tx,in_tx
+    rows=(out_tx,in_tx)
+    return (rows,True) if return_created else rows
 
 class BankTransferLinkConflict(ValueError):
     """Raised when an existing transfer payment is linked elsewhere."""
