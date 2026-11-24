@@ -158,7 +158,13 @@ def banking_workspace() -> FileResponse:
     return FileResponse(Path(__file__).parent / "static" / "banking.html")
 
 
-@app.get("/reports", tags=["workspace"], include_in_schema=False)\ndef operational_reports_workspace() -> FileResponse:\n    """Serve the read-only operational reporting workspace."""\n    return FileResponse(Path(__file__).parent / "static" / "reports.html")\n\n\n@app.get("/gold-material", tags=["workspace"], include_in_schema=False)
+@app.get("/reports", tags=["workspace"], include_in_schema=False)
+def operational_reports_workspace() -> FileResponse:
+    """Serve the read-only operational reporting workspace."""
+    return FileResponse(Path(__file__).parent / "static" / "reports.html")
+
+
+@app.get("/gold-material", tags=["workspace"], include_in_schema=False)
 def gold_material_workspace() -> FileResponse:
     """Serve the fine-gold material ledger workspace."""
     return FileResponse(Path(__file__).parent / "static" / "gold_material.html")
