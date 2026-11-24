@@ -267,11 +267,12 @@ async function loadCompanies(){
 }
 async function onCompanyChange(){
  state.companyId=$("companySelect").value;state.siteId="";state.accountId="";state.sites=[];state.accounts=[];state.imports=[];state.lines=[];state.transactions=[];state.snapshots=[];
- if(!state.companyId){$("siteSelect").innerHTML='<option value="">請先選擇公司</option>';renderAccounts();renderTransactions();renderImports();renderLines();status("scopeStatus","請先選擇公司。");return;}
+ if(!state.companyId){state.pendingTransfers=[];$("siteSelect").innerHTML='<option value="">請先選擇公司</option>';renderAccounts();renderTransactions();renderImports();renderLines();renderPendingTransfers();status("scopeStatus","請先選擇公司。");return;}
  const [sites]=await Promise.all([api("/companies/"+state.companyId+"/sites"),loadAccounts(),loadPendingTransfers()]);
  state.sites=sites;$("siteSelect").innerHTML='<option value="">選擇據點</option>'+sites.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'（'+esc(x.code)+'）</option>').join("");
  if(sites.length===1)$("siteSelect").value=sites[0].id;
  state.siteId=$("siteSelect").value;
+ renderPendingTransfers();
  status("scopeStatus","公司資料已載入。","success");
 }
 async function loadAccounts(){
@@ -330,7 +331,7 @@ $("pendingTransferList").addEventListener("click",async e=>{
  finally{button.disabled=false;}
 });
 $("siteSelect").addEventListener("change",()=>{state.siteId=$("siteSelect").value;});
-$("accountSelect").addEventListener("change",async()=>{state.accountId=$("accountSelect").value;await loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error"));});
+$("accountSelect").addEventListener("change",async()=>{state.accountId=$("accountSelect").value;renderPendingTransfers();await loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error"));});
 $("refreshBankData").addEventListener("click",()=>refreshAll().catch(e=>status("cashBankStatus",e.message,"error")));
 $("refreshTransactions").addEventListener("click",()=>loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error")));
 
