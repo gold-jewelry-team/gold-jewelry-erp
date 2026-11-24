@@ -3273,6 +3273,9 @@ $("salesHistoryList").addEventListener("click",async event=>{
    }
    const sale=await api("/companies/"+companyId+"/sales/"+edit.dataset.editSale);
    if(sale.status!=="DRAFT")return;
+   if((sale.lines||[]).some(line=>line.product_id&&(!inventoryProducts.some(item=>item.id===line.product_id)||!inventoryLocations.some(item=>item.id===line.source_location_id)))){
+    message("salesHistoryStatus","此草稿包含已停用或不在目前可用清單的商品／儲位，請先恢復主檔狀態後再編輯。",true);return;
+   }
    editingSaleId=sale.id;currentSale=null;
    $("saleNo").value=sale.sale_no;$("salePaymentMethod").value=sale.payment_method;
    $("saleCardAmount").value=sale.card_amount;$("saleCardAmount").disabled=sale.payment_method!=="MIXED";
