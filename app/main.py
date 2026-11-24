@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.core.config import settings
 from app.routers.health import router as health_router
@@ -58,6 +58,22 @@ app.include_router(bank_accounts_router)
 app.include_router(bank_reconciliation_router)
 app.include_router(bank_reconciliation_snapshots_router)
 app.include_router(bank_reconciliation_reports_router)
+
+
+@app.middleware("http")
+async def maintenance_mode_middleware(request: Request, call_next):
+    """Temporarily block public app/API access while maintenance mode is enabled."""
+    health_paths = {"/health", "/health/db"}
+    if settings.app_maintenance_mode and request.url.path not in health_paths:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "maintenance",
+                "message": "系統暫停服務，請稍後再試。",
+            },
+            headers={"Retry-After": "300"},
+        )
+    return await call_next(request)
 
 
 @app.get("/", tags=["system"])
