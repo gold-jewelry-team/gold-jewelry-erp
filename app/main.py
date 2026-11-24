@@ -149,3 +149,14 @@ def root() -> dict[str, str]:
 def mobile_workspace() -> FileResponse:
     """Serve the mobile-first product and category workspace."""
     return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+@app.get("/banking", tags=["workspace"], include_in_schema=False)
+def banking_workspace() -> FileResponse:
+    """Serve the bank account and reconciliation workspace."""
+    return FileResponse(Path(__file__).parent / "static" / "banking.html")
+
+
+@app.get("/gold-material", tags=["workspace"], include_in_schema=False)
+def gold_material_workspace() -> FileResponse:
+    """Serve the fine-gold material ledger workspace."""
+    return FileResponse(Path(__file__).parent / "static" / "gold_material.html")
