@@ -280,3 +280,44 @@ def test_category_update_rejects_foreign_and_cyclic_parent():
         json={"parent_id": foreign},
     )
     assert rejected.status_code == 404
+
+
+def test_category_deactivation_blocks_active_children_and_reactivation_can_change_parent():
+    company_id = setup_company()
+    old_parent = client.post(
+        f"/companies/{company_id}/product-categories",
+        json={"code": "OLD", "name": "舊上層"},
+    ).json()
+    new_parent = client.post(
+        f"/companies/{company_id}/product-categories",
+        json={"code": "NEW", "name": "新上層"},
+    ).json()
+    child = client.post(
+        f"/companies/{company_id}/product-categories",
+        json={"code": "CHILD", "name": "子分類", "parent_id": old_parent["id"]},
+    ).json()
+
+    blocked_parent = client.patch(
+        f"/companies/{company_id}/product-categories/{old_parent['id']}",
+        json={"is_active": False},
+    )
+    assert blocked_parent.status_code == 409
+
+    child_off = client.patch(
+        f"/companies/{company_id}/product-categories/{child['id']}",
+        json={"is_active": False},
+    )
+    assert child_off.status_code == 200
+    parent_off = client.patch(
+        f"/companies/{company_id}/product-categories/{old_parent['id']}",
+        json={"is_active": False},
+    )
+    assert parent_off.status_code == 200
+
+    child_reactivated = client.patch(
+        f"/companies/{company_id}/product-categories/{child['id']}",
+        json={"is_active": True, "parent_id": new_parent["id"]},
+    )
+    assert child_reactivated.status_code == 200, child_reactivated.text
+    assert child_reactivated.json()["parent_id"] == new_parent["id"]
+    assert child_reactivated.json()["is_active"] is True
