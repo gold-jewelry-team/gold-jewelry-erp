@@ -2,13 +2,14 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.bank_account import BankAccount, BankTransaction
-from app.services.bank_accounts import create_bank_account, get_bank_account_balance, record_cash_deposit, record_cash_withdrawal, transfer_between_bank_accounts
+from app.services.bank_accounts import (BankTransferLinkConflict, create_bank_account, get_bank_account_balance, link_transfer_source_to_bank_account, list_unlinked_transfer_sources, record_cash_deposit, record_cash_withdrawal, transfer_between_bank_accounts)
 
 router=APIRouter(prefix="/companies/{company_id}/bank-accounts",tags=["bank accounts"])
 def get_db():
@@ -48,6 +49,8 @@ class BankTransactionRead(BaseModel):
     site_id:UUID|None
     statement_line_id:UUID|None
     transfer_group_id:UUID|None
+    source_type:str|None
+    source_id:UUID|None
     transaction_type:str
     direction:str
     amount:Decimal
@@ -65,6 +68,12 @@ class CashBankOperation(BaseModel):
     created_by_name:str=Field(min_length=1,max_length=120)
     reference_no:str|None=Field(default=None,max_length=100)
     note:str|None=Field(default=None,max_length=500)
+
+class TransferSourceLinkCreate(BaseModel):
+    source_type:str=Field(pattern="^(PAYMENT_TRANSACTION|SUPPLIER_PAYMENT|OPERATING_EXPENSE)$")
+    source_id:UUID
+    created_by_name:str=Field(min_length=1,max_length=120)
+
 
 class BankTransferCreate(BaseModel):
     from_account_id:UUID
@@ -95,6 +104,45 @@ def get_bank_accounts(company_id:UUID,include_inactive:bool=False,db:Session=Dep
     if not include_inactive: q=q.where(BankAccount.is_active.is_(True))
     accounts=list(db.scalars(q.order_by(BankAccount.bank_name,BankAccount.account_name)).all())
     return [{"account":a,"current_balance":get_bank_account_balance(db,a)} for a in accounts]
+
+@router.get("/pending-transfers")
+def get_pending_transfers(
+    company_id:UUID,
+    limit:int=Query(default=200,ge=1,le=500),
+    db:Session=Depends(get_db),
+):
+    return list_unlinked_transfer_sources(db,company_id=company_id,limit=limit)
+
+
+@router.post("/{account_id}/transfer-links",response_model=BankTransactionRead,status_code=201)
+def post_transfer_link(
+    company_id:UUID,
+    account_id:UUID,
+    payload:TransferSourceLinkCreate,
+    response:Response,
+    db:Session=Depends(get_db),
+):
+    try:
+        row,created=link_transfer_source_to_bank_account(
+            db,
+            company_id=company_id,
+            bank_account_id=account_id,
+            **payload.model_dump(),
+        )
+        if not created:
+            response.status_code=200
+        db.commit()
+        return db.get(BankTransaction,row.id)
+    except BankTransferLinkConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409,detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409,detail="此筆轉帳來源已被其他請求連結，請重新整理清單。") from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422,detail=str(exc)) from exc
+
 
 @router.get("/{account_id}/transactions",response_model=list[BankTransactionRead])
 def get_bank_transactions(company_id:UUID,account_id:UUID,from_at:datetime|None=None,to_at:datetime|None=None,

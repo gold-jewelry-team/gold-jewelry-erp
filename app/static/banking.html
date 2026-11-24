@@ -119,6 +119,19 @@ th{background:#f6f8f5;color:#4a574d;white-space:nowrap}td{color:#3b433d}tr:last-
  <div id="transactionList"><div class="empty">請先選擇銀行帳戶</div></div>
 </section>
 
+<section class="panel" id="pendingTransferPanel">
+ <h2>待連結轉帳收付款</h2>
+ <p class="sub">銷售收款、退貨退款、供應商付款及已付款費用若選擇「轉帳」，會先留在來源帳務。請選擇正確的銀行帳戶，再將來源紀錄連結成銀行流水；連結不會再次改動現金櫃或原收付款紀錄。</p>
+ <div class="notice">同一筆來源只能連結一次。若付款日期早於銀行帳戶期初餘額日期，系統會拒絕連結，避免把已含在期初餘額的交易重複加總。連結後會成為銀行流水，不提供直接刪除；請在確認銀行帳戶無誤後再操作。</div>
+ <div class="grid">
+  <div class="field"><label for="transferLinkActor">連結經手人</label><input id="transferLinkActor" maxlength="120" placeholder="輸入經手人"></div>
+  <div class="field"><label>目前連結目標帳戶</label><input id="transferLinkTarget" value="請選擇上方銀行帳戶" readonly></div>
+ </div>
+ <div class="actions"><button type="button" class="secondary" id="refreshPendingTransfers">更新待連結清單</button></div>
+ <div id="pendingTransferStatus" class="status" role="status"></div>
+ <div id="pendingTransferList"><div class="empty">請先選擇公司</div></div>
+</section>
+
 <section class="panel">
  <h2>匯入銀行對帳單 CSV</h2>
  <p class="sub">選擇銀行提供的 CSV 檔。檔案須包含 transaction_date、description、amount、direction 欄位；日期格式 YYYY-MM-DD，方向使用 IN 或 OUT，金額最多兩位小數。</p>
@@ -182,7 +195,7 @@ th{background:#f6f8f5;color:#4a574d;white-space:nowrap}td{color:#3b433d}tr:last-
 "use strict";
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
-const state={companyId:"",siteId:"",accountId:"",accounts:[],sites:[],imports:[],lines:[],transactions:[],snapshots:[]};
+const state={companyId:"",siteId:"",accountId:"",accounts:[],sites:[],imports:[],lines:[],transactions:[],snapshots:[],pendingTransfers:[]};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -209,6 +222,19 @@ function renderAccounts(){
 }
 function renderTransactions(){
  $("transactionList").innerHTML=state.transactions.length?'<div class="table-wrap"><table><thead><tr><th>日期</th><th>類型</th><th>方向</th><th>金額</th><th>交易編號</th><th>說明／經手人</th></tr></thead><tbody>'+state.transactions.map(x=>'<tr><td>'+esc(fmtDate(x.occurred_at))+'</td><td>'+esc(x.transaction_type)+'</td><td><span class="pill">'+(x.direction==="IN"?"收入":"支出")+'</span></td><td>NT$ '+fmtMoney(x.amount)+'</td><td>'+esc(x.reference_no||"—")+'</td><td>'+esc(x.description)+'<br><span class="muted">'+esc(x.created_by_name)+'</span></td></tr>').join("")+'</tbody></table></div>':'<div class="empty">此帳戶尚無流水</div>';
+}
+
+function transferSourceLabel(type){
+ return ({PAYMENT_TRANSACTION:"客戶收付款",SUPPLIER_PAYMENT:"供應商付款",OPERATING_EXPENSE:"營業費用"})[type]||type;
+}
+function renderPendingTransfers(){
+ $("transferLinkTarget").value=selectedAccount()?accountText(selectedAccount()):"請選擇上方銀行帳戶";
+ $("pendingTransferList").innerHTML=state.pendingTransfers.length?'<div class="table-wrap"><table><thead><tr><th>付款日期</th><th>來源</th><th>單號／說明</th><th>方向</th><th>金額</th><th>參考編號</th><th>操作</th></tr></thead><tbody>'+state.pendingTransfers.map(x=>'<tr><td>'+esc(fmtDate(x.occurred_at))+'</td><td>'+esc(transferSourceLabel(x.source_type))+'</td><td>'+esc(x.source_no)+'<br><span class="muted">'+esc(x.description)+'</span></td><td><span class="pill">'+(x.direction==="IN"?"銀行收入":"銀行支出")+'</span></td><td>NT$ '+fmtMoney(x.amount)+'</td><td>'+esc(x.reference_no||"—")+'</td><td><button type="button" '+(!state.accountId?'disabled':'')+' data-link-source-type="'+esc(x.source_type)+'" data-link-source-id="'+esc(x.source_id)+'">連結至此帳戶</button></td></tr>').join("")+'</tbody></table></div>':'<div class="empty">目前沒有尚未連結的轉帳收付款</div>';
+}
+async function loadPendingTransfers(){
+ if(!state.companyId){state.pendingTransfers=[];renderPendingTransfers();return;}
+ state.pendingTransfers=await api("/companies/"+state.companyId+"/bank-accounts/pending-transfers?limit=500");
+ renderPendingTransfers();
 }
 function renderImports(){
  $("importSelect").innerHTML='<option value="">請選擇批次</option>'+state.imports.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.source_file_name)+' · '+esc(x.row_count)+' 筆 · '+esc(fmtDate(x.created_at))+'</option>').join("");
@@ -241,11 +267,12 @@ async function loadCompanies(){
 }
 async function onCompanyChange(){
  state.companyId=$("companySelect").value;state.siteId="";state.accountId="";state.sites=[];state.accounts=[];state.imports=[];state.lines=[];state.transactions=[];state.snapshots=[];
- if(!state.companyId){$("siteSelect").innerHTML='<option value="">請先選擇公司</option>';renderAccounts();renderTransactions();renderImports();renderLines();status("scopeStatus","請先選擇公司。");return;}
- const [sites]=await Promise.all([api("/companies/"+state.companyId+"/sites"),loadAccounts()]);
+ if(!state.companyId){state.pendingTransfers=[];$("siteSelect").innerHTML='<option value="">請先選擇公司</option>';renderAccounts();renderTransactions();renderImports();renderLines();renderPendingTransfers();status("scopeStatus","請先選擇公司。");return;}
+ const [sites]=await Promise.all([api("/companies/"+state.companyId+"/sites"),loadAccounts(),loadPendingTransfers()]);
  state.sites=sites;$("siteSelect").innerHTML='<option value="">選擇據點</option>'+sites.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'（'+esc(x.code)+'）</option>').join("");
  if(sites.length===1)$("siteSelect").value=sites[0].id;
  state.siteId=$("siteSelect").value;
+ renderPendingTransfers();
  status("scopeStatus","公司資料已載入。","success");
 }
 async function loadAccounts(){
@@ -257,7 +284,7 @@ async function loadAccounts(){
  if(state.accountId)await loadAccountDetails();
 }
 async function loadAccountDetails(){
- if(!state.companyId||!state.accountId){state.transactions=[];state.imports=[];state.snapshots=[];renderTransactions();renderImports();renderSnapshots();return;}
+ if(!state.companyId||!state.accountId){state.transactions=[];state.imports=[];state.snapshots=[];renderTransactions();renderImports();renderSnapshots();renderPendingTransfers();return;}
  const base="/companies/"+state.companyId+"/bank-accounts/"+state.accountId;
  const [transactions,imports,snapshots]=await Promise.all([
   api(base+"/transactions?limit=500"),api(base+"/statement-imports"),api(base+"/reconciliation-snapshots")
@@ -280,10 +307,34 @@ async function refreshAll(){
  await loadAccounts();await loadAccountDetails();
 }
 $("companySelect").addEventListener("change",()=>onCompanyChange().catch(e=>status("scopeStatus",e.message,"error")));
+$("refreshPendingTransfers").addEventListener("click",()=>loadPendingTransfers().then(()=>status("pendingTransferStatus","待連結清單已更新。","success")).catch(e=>status("pendingTransferStatus",e.message,"error")));
+$("pendingTransferList").addEventListener("click",async e=>{
+ const button=e.target.closest("[data-link-source-type]");
+ if(!button)return;
+ if(!state.companyId||!state.accountId){status("pendingTransferStatus","請先選擇銀行帳戶。","error");return;}
+ const actor=$("transferLinkActor").value.trim();
+ if(!actor){status("pendingTransferStatus","請先填寫連結經手人。","error");$("transferLinkActor").focus();return;}
+ if(!confirm("確定將這筆轉帳付款連結至「"+accountText(selectedAccount())+"」？\n此操作只建立銀行流水，不會重複記入現金櫃。"))return;
+ button.disabled=true;
+ status("pendingTransferStatus","正在連結轉帳來源…");
+ try{
+  const path="/companies/"+state.companyId+"/bank-accounts/"+state.accountId+"/transfer-links";
+  const row=await api(path,{method:"POST",body:JSON.stringify({
+   source_type:button.dataset.linkSourceType,
+   source_id:button.dataset.linkSourceId,
+   created_by_name:actor
+  })});
+  status("pendingTransferStatus",(row.description||"轉帳來源")+" 已連結至銀行流水。","success");
+  await refreshAll();
+  await loadPendingTransfers();
+ }catch(error){status("pendingTransferStatus",error.message,"error");}
+ finally{button.disabled=false;}
+});
 $("siteSelect").addEventListener("change",()=>{state.siteId=$("siteSelect").value;});
-$("accountSelect").addEventListener("change",async()=>{state.accountId=$("accountSelect").value;await loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error"));});
+$("accountSelect").addEventListener("change",async()=>{state.accountId=$("accountSelect").value;renderPendingTransfers();await loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error"));});
 $("refreshBankData").addEventListener("click",()=>refreshAll().catch(e=>status("cashBankStatus",e.message,"error")));
 $("refreshTransactions").addEventListener("click",()=>loadAccountDetails().catch(e=>status("scopeStatus",e.message,"error")));
+
 $("accountList").addEventListener("click",async e=>{const b=e.target.closest("[data-use-account]");if(!b)return;state.accountId=b.dataset.useAccount;$("accountSelect").value=state.accountId;await loadAccountDetails().catch(err=>status("scopeStatus",err.message,"error"));});
 $("accountForm").addEventListener("submit",async e=>{
  e.preventDefault();const button=e.submitter;button.disabled=true;status("accountStatus","正在建立帳戶…");
