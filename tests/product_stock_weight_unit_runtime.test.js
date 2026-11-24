@@ -19,3 +19,20 @@ test("product cards render localized weight units", () => {
   );
   assert.doesNotMatch(html, /escapeHtml\(x\.weight_unit_code\)/);
 });
+
+ 
+test("inventory movement records render localized weight units", () => {
+  assert.match(
+    html,
+    /escapeHtml\(x\.weight\)\s*\+\s*' '\s*\+\s*escapeHtml\(goldUnitLabel\(x\.weight_unit_code\s*\|\|\s*"QIAN"\)\)/
+  );
+  assert.doesNotMatch(html, /escapeHtml\(x\.weight_unit_code\s*\|\|\s*""\)/);
+});
+
+test("purchase cart lines render localized weight units", () => {
+  assert.match(
+    html,
+    /escapeHtml\(line\.weight\?\?"未填"\)\s*\+\s*' '\s*\+\s*escapeHtml\(goldUnitLabel\(line\.weight_unit_code\s*\|\|\s*"QIAN"\)\)/
+  );
+  assert.doesNotMatch(html, /escapeHtml\(line\.weight_unit_code\s*\|\|\s*""\)/);
+});
