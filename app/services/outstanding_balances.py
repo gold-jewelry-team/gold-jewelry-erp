@@ -138,7 +138,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
     ).where(
         SupplierBill.company_id == company_id,
         SupplierBill.site_id == site_id,
-        SupplierBill.status.in_(("OPEN", "PARTIALLY_PAID")),
+        SupplierBill.status != "VOID",
     ).order_by(SupplierBill.due_date, SupplierBill.bill_date.desc())).all()
     for bill in bills:
         outstanding = bill.outstanding_amount
