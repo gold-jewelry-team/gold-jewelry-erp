@@ -142,12 +142,12 @@ def update_product_category(company_id: UUID, category_id: UUID, payload: Produc
             raise HTTPException(status_code=409, detail="此分類仍有啟用中的商品，請先將商品改分類或停用。")
         if active_child is not None:
             raise HTTPException(status_code=409, detail="此分類仍有啟用中的下層分類，請先調整下層分類。")
-    if changes.get("is_active") is True and category.parent_id is not None:
+    if changes.get("is_active") is True and next_parent_id is not None:
         parent = db.scalar(select(ProductCategory).where(
-            ProductCategory.id == category.parent_id, ProductCategory.company_id == company_id
+            ProductCategory.id == next_parent_id, ProductCategory.company_id == company_id
         ))
         if parent is None or not parent.is_active:
-            raise HTTPException(status_code=422, detail="請先重新啟用上層分類。")
+            raise HTTPException(status_code=422, detail="請先選擇或重新啟用有效的上層分類。")
     for field, value in changes.items():
         setattr(category, field, value)
     try:
