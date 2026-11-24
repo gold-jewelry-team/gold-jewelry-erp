@@ -31,6 +31,7 @@ from app.routers.bank_accounts import router as bank_accounts_router
 from app.routers.bank_reconciliation import router as bank_reconciliation_router
 from app.routers.bank_reconciliation_snapshots import router as bank_reconciliation_snapshots_router
 from app.routers.bank_reconciliation_reports import router as bank_reconciliation_reports_router
+from app.routers.operational_reports import router as operational_reports_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -62,6 +63,7 @@ app.include_router(bank_accounts_router)
 app.include_router(bank_reconciliation_router)
 app.include_router(bank_reconciliation_snapshots_router)
 app.include_router(bank_reconciliation_reports_router)
+app.include_router(operational_reports_router)
 
 
 @app.middleware("http")
