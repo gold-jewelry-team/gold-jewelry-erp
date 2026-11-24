@@ -154,6 +154,14 @@ def test_company_site_and_location_update_activation_safety():
         ))
         db.commit()
         product_id = product.id
+
+    stock_blocked = client.patch(
+        f"/companies/{company_id}/sites/{site_id}/storage-locations/{location_id}",
+        json={"is_active": False},
+    )
+    assert stock_blocked.status_code == 409
+
+    with TestingSessionLocal() as db:
         db.add(InventoryMovement(
             company_id=UUID(company_id),
             site_id=UUID(site_id),
@@ -163,12 +171,6 @@ def test_company_site_and_location_update_activation_safety():
             quantity=1,
         ))
         db.commit()
-
-    stock_blocked = client.patch(
-        f"/companies/{company_id}/sites/{site_id}/storage-locations/{location_id}",
-        json={"is_active": False},
-    )
-    assert stock_blocked.status_code == 409
 
     location_off = client.patch(
         f"/companies/{company_id}/sites/{site_id}/storage-locations/{location_id}",
