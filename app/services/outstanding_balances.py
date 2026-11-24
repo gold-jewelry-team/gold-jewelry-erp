@@ -65,6 +65,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
             add_item(sale.currency_code, {
                 "category": "SALE_RECEIVABLE",
                 "side": "RECEIVABLE",
+                "source_target": "salesPanel",
                 "category_label": "銷售待收尾款",
                 "document_id": str(sale.id),
                 "document_no": sale.sale_no,
@@ -92,6 +93,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
         if outstanding > ZERO:
             add_item(returned.currency_code, {
                 "category": "RETURN_RECEIVABLE" if direction == "IN" else "RETURN_REFUND_PAYABLE",
+                "source_target": "salesPanel",
                 "side": "RECEIVABLE" if direction == "IN" else "PAYABLE",
                 "category_label": "退貨待收款" if direction == "IN" else "退貨待退款",
                 "document_id": str(returned.id),
@@ -121,6 +123,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
             add_item(order.currency_code, {
                 "category": "CUSTOMER_ORDER_BALANCE",
                 "side": "RECEIVABLE",
+                "source_target": "customerOrderList",
                 "category_label": "客訂待收尾款",
                 "document_id": str(order.id),
                 "document_no": order.order_no,
@@ -151,6 +154,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
             add_item(bill.currency_code, {
                 "category": "SUPPLIER_PAYABLE",
                 "side": "PAYABLE",
+                "source_target": "supplierPayablesPanel",
                 "category_label": "供應商待付款",
                 "document_id": str(bill.id),
                 "document_no": bill.bill_no,

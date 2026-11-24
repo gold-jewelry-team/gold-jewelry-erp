@@ -209,11 +209,15 @@ def test_operational_report_lists_current_open_balances_by_currency_and_source()
 
         items = {row["document_no"]: row for row in outstanding["items"]}
         assert items["OPEN-SALE-001"]["amount"] == "700.00"
+        assert items["OPEN-SALE-001"]["source_target"] == "salesPanel"
         assert items["OPEN-RETURN-001"]["amount"] == "60.00"
         assert items["OPEN-RETURN-001"]["category_label"] == "退貨待退款"
         assert items["OPEN-RETURN-001"]["side"] == "PAYABLE"
+        assert items["OPEN-RETURN-001"]["source_target"] == "salesPanel"
         assert items["OPEN-ORDER-001"]["amount"] == "400.00"
+        assert items["OPEN-ORDER-001"]["source_target"] == "customerOrderList"
         assert items["OPEN-BILL-001"]["amount"] == "500.00"
+        assert items["OPEN-BILL-001"]["source_target"] == "supplierPayablesPanel"
         assert items["OPEN-BILL-001"]["days_overdue"] is not None
         assert items["OPEN-SALE-USD"]["currency_code"] == "USD"
         assert len(summaries) == 2

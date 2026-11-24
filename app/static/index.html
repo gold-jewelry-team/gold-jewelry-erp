@@ -4760,5 +4760,19 @@ document.addEventListener("click",function(event){
   window.setTimeout(function(){try{target.focus({preventScroll:true});}catch(_){target.focus();}},350);
  }));
 });
+
+/* 從營運報表帶入來源作業區：只允許已知面板 ID，避免任意 DOM 導航。 */
+(function(){
+ const allowedFocusTargets=new Set(["salesPanel","customerOrderList","supplierPayablesPanel"]);
+ const requestedFocus=new URLSearchParams(window.location.search).get("focus");
+ if(!allowedFocusTargets.has(requestedFocus))return;
+ const trigger=document.createElement("button");
+ trigger.type="button";
+ trigger.hidden=true;
+ trigger.setAttribute("data-home-target",requestedFocus);
+ document.body.appendChild(trigger);
+ trigger.click();
+ trigger.remove();
+})();
 </script>
 </body></html>
