@@ -190,10 +190,15 @@ def _build_integrity_checks(
     )
 
     for currency, bucket in sorted(totals.items()):
+        daily_net_sales = sum(
+            (row["gross_sales_amount"] + row["return_reversal_amount"]
+             for row in daily_buckets),
+            ZERO,
+        )
         add(
-            currency, "net_sales", "銷售淨額計算",
+            currency, "net_sales", "銷售淨額與每日加總",
             bucket["gross_sales_amount"] + bucket["return_reversal_amount"],
-            bucket["gross_sales_amount"] + bucket["return_reversal_amount"],
+            daily_net_sales,
         )
         add(
             currency, "customer_collected_sources", "客戶收款來源加總",
@@ -207,32 +212,36 @@ def _build_integrity_checks(
             bucket["sales_refunded_amount"] + bucket["return_refunded_amount"]
             + bucket["customer_order_refunded_amount"],
         )
-        add(
-            currency, "net_operating_cash_flow", "營運現金流計算",
-            bucket["customer_collected_amount"] - bucket["customer_refunded_amount"]
-            - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"],
-            bucket["customer_collected_amount"] - bucket["customer_refunded_amount"]
-            - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"],
-        )
-        cash_method = bucket["payment_methods"].get("CASH", {})
-        add(
-            currency, "expected_cash_change", "現金櫃預期變動計算",
-            cash_method.get("customer_collected_amount", ZERO)
-            - cash_method.get("customer_refunded_amount", ZERO)
-            - cash_method.get("supplier_paid_amount", ZERO)
-            - cash_method.get("expenses_paid_amount", ZERO)
-            + bucket["cash_drawer_in_amount"] - bucket["cash_drawer_out_amount"],
-            cash_method.get("customer_collected_amount", ZERO)
-            - cash_method.get("customer_refunded_amount", ZERO)
-            - cash_method.get("supplier_paid_amount", ZERO)
-            - cash_method.get("expenses_paid_amount", ZERO)
-            + bucket["cash_drawer_in_amount"] - bucket["cash_drawer_out_amount"],
-        )
-
         daily_buckets = [
             day_bucket for (business_date, day_currency), day_bucket in daily.items()
             if day_currency == currency
         ]
+        period_net_operating = (
+            bucket["customer_collected_amount"] - bucket["customer_refunded_amount"]
+            - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"]
+        )
+        daily_net_operating = sum((
+            row["customer_collected_amount"] - row["customer_refunded_amount"]
+            - row["supplier_paid_amount"] - row["expenses_paid_amount"]
+            for row in daily_buckets
+        ), ZERO)
+        add(
+            currency, "net_operating_cash_flow", "營運現金流與每日加總",
+            period_net_operating, daily_net_operating,
+        )
+        def cash_change(row):
+            cash = row["payment_methods"].get("CASH", {})
+            return (
+                cash.get("customer_collected_amount", ZERO)
+                - cash.get("customer_refunded_amount", ZERO)
+                - cash.get("supplier_paid_amount", ZERO)
+                - cash.get("expenses_paid_amount", ZERO)
+                + row["cash_drawer_in_amount"] - row["cash_drawer_out_amount"]
+            )
+        add(
+            currency, "expected_cash_change", "現金櫃預期變動與每日加總",
+            cash_change(bucket), sum((cash_change(row) for row in daily_buckets), ZERO),
+        )
         daily_matches = all(
             sum((row.get(field, 0) for row in daily_buckets), 0) == bucket[field]
             for field in (*amount_fields, *count_fields)
