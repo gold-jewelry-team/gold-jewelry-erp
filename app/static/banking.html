@@ -220,7 +220,9 @@ function pendingBankOperationKey(storageKey,payload){
  return key;
 }
 function clearRejectedBankOperationKey(storageKey,error){
- if(Number.isInteger(error?.status)&&error.status>=400&&error.status<500)
+ // Only a definitive validation rejection is safe to forget. A 409 may mean
+ // this key already belongs to a committed operation with different details.
+ if(error?.status===422)
   localStorage.removeItem(storageKey);
 }
 function status(id,msg="",kind=""){const el=$(id);el.textContent=msg;el.className="status"+(kind?" "+kind:"");}

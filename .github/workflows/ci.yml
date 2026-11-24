@@ -134,6 +134,8 @@ jobs:
         run: node --test tests/purchase_draft_edit_runtime.test.js
       - name: Run supplier bill management runtime tests
         run: node --test tests/supplier_bill_management_runtime.test.js
+      - name: Run bank operation retry conflict runtime tests
+        run: node --test tests/bank_operation_retry_conflict_runtime.test.js
       - name: Run customer order management runtime tests
         run: node --test tests/customer_order_management_runtime.test.js
       - name: Run sale draft edit runtime tests
