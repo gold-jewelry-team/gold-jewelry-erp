@@ -78,6 +78,8 @@ def update_purchase(
     site = session.get(Site, site_id)
     if site is None or site.company_id != company_id:
         raise ValueError("據點不存在或不屬於指定公司。")
+    if not site.is_active and site_id != purchase.site_id:
+        raise ValueError("不可將草稿採購單移至停用中的據點。")
     supplier = session.get(Supplier, supplier_id)
     if supplier is None or supplier.company_id != company_id:
         raise ValueError("供應商不存在或不屬於指定公司。")
