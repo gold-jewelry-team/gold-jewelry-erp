@@ -58,5 +58,11 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          alembic current
-          alembic current | grep -q "0028_estimate_sale_returns"
+          expected_revision="0029_cash_drawer_idempotency"
+          current_revision="$(alembic current)"
+          printf '%s\n' "$current_revision"
+
+          if ! printf '%s\n' "$current_revision" | grep -Eq "(^|[[:space:]])${expected_revision}([[:space:]]|$)"; then
+            echo "::error::Expected Alembic revision ${expected_revision}, but the database is not at that revision."
+            exit 1
+          fi
