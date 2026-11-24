@@ -4,8 +4,12 @@ on:
   push:
     branches:
       - main
-      - "feature/**"
   pull_request:
+
+# Avoid spending Actions minutes on stale commits when newer changes arrive.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
