@@ -3041,7 +3041,7 @@ $("purchaseList").addEventListener("click",async event=>{
    return {product_id:line.product_id,product,quantity:String(line.quantity),weight:line.weight===null?null:String(line.weight),weight_unit_code:line.weight_unit_code||"QIAN",unit_cost:String(line.unit_cost),cost_labor_fee:String(line.cost_labor_fee||0),note:line.note||null};
   });
   renderPurchaseCart();$("createPurchase").textContent="儲存採購草稿修改";$("cancelPurchaseEdit").classList.remove("hidden");
-  $("purchaseHeaderForm").scrollIntoView({behavior:"smooth",block:"start"});return;
+  $("purchaseHeaderForm").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});return;
  }
  const submit=event.target.closest("[data-submit-purchase]");
  const cancel=event.target.closest("[data-cancel-purchase]");
