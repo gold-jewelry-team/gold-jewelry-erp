@@ -106,6 +106,8 @@ jobs:
         run: node --test tests/supplier_master_crud_runtime.test.js
       - name: Run product category CRUD runtime tests
         run: node --test tests/product_category_crud_runtime.test.js
+      - name: Run product activation UI runtime tests
+        run: node --test tests/product_activation_ui_runtime.test.js
       - name: Run tests
         run: pytest -q
       - name: Upgrade PostgreSQL schema to head
