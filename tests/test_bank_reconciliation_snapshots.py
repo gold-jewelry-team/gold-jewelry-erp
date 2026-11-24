@@ -63,3 +63,59 @@ def test_reconciliation_snapshot_flags_unmatched_and_balance_difference():
     assert row.net_difference==Decimal("100.00")
     assert row.unmatched_ledger_count==1
     engine.dispose()
+
+
+def test_ignored_offsetting_statement_lines_never_mark_snapshot_reconciled():
+    engine, db, company, account, batch = setup_db()
+    db.add_all([
+        BankStatementLine(
+            import_id=batch.id,
+            company_id=company.id,
+            bank_account_id=account.id,
+            transaction_date=date(2026, 11, 19),
+            description="忽略的收入明細",
+            amount=Decimal("100.00"),
+            direction="IN",
+            reference_no="IGN-IN",
+            fingerprint="b" * 64,
+            status="IGNORED",
+        ),
+        BankStatementLine(
+            import_id=batch.id,
+            company_id=company.id,
+            bank_account_id=account.id,
+            transaction_date=date(2026, 11, 19),
+            description="忽略的支出明細",
+            amount=Decimal("100.00"),
+            direction="OUT",
+            reference_no="IGN-OUT",
+            fingerprint="c" * 64,
+            status="IGNORED",
+        ),
+    ])
+    db.commit()
+
+    row = create_reconciliation_snapshot(
+        db,
+        company_id=company.id,
+        bank_account_id=account.id,
+        import_id=batch.id,
+        period_start=date(2026, 11, 19),
+        period_end=date(2026, 11, 19),
+        statement_opening_balance=Decimal("1000.00"),
+        statement_closing_balance=Decimal("1500.00"),
+        reconciled_by_name="覆核人",
+    )
+    db.commit()
+
+    # The ignored income and expense offset each other, so the net and
+    # balance figures alone would look reconciled. An ignored bank line
+    # still lacks an explicit ledger match and must never produce green status.
+    assert row.statement_net_movement == Decimal("500.00")
+    assert row.ledger_net_movement == Decimal("500.00")
+    assert row.net_difference == Decimal("0.00")
+    assert row.balance_difference == Decimal("0.00")
+    assert row.unmatched_ledger_count == 0
+    assert row.ignored_line_count == 2
+    assert row.status == "NEEDS_REVIEW"
+    engine.dispose()
