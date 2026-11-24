@@ -22,6 +22,7 @@ class Settings(BaseSettings):
             self.admin_username.strip()
             and len(self.admin_password) >= 12
             and len(self.session_secret_key) >= 32
+            and self.session_max_age_seconds > 0
         )
 
     @property
