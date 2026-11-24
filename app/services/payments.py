@@ -182,6 +182,78 @@ def record_return_payment(
 
 
 
+
+def refund_customer_order_payment(
+    session: Session,
+    *,
+    company_id: UUID,
+    order_id: UUID,
+    payment_method: str,
+    amount: Decimal,
+    note: str | None = None,
+    idempotency_key: UUID | None = None,
+) -> PaymentTransaction:
+    """Append a customer refund and reduce the net amount held for an order."""
+    _validate_amount(amount)
+    _validate_method(payment_method)
+    idempotency_reference = f"CO-REFUND:{idempotency_key}" if idempotency_key else None
+    if idempotency_key is not None:
+        company = session.scalar(
+            select(Company).where(Company.id == company_id).with_for_update()
+        )
+        if company is None:
+            raise ValueError("找不到指定公司。")
+    order = session.execute(
+        select(CustomerOrder).where(
+            CustomerOrder.id == order_id,
+            CustomerOrder.company_id == company_id,
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if order is None:
+        raise ValueError("找不到指定客訂單。")
+    if idempotency_reference:
+        existing = session.scalar(select(PaymentTransaction).where(
+            PaymentTransaction.company_id == company_id,
+            PaymentTransaction.reference_no == idempotency_reference,
+        ))
+        if existing is not None:
+            if (
+                existing.customer_order_id != order.id
+                or existing.direction != "OUT"
+                or existing.payment_method != payment_method
+                or existing.amount != amount
+                or existing.currency_code != order.currency_code
+                or existing.note != note
+            ):
+                raise CustomerOrderPaymentIdempotencyConflict(
+                    "此退款識別碼已用於不同的退款內容，請確認原退款紀錄。"
+                )
+            return existing
+    if order.status in {"COMPLETED", "CANCELLED"}:
+        raise ValueError("已完成或已取消的客訂單不可退款。")
+    if amount > order.deposit_amount:
+        raise ValueError(f"退款金額不可超過目前已收訂金／款項：{order.deposit_amount}。")
+    assert_business_day_open(
+        session, site_id=order.site_id, at=datetime.now(timezone.utc)
+    )
+    transaction = PaymentTransaction(
+        company_id=company_id,
+        site_id=order.site_id,
+        customer_order_id=order.id,
+        direction="OUT",
+        payment_method=payment_method,
+        amount=amount,
+        currency_code=order.currency_code,
+        reference_no=idempotency_reference,
+        paid_at=datetime.now(timezone.utc),
+        note=note or "客訂訂金退款",
+    )
+    order.deposit_amount -= amount
+    session.add(transaction)
+    session.flush()
+    return transaction
+
+
 def record_customer_order_payment(
     session: Session,
     *,
