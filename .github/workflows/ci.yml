@@ -94,6 +94,8 @@ jobs:
         run: node --test tests/customer_order_print_formatting_runtime.test.js
       - name: Run product and stock weight unit runtime tests
         run: node --test tests/product_stock_weight_unit_runtime.test.js
+      - name: Run movement and purchase weight unit runtime tests
+        run: node --test tests/product_stock_weight_unit_runtime.test.js
       - name: Run operating expense retry runtime tests
         run: node --test tests/operating_expense_retry_runtime.test.js
       - name: Run cash drawer retry runtime tests
