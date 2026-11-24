@@ -229,7 +229,8 @@ def _build_integrity_checks(
             currency, "net_operating_cash_flow", "營運現金流與每日加總",
             period_net_operating, daily_net_operating,
         )
-\n        def cash_change(row):
+
+        def cash_change(row):
             cash = row["payment_methods"].get("CASH", {})
             return (
                 cash.get("customer_collected_amount", ZERO)
