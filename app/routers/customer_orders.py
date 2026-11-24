@@ -230,9 +230,15 @@ def update_customer_order(
     if any(changes.get(field) is None for field in ("order_no", "customer_name") if field in changes):
         raise HTTPException(status_code=422, detail="訂單編號與客戶姓名不可為空。")
     if "order_no" in changes and changes["order_no"] is not None:
+        changes["order_no"] = changes["order_no"].strip()
+        if not changes["order_no"]:
+            raise HTTPException(status_code=422, detail="訂單編號不可只有空白。")
         order.order_no = changes["order_no"]
     if "customer_name" in changes and changes["customer_name"] is not None:
-        order.customer_name = changes["customer_name"].strip()
+        changes["customer_name"] = changes["customer_name"].strip()
+        if not changes["customer_name"]:
+            raise HTTPException(status_code=422, detail="客戶姓名不可只有空白。")
+        order.customer_name = changes["customer_name"]
     if "customer_phone" in changes:
         order.customer_phone = changes["customer_phone"]
     if "expected_delivery_date" in changes:
