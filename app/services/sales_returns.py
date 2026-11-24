@@ -77,7 +77,7 @@ def create_sale_return(
         )
         if not same_request:
             raise SaleReturnIdempotencyConflict(
-                "此退貨單號已用於不同退貨內容；請查閱原退貨紀錄，不可使用相同單號重複退貨。"
+                "退貨單號重複：此退貨單號已用於不同退貨內容；請查閱原退貨紀錄，不可使用相同單號重複退貨。"
             )
         return (existing, False) if return_created else existing
 
