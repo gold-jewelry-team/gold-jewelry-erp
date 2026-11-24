@@ -844,7 +844,7 @@ button.secondary:disabled{opacity:.42}
 <div class="actions"><button id="addSaleLine" type="button">加入購物車</button></div>
 </div>
 <div id="saleCartList" aria-live="polite"><div class="empty">尚未加入商品</div></div>
-<div class="actions"><button id="createSaleDraft" type="button">建立銷售草稿</button></div>
+<div class="actions"><button id="createSaleDraft" type="button">建立銷售草稿</button><button id="cancelSaleEdit" class="secondary hidden" type="button">取消編輯</button></div>
 <div id="saleStatus" class="status" role="status"></div>
 <section id="salesHistoryPanel" class="panel span2">
 <h3>歷史銷售查詢</h3>
@@ -1338,6 +1338,7 @@ let dailyClosingsById=new Map();
 let selectedClosing=null;
 let saleCartLines=[];
 let currentSale=null;
+let editingSaleId="";
 let currentSalePaymentRows=[];
 let saleReturns=[];
 let selectedReturn=null;
@@ -3322,14 +3323,55 @@ async function loadSalesHistory(){
  if($("salesHistoryFrom").value)params.set("from_date",$("salesHistoryFrom").value);
  if($("salesHistoryTo").value)params.set("to_date",$("salesHistoryTo").value);
  const rows=await api("/companies/"+companyId+"/sales"+(params.toString()?"?"+params.toString():""));
- box.innerHTML=rows.length?rows.map(row=>'<article class="item transaction-item sales-history-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(row.sale_no)+'</strong><span class="pill">'+escapeHtml(row.status)+'</span></div><div class="transaction-item-primary"><small>'+(Number(row.final_amount)<0?"本店應付":"應收金額")+'</small><strong>'+escapeHtml(Math.abs(Number(row.final_amount||0)).toFixed(2))+' 元</strong></div></div><div class="transaction-item-meta"><span><small>商品件數</small><strong>'+escapeHtml(row.lines.length)+' 件</strong></span><span><small>建立時間</small><strong>'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-open-sale="'+escapeHtml(row.id)+'">開啟銷售紀錄</button></div></article>').join(""):'<div class="empty">查無符合條件的銷售紀錄</div>';
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item transaction-item sales-history-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(row.sale_no)+'</strong><span class="pill">'+escapeHtml(row.status)+'</span></div><div class="transaction-item-primary"><small>'+(Number(row.final_amount)<0?"本店應付":"應收金額")+'</small><strong>'+escapeHtml(Math.abs(Number(row.final_amount||0)).toFixed(2))+' 元</strong></div></div><div class="transaction-item-meta"><span><small>商品件數</small><strong>'+escapeHtml(row.lines.length)+' 件</strong></span><span><small>建立時間</small><strong>'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</strong></span></div><div class="actions transaction-item-actions">'+(row.status==="DRAFT"?'<button class="secondary" type="button" data-edit-sale="'+escapeHtml(row.id)+'">編輯草稿</button>':'')+'<button class="secondary" type="button" data-open-sale="'+escapeHtml(row.id)+'">開啟銷售紀錄</button></div></article>').join(""):'<div class="empty">查無符合條件的銷售紀錄</div>';
 }
 $("searchSalesHistory").addEventListener("click",()=>loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true)));
 $("salesHistoryQuery").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true));}});
+function resetSaleEditor(){
+ editingSaleId="";saleCartLines=[];renderSaleCart();$("saleHeaderForm").reset();$("saleCardAmount").disabled=true;
+ $("createSaleDraft").textContent="建立銷售草稿";$("cancelSaleEdit").classList.add("hidden");
+}
+$("cancelSaleEdit").addEventListener("click",resetSaleEditor);
 $("salesHistoryList").addEventListener("click",async event=>{
+ const edit=event.target.closest("[data-edit-sale]");
  const button=event.target.closest("[data-open-sale]");
- if(!button)return;
  try{
+  if(edit){
+   if(editingSaleId&&editingSaleId!==edit.dataset.editSale){message("salesHistoryStatus","請先儲存或取消目前正在編輯的銷售草稿。",true);return;}
+   if(currentSale&&currentSale.status==="DRAFT"&&currentSale.id!==edit.dataset.editSale){
+    message("salesHistoryStatus","目前已有另一筆銷售草稿尚未完成，請先完成或作廢。",true);return;
+   }
+   const sale=await api("/companies/"+companyId+"/sales/"+edit.dataset.editSale);
+   if(sale.status!=="DRAFT")return;
+   if((sale.lines||[]).some(line=>line.product_id&&(!inventoryProducts.some(item=>item.id===line.product_id)||!inventoryLocations.some(item=>item.id===line.source_location_id)))){
+    message("salesHistoryStatus","此草稿包含已停用或不在目前可用清單的商品／儲位，請先恢復主檔狀態後再編輯。",true);return;
+   }
+   editingSaleId=sale.id;currentSale=null;
+   $("saleNo").value=sale.sale_no;$("salePaymentMethod").value=sale.payment_method;
+   $("saleCardAmount").value=sale.card_amount;$("saleCardAmount").disabled=sale.payment_method!=="MIXED";
+   $("saleNote").value=sale.note||"";
+   saleCartLines=(sale.lines||[]).map(line=>{
+    const product=line.product_id?(inventoryProducts.find(item=>item.id===line.product_id)||{
+     id:line.product_id,product_code:line.product_code_snapshot||"原商品",barcode:line.barcode_snapshot,
+     name:line.product_name_snapshot,net_weight:line.net_weight,gross_weight:line.gross_weight,
+     weight_unit_code:line.weight_unit_code,is_active:false
+    }):{
+     product_code:line.product_code_snapshot||"臨時估價",barcode:line.barcode_snapshot,
+     name:line.product_name_snapshot,net_weight:line.net_weight,gross_weight:line.gross_weight,
+     weight_unit_code:line.weight_unit_code
+    };
+    const location=line.source_location_id?(inventoryLocations.find(item=>item.id===line.source_location_id)||{id:line.source_location_id,name:"原出貨位置"}):null;
+    return {product,location,isEstimate:!line.product_id,net_weight:String(line.net_weight),labor_fee:String(line.labor_fee),
+     old_gold_weight:String(line.old_gold_weight||0),trade_in_source:line.trade_in_source,
+     trade_in_ratio:String(line.trade_in_ratio||0.95)};
+   });
+   renderSaleCart();$("createSaleDraft").textContent="儲存銷售草稿修改";$("cancelSaleEdit").classList.remove("hidden");
+   $("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");
+   $("saleHeaderForm").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+   message("saleStatus","已載入銷售草稿，可修改商品明細及付款方式。");return;
+  }
+  if(!button)return;
+  if(editingSaleId){message("salesHistoryStatus","請先儲存或取消目前正在編輯的銷售草稿。",true);return;}
   if(currentSale&&currentSale.status==="DRAFT"&&currentSale.id!==button.dataset.openSale){
    message("salesHistoryStatus","目前有尚未處理的銷售草稿，請先完成或作廢後再開啟其他銷售。",true);return;
   }
@@ -3496,9 +3538,12 @@ $("createSaleDraft").addEventListener("click",async()=>{
  };
  const button=$("createSaleDraft");button.disabled=true;
  try{
-  const sale=await api("/companies/"+companyId+"/sales",{method:"POST",body:JSON.stringify(payload)});
+  const wasEditing=Boolean(editingSaleId);
+  const sale=await api("/companies/"+companyId+"/sales"+(editingSaleId?"/"+editingSaleId:""),{method:editingSaleId?"PATCH":"POST",body:JSON.stringify(payload)});
+  editingSaleId="";$("createSaleDraft").textContent="建立銷售草稿";$("cancelSaleEdit").classList.add("hidden");
   renderSaleResult(sale);
-  message("saleStatus","銷售草稿建立成功。請核對每項商品金額、刷卡本金及 5% 手續費，再完成銷售。");
+  message("saleStatus",wasEditing?"銷售草稿已更新，請重新核對金額與刷卡手續費。":"銷售草稿建立成功。請核對每項商品金額、刷卡本金及 5% 手續費，再完成銷售。");
+  await loadSalesHistory();
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
 $("completeSale").addEventListener("click",async()=>{
@@ -3527,6 +3572,7 @@ $("voidSale").addEventListener("click",async()=>{
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
 $("newSale").addEventListener("click",()=>{
+ editingSaleId="";$("createSaleDraft").textContent="建立銷售草稿";$("cancelSaleEdit").classList.add("hidden");
  currentSale=null;saleCartLines=[];saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");
  renderSaleCart();$("saleDraftResult").innerHTML="";
  $("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
