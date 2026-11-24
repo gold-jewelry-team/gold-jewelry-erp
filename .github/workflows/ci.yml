@@ -102,6 +102,8 @@ jobs:
         run: node --test tests/cash_drawer_retry_runtime.test.js
       - name: Run supplier payment retry runtime tests
         run: node --test tests/supplier_payment_retry_runtime.test.js
+      - name: Run supplier master CRUD runtime tests
+        run: node --test tests/supplier_master_crud_runtime.test.js
       - name: Run tests
         run: pytest -q
       - name: Upgrade PostgreSQL schema to head

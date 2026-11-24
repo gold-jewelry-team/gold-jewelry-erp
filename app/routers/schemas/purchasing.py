@@ -23,6 +23,7 @@ class SupplierUpdate(BaseModel):
     phone: str | None = Field(default=None, max_length=40)
     address: str | None = Field(default=None, max_length=255)
     note: str | None = Field(default=None, max_length=500)
+    is_active: bool | None = None
 
 
 class SupplierRead(BaseModel):
