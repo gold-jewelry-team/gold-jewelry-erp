@@ -19,6 +19,7 @@ from app.models.payment_transaction import PaymentTransaction
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
+from app.services.operational_reconciliation import build_daily_closing_reconciliation
 from app.models.supplier_payable import SupplierPayment
 
 BUSINESS_TIMEZONE = ZoneInfo("Asia/Taipei")
@@ -438,6 +439,14 @@ def build_operational_period_report(
         }
         for (business_date, currency), bucket in sorted(daily.items())
     ]
+    reconciliation = build_daily_closing_reconciliation(
+        session,
+        company_id=company_id,
+        site_id=site_id,
+        period_start=period_start,
+        period_end=period_end,
+        daily_rows=daily_rows,
+    )
     return {
         "company_id": company_id,
         "site_id": site_id,
@@ -448,4 +457,5 @@ def build_operational_period_report(
         "totals_by_currency": totals_by_currency,
         "daily": daily_rows,
         "integrity_checks": _build_integrity_checks(totals, daily),
+        **reconciliation,
     }
