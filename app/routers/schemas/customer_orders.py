@@ -81,4 +81,6 @@ class CustomerOrderRead(BaseModel):
     @computed_field
     @property
     def balance_amount(self) -> Decimal:
+        if self.status == "CANCELLED":
+            return Decimal("0.00")
         return self.total_amount - self.deposit_amount
