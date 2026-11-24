@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, String, Uuid, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -25,6 +25,12 @@ class PaymentTransaction(Base):
         Index("ix_payment_transactions_sale_id", "sale_id"),
         Index("ix_payment_transactions_return_id", "sale_return_id"),
         Index("ix_payment_transactions_customer_order_id", "customer_order_id"),
+        Index(
+            "uq_payment_transactions_company_idempotency_key",
+            "company_id", "idempotency_key", unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+            sqlite_where=text("idempotency_key IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -39,6 +45,7 @@ class PaymentTransaction(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="TWD", server_default="TWD")
     reference_no: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    idempotency_key: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
