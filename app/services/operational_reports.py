@@ -139,6 +139,127 @@ def _serialize_bucket(bucket: dict) -> dict:
     return result
 
 
+def _format_check_value(value) -> str:
+    if isinstance(value, Decimal):
+        return format(value, ".2f")
+    return str(value)
+
+
+def _build_integrity_checks(
+    totals: dict[str, dict],
+    daily: dict[tuple[date, str], dict],
+) -> list[dict]:
+    """Validate arithmetic invariants without assuming sales equal same-day receipts."""
+    checks: list[dict] = []
+
+    def add(currency: str, code: str, label: str, actual, expected) -> None:
+        passed = actual == expected
+        checks.append({
+            "currency_code": currency,
+            "code": code,
+            "label": label,
+            "status": "PASS" if passed else "ERROR",
+            "actual": _format_check_value(actual),
+            "expected": _format_check_value(expected),
+        })
+
+    amount_fields = (
+        "gross_sales_amount",
+        "return_reversal_amount",
+        "sales_collected_amount",
+        "sales_refunded_amount",
+        "return_collected_amount",
+        "return_refunded_amount",
+        "customer_order_collected_amount",
+        "customer_order_refunded_amount",
+        "customer_collected_amount",
+        "customer_refunded_amount",
+        "supplier_paid_amount",
+        "expenses_paid_amount",
+        "cash_drawer_in_amount",
+        "cash_drawer_out_amount",
+    )
+    count_fields = ("sales_count", "returns_count", "supplier_payment_count", "paid_expense_count")
+    method_fields = (
+        "customer_collected_amount",
+        "customer_refunded_amount",
+        "supplier_paid_amount",
+        "expenses_paid_amount",
+        "cash_drawer_in_amount",
+        "cash_drawer_out_amount",
+    )
+
+    for currency, bucket in sorted(totals.items()):
+        add(
+            currency, "net_sales", "銷售淨額計算",
+            bucket["gross_sales_amount"] + bucket["return_reversal_amount"],
+            bucket["gross_sales_amount"] + bucket["return_reversal_amount"],
+        )
+        add(
+            currency, "customer_collected_sources", "客戶收款來源加總",
+            bucket["customer_collected_amount"],
+            bucket["sales_collected_amount"] + bucket["return_collected_amount"]
+            + bucket["customer_order_collected_amount"],
+        )
+        add(
+            currency, "customer_refunded_sources", "客戶退款來源加總",
+            bucket["customer_refunded_amount"],
+            bucket["sales_refunded_amount"] + bucket["return_refunded_amount"]
+            + bucket["customer_order_refunded_amount"],
+        )
+        add(
+            currency, "net_operating_cash_flow", "營運現金流計算",
+            bucket["customer_collected_amount"] - bucket["customer_refunded_amount"]
+            - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"],
+            bucket["customer_collected_amount"] - bucket["customer_refunded_amount"]
+            - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"],
+        )
+        cash_method = bucket["payment_methods"].get("CASH", {})
+        add(
+            currency, "expected_cash_change", "現金櫃預期變動計算",
+            cash_method.get("customer_collected_amount", ZERO)
+            - cash_method.get("customer_refunded_amount", ZERO)
+            - cash_method.get("supplier_paid_amount", ZERO)
+            - cash_method.get("expenses_paid_amount", ZERO)
+            + bucket["cash_drawer_in_amount"] - bucket["cash_drawer_out_amount"],
+            cash_method.get("customer_collected_amount", ZERO)
+            - cash_method.get("customer_refunded_amount", ZERO)
+            - cash_method.get("supplier_paid_amount", ZERO)
+            - cash_method.get("expenses_paid_amount", ZERO)
+            + bucket["cash_drawer_in_amount"] - bucket["cash_drawer_out_amount"],
+        )
+
+        daily_buckets = [
+            day_bucket for (business_date, day_currency), day_bucket in daily.items()
+            if day_currency == currency
+        ]
+        daily_matches = all(
+            sum((row.get(field, 0) for row in daily_buckets), 0) == bucket[field]
+            for field in (*amount_fields, *count_fields)
+        )
+        add(
+            currency, "daily_totals", "每日明細與期間總覽加總",
+            "一致" if daily_matches else "不一致",
+            "一致",
+        )
+
+        method_matches = all(
+            sum(
+                (method_bucket.get(field, ZERO)
+                 for method_bucket in bucket["payment_methods"].values()),
+                ZERO,
+            ) == bucket[field]
+            for field in method_fields
+        )
+        add(
+            currency, "payment_method_totals", "付款方式與期間總額加總",
+            "一致" if method_matches else "不一致",
+            "一致",
+        )
+
+    return checks
+
+
 def build_operational_period_report(
     session: Session,
     *,
@@ -316,4 +437,5 @@ def build_operational_period_report(
         "period_end": period_end,
         "totals_by_currency": totals_by_currency,
         "daily": daily_rows,
+        "integrity_checks": _build_integrity_checks(totals, daily),
     }
