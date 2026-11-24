@@ -2257,7 +2257,7 @@ $("companyList").addEventListener("click",async event=>{
   finally{toggle.disabled=false;}
  }
 });
-applyCategoryTemplates").addEventListener("click",async()=>{
+$("applyCategoryTemplates").addEventListener("click",async()=>{
  if(!companyId){message("categoryStatus","請先選擇公司",true);return;}
  const templates=[
   {code:"GOLD_INGOT",name:"黃金元寶"},
