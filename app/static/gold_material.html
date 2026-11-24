@@ -210,7 +210,18 @@ async function refreshAll(){
 }
 $("companySelect").addEventListener("change",()=>onCompanyChange().catch(e=>status("scopeStatus",e.message,"error")));
 $("siteSelect").addEventListener("change",()=>onSiteChange().catch(e=>status("scopeStatus",e.message,"error")));
-$("supplierSelect").addEventListener("change",()=>loadBills().catch(e=>status("movementStatus",e.message,"error")));
+$("supplierSelect").addEventListener("change",()=>{
+ const purchase=state.purchases.find(x=>x.id===$("purchaseSelect").value);
+ if(purchase&&purchase.supplier_id!==$("supplierSelect").value)$("purchaseSelect").value="";
+ loadBills().catch(e=>status("movementStatus",e.message,"error"));
+});
+$("purchaseSelect").addEventListener("change",()=>{
+ const purchase=state.purchases.find(x=>x.id===$("purchaseSelect").value);
+ if(purchase){
+  $("supplierSelect").value=purchase.supplier_id;
+  loadBills().catch(e=>status("movementStatus",e.message,"error"));
+ }
+});
 $("movementType").addEventListener("change",toggleDeliveryFields);
 $("addAllocation").addEventListener("click",()=>{const current=allocationRows();current.push({bill_id:"",amount:""});renderAllocationRows(current);});
 $("allocationRows").addEventListener("click",e=>{
