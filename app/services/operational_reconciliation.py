@@ -214,7 +214,7 @@ def build_daily_closing_reconciliation(
     bank_errors = sum(1 for row in bank_checks if row["status"] != "PASS")
     daily_errors = sum(1 for row in daily_checks if row["status"] == "ERROR")
     pending_counts = sum(
-        1 for row in daily_checks if row["status"] in ("NEEDS_COUNT", "NEEDS_REVIEW")
+        1 for row in daily_checks if row["status"] in ("NOT_CLOSED", "NEEDS_COUNT", "NEEDS_REVIEW")
     )
     return {
         "daily_closings": daily_checks,
