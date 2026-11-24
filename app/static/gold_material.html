@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#202522">
+<meta name="robots" content="noindex,nofollow">
+<title>金料往來管理｜黃金珠寶進銷存</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202124;background:#f5f5f2;font-synthesis:none}
+*{box-sizing:border-box}body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:5;background:#202522;color:#fff;padding:14px 16px}
+.header-row{max-width:980px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:19px;margin:0}.back{color:#e9eee9;text-decoration:none;border:1px solid #ffffff40;border-radius:999px;padding:8px 12px;font-size:12px}
+header p{max-width:980px;margin:7px auto 0;color:#c8d0ca;font-size:12px}
+main{max-width:980px;margin:0 auto;padding:14px;display:grid;gap:13px}
+.panel{background:#fff;border:1px solid #e5e7e3;border-radius:15px;padding:15px;box-shadow:0 2px 10px #1111}
+h2{font-size:16px;margin:0 0 7px;color:#2d3b31}h3{font-size:14px;margin:14px 0 8px}
+.sub{font-size:12px;color:#68716b;line-height:1.6;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.field{min-width:0;margin-bottom:6px}.wide{grid-column:1/-1}
+label{display:block;font-size:12px;color:#4c554f;margin:0 0 5px}
+input,select,textarea{width:100%;min-height:44px;border:1px solid #d5dad5;border-radius:9px;padding:9px 11px;font:inherit;font-size:14px;background:#fff;color:#202124}
+textarea{min-height:90px;resize:vertical}button{border:0;border-radius:9px;min-height:42px;padding:9px 14px;background:#263b30;color:white;font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+button.secondary{background:#edf1ed;color:#263b30}button.danger{background:#fff0ed;color:#9a352d;border:1px solid #f0d0ca}button:disabled{opacity:.55;cursor:wait}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.status{font-size:12px;min-height:20px;color:#526257;margin-top:8px;overflow-wrap:anywhere}.status.error{color:#b42318}.status.success{color:#267047}
+.item{border:1px solid #e7eae6;border-radius:11px;padding:11px;margin-top:8px;display:grid;gap:5px}.item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.item strong{font-size:14px}.muted{font-size:12px;color:#6a746d;line-height:1.5}.pill{display:inline-block;font-size:11px;background:#eef2ee;color:#405347;border-radius:30px;padding:3px 8px}
+.empty{font-size:13px;color:#788079;padding:16px 0;text-align:center}.hidden{display:none!important}
+.summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:8px}
+.summary{padding:12px;border:1px solid #e7eae6;border-radius:11px;background:#fbfcfa}.summary span{display:block;font-size:11px;color:#69746c}.summary strong{display:block;font-size:18px;color:#294533;margin-top:4px}
+.table-wrap{overflow-x:auto;border:1px solid #e8ebe7;border-radius:10px}table{width:100%;border-collapse:collapse;min-width:720px;font-size:12px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #edf0ec;vertical-align:top}th{background:#f6f8f5;color:#4a574d;white-space:nowrap}tr:last-child td{border-bottom:0}
+.allocation-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(110px,.8fr) auto;gap:8px;align-items:end;border:1px solid #e8ebe7;border-radius:10px;padding:9px;margin-top:8px}
+.notice{padding:10px 12px;border-radius:10px;background:#f7f5ef;color:#665637;font-size:12px;line-height:1.6;margin:8px 0}
+@media(max-width:700px){main{padding:10px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.panel{padding:12px}.header-row{align-items:flex-start;flex-direction:column}.back{align-self:flex-start}.summary-grid{grid-template-columns:1fr}.allocation-row{grid-template-columns:1fr 1fr}.allocation-row button{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header>
+ <div class="header-row"><h1>金料往來管理</h1><a class="back" href="/app">← 返回門市工作台</a></div>
+ <p>足金換算庫存、舊金收受、調整與供應商舊金折抵</p>
+</header>
+<main>
+<section class="panel">
+ <h2>公司與據點</h2>
+ <p class="sub">金料餘額依公司及據點分開計算。建立異動前請確認目前據點及營業日尚未結帳。</p>
+ <div class="grid">
+  <div class="field"><label for="companySelect">公司</label><select id="companySelect"><option value="">載入中…</option></select></div>
+  <div class="field"><label for="siteSelect">據點</label><select id="siteSelect"><option value="">請先選擇公司</option></select></div>
+ </div>
+ <div id="scopeStatus" class="status" role="status"></div>
+ <div class="summary-grid">
+  <div class="summary"><span>足金餘額（公克）</span><strong id="balanceGram">—</strong></div>
+  <div class="summary"><span>換算（錢）</span><strong id="balanceQian">—</strong></div>
+  <div class="summary"><span>換算（兩）</span><strong id="balanceLiang">—</strong></div>
+ </div>
+</section>
+
+<section class="panel">
+ <h2>新增金料異動</h2>
+ <p class="sub">重量及足金量由系統依毛重、耗損、成色與單位換算；供應商交付舊金時，估值金額必須完整分攤至同公司、同據點、同供應商的新台幣應付帳單。</p>
+ <form id="movementForm">
+  <div class="grid">
+   <div class="field"><label for="movementType">異動類型</label><select id="movementType"><option value="OPENING">期初金料</option><option value="RECEIPT">收受金料</option><option value="ADJUSTMENT_IN">盤盈／增加</option><option value="ADJUSTMENT_OUT">盤虧／減少</option><option value="SUPPLIER_DELIVERY">交付供應商折抵</option></select></div>
+   <div class="field"><label for="movementNo">金料異動單號</label><input id="movementNo" maxlength="50" required></div>
+   <div class="field"><label for="purityLabel">成色標示</label><input id="purityLabel" maxlength="30" value="9999" required placeholder="例如 9999"></div>
+   <div class="field"><label for="purityRatio">成色比例</label><input id="purityRatio" type="number" min="0.000001" max="1" step="0.000001" value="0.9999" required></div>
+   <div class="field"><label for="grossWeight">毛重</label><input id="grossWeight" type="number" min="0.0001" step="0.0001" required></div>
+   <div class="field"><label for="lossWeight">耗損重量</label><input id="lossWeight" type="number" min="0" step="0.0001" value="0" required></div>
+   <div class="field"><label for="weightUnit">重量單位</label><select id="weightUnit"><option value="G">公克（g）</option><option value="QIAN" selected>錢</option><option value="LIANG">兩</option></select></div>
+   <div class="field"><label for="goldPrice">估價金價</label><input id="goldPrice" type="number" min="0.01" step="0.01" required></div>
+   <div class="field"><label for="priceUnit">金價單位</label><select id="priceUnit"><option value="G">每公克</option><option value="QIAN" selected>每錢</option><option value="LIANG">每兩</option></select></div>
+   <div class="field"><label for="deduction">折減／處理費（TWD）</label><input id="deduction" type="number" min="0" step="0.01" value="0" required></div>
+   <div class="field"><label for="supplierSelect">供應商（交付折抵必填）</label><select id="supplierSelect"><option value="">不指定</option></select></div>
+   <div class="field"><label for="purchaseSelect">關聯採購單（選填）</label><select id="purchaseSelect"><option value="">不指定</option></select></div>
+   <div class="field wide" id="sourceTypeField"><label for="sourceType">來源類型（選填）</label><input id="sourceType" maxlength="30" placeholder="例如 PURCHASE_SETTLEMENT"></div>
+   <div class="field wide"><label for="movementNote">備註</label><textarea id="movementNote" maxlength="500"></textarea></div>
+  </div>
+  <div class="notice" id="valuationPreview">輸入重量及金價後，這裡會顯示預估淨重、足金量及估值。實際結果以伺服器計算為準。</div>
+  <div id="allocationPanel" class="hidden">
+   <h3>供應商帳單折抵分攤</h3>
+   <p class="sub">請先選擇供應商，系統會列出該據點尚未付清的 TWD 帳單。所有分攤金額合計必須等於本次舊金估值。</p>
+   <div id="allocationRows"></div>
+   <div class="actions"><button class="secondary" id="addAllocation" type="button">新增帳單分攤列</button></div>
+   <div id="allocationTotal" class="status"></div>
+  </div>
+  <div class="actions"><button type="submit">建立金料異動</button><button class="secondary" type="button" id="resetMovement">清空表單</button></div>
+ </form>
+ <div id="movementStatus" class="status" role="status"></div>
+</section>
+
+<section class="panel">
+ <div class="item-head"><div><h2>金料異動紀錄</h2><p class="sub">顯示目前據點最近 100 筆金料異動。</p></div><button class="secondary" type="button" id="refreshMovements">更新紀錄</button></div>
+ <div id="movementList"><div class="empty">請先選擇公司與據點</div></div>
+</section>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+const state={companyId:"",siteId:"",suppliers:[],bills:[],purchases:[],movements:[]};
+const grams={G:1,QIAN:3.75,LIANG:37.5};
+const typeLabels={OPENING:"期初金料",RECEIPT:"收受金料",ADJUSTMENT_IN:"盤盈／增加",ADJUSTMENT_OUT:"盤虧／減少",SUPPLIER_DELIVERY:"交付供應商折抵"};
+const api=async(path,options={})=>{
+ const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
+ const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
+ if(!response.ok){const error=new Error(data.detail||"操作失敗（HTTP "+response.status+"）");error.status=response.status;throw error;}
+ return data;
+};
+function status(id,msg="",kind=""){const el=$(id);el.textContent=msg;el.className="status"+(kind?" "+kind:"");}
+function fmt(n,d=4){const v=Number(n);return Number.isFinite(v)?v.toLocaleString("zh-TW",{minimumFractionDigits:d,maximumFractionDigits:d}):"—";}
+function money(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString("zh-TW",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";}
+function newMovementNo(){const d=new Date();const p=n=>String(n).padStart(2,"0");return "GM-"+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());}
+function supplierName(id){return state.suppliers.find(x=>x.id===id)?.name||"未指定供應商";}
+function valuePreview(){
+ const weightUnit=$("weightUnit").value,priceUnit=$("priceUnit").value;
+ const gross=Number($("grossWeight").value||0),loss=Number($("lossWeight").value||0),purity=Number($("purityRatio").value||0),price=Number($("goldPrice").value||0),deduction=Number($("deduction").value||0);
+ const net=Math.max(0,gross-loss),fine=net*(grams[weightUnit]||1)*purity;
+ const grossValue=price>0?Math.round((fine/(grams[priceUnit]||1)*price)*100)/100:0;
+ const valuation=Math.round((grossValue-deduction)*100)/100;
+ $("valuationPreview").textContent="預估淨重："+fmt(net,4)+" "+weightUnit+"；足金量："+fmt(fine,4)+" 公克；估值："+money(grossValue)+" 元；扣除折減／處理費後："+money(valuation)+" 元。正式數值以伺服器 Decimal 計算為準。";
+ return {net,fine,grossValue,valuation};
+}
+function renderBalance(row){
+ const g=Number(row?.fine_gold_weight_g||0);
+ $("balanceGram").textContent=fmt(g,4);
+ $("balanceQian").textContent=fmt(g/3.75,4);
+ $("balanceLiang").textContent=fmt(g/37.5,4);
+}
+function renderMovementList(){
+ $("movementList").innerHTML=state.movements.length?'<div class="table-wrap"><table><thead><tr><th>日期</th><th>單號／類型</th><th>成色</th><th>毛重／淨重</th><th>足金量（公克）</th><th>估值</th><th>供應商／備註</th></tr></thead><tbody>'+state.movements.map(x=>'<tr><td>'+esc(new Date(x.occurred_at).toLocaleString("zh-TW",{timeZone:"Asia/Taipei"}))+'</td><td>'+esc(x.movement_no)+'<br><span class="pill">'+esc(typeLabels[x.movement_type]||x.movement_type)+'</span></td><td>'+esc(x.purity_label)+'（'+esc(x.purity_ratio)+'）</td><td>'+fmt(x.gross_weight)+'／'+fmt(x.net_weight)+' '+esc(x.weight_unit_code)+'</td><td>'+fmt(x.fine_gold_weight_g)+'</td><td>NT$ '+money(x.valuation_amount)+'</td><td>'+esc(supplierName(x.supplier_id))+(x.note?'<br><span class="muted">'+esc(x.note)+'</span>':"")+(x.allocations?.length?'<br><span class="muted">帳單折抵 '+x.allocations.length+' 筆</span>':"")+'</td></tr>').join("")+'</tbody></table></div>':'<div class="empty">目前據點尚無金料異動</div>';
+}
+async function loadCompanies(){
+ const rows=await api("/companies");
+ $("companySelect").innerHTML='<option value="">請選擇公司</option>'+rows.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'（'+esc(x.code)+'）</option>').join("");
+ const queryId=new URLSearchParams(location.search).get("company_id");
+ if(queryId&&rows.some(x=>x.id===queryId))$("companySelect").value=queryId;else if(rows.length===1)$("companySelect").value=rows[0].id;
+ state.companyId=$("companySelect").value;
+ if(state.companyId)await onCompanyChange();else status("scopeStatus","請先選擇公司。");
+}
+async function onCompanyChange(){
+ state.companyId=$("companySelect").value;state.siteId="";state.suppliers=[];state.purchases=[];state.bills=[];state.movements=[];
+ if(!state.companyId){$("siteSelect").innerHTML='<option value="">請先選擇公司</option>';renderBalance(null);renderMovementList();return;}
+ const [sites,suppliers]=await Promise.all([
+  api("/companies/"+state.companyId+"/sites"),
+  api("/companies/"+state.companyId+"/suppliers")
+ ]);
+ state.suppliers=suppliers;
+ $("supplierSelect").innerHTML='<option value="">不指定</option>'+suppliers.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'（'+esc(x.code)+'）</option>').join("");
+ $("siteSelect").innerHTML='<option value="">選擇據點</option>'+sites.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'（'+esc(x.code)+'）</option>').join("");
+ if(sites.length===1)$("siteSelect").value=sites[0].id;
+ state.siteId=$("siteSelect").value;
+ if(state.siteId)await onSiteChange();
+ status("scopeStatus","公司資料已載入。","success");
+}
+async function onSiteChange(){
+ state.siteId=$("siteSelect").value;
+ if(!state.siteId){renderBalance(null);state.movements=[];renderMovementList();return;}
+ const [balance,movements,purchases]=await Promise.all([
+  api("/companies/"+state.companyId+"/gold-material/balance?site_id="+encodeURIComponent(state.siteId)),
+  api("/companies/"+state.companyId+"/gold-material/movements?site_id="+encodeURIComponent(state.siteId)+"&limit=100"),
+  api("/companies/"+state.companyId+"/purchases?site_id="+encodeURIComponent(state.siteId)+"&limit=500")
+ ]);
+ renderBalance(balance);state.movements=movements;state.purchases=purchases.filter(x=>["ORDERED","PARTIALLY_RECEIVED","RECEIVED"].includes(x.status));
+ $("purchaseSelect").innerHTML='<option value="">不指定</option>'+state.purchases.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.purchase_no)+' · '+esc(x.status)+'</option>').join("");
+ renderMovementList();await loadBills();
+}
+async function loadBills(){
+ const supplierId=$("supplierSelect").value;
+ state.bills=[];
+ if(state.companyId&&state.siteId&&supplierId){
+  const base="/companies/"+state.companyId+"/supplier-payables/bills?site_id="+encodeURIComponent(state.siteId)+"&supplier_id="+encodeURIComponent(supplierId)+"&limit=500";
+  const [open,partial]=await Promise.all([api(base+"&status=OPEN"),api(base+"&status=PARTIALLY_PAID")]);
+  state.bills=[...open,...partial].filter(x=>x.currency_code==="TWD"&&Number(x.outstanding_amount)>0);
+ }
+ renderAllocationRows();
+}
+function allocationRows(){
+ return [...$("allocationRows").querySelectorAll(".allocation-row")].map(row=>({
+  bill_id:row.querySelector("[data-bill]").value,
+  amount:row.querySelector("[data-amount]").value
+ })).filter(x=>x.bill_id&&Number(x.amount)>0);
+}
+function renderAllocationRows(existing=[]){
+ const box=$("allocationRows");
+ if(!state.bills.length){box.innerHTML='<div class="empty">此供應商在目前據點沒有尚未付清的新台幣帳單</div>';return;}
+ if(!existing.length)existing=[{bill_id:"",amount:""}];
+ box.innerHTML=existing.map((x,i)=>'<div class="allocation-row"><div class="field"><label>帳單 '+(i+1)+'</label><select data-bill><option value="">選擇未付清帳單</option>'+state.bills.map(b=>'<option value="'+esc(b.id)+'" '+(b.id===x.bill_id?"selected":"")+'>'+esc(b.bill_no)+' · 未付 NT$ '+money(b.outstanding_amount)+'</option>').join("")+'</select></div><div class="field"><label>分攤金額（TWD）</label><input data-amount type="number" min="0.01" step="0.01" value="'+esc(x.amount)+'"></div><button class="secondary" type="button" data-remove-allocation>移除</button></div>').join("");
+ updateAllocationTotal();
+}
+function updateAllocationTotal(){
+ const rows=allocationRows(),total=rows.reduce((s,x)=>s+Number(x.amount||0),0),value=valuePreview().valuation;
+ $("allocationTotal").textContent="目前分攤合計：NT$ "+money(total)+"；預估應分攤：NT$ "+money(value);
+}
+function toggleDeliveryFields(){
+ const delivery=$("movementType").value==="SUPPLIER_DELIVERY";
+ $("allocationPanel").classList.toggle("hidden",!delivery);
+ $("supplierSelect").required=delivery;
+ if(delivery&&$("sourceType").value.trim()==="")$("sourceType").value="PURCHASE_SETTLEMENT";
+ if(!delivery){$("supplierSelect").required=false;state.bills=[];$("allocationRows").innerHTML="";$("allocationTotal").textContent="";}
+}
+async function refreshAll(){
+ if(!state.companyId||!state.siteId)return;
+ const [balance,movements]=await Promise.all([
+  api("/companies/"+state.companyId+"/gold-material/balance?site_id="+encodeURIComponent(state.siteId)),
+  api("/companies/"+state.companyId+"/gold-material/movements?site_id="+encodeURIComponent(state.siteId)+"&limit=100")
+ ]);
+ renderBalance(balance);state.movements=movements;renderMovementList();
+}
+$("companySelect").addEventListener("change",()=>onCompanyChange().catch(e=>status("scopeStatus",e.message,"error")));
+$("siteSelect").addEventListener("change",()=>onSiteChange().catch(e=>status("scopeStatus",e.message,"error")));
+$("supplierSelect").addEventListener("change",()=>{
+ const purchase=state.purchases.find(x=>x.id===$("purchaseSelect").value);
+ if(purchase&&purchase.supplier_id!==$("supplierSelect").value)$("purchaseSelect").value="";
+ loadBills().catch(e=>status("movementStatus",e.message,"error"));
+});
+$("purchaseSelect").addEventListener("change",()=>{
+ const purchase=state.purchases.find(x=>x.id===$("purchaseSelect").value);
+ if(purchase){
+  $("supplierSelect").value=purchase.supplier_id;
+  loadBills().catch(e=>status("movementStatus",e.message,"error"));
+ }
+});
+$("movementType").addEventListener("change",toggleDeliveryFields);
+$("addAllocation").addEventListener("click",()=>{const current=allocationRows();current.push({bill_id:"",amount:""});renderAllocationRows(current);});
+$("allocationRows").addEventListener("click",e=>{
+ if(!e.target.matches("[data-remove-allocation]"))return;
+ const row=e.target.closest(".allocation-row");row.remove();updateAllocationTotal();
+});
+$("allocationRows").addEventListener("input",updateAllocationTotal);
+$("allocationRows").addEventListener("change",updateAllocationTotal);
+["grossWeight","lossWeight","purityRatio","goldPrice","deduction","weightUnit","priceUnit"].forEach(id=>$(id).addEventListener("input",updateAllocationTotal));
+$("refreshMovements").addEventListener("click",()=>refreshAll().catch(e=>status("movementStatus",e.message,"error")));
+$("resetMovement").addEventListener("click",()=>{
+ $("movementForm").reset();$("movementNo").value=newMovementNo();$("purityLabel").value="9999";$("purityRatio").value="0.9999";$("lossWeight").value="0";$("deduction").value="0";
+ toggleDeliveryFields();valuePreview();status("movementStatus","");
+});
+$("movementForm").addEventListener("submit",async e=>{
+ e.preventDefault();const button=e.submitter;button.disabled=true;status("movementStatus","正在計算並建立金料異動…");
+ try{
+  if(!state.companyId||!state.siteId)throw new Error("請先選擇公司及據點。");
+  const type=$("movementType").value;
+  const allocations=type==="SUPPLIER_DELIVERY"?allocationRows().map(x=>({bill_id:x.bill_id,amount:x.amount})):[];
+  if(type==="SUPPLIER_DELIVERY"&&!allocations.length)throw new Error("供應商折抵至少要選擇一張帳單並填寫分攤金額。");
+  const row=await api("/companies/"+state.companyId+"/gold-material/movements",{method:"POST",body:JSON.stringify({
+   site_id:state.siteId,supplier_id:$("supplierSelect").value||null,purchase_id:$("purchaseSelect").value||null,
+   movement_no:$("movementNo").value.trim(),movement_type:type,source_type:$("sourceType").value.trim()||null,
+   purity_label:$("purityLabel").value.trim(),purity_ratio:$("purityRatio").value,
+   gross_weight:$("grossWeight").value,loss_weight:$("lossWeight").value,weight_unit_code:$("weightUnit").value,
+   gold_price_value:$("goldPrice").value,gold_price_unit_code:$("priceUnit").value,
+   deduction_amount:$("deduction").value,allocations,note:$("movementNote").value.trim()||null
+  })});
+  $("movementForm").reset();$("movementNo").value=newMovementNo();$("purityLabel").value="9999";$("purityRatio").value="0.9999";$("lossWeight").value="0";$("deduction").value="0";
+  toggleDeliveryFields();valuePreview();await refreshAll();
+  status("movementStatus","金料異動已建立。足金量 "+fmt(row.fine_gold_weight_g)+" 公克；估值 NT$ "+money(row.valuation_amount)+"。","success");
+ }catch(err){status("movementStatus",err.message,"error");}finally{button.disabled=false;}
+});
+$("movementNo").value=newMovementNo();toggleDeliveryFields();valuePreview();
+loadCompanies().catch(e=>status("scopeStatus",e.message,"error"));
+</script>
+</body>
+</html>
