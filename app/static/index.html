@@ -2312,8 +2312,9 @@ async function loadSuppliers(){
   return;
  }
  const rows=await api("/companies/"+companyId+"/suppliers"+($("supplierIncludeInactive")?.checked?"?include_inactive=true":""));
+ const activeRows=rows.filter(x=>x.is_active);
  suppliersById=new Map(rows.map(x=>[x.id,x]));
- const options=rows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
+ const options=activeRows.map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
  $("billSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
  $("purchaseSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
  $("supplierOfferingSupplier").innerHTML='<option value="">請選擇供應商</option>'+options;
