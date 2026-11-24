@@ -863,6 +863,11 @@ def test_unpaid_supplier_bill_can_be_edited_and_voided():
         assert updated.json()["total_amount"] == "1800.00"
         assert updated.json()["status"] == "OPEN"
 
+        invalid_dates = client.patch(f"{base}/bills/{bill_id}", json={
+            "bill_date": "2026-12-10", "due_date": "2026-12-01",
+        })
+        assert invalid_dates.status_code == 422
+
         voided = client.post(f"{base}/bills/{bill_id}/void")
         assert voided.status_code == 200, voided.text
         assert voided.json()["status"] == "VOID"
