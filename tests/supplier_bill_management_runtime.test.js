@@ -8,7 +8,7 @@ const router = fs.readFileSync("app/routers/supplier_payables.py", "utf8");
 test("unpaid supplier bills support edit and void controls", () => {
   assert.match(html, /data-edit-supplier-bill=/);
   assert.match(html, /data-void-supplier-bill=/);
-  assert.match(html, /editingSupplierBillId/);
+  assert.ok(html.includes('"/supplier-payables/bills/"+editingSupplierBillId'));
   assert.match(html, /supplier-payables\/bills\/\+editingSupplierBillId/);
   assert.match(router, /@router\.patch\("\/bills\/\{bill_id\}"/);
   assert.match(router, /@router\.post\("\/bills\/\{bill_id\}\/void"/);
