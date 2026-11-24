@@ -4372,6 +4372,10 @@ async function loadCustomerOrders(){
   if(row.status==="IN_PROGRESS")actions+='<button class="secondary" type="button" data-edit-customer-order="'+escapeHtml(row.id)+'">編輯基本資料</button><button class="secondary" type="button" data-next-customer-order-status="'+escapeHtml(row.id)+'" data-next-status="ARRIVED">標記已到貨</button>';
   if(row.status==="ARRIVED")actions+='<button class="secondary" type="button" data-next-customer-order-status="'+escapeHtml(row.id)+'" data-next-status="READY">標記待交貨</button>';
   if(row.status==="READY"&&Number(row.balance_amount)===0)actions+='<button class="secondary" type="button" data-next-customer-order-status="'+escapeHtml(row.id)+'" data-next-status="COMPLETED">完成交貨</button>';
+  if(["IN_PROGRESS","ARRIVED","READY"].includes(row.status)&&Number(row.deposit_amount)>0){
+   actions+='<div class="field"><label>退款金額（最多 NT$ '+quoteMoney(row.deposit_amount)+'）</label><input type="number" min="0.01" step="0.01" data-refund-amount="'+escapeHtml(row.id)+'" placeholder="輸入實際退款金額"></div><div class="field"><label>退款方式</label><select data-refund-method="'+escapeHtml(row.id)+'"><option value="CASH">現金</option><option value="CARD">刷退</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option></select></div><button class="secondary" type="button" data-refund-customer-order="'+escapeHtml(row.id)+'">登錄退款</button>';
+  }
+  if(["IN_PROGRESS","ARRIVED","READY"].includes(row.status)&&Number(row.deposit_amount)===0)actions+='<button class="secondary" type="button" data-cancel-customer-order="'+escapeHtml(row.id)+'">取消訂單</button>';
   const items=(row.items||[]).map(item=>item.product_name||item.product_code||"商品").slice(0,3).join("、");
   return '<article class="item"><strong>'+escapeHtml(row.order_no)+' · '+escapeHtml(row.customer_name)+'</strong><span class="pill">'+escapeHtml(labels[row.status]||row.status)+'</span><span class="muted">電話：'+escapeHtml(row.customer_phone||"未填")+' · 預計交貨：'+escapeHtml(row.expected_delivery_date?new Date(row.expected_delivery_date).toLocaleDateString("zh-TW"):"未設定")+'</span><span class="muted">品項：'+escapeHtml(items||"—")+(row.items?.length>3?" 等 "+row.items.length+" 項":"")+'</span><span class="muted">總額：NT$ '+quoteMoney(row.total_amount)+' · 已收：NT$ '+quoteMoney(row.deposit_amount)+' · 尚欠：NT$ '+quoteMoney(row.balance_amount)+'</span>'+(row.status==="READY"&&Number(row.balance_amount)>0?'<span class="muted">尾款尚未收清，收款後才能完成交貨</span>':'')+(actions?'<div class="actions">'+actions+'</div>':'')+'</article>';
  }).join(""):'<div class="empty">沒有符合條件的客訂單</div>';
@@ -4394,6 +4398,34 @@ $("customerOrderEditForm").addEventListener("submit",async event=>{
 $("customerOrderList").addEventListener("click",async event=>{
  const edit=event.target.closest("[data-edit-customer-order]");
  const next=event.target.closest("[data-next-customer-order-status]");
+ const refund=event.target.closest("[data-refund-customer-order]");
+ const cancel=event.target.closest("[data-cancel-customer-order]");
+ if(refund){
+  const row=customerOrdersById.get(refund.dataset.refundCustomerOrder);if(!row||!["IN_PROGRESS","ARRIVED","READY"].includes(row.status))return;
+  const amountInput=$("customerOrderList").querySelector('[data-refund-amount="'+row.id+'"]');
+  const methodInput=$("customerOrderList").querySelector('[data-refund-method="'+row.id+'"]');
+  const amount=Number(amountInput?.value);
+  if(!Number.isFinite(amount)||amount<=0||amount>Number(row.deposit_amount)){message("quoteOrderStatus","請輸入有效退款金額，且不可超過已收款。",true);return;}
+  if(!window.confirm("請確認已實際退還客戶 NT$ "+quoteMoney(amount)+"，再登錄退款。"))return;
+  refund.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/customer-orders/"+row.id+"/refunds",{method:"POST",body:JSON.stringify({amount:amount.toFixed(2),payment_method:methodInput?.value||"CASH",note:"客訂退款"})});
+   message("quoteOrderStatus","客訂退款紀錄已新增。");await loadCustomerOrders();
+  }catch(error){message("quoteOrderStatus","退款失敗："+error.message,true);}
+  finally{refund.disabled=false;}
+  return;
+ }
+ if(cancel){
+  const row=customerOrdersById.get(cancel.dataset.cancelCustomerOrder);if(!row||Number(row.deposit_amount)!==0)return;
+  if(!window.confirm("確定取消此客訂單？訂單與退款紀錄會保留，不會刪除。"))return;
+  cancel.disabled=true;
+  try{
+   await api("/companies/"+companyId+"/customer-orders/"+row.id+"/cancel",{method:"POST"});
+   message("quoteOrderStatus","客訂單已取消。");await loadCustomerOrders();
+  }catch(error){message("quoteOrderStatus","取消失敗："+error.message,true);}
+  finally{cancel.disabled=false;}
+  return;
+ }
  if(edit){
   const row=customerOrdersById.get(edit.dataset.editCustomerOrder);if(!row||row.status!=="IN_PROGRESS")return;
   editingCustomerOrderId=row.id;$("customerOrderEditNo").value=row.order_no;$("customerOrderEditName").value=row.customer_name;
