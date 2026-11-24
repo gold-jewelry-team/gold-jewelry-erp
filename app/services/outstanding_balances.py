@@ -183,7 +183,10 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
             "total_payable": _money(sum((Decimal(item["amount"]) for item in currency_items if item["side"] == "PAYABLE"), ZERO)),
             "by_category": by_category,
         })
-        items.extend(currency_items[:DISPLAY_LIMIT_PER_CATEGORY * len(categories)])
+        for category in categories:
+            items.extend([
+                item for item in currency_items if item["category"] == category
+            ][:DISPLAY_LIMIT_PER_CATEGORY])
 
     items.sort(key=lambda item: (
         item["days_overdue"] is None,
