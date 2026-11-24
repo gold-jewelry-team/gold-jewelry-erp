@@ -114,6 +114,8 @@ jobs:
         run: node --test tests/company_location_management_runtime.test.js
       - name: Run expense management CRUD runtime tests
         run: node --test tests/expense_management_crud_runtime.test.js
+      - name: Run purchase draft edit runtime tests
+        run: node --test tests/purchase_draft_edit_runtime.test.js
       - name: Run tests
         run: pytest -q
       - name: Upgrade PostgreSQL schema to head
