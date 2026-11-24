@@ -5,6 +5,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.models.bank_account import BankAccount, BankTransaction
+from app.models.payment_transaction import PaymentTransaction
+from app.models.supplier_payable import SupplierPayment
+from app.models.operating_expense import OperatingExpense
+from app.models.sale import Sale
+from app.models.sale_return import SaleReturn
+from app.models.customer_order import CustomerOrder
 from app.models.cash_drawer_movement import CashDrawerMovement
 from app.models.site import Site
 from app.services.daily_closing import assert_business_day_open
@@ -119,3 +125,250 @@ def transfer_between_bank_accounts(session: Session, *, company_id: UUID, from_a
         amount=amount,description=f"由 {source.bank_name} {source.account_last4} 轉入",
         actor=actor,reference_no=reference_no,note=note,transfer_group_id=group,occurred_at=now)
     return out_tx,in_tx
+
+class BankTransferLinkConflict(ValueError):
+    """Raised when an existing transfer payment is linked elsewhere."""
+
+
+def _utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _transfer_source_details(
+    session: Session,
+    *,
+    company_id: UUID,
+    source_type: str,
+    source_id: UUID,
+    lock: bool = False,
+) -> dict:
+    if source_type == "PAYMENT_TRANSACTION":
+        statement = select(PaymentTransaction).where(
+            PaymentTransaction.id == source_id,
+            PaymentTransaction.company_id == company_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        source = session.scalar(statement)
+        if source is None:
+            raise ValueError("找不到指定收付款紀錄。")
+        if source.payment_method != "TRANSFER" or source.currency_code != "TWD":
+            raise ValueError("只有新台幣轉帳收付款可以連結銀行流水。")
+        if source.sale_id:
+            document = session.get(Sale, source.sale_id)
+            source_no = document.sale_no if document else "銷售單"
+            label = "銷售收付款" if source.direction == "IN" else "銷售退款"
+        elif source.sale_return_id:
+            document = session.get(SaleReturn, source.sale_return_id)
+            source_no = document.return_no if document else "退貨單"
+            label = "退貨收款" if source.direction == "IN" else "退貨退款"
+        elif source.customer_order_id:
+            document = session.get(CustomerOrder, source.customer_order_id)
+            source_no = document.order_no if document else "客訂單"
+            label = "客訂收款" if source.direction == "IN" else "客訂退款"
+        else:
+            raise ValueError("收付款來源不完整，無法連結銀行流水。")
+        return {
+            "source": source,
+            "site_id": source.site_id,
+            "direction": source.direction,
+            "amount": source.amount,
+            "currency_code": source.currency_code,
+            "reference_no": source.reference_no,
+            "occurred_at": source.paid_at,
+            "note": source.note,
+            "source_no": source_no,
+            "description": f"{label}：{source_no}",
+        }
+
+    if source_type == "SUPPLIER_PAYMENT":
+        statement = select(SupplierPayment).where(
+            SupplierPayment.id == source_id,
+            SupplierPayment.company_id == company_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        source = session.scalar(statement)
+        if source is None:
+            raise ValueError("找不到指定供應商付款紀錄。")
+        if source.payment_method != "TRANSFER" or source.currency_code != "TWD":
+            raise ValueError("只有新台幣轉帳付款可以連結銀行流水。")
+        return {
+            "source": source,
+            "site_id": source.site_id,
+            "direction": "OUT",
+            "amount": source.total_amount,
+            "currency_code": source.currency_code,
+            "reference_no": source.reference_no or source.payment_no,
+            "occurred_at": source.paid_at,
+            "note": source.note,
+            "source_no": source.payment_no,
+            "description": f"供應商轉帳付款：{source.payment_no}",
+        }
+
+    if source_type == "OPERATING_EXPENSE":
+        statement = select(OperatingExpense).where(
+            OperatingExpense.id == source_id,
+            OperatingExpense.company_id == company_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        source = session.scalar(statement)
+        if source is None:
+            raise ValueError("找不到指定營業費用紀錄。")
+        if source.status != "PAID" or source.payment_method != "TRANSFER" or source.currency_code != "TWD":
+            raise ValueError("只有已付款的新台幣轉帳費用可以連結銀行流水。")
+        if source.paid_at is None:
+            raise ValueError("費用付款時間不存在，無法連結銀行流水。")
+        return {
+            "source": source,
+            "site_id": source.site_id,
+            "direction": "OUT",
+            "amount": source.amount,
+            "currency_code": source.currency_code,
+            "reference_no": source.receipt_no or source.expense_no,
+            "occurred_at": source.paid_at,
+            "note": source.note,
+            "source_no": source.expense_no,
+            "description": f"營業費用轉帳：{source.expense_no} · {source.description}",
+        }
+
+    raise ValueError("不支援的轉帳來源類型。")
+
+
+def list_unlinked_transfer_sources(
+    session: Session, *, company_id: UUID, limit: int = 200
+) -> list[dict]:
+    linked = {
+        (row.source_type, row.source_id)
+        for row in session.scalars(
+            select(BankTransaction).where(
+                BankTransaction.company_id == company_id,
+                BankTransaction.source_type.is_not(None),
+                BankTransaction.source_id.is_not(None),
+            )
+        ).all()
+    }
+    candidates: list[tuple[datetime, str, UUID]] = []
+    payment_rows = session.scalars(
+        select(PaymentTransaction).where(
+            PaymentTransaction.company_id == company_id,
+            PaymentTransaction.payment_method == "TRANSFER",
+            PaymentTransaction.currency_code == "TWD",
+        ).order_by(PaymentTransaction.paid_at.desc()).limit(limit)
+    ).all()
+    candidates.extend(
+        (row.paid_at, "PAYMENT_TRANSACTION", row.id)
+        for row in payment_rows
+        if ("PAYMENT_TRANSACTION", row.id) not in linked
+    )
+    supplier_rows = session.scalars(
+        select(SupplierPayment).where(
+            SupplierPayment.company_id == company_id,
+            SupplierPayment.payment_method == "TRANSFER",
+            SupplierPayment.currency_code == "TWD",
+        ).order_by(SupplierPayment.paid_at.desc()).limit(limit)
+    ).all()
+    candidates.extend(
+        (row.paid_at, "SUPPLIER_PAYMENT", row.id)
+        for row in supplier_rows
+        if ("SUPPLIER_PAYMENT", row.id) not in linked
+    )
+    expense_rows = session.scalars(
+        select(OperatingExpense).where(
+            OperatingExpense.company_id == company_id,
+            OperatingExpense.status == "PAID",
+            OperatingExpense.payment_method == "TRANSFER",
+            OperatingExpense.currency_code == "TWD",
+            OperatingExpense.paid_at.is_not(None),
+        ).order_by(OperatingExpense.paid_at.desc()).limit(limit)
+    ).all()
+    candidates.extend(
+        (row.paid_at, "OPERATING_EXPENSE", row.id)
+        for row in expense_rows
+        if ("OPERATING_EXPENSE", row.id) not in linked
+    )
+    candidates.sort(key=lambda item: _utc_datetime(item[0]), reverse=True)
+    output = []
+    for occurred_at, source_type, source_id in candidates[:limit]:
+        details = _transfer_source_details(
+            session,
+            company_id=company_id,
+            source_type=source_type,
+            source_id=source_id,
+        )
+        output.append({
+            "source_type": source_type,
+            "source_id": source_id,
+            "site_id": details["site_id"],
+            "source_no": details["source_no"],
+            "description": details["description"],
+            "direction": details["direction"],
+            "amount": details["amount"],
+            "currency_code": details["currency_code"],
+            "reference_no": details["reference_no"],
+            "occurred_at": details["occurred_at"],
+            "note": details["note"],
+        })
+    return output
+
+
+def link_transfer_source_to_bank_account(
+    session: Session,
+    *,
+    company_id: UUID,
+    bank_account_id: UUID,
+    source_type: str,
+    source_id: UUID,
+    created_by_name: str,
+) -> tuple[BankTransaction, bool]:
+    actor = _actor_text(created_by_name, "連結經手人")
+    account = _account(session, company_id, bank_account_id)
+    existing = session.scalar(
+        select(BankTransaction).where(
+            BankTransaction.company_id == company_id,
+            BankTransaction.source_type == source_type,
+            BankTransaction.source_id == source_id,
+        ).with_for_update()
+    )
+    if existing is not None:
+        if existing.bank_account_id != account.id:
+            raise BankTransferLinkConflict("此筆轉帳已連結到另一個銀行帳戶，不可重複連結。")
+        return existing, False
+
+    details = _transfer_source_details(
+        session,
+        company_id=company_id,
+        source_type=source_type,
+        source_id=source_id,
+        lock=True,
+    )
+    occurred_at = _utc_datetime(details["occurred_at"])
+    if occurred_at < _utc_datetime(account.opening_balance_at):
+        raise ValueError(
+            "這筆轉帳早於所選銀行帳戶的期初餘額日期；可能已包含在期初餘額中，為避免重複計入請勿連結。"
+        )
+    transaction_type = "TRANSFER_IN" if details["direction"] == "IN" else "TRANSFER_OUT"
+    description = details["description"][:200]
+    row = BankTransaction(
+        company_id=company_id,
+        bank_account_id=account.id,
+        site_id=details["site_id"],
+        transaction_type=transaction_type,
+        direction=details["direction"],
+        amount=details["amount"],
+        currency_code=details["currency_code"],
+        reference_no=details["reference_no"],
+        description=description,
+        created_by_name=actor,
+        occurred_at=occurred_at,
+        note=details["note"],
+        source_type=source_type,
+        source_id=source_id,
+    )
+    session.add(row)
+    session.flush()
+    return row, True
+
