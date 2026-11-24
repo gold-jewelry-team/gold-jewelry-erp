@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_payment_idempotency():
+def test_alembic_history_is_a_single_linear_chain_through_bank_transfer_source_links():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0030_payment_idempotency"]
+    assert script.get_heads() == ["0031_bank_transfer_source_links"]
 
     expected = [
+        "0031_bank_transfer_source_links",
         "0030_payment_idempotency",
         "0029_cash_drawer_idempotency",
         "0028_estimate_sale_returns",
