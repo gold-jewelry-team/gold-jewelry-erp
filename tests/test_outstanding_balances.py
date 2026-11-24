@@ -202,13 +202,16 @@ def test_operational_report_lists_current_open_balances_by_currency_and_source()
         result = response.json()
         outstanding = result["outstanding_balances"]
         summaries = {row["currency_code"]: row for row in outstanding["summaries_by_currency"]}
-        assert summaries["TWD"]["total_outstanding"] == "1660.00"
-        assert summaries["USD"]["total_outstanding"] == "200.00"
+        assert summaries["TWD"]["total_receivable"] == "1160.00"
+        assert summaries["TWD"]["total_payable"] == "500.00"
+        assert summaries["USD"]["total_receivable"] == "200.00"
+        assert summaries["USD"]["total_payable"] == "0.00"
 
         items = {row["document_no"]: row for row in outstanding["items"]}
         assert items["OPEN-SALE-001"]["amount"] == "700.00"
         assert items["OPEN-RETURN-001"]["amount"] == "60.00"
         assert items["OPEN-RETURN-001"]["category_label"] == "退貨待退款"
+        assert items["OPEN-RETURN-001"]["side"] == "PAYABLE"
         assert items["OPEN-ORDER-001"]["amount"] == "400.00"
         assert items["OPEN-BILL-001"]["amount"] == "500.00"
         assert items["OPEN-BILL-001"]["days_overdue"] is not None
