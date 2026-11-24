@@ -258,6 +258,38 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
             rejected = client.post(f"/companies/{company_id}/sales", json=payload)
             assert rejected.status_code == 422, f"{label}: {rejected.text}"
 
+        editable = client.post(f"/companies/{company_id}/sales", json={
+            "site_id": str(site_id), "sale_no": "SO-EDIT-DRAFT-001",
+            "payment_method": "CASH",
+            "lines": [{"product_id": str(product2_id), "source_location_id": str(location_id)}],
+        })
+        assert editable.status_code == 201, editable.text
+        editable_id = editable.json()["id"]
+        updated = client.patch(f"/companies/{company_id}/sales/{editable_id}", json={
+            "site_id": str(site_id), "sale_no": "SO-EDIT-DRAFT-UPDATED",
+            "payment_method": "MIXED", "card_amount": "1000",
+            "note": "修改後草稿",
+            "lines": [{"product_id": str(product3_id), "source_location_id": str(location_id),
+                       "net_weight": "1.1000", "labor_fee": "350"}],
+        })
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["id"] == editable_id
+        assert updated.json()["sale_no"] == "SO-EDIT-DRAFT-UPDATED"
+        assert updated.json()["status"] == "DRAFT"
+        assert updated.json()["payment_method"] == "MIXED"
+        assert updated.json()["card_amount"] == "1000.00"
+        assert updated.json()["lines"][0]["product_id"] == str(product3_id)
+        assert updated.json()["lines"][0]["net_weight"] == "1.1000"
+        assert updated.json()["note"] == "修改後草稿"
+
+        locked_edit = client.patch(f"/companies/{company_id}/sales/{sale['id']}", json={
+            "site_id": str(site_id), "sale_no": "SO-EDIT-COMPLETED",
+            "payment_method": "CASH",
+            "lines": [{"product_id": str(product_id), "source_location_id": str(location_id)}],
+        })
+        # The original sale remains a draft at this point; completion guard is
+        # asserted immediately after the original sale is completed below.
+
         completed = client.post(
             f"/companies/{company_id}/sales/{sale['id']}/complete"
         )
