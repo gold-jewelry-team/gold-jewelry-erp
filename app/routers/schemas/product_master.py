@@ -13,6 +13,15 @@ class ProductCategoryCreate(BaseModel):
     sort_order: int = 0
 
 
+class ProductCategoryUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    code: str | None = Field(default=None, min_length=1, max_length=40)
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    parent_id: UUID | None = None
+    sort_order: int | None = None
+    is_active: bool | None = None
+
+
 class ProductCategoryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID

@@ -21,7 +21,7 @@ from app.models.supplier import Supplier
 from app.models.product import Product, ProductCategory
 from app.models.product_code_sequence import ProductCodeSequence
 from app.routers.schemas.product_master import (
-    ProductCategoryCreate, ProductCategoryRead, ProductCreate,
+    ProductCategoryCreate, ProductCategoryRead, ProductCategoryUpdate, ProductCreate,
     ProductLabelLotRead, ProductRead, ProductUpdate,
 )
 
@@ -88,6 +88,68 @@ def create_product_category(
             raise HTTPException(status_code=422, detail="不可使用停用中的上層分類。")
     category = ProductCategory(company_id=company_id, **payload.model_dump())
     db.add(category)
+    try:
+        db.commit()
+        db.refresh(category)
+        return category
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="商品分類代碼已存在或資料衝突。") from exc
+
+
+@router.patch("/companies/{company_id}/product-categories/{category_id}", response_model=ProductCategoryRead)
+def update_product_category(company_id: UUID, category_id: UUID, payload: ProductCategoryUpdate, db: Session = Depends(get_db)):
+    _require_company(db, company_id)
+    category = db.scalar(select(ProductCategory).where(
+        ProductCategory.id == category_id, ProductCategory.company_id == company_id
+    ))
+    if category is None:
+        raise HTTPException(status_code=404, detail="找不到指定商品分類。")
+    changes = payload.model_dump(exclude_unset=True)
+    if any(changes.get(field) is None for field in ("code", "name") if field in changes):
+        raise HTTPException(status_code=422, detail="分類代碼與名稱不可為空。")
+    if "is_active" in changes and changes["is_active"] is None:
+        raise HTTPException(status_code=422, detail="分類啟用狀態不可為空。")
+    next_parent_id = changes.get("parent_id", category.parent_id)
+    if next_parent_id is not None:
+        if next_parent_id == category_id:
+            raise HTTPException(status_code=422, detail="分類不可設定自己為上層分類。")
+        parent = db.scalar(select(ProductCategory).where(
+            ProductCategory.id == next_parent_id, ProductCategory.company_id == company_id
+        ))
+        if parent is None:
+            raise HTTPException(status_code=404, detail="找不到此公司的上層商品分類。")
+        if not parent.is_active:
+            raise HTTPException(status_code=422, detail="不可使用停用中的上層分類。")
+        ancestor_id = parent.parent_id
+        while ancestor_id is not None:
+            if ancestor_id == category_id:
+                raise HTTPException(status_code=422, detail="分類不可設定為自己的下層分類。")
+            ancestor = db.scalar(select(ProductCategory).where(
+                ProductCategory.id == ancestor_id, ProductCategory.company_id == company_id
+            ))
+            ancestor_id = ancestor.parent_id if ancestor else None
+    if changes.get("is_active") is False and category.is_active:
+        active_product = db.scalar(select(Product.id).where(
+            Product.company_id == company_id, Product.category_id == category_id,
+            Product.is_active.is_(True),
+        ).limit(1))
+        active_child = db.scalar(select(ProductCategory.id).where(
+            ProductCategory.company_id == company_id, ProductCategory.parent_id == category_id,
+            ProductCategory.is_active.is_(True),
+        ).limit(1))
+        if active_product is not None:
+            raise HTTPException(status_code=409, detail="此分類仍有啟用中的商品，請先將商品改分類或停用。")
+        if active_child is not None:
+            raise HTTPException(status_code=409, detail="此分類仍有啟用中的下層分類，請先調整下層分類。")
+    if changes.get("is_active") is True and next_parent_id is not None:
+        parent = db.scalar(select(ProductCategory).where(
+            ProductCategory.id == next_parent_id, ProductCategory.company_id == company_id
+        ))
+        if parent is None or not parent.is_active:
+            raise HTTPException(status_code=422, detail="請先選擇或重新啟用有效的上層分類。")
+    for field, value in changes.items():
+        setattr(category, field, value)
     try:
         db.commit()
         db.refresh(category)
