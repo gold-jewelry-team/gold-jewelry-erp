@@ -166,3 +166,83 @@ def test_product_offering_links_exact_product_and_auto_creates_category_offering
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_supplier_category_offering_update_changes_status_alias_note_and_preferred():
+    engine, Session, (company_id, category_id, supplier_a_id, supplier_b_id, _product_id) = _context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}"
+        first = client.post(
+            f"{base}/suppliers/{supplier_a_id}/category-offerings",
+            json={"category_id": str(category_id), "is_preferred": True},
+        )
+        second = client.post(
+            f"{base}/suppliers/{supplier_b_id}/category-offerings",
+            json={"category_id": str(category_id)},
+        )
+        assert first.status_code == 201, first.text
+        assert second.status_code == 201, second.text
+        updated = client.patch(
+            f"{base}/supplier-category-offerings/{second.json()['id']}",
+            json={"status": "PAUSED", "is_preferred": True, "supplier_category_name": "女戒系列", "note": "交期需確認"},
+        )
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["status"] == "PAUSED"
+        assert updated.json()["is_preferred"] is True
+        assert updated.json()["supplier_category_name"] == "女戒系列"
+        assert updated.json()["note"] == "交期需確認"
+        remaining = client.get(
+            f"{base}/supplier-category-offerings",
+            params={"category_id": str(category_id)},
+        )
+        assert len(remaining.json()) == 1
+        assert remaining.json()[0]["supplier_id"] == str(supplier_a_id)
+        all_rows = client.get(
+            f"{base}/supplier-category-offerings",
+            params={"category_id": str(category_id), "include_inactive": True},
+        )
+        assert len(all_rows.json()) == 2
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
+
+def test_supplier_product_offering_update_changes_quote_status_and_preferred():
+    engine, Session, (company_id, _category_id, supplier_a_id, supplier_b_id, product_id) = _context()
+    try:
+        client = TestClient(app)
+        base = f"/companies/{company_id}"
+        first = client.post(
+            f"{base}/suppliers/{supplier_a_id}/product-offerings",
+            json={"product_id": str(product_id), "quoted_unit_cost": "1000", "is_preferred": True},
+        )
+        second = client.post(
+            f"{base}/suppliers/{supplier_b_id}/product-offerings",
+            json={"product_id": str(product_id), "quoted_unit_cost": "1100"},
+        )
+        assert first.status_code == 201, first.text
+        assert second.status_code == 201, second.text
+        updated = client.patch(
+            f"{base}/supplier-product-offerings/{second.json()['id']}",
+            json={"quoted_unit_cost": "1200", "currency_code": "USD", "status": "STOPPED", "is_preferred": True, "supplier_product_code": "VENDOR-02"},
+        )
+        assert updated.status_code == 200, updated.text
+        assert updated.json()["quoted_unit_cost"] == "1200.00"
+        assert updated.json()["currency_code"] == "USD"
+        assert updated.json()["status"] == "STOPPED"
+        assert updated.json()["is_preferred"] is True
+        assert updated.json()["supplier_product_code"] == "VENDOR-02"
+        active_rows = client.get(
+            f"{base}/supplier-product-offerings",
+            params={"product_id": str(product_id)},
+        )
+        assert len(active_rows.json()) == 1
+        all_rows = client.get(
+            f"{base}/supplier-product-offerings",
+            params={"product_id": str(product_id), "include_inactive": True},
+        )
+        assert len(all_rows.json()) == 2
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
