@@ -64,6 +64,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
         if outstanding > ZERO:
             add_item(sale.currency_code, {
                 "category": "SALE_RECEIVABLE",
+                "side": "RECEIVABLE",
                 "category_label": "銷售待收尾款",
                 "document_id": str(sale.id),
                 "document_no": sale.sale_no,
@@ -90,7 +91,8 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
         outstanding = abs(obligation) - settled
         if outstanding > ZERO:
             add_item(returned.currency_code, {
-                "category": "RETURN_SETTLEMENT",
+                "category": "RETURN_RECEIVABLE" if direction == "IN" else "RETURN_REFUND_PAYABLE",
+                "side": "RECEIVABLE" if direction == "IN" else "PAYABLE",
                 "category_label": "退貨待收款" if direction == "IN" else "退貨待退款",
                 "document_id": str(returned.id),
                 "document_no": returned.return_no,
@@ -118,6 +120,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
             )
             add_item(order.currency_code, {
                 "category": "CUSTOMER_ORDER_BALANCE",
+                "side": "RECEIVABLE",
                 "category_label": "客訂待收尾款",
                 "document_id": str(order.id),
                 "document_no": order.order_no,
@@ -147,6 +150,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
             )
             add_item(bill.currency_code, {
                 "category": "SUPPLIER_PAYABLE",
+                "side": "PAYABLE",
                 "category_label": "供應商待付款",
                 "document_id": str(bill.id),
                 "document_no": bill.bill_no,
@@ -158,7 +162,7 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
                 "detail": f"帳單總額 {_money(bill.total_amount)}，已結清 {_money(bill.paid_amount)}（含現金付款及黃金折抵）",
             })
 
-    categories = ("SALE_RECEIVABLE", "RETURN_SETTLEMENT", "CUSTOMER_ORDER_BALANCE", "SUPPLIER_PAYABLE")
+    categories = ("SALE_RECEIVABLE", "RETURN_RECEIVABLE", "RETURN_REFUND_PAYABLE", "CUSTOMER_ORDER_BALANCE", "SUPPLIER_PAYABLE")
     summaries = []
     items = []
     for currency, currency_items in sorted(grouped.items()):
@@ -175,7 +179,8 @@ def build_outstanding_balance_report(session, *, company_id: UUID, site_id: UUID
         summaries.append({
             "currency_code": currency,
             "item_count": len(currency_items),
-            "total_outstanding": _money(sum((Decimal(item["amount"]) for item in currency_items), ZERO)),
+            "total_receivable": _money(sum((Decimal(item["amount"]) for item in currency_items if item["side"] == "RECEIVABLE"), ZERO)),
+            "total_payable": _money(sum((Decimal(item["amount"]) for item in currency_items if item["side"] == "PAYABLE"), ZERO)),
             "by_category": by_category,
         })
         items.extend(currency_items[:DISPLAY_LIMIT_PER_CATEGORY * len(categories)])
