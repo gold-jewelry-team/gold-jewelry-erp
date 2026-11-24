@@ -12,10 +12,11 @@ from app.models.company import Company
 from app.models.customer_order import CustomerOrder
 from app.models.payment_transaction import PaymentTransaction
 from app.models.site import Site
-from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead, CustomerOrderUpdate
+from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead, CustomerOrderRefundCreate, CustomerOrderUpdate
 from app.services.payments import (
     CustomerOrderPaymentIdempotencyConflict,
     record_customer_order_payment,
+    refund_customer_order_payment,
 )
 
 
@@ -265,6 +266,44 @@ def add_customer_order_payment(company_id: UUID, order_id: UUID, payload: Custom
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/{order_id}/refunds", response_model=CustomerOrderRead)
+def refund_customer_order(
+    company_id: UUID, order_id: UUID, payload: CustomerOrderRefundCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        refund_customer_order_payment(
+            db, company_id=company_id, order_id=order_id,
+            payment_method=payload.payment_method, amount=payload.amount,
+            note=payload.note, idempotency_key=payload.idempotency_key,
+        )
+        db.commit()
+        return _load(db, company_id, order_id)
+    except CustomerOrderPaymentIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/{order_id}/cancel", response_model=CustomerOrderRead)
+def cancel_customer_order(company_id: UUID, order_id: UUID, db: Session = Depends(get_db)):
+    order = db.scalar(select(CustomerOrder).where(
+        CustomerOrder.company_id == company_id,
+        CustomerOrder.id == order_id,
+    ).with_for_update())
+    if order is None:
+        raise HTTPException(status_code=404, detail="找不到指定客訂單。")
+    if order.status not in {"IN_PROGRESS", "ARRIVED", "READY"}:
+        raise HTTPException(status_code=409, detail="只有進行中、已到貨或待交貨的客訂單可以取消。")
+    if order.deposit_amount != 0:
+        raise HTTPException(status_code=409, detail="取消前必須先完成訂金／款項退款，退款紀錄需與實際退款一致。")
+    order.status = "CANCELLED"
+    db.commit()
+    return _load(db, company_id, order_id)
 
 
 @router.patch("/{order_id}/status", response_model=CustomerOrderRead)
