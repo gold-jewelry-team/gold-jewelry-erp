@@ -66,7 +66,10 @@ def update_supplier(company_id: UUID, supplier_id: UUID, payload: SupplierUpdate
     ))
     if supplier is None:
         raise HTTPException(status_code=404, detail="找不到指定供應商。")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if "is_active" in changes and changes["is_active"] is None:
+        raise HTTPException(status_code=422, detail="供應商啟用狀態不可為空。")
+    for key, value in changes.items():
         setattr(supplier, key, value)
     try:
         db.commit()
