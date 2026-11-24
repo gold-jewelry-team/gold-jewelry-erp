@@ -914,7 +914,7 @@ button.secondary:disabled{opacity:.42}
 <div class="grid">
 <div class="field"><label for="supplierOfferingSupplier">供應商</label><select id="supplierOfferingSupplier" required><option value="">請選擇供應商</option></select></div>
 <div class="field"><label for="supplierOfferingCategory">商品分類</label><select id="supplierOfferingCategory" required><option value="">請選擇分類</option></select></div>
-<div class="field"><label for="supplierOfferingStatus">供應狀態</label><select id="supplierOfferingStatus"><option value="ACTIVE">供應中</option><option value="PAUSED">暫停供應</option><option value="STOPPED">停止供應</option></select></div>
+<div class="field"><label for="supplierOfferingState">供應狀態</label><select id="supplierOfferingState"><option value="ACTIVE">供應中</option><option value="PAUSED">暫停供應</option><option value="STOPPED">停止供應</option></select></div>
 <div class="field"><label for="supplierOfferingAlias">廠商分類名稱（選填）</label><input id="supplierOfferingAlias" maxlength="120" placeholder="廠商自己的分類名稱"></div>
 <div class="field wide"><label><input id="supplierOfferingPreferred" type="checkbox" style="width:auto;min-height:0;margin-right:6px">設為此分類主要供應廠商</label></div>
 <div class="field wide"><label for="supplierOfferingNote">備註</label><input id="supplierOfferingNote" maxlength="500"></div>
@@ -2445,7 +2445,7 @@ function resetSupplierCategoryOfferingEditor(){
 $("supplierCategoryOfferingForm").addEventListener("submit",async event=>{
  event.preventDefault();if(!companyId)return;
  const button=$("supplierCategoryOfferingSubmit");button.disabled=true;
- const payload={status:$("supplierOfferingStatus").value,is_preferred:$("supplierOfferingPreferred").checked,supplier_category_name:$("supplierOfferingAlias").value.trim()||null,note:$("supplierOfferingNote").value.trim()||null};
+ const payload={status:$("supplierOfferingState").value,is_preferred:$("supplierOfferingPreferred").checked,supplier_category_name:$("supplierOfferingAlias").value.trim()||null,note:$("supplierOfferingNote").value.trim()||null};
  try{
   const wasEditing=Boolean(editingSupplierCategoryOfferingId);
   if(wasEditing){
@@ -2466,7 +2466,7 @@ $("supplierOfferingList").addEventListener("click",async event=>{
   const row=rows.find(item=>item.id===button.dataset.editCategoryOffering);if(!row)return;
   editingSupplierCategoryOfferingId=row.id;
   $("supplierOfferingSupplier").value=row.supplier_id;$("supplierOfferingCategory").value=row.category_id;
-  $("supplierOfferingStatus").value=row.status;$("supplierOfferingPreferred").checked=!!row.is_preferred;
+  $("supplierOfferingState").value=row.status;$("supplierOfferingPreferred").checked=!!row.is_preferred;
   $("supplierOfferingAlias").value=row.supplier_category_name||"";$("supplierOfferingNote").value=row.note||"";
   $("supplierOfferingSupplier").disabled=true;$("supplierOfferingCategory").disabled=true;
   $("supplierCategoryOfferingSubmit").textContent="儲存供貨分類修改";$("supplierCategoryOfferingCancel").classList.remove("hidden");
