@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
+from app.models.purchase import Purchase
 from app.models.supplier_payable import SupplierBill, SupplierPayment
 from app.routers.schemas.supplier_payables import (
     SupplierBillCreate,
@@ -132,6 +133,14 @@ def patch_supplier_bill(
         raise HTTPException(status_code=422, detail="請至少提供一個要修改的欄位。")
     if any(changes.get(field) is None for field in ("bill_no", "bill_date", "currency_code", "total_amount") if field in changes):
         raise HTTPException(status_code=422, detail="帳單號碼、日期、幣別與總額不可為空。")
+    effective_bill_date = changes.get("bill_date", bill.bill_date)
+    effective_due_date = changes.get("due_date", bill.due_date)
+    if effective_due_date is not None and effective_due_date < effective_bill_date:
+        raise HTTPException(status_code=422, detail="到期日不可早於帳單日期。")
+    if bill.purchase_id is not None and "currency_code" in changes:
+        purchase = db.get(Purchase, bill.purchase_id)
+        if purchase is None or changes["currency_code"].upper() != purchase.currency_code:
+            raise HTTPException(status_code=422, detail="帳單幣別必須與關聯採購單一致。")
     for key, value in changes.items():
         if key == "currency_code" and value is not None:
             value = value.upper()
