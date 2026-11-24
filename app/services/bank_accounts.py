@@ -34,10 +34,26 @@ def _account(session: Session, company_id: UUID, account_id: UUID, *, lock: bool
     return account
 
 def get_bank_account_balance(session: Session, account: BankAccount) -> Decimal:
-    incoming=session.scalar(select(func.coalesce(func.sum(BankTransaction.amount),0)).where(
-        BankTransaction.bank_account_id==account.id,BankTransaction.direction=="IN"))
-    outgoing=session.scalar(select(func.coalesce(func.sum(BankTransaction.amount),0)).where(
-        BankTransaction.bank_account_id==account.id,BankTransaction.direction=="OUT"))
+    """Return the opening balance plus ledger movements at/after its effective timestamp.
+
+    Transactions before opening_balance_at are historical context already covered
+    by the opening balance and must not be counted a second time.
+    """
+    effective_at = account.opening_balance_at
+    incoming = session.scalar(
+        select(func.coalesce(func.sum(BankTransaction.amount), 0)).where(
+            BankTransaction.bank_account_id == account.id,
+            BankTransaction.direction == "IN",
+            BankTransaction.occurred_at >= effective_at,
+        )
+    )
+    outgoing = session.scalar(
+        select(func.coalesce(func.sum(BankTransaction.amount), 0)).where(
+            BankTransaction.bank_account_id == account.id,
+            BankTransaction.direction == "OUT",
+            BankTransaction.occurred_at >= effective_at,
+        )
+    )
     return account.opening_balance + Decimal(incoming) - Decimal(outgoing)
 
 def create_bank_account(session: Session, *, company_id: UUID, bank_name: str, account_name: str,
