@@ -12,7 +12,7 @@ from app.models.company import Company
 from app.models.customer_order import CustomerOrder
 from app.models.payment_transaction import PaymentTransaction
 from app.models.site import Site
-from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead
+from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead, CustomerOrderUpdate
 from app.services.payments import (
     CustomerOrderPaymentIdempotencyConflict,
     record_customer_order_payment,
@@ -208,6 +208,42 @@ def get_customer_order(company_id: UUID, order_id: UUID, db: Session = Depends(g
     if order is None:
         raise HTTPException(status_code=404, detail="找不到指定客訂單。")
     return order
+
+
+@router.patch("/{order_id}", response_model=CustomerOrderRead)
+def update_customer_order(
+    company_id: UUID, order_id: UUID, payload: CustomerOrderUpdate,
+    db: Session = Depends(get_db),
+):
+    order = db.scalar(select(CustomerOrder).where(
+        CustomerOrder.company_id == company_id,
+        CustomerOrder.id == order_id,
+    ).with_for_update())
+    if order is None:
+        raise HTTPException(status_code=404, detail="找不到指定客訂單。")
+    if order.status != "IN_PROGRESS":
+        raise HTTPException(status_code=409, detail="只有進行中的客訂單可以修改基本資料；已到貨或已完成訂單不可直接更改。")
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes:
+        raise HTTPException(status_code=422, detail="請至少提供一個要修改的欄位。")
+    if any(changes.get(field) is None for field in ("order_no", "customer_name") if field in changes):
+        raise HTTPException(status_code=422, detail="訂單編號與客戶姓名不可為空。")
+    if "order_no" in changes and changes["order_no"] is not None:
+        order.order_no = changes["order_no"]
+    if "customer_name" in changes and changes["customer_name"] is not None:
+        order.customer_name = changes["customer_name"].strip()
+    if "customer_phone" in changes:
+        order.customer_phone = changes["customer_phone"]
+    if "expected_delivery_date" in changes:
+        order.expected_delivery_date = _normalize_order_datetime(changes["expected_delivery_date"])
+    if "note" in changes:
+        order.note = changes["note"]
+    try:
+        db.commit()
+        return _load(db, company_id, order_id)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="客訂單編號重複或資料關聯衝突。") from exc
 
 
 @router.post("/{order_id}/payments", response_model=CustomerOrderRead)
