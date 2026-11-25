@@ -170,6 +170,11 @@ def test_employee_pages_are_public_shells_and_workspace_requires_google_session(
     assert "供應商帳款" in payables_page.text
     assert "/auth/google/workspace" in payables_page.text
 
+    customer_orders_page = client.get("/employee/customer-orders")
+    assert customer_orders_page.status_code == 200
+    assert "客戶訂單" in customer_orders_page.text
+    assert "/auth/google/workspace" in customer_orders_page.text
+
     response = client.get("/auth/google/workspace")
     assert response.status_code == 401
 
