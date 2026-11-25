@@ -219,7 +219,7 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
         if verb == "POST" and endpoint == "movements":
             required.add("suppliers.view")
 
-    if root == "daily-closings":
+    if "daily-closings" in tail:
         # DailyClosingRead contains customer, supplier and expense payment summaries.
         required.update({
             "payments.view",
