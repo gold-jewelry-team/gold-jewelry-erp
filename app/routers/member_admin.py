@@ -82,6 +82,8 @@ def _ensure_permission_schema(db: Session) -> None:
     try:
         db.scalar(select(Permission.id).limit(1))
         db.scalar(select(CompanyRole.id).limit(1))
+        db.scalar(select(CompanyRolePermission.id).limit(1))
+        db.scalar(select(CompanyMembershipRole.id).limit(1))
     except SQLAlchemyError as exc:
         raise HTTPException(
             status_code=503,
@@ -126,6 +128,7 @@ def _role_payload(db: Session, role: CompanyRole) -> dict:
 
 @router.get("/members")
 def list_members(db: Session = Depends(get_db)) -> list[dict]:
+    _ensure_permission_schema(db)
     users = list(db.scalars(select(User).order_by(User.created_at.desc())).all())
     result = []
     for user in users:
