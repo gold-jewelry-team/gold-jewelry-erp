@@ -155,7 +155,7 @@ jobs:
       - name: Run sale draft edit runtime tests
         run: node --test tests/sale_draft_edit_runtime.test.js
       - name: Run tests
-        run: pytest -q --ignore=tests/test_access_control_ui_browser.py
+        run: pytest -q --ignore=tests/test_access_control_ui_browser.py --ignore=tests/test_access_control_ui_e2e.py
       - name: Upgrade PostgreSQL schema to head
         run: alembic upgrade head
         env:
@@ -310,3 +310,13 @@ jobs:
           test "$current_id" = "$head_id"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+      - name: Run authenticated admin browser end-to-end test
+        run: pytest -q tests/test_access_control_ui_e2e.py
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+          ENVIRONMENT: production
+          ADMIN_USERNAME: ci-owner
+          ADMIN_PASSWORD: ci-browser-test-password-123456
+          SESSION_SECRET_KEY: ci-browser-test-secret-key-0123456789abcdef
+          SESSION_COOKIE_SECURE: "false"
+          GOOGLE_OAUTH_ENABLED: "false"
