@@ -12,6 +12,8 @@ from app.main import app
 from app.models.company import Company
 from app.models.inventory import InventoryMovement
 from app.models.inventory_operation_request import InventoryOperationRequest
+from app.routers.schemas.inventory import InventoryTransferCreate
+from app.services.inventory_operation_requests import fingerprint_inventory_operation
 from app.models.product import Product
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
