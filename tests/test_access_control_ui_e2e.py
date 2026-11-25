@@ -135,7 +135,8 @@ def stop_application(process, log_file):
 
 def permission_card(page, code):
     card = page.locator("#permissions .permission").filter(has_text=code)
-    assert card.count() == 1, f"Expected one permission card for {code}"
+    card.first.wait_for(state="visible")
+    assert card.count() == 1, f"Expected one permission card for {code}; found {card.count()}"
     return card
 
 
@@ -180,6 +181,11 @@ def test_owner_login_can_manage_real_roles_and_member_assignments():
                 f"#role option[value='{seeded['staff_role_id']}']"
             ).wait_for(state="attached")
             page.locator("#role").select_option(seeded["staff_role_id"])
+            page.wait_for_function(
+                "(roleId) => document.querySelector('#role')?.value === roleId && "
+                "document.querySelector('#role-meta')?.textContent.includes('預設不授權')",
+                arg=seeded["staff_role_id"],
+            )
 
             staff_card = permission_card(page, "products.view")
             staff_checkbox = staff_card.locator('input[type="checkbox"]')
@@ -194,8 +200,16 @@ def test_owner_login_can_manage_real_roles_and_member_assignments():
             page.locator("#new-name").fill("庫存檢視")
             page.get_by_role("button", name="新增角色").click()
             page.get_by_text("自訂角色已建立，預設沒有任何授權。").wait_for()
+            page.locator("#role option").filter(
+                has_text="庫存檢視（自訂）"
+            ).wait_for(state="attached")
             custom_role_id = page.locator("#role").input_value()
             assert custom_role_id
+            page.wait_for_function(
+                "(roleId) => document.querySelector('#role')?.value === roleId && "
+                "document.querySelector('#role-meta')?.textContent.includes('自訂角色')",
+                arg=custom_role_id,
+            )
 
             custom_card = permission_card(page, "products.view")
             custom_card.locator('input[type="checkbox"]').check()
