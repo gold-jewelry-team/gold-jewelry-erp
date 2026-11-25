@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -346,13 +346,24 @@ def retry_inventory_operation_request(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
-        failed = db.get(InventoryOperationRequest, request_id)
-        if failed is not None and failed.status in {"PENDING", "FAILED"}:
-            failed.status = "FAILED"
-            failed.failure_code = "RETRY_VALIDATION_FAILED"
-            failed.failure_message = str(exc)[:300]
-            failed.updated_at = datetime.now(timezone.utc)
-            db.commit()
+        # The original row lock was released by rollback. Use a conditional
+        # update so a concurrent retry that completed in the meantime stays
+        # COMPLETED instead of being overwritten by this late failure.
+        db.execute(
+            update(InventoryOperationRequest)
+            .where(
+                InventoryOperationRequest.id == request_id,
+                InventoryOperationRequest.status.in_({"PENDING", "FAILED"}),
+                InventoryOperationRequest.movement_id.is_(None),
+            )
+            .values(
+                status="FAILED",
+                failure_code="RETRY_VALIDATION_FAILED",
+                failure_message=str(exc)[:300],
+                updated_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
