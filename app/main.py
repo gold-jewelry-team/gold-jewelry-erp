@@ -77,7 +77,7 @@ app.include_router(operational_reports_router)
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    """Fail closed in production and protect every app/API route with an admin session."""
+    """Fail closed: owner sessions for administration, Google sessions for scoped member access."""
     path = request.url.path
     health_paths = {"/health", "/health/db"}
 
@@ -152,9 +152,9 @@ async def security_middleware(request: Request, call_next):
         finally:
             current_actor.reset(actor_token)
 
-    # Google members may only enter an explicitly company-scoped API path.
-    # The server validates the session and the exact company membership on every
-    # request; a client-supplied company_id is never treated as authorization.
+    # Google members may use the self-service employee workspace and an explicitly
+    # company-scoped API path. The server validates the session and exact membership
+    # on every request; a client-supplied company_id is never authorization.
     google_token = request.cookies.get(settings.google_session_cookie_name, "")
     company_id = company_id_from_path(path)
     if google_token and company_id is not None:
