@@ -52,3 +52,21 @@ def test_google_session_cookie_does_not_unlock_admin_workspace(monkeypatch) -> N
     )
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
+
+
+def test_google_login_config_stays_hidden_until_full_permission_schema_is_ready(monkeypatch):
+    from fastapi import HTTPException
+    import app.routers.google_auth as google_auth_module
+
+    monkeypatch.setattr(settings, "google_oauth_enabled", True)
+    monkeypatch.setattr(settings, "google_client_id", "test-client-id")
+    monkeypatch.setattr(settings, "google_client_secret", "test-client-secret")
+    monkeypatch.setattr(settings, "google_redirect_uri", "https://example.test/callback")
+
+    def missing_permission_schema():
+        raise HTTPException(status_code=503, detail="Migration 尚未完成")
+
+    monkeypatch.setattr(google_auth_module, "_oauth_ready", missing_permission_schema)
+    response = client.get("/auth/google/config")
+    assert response.status_code == 200
+    assert response.json() == {"enabled": False}
