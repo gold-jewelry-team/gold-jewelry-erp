@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -94,6 +95,7 @@ def test_receiving_rejects_line_belonging_to_another_purchase_without_side_effec
                 "purchase_line_id": str(foreign_line_id),
                 "location_id": str(safe_id),
                 "received_quantity": "1",
+                "idempotency_key": str(uuid4()),
             },
         )
         assert rejected.status_code == 422, rejected.text
