@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.db.session import SessionLocal
+from app.services.access_control import replace_membership_roles
 from app.models import (
     AuthIdentity, Company, CompanyMembership, CompanyMembershipRole,
     Permission, User, UserSession,
@@ -187,12 +188,15 @@ def google_callback(request: Request):
                 # Only a single active company can be assigned automatically.
                 # Zero or multiple companies require a future administrator action.
                 if len(active_companies) == 1:
-                    db.add(CompanyMembership(
+                    membership = CompanyMembership(
                         company_id=active_companies[0].id,
                         user_id=user.id,
                         status="PENDING",
                         role="STAFF",
-                    ))
+                    )
+                    db.add(membership)
+                    db.flush()
+                    replace_membership_roles(db, membership, ["STAFF"])
 
             if identity is not None:
                 membership_statuses = list(db.scalars(
