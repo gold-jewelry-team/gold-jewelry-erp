@@ -38,6 +38,10 @@ def _oauth_ready() -> None:
     # Do not start OAuth until user, membership, role, permission, and record-actor schemas exist.
     try:
         with SessionLocal() as db:
+            db.scalar(select(User.id).limit(1))
+            db.scalar(select(AuthIdentity.id).limit(1))
+            db.scalar(select(Company.id).limit(1))
+            db.scalar(select(CompanyMembership.id).limit(1))
             db.scalar(select(UserSession.id).limit(1))
             db.scalar(select(CompanyMembershipRole.id).limit(1))
             db.scalar(select(CompanyRole.id).limit(1))
@@ -68,10 +72,9 @@ def google_login_config() -> dict[str, bool]:
     if not settings.google_oauth_configured:
         return {"enabled": False}
     try:
-        with SessionLocal() as db:
-            db.scalar(select(UserSession.id).limit(1))
+        _oauth_ready()
         return {"enabled": True}
-    except SQLAlchemyError:
+    except HTTPException:
         return {"enabled": False}
 
 
