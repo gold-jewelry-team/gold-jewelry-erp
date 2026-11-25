@@ -204,6 +204,17 @@ def list_company_roles(company_id: UUID, db: Session = Depends(get_db)) -> list[
     company = db.get(Company, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="找不到指定公司。")
+    permission_exists = db.scalar(
+        select(Permission.id).where(Permission.is_active.is_(True)).limit(1)
+    )
+    if permission_exists is None:
+        raise HTTPException(status_code=503, detail="權限目錄尚未完成初始化，暫時無法建立公司角色。")
+    has_roles = db.scalar(
+        select(CompanyRole.id).where(CompanyRole.company_id == company_id).limit(1)
+    )
+    if has_roles is None:
+        ensure_company_system_roles(db, company_id)
+        db.commit()
     roles = db.scalars(
         select(CompanyRole).where(CompanyRole.company_id == company_id)
         .order_by(CompanyRole.is_system.desc(), CompanyRole.name)
