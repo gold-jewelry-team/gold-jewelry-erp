@@ -12,9 +12,19 @@ from app import models  # noqa: F401
 from app.core.company_access import (
     authorize_google_company_request,
     company_id_from_path,
+    permission_for_request,
 )
 from app.db.base import Base
-from app.models import Company, CompanyMembership, User, UserSession
+from app.models import (
+    Company,
+    CompanyMembership,
+    CompanyMembershipRole,
+    CompanyRole,
+    CompanyRolePermission,
+    Permission,
+    User,
+    UserSession,
+)
 
 
 engine = create_engine(
@@ -44,6 +54,14 @@ def seed_member(db, role="OWNER", status="ACTIVE", *, company=None, active=True,
     membership = CompanyMembership(
         company_id=company.id, user_id=user.id, status=status, role=role,
     )
+    company_role = CompanyRole(
+        company_id=company.id, code=role, name=role, is_system=True, is_active=True,
+    )
+    db.add(company_role)
+    db.flush()
+    membership_role = CompanyMembershipRole(
+        membership_id=membership.id, role_id=company_role.id,
+    )
     token = f"google-token-{uuid4().hex}"
     now = datetime.now(timezone.utc)
     db.add(UserSession(
@@ -52,7 +70,25 @@ def seed_member(db, role="OWNER", status="ACTIVE", *, company=None, active=True,
         expires_at=now - timedelta(minutes=1) if expired else now + timedelta(hours=1),
         revoked_at=now if revoked else None,
     ))
-    db.add(membership)
+    db.add_all([membership, membership_role])
+    actions = ("view", "create", "update", "void")
+    for action in actions:
+        permission = Permission(
+            code=f"products.{action}",
+            resource_code="products",
+            action_code=action,
+            name=f"商品-{action}",
+            is_active=True,
+        )
+        db.add(permission)
+        db.flush()
+        allowed = role == "OWNER" or (role == "MANAGER" and action == "view")
+        db.add(CompanyRolePermission(
+            role_id=company_role.id,
+            permission_id=permission.id,
+            is_allowed=allowed,
+            data_scope="ALL" if role != "STAFF" else "OWN",
+        ))
     db.commit()
     return company, user, membership, token
 
@@ -65,19 +101,40 @@ def test_company_id_is_extracted_only_from_scoped_paths():
     assert company_id_from_path("/admin/api/members") is None
 
 
+@pytest.mark.parametrize(
+    "path,method,expected",
+    [
+        ("/companies/00000000-0000-0000-0000-000000000001/products", "GET", "products.view"),
+        ("/companies/00000000-0000-0000-0000-000000000001/products", "POST", "products.create"),
+        ("/companies/00000000-0000-0000-0000-000000000001/products/00000000-0000-0000-0000-000000000002", "PATCH", "products.update"),
+        ("/companies/00000000-0000-0000-0000-000000000001/sales/00000000-0000-0000-0000-000000000002/void", "POST", "sales.void"),
+        ("/companies/00000000-0000-0000-0000-000000000001/supplier-payables/bills/00000000-0000-0000-0000-000000000002/void", "POST", "supplier_payables.void"),
+        ("/companies/00000000-0000-0000-0000-000000000001/bank-accounts/00000000-0000-0000-0000-000000000002/statement-imports", "GET", "bank_reconciliation.view"),
+    ],
+)
+def test_permission_code_maps_route_and_action(path, method, expected):
+    assert permission_for_request(path, method) == expected
+
+
+def test_unmapped_company_api_fails_closed():
+    with pytest.raises(HTTPException) as exc:
+        permission_for_request("/companies/00000000-0000-0000-0000-000000000001/unmapped", "GET")
+    assert exc.value.status_code == 403
+
+
 @pytest.mark.parametrize("method", ["GET", "POST", "PUT", "PATCH", "DELETE"])
-def test_owner_role_can_access_all_company_api_methods(db, method):
+def test_owner_role_can_access_all_company_products_methods(db, method):
     company, _user, _membership, token = seed_member(db, role="OWNER")
     grant = authorize_google_company_request(db, token, company.id, method)
     assert grant["company_id"] == company.id
     assert grant["role"] == "OWNER"
+    assert grant["data_scope"] == "ALL"
 
 
-def test_manager_role_is_read_only(db):
+def test_manager_role_is_read_only_from_permission_catalog(db):
     company, _user, _membership, token = seed_member(db, role="MANAGER")
     grant = authorize_google_company_request(db, token, company.id, "GET")
     assert grant["role"] == "MANAGER"
-
     with pytest.raises(HTTPException) as exc:
         authorize_google_company_request(db, token, company.id, "POST")
     assert exc.value.status_code == 403
@@ -88,7 +145,30 @@ def test_staff_role_fails_closed_until_own_record_scope_is_available(db):
     with pytest.raises(HTTPException) as exc:
         authorize_google_company_request(db, token, company.id, "GET")
     assert exc.value.status_code == 403
-    assert "僅本人資料範圍尚未完成" in exc.value.detail
+    assert "本人建立的資料" in exc.value.detail
+
+
+def test_custom_role_permission_is_used_instead_of_legacy_role_label(db):
+    company, _user, membership, token = seed_member(db, role="STAFF")
+    custom = CompanyRole(
+        company_id=company.id, code="STOCK_VIEWER", name="庫存檢視", is_system=False,
+    )
+    db.add(custom)
+    db.flush()
+    permission = db.scalar(
+        __import__("sqlalchemy").select(Permission).where(Permission.code == "products.view")
+    )
+    db.add_all([
+        CompanyMembershipRole(membership_id=membership.id, role_id=custom.id),
+        CompanyRolePermission(
+            role_id=custom.id, permission_id=permission.id,
+            is_allowed=True, data_scope="ALL",
+        ),
+    ])
+    db.commit()
+    grant = authorize_google_company_request(db, token, company.id, "GET")
+    assert grant["permission_code"] == "products.view"
+    assert grant["data_scope"] == "ALL"
 
 
 def test_pending_membership_cannot_access_company_data(db):
