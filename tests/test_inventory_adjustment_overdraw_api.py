@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -66,6 +67,7 @@ def test_outgoing_stock_adjustment_cannot_overdraw_inventory():
             "location_id": str(location_id),
             "direction": "IN",
             "quantity": "2",
+            "idempotency_key": str(uuid4()),
         })
         assert received.status_code == 201, received.text
 
@@ -75,6 +77,7 @@ def test_outgoing_stock_adjustment_cannot_overdraw_inventory():
             "location_id": str(location_id),
             "direction": "OUT",
             "quantity": "2.001",
+            "idempotency_key": str(uuid4()),
         })
         assert overdraw.status_code == 422
         assert "庫存不足" in overdraw.json()["detail"]
