@@ -6,7 +6,7 @@ COMPLETED transition are then committed together in the caller's transaction.
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -129,11 +129,20 @@ def mark_inventory_operation_failed(
 ) -> None:
     """Record a sanitized, deterministic business failure after rolling back work."""
     session.rollback()
-    row = session.get(InventoryOperationRequest, request_id)
-    if row is None or row.status != "PENDING":
-        return
-    row.status = "FAILED"
-    row.failure_code = failure_code[:60]
-    row.failure_message = failure_message[:300]
-    row.updated_at = datetime.now(timezone.utc)
+    # Conditional UPDATE prevents a late validation failure from overwriting a
+    # concurrent explicit recovery that has already committed COMPLETED.
+    session.execute(
+        update(InventoryOperationRequest)
+        .where(
+            InventoryOperationRequest.id == request_id,
+            InventoryOperationRequest.status == "PENDING",
+            InventoryOperationRequest.movement_id.is_(None),
+        )
+        .values(
+            status="FAILED",
+            failure_code=failure_code[:60],
+            failure_message=failure_message[:300],
+            updated_at=datetime.now(timezone.utc),
+        )
+    )
     session.commit()
