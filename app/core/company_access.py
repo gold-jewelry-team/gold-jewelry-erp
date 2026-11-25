@@ -74,7 +74,9 @@ def permission_for_request(path: str, method: str) -> str:
     tail = parts[2:]
     root = tail[0]
 
-    if root == "sales":
+    if any(part in {"category-offerings", "product-offerings", "supplier-offerings"} for part in tail):
+        resource = "supplier_offerings"
+    elif root == "sales":
         if "returns" in tail:
             resource = "sales_returns"
         elif "payments" in tail:
