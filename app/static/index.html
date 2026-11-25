@@ -1836,6 +1836,8 @@ function restorePendingInventoryTransfer(){
 }
 async function loadInventoryOptions(){
  setInventoryTransferFormLocked(false);
+ if(companyId&&selectedSiteId&&readPendingInventoryTransfer(companyId,selectedSiteId))
+  setInventoryTransferFormLocked(true);
  const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct","quoteProduct","purchaseProduct"];
  const locationIds=["stockLocationFilter","stocktakeLocation","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter","saleLocation","purchaseReceiveLocation"];
  if(!companyId||!selectedSiteId){
