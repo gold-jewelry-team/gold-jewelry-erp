@@ -12,11 +12,10 @@ const helperNames = [
 ];
 
 const helpers = helperNames.map((name) => {
-  const escaped = name.replace(/[.*+?^\${}()|[\]\\]/g, "\\$&");
-  const match = html.match(new RegExp("function " + escaped + "\\([\\s\\S]*?\\n\\}"));
+  const match = html.match(new RegExp("function " + name + "\\([\\s\\S]*?\\n\\}"));
   assert.ok(match, name + " must exist in the inventory page");
   return match[0];
-}).join("\\n");
+}).join("\n");
 
 function createContext(initialValues = new Map()) {
   const values = new Map(initialValues);
