@@ -30,7 +30,7 @@
 1. **先提交 Migration-only PR**：只加入向前相容的資料庫變更，確認 GitHub Actions CI 全部成功後合併。
 2. **執行正式 Migration**：合併後，前往 GitHub Actions，手動執行 `Manual Production Alembic Migration`，並在 `confirm_production` 欄位輸入 `RUN PRODUCTION MIGRATION`。此 Workflow 固定從 `main` 讀取 Migration，先顯示現況，再執行 `alembic upgrade head`，最後比對資料庫目前版本與 Repository 的 Alembic heads。
 3. **確認 Migration 成功**：只有 Workflow 成功且 Neon production 的版本已到達程式碼目前的 Alembic heads，才進行依賴新結構的應用程式 PR。
-4. **再部署應用程式**：合併應用程式 PR 後，由 Render 依現有自動部署設定部署；接著檢查 Render Deploy 狀態及 `/health`。
+4. **再部署應用程式**：合併應用程式 PR 後，Render 應設定為 `After CI Checks Pass`（Blueprint 欄位 `autoDeployTrigger: checksPass`），只在該提交的 GitHub CI 全部通過後部署；接著檢查 Render Deploy 狀態及 `/health`。
 
 若變更涉及刪欄位、改名、資料轉換或其他不向前相容操作，必須拆成多階段 expand/contract 變更，先確保舊版與新版應用程式可在過渡期間共存，不可把破壞性 Migration 與依賴它的新程式碼一次部署。沒有資料庫結構變更的程式碼可照一般 PR 流程合併。
 
@@ -66,7 +66,7 @@
 ## 目前部署與資料安全狀態
 - Render 正式服務：`https://gold-jewelry-erp.onrender.com`
 - 使用者介面：`/app`；API 文件：`/docs`；健康檢查：`/health`
-- GitHub `main` 更新會依 Render 自動部署設定觸發部署；每次部署仍須確認 Render deploy 狀態及健康檢查。
+- Render Blueprint 將 `autoDeployTrigger` 設為 `checksPass`；Render Dashboard 的 Auto-Deploy 也應確認為 `After CI Checks Pass`，避免 CI 尚未完成就部署。每次部署仍須確認 Render Deploy 狀態及健康檢查。
 - 正式 Neon production 資料庫已存在；不可將本機測試、CI 測試資料庫與 production 混為一談。
 - 未經使用者明確授權，不得對 production 執行 Migration、資料寫入、刪除或重設。
 - 測試期間不建立虛構商品或交易資料；商品建檔及實際標籤列印須使用使用者提供的真實資料與設備驗證。
