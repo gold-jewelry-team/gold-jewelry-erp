@@ -51,7 +51,13 @@ def test_google_session_cookie_does_not_unlock_admin_workspace(monkeypatch) -> N
         follow_redirects=False,
     )
     assert response.status_code == 303
-    assert response.headers["location"] == "/login"
+    # Google sessions receive only the static employee shell, never the admin app.
+    assert response.headers["location"] == "/employee"
+    employee_page = client.get("/employee")
+    assert employee_page.status_code == 200
+    # The self-service endpoint still requires its own valid Google session.
+    workspace = client.get("/auth/google/workspace")
+    assert workspace.status_code == 401
 
 
 def test_google_login_config_stays_hidden_until_full_permission_schema_is_ready(monkeypatch):
