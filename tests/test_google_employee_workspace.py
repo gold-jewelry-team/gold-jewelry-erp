@@ -145,10 +145,15 @@ def seed_google_member(status="ACTIVE", include_grants=True):
     return token
 
 
-def test_employee_page_is_only_a_public_shell_and_workspace_requires_google_session():
+def test_employee_pages_are_public_shells_and_workspace_requires_google_session():
     page = client.get("/employee")
     assert page.status_code == 200
     assert "員工工作區" in page.text
+
+    catalog_page = client.get("/employee/catalog")
+    assert catalog_page.status_code == 200
+    assert "商品與庫存查詢" in catalog_page.text
+    assert "/auth/google/workspace" in catalog_page.text
 
     response = client.get("/auth/google/workspace")
     assert response.status_code == 401
