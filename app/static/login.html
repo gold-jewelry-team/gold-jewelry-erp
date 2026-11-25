@@ -20,7 +20,7 @@
 <body>
   <main>
     <h1>銀樓進銷存管理系統</h1>
-    <p>請使用管理者帳號登入，以存取商品、庫存、銷售及營運資料。</p>
+    <p>老闆請使用管理者帳號；員工請使用公司核准的 Google 帳號登入。</p>
     <button id="google-login" type="button" hidden style="margin:0 0 18px;background:#fff;color:#302b24;border:1px solid #d6d0c6">使用 Google 帳號登入</button>
     <div id="google-status" role="status" aria-live="polite"></div>
     <form id="login-form">
@@ -43,7 +43,7 @@
     googleButton.addEventListener("click",()=>{window.location.assign("/auth/google/start");});
     if(new URLSearchParams(window.location.search).get("google")==="connected"){
       fetch("/auth/google/status").then(async r=>{const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.detail||"無法取得 Google 登入狀態");return data;}).then(data=>{
-        const messages={PENDING_APPROVAL:"Google 帳號已連結，正在等待老闆核准。核准前無法查看商品、庫存或營運資料。",NEEDS_COMPANY_ASSIGNMENT:"Google 帳號已連結，尚待管理者指定所屬公司。",APPROVED_BUT_NOT_OPEN:"帳號已核准；多人權限功能尚未開放，請先使用管理者登入。",SUSPENDED:"此帳號目前已暫停使用，請聯絡管理者。",REJECTED:"此帳號申請未獲核准，請聯絡管理者。"};
+        const messages={ACTIVE:"Google 帳號已核准，請前往員工工作區。",PENDING_APPROVAL:"Google 帳號已連結，正在等待公司管理者核准。核准前無法查看公司營運資料。",NEEDS_COMPANY_ASSIGNMENT:"Google 帳號已連結，尚待公司管理者指定所屬公司。",SUSPENDED:"此帳號目前已暫停使用，請聯絡公司管理者。",REJECTED:"此帳號申請未獲核准，請聯絡公司管理者。",COMPANY_INACTIVE:"所屬公司目前已停用，請聯絡公司管理者。"};
         googleStatus.textContent=messages[data.status]||"Google 帳號已連結。";
       }).catch(error=>{googleStatus.textContent=error.message;});
     }
