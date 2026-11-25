@@ -1,5 +1,6 @@
 import hashlib
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -100,7 +101,7 @@ def test_suspending_last_membership_revokes_google_sessions():
     token_hash = hashlib.sha256(b"test-session-token").hexdigest()
     with TestingSessionLocal() as db:
         membership = CompanyMembership(
-            user_id=__import__('uuid').UUID(user_id), company_id=__import__('uuid').UUID(company_id), status="ACTIVE", role="STAFF"
+            user_id=UUID(user_id), company_id=__import__('uuid').UUID(company_id), status="ACTIVE", role="STAFF"
         )
         session = UserSession(
             user_id=__import__('uuid').UUID(user_id), token_hash=token_hash,
