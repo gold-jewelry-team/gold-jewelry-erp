@@ -169,15 +169,11 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
             # Draft creation reads product, location and effective gold-price data.
             required.update({
                 "payments.create",
-                "products.view",
-                "inventory.view",
                 "gold_prices.view",
             })
         elif verb == "PATCH" and len(tail) == 2:
             required.update({
                 "payments.update",
-                "products.view",
-                "inventory.view",
                 "gold_prices.view",
             })
         elif verb == "POST" and endpoint == "complete":
@@ -216,8 +212,6 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
     if root == "gold-material":
         if verb == "GET" and endpoint == "movements":
             required.add("supplier_payables.view")
-        if verb == "POST" and endpoint == "movements":
-            required.add("suppliers.view")
 
     if "daily-closings" in tail:
         # DailyClosingRead contains customer, supplier and expense payment summaries.
