@@ -37,6 +37,7 @@
 - Cross-module dependent grants must have ALL data scope; OWN scope cannot be used to bypass another module's row visibility.
 - A record-actor registry records creator and last modifier for supported business records, distinguishing Google user IDs from the legacy owner username/password account.
 - ORM reads on supported resources apply a creator filter when the effective primary data scope is OWN.
+- Inventory adjustment and transfer requests with the same company/idempotency key are serialized with a PostgreSQL advisory lock held across the durable PENDING marker and the final ledger commit. This prevents concurrent retries from being mistaken for unresolved operations while the first request is still committing; the lock is released after completion and is automatically released if the database connection drops.
 
 ## Conservative defaults
 
@@ -55,12 +56,12 @@ Historical rows are not assigned to a person by inference. Rows without a record
 - CI passes on PostgreSQL 16 with a clean schema upgrade, full downgrade, clean re-upgrade, and final Alembic revision check.
 - CI rolls the disposable database back to 0034, seeds two synthetic companies and three existing memberships, then upgrades to 0035 and verifies the 24-resource × 4-action catalogue, six company roles, 576 role grants, default-role baselines, and three membership-role backfills.
 - CI checks every published `/companies/{company_id}/...` route in OpenAPI for an explicit permission mapping.
-- CI covers cross-module permission dependencies, data-scope requirements, own-record filtering, member/role management, session lifecycle, and PostgreSQL inventory/reconciliation behavior.
+- CI covers cross-module permission dependencies, data-scope requirements, own-record filtering, member/role management, session lifecycle, PostgreSQL inventory/reconciliation behavior, and same-key inventory adjustment concurrency protected across durable commits.
 - Playwright runs nineteen isolated Chromium UI tests covering role permission/scope editing, member multi-role assignment, employee permission summary/logout and pending-approval messaging, permission-aware product/inventory/sales/purchases/payables/customer-order navigation, product search, stock lookup, sales history and filters, returns lookup, OWN-scope restrictions, purchase/receiving history, linked master-data hiding, supplier bill/payment history and permission gating, customer-order search/status filtering, collection/refund ledger display, and hiding customer-order API access without ALL-scoped payment visibility.
 - API tests verify the employee workspace requires a valid Google session, only returns the signed-in user's own memberships, combines role grants additively with ALL taking precedence over OWN, hides all business permissions for PENDING/REJECTED/SUSPENDED memberships, and rejects revoked sessions. Mocked Google callback tests also verify rejected/suspended users can sign in to view their own status without receiving company grants.
 - A separate authenticated Chromium end-to-end test starts the real FastAPI application against the disposable CI PostgreSQL database. It verifies an unauthenticated request receives 401, signs in through the legacy owner username/password flow, updates STAFF grants, creates a custom role, assigns STAFF plus the custom role to a member through the real administrator APIs, and verifies the persisted grants and membership-role rows directly in PostgreSQL.
 - The role editor rejects stale asynchronous responses when company/role selections change and disables permission saving while new role data is loading.
-- Latest CI run: 404 Python tests passed, 3 skipped; nineteen fixture-backed Chromium UI tests passed; the authenticated FastAPI/PostgreSQL browser end-to-end test passed; PostgreSQL Migration 0035 backfill, full downgrade, clean re-upgrade, and final revision checks passed. See the [GitHub Actions run](https://github.com/gold-jewelry-team/gold-jewelry-erp/actions/runs/45577539883).
+- Latest CI run: 408 Python tests passed, 3 skipped; nineteen fixture-backed Chromium UI tests passed; two PostgreSQL inventory idempotency concurrency tests passed; the authenticated FastAPI/PostgreSQL browser end-to-end test passed; PostgreSQL Migration 0035 backfill, full downgrade, clean re-upgrade, and final revision checks passed. See the [GitHub Actions run](https://github.com/gold-jewelry-team/gold-jewelry-erp/actions/runs/45578770661).
 
 ## Remaining before employee rollout
 
