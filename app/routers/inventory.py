@@ -193,7 +193,10 @@ def post_stocktake_adjustment_batch(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
-        raise HTTPException(s@router.get("/operation-requests", response_model=list[InventoryOperationRequestRead])
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/operation-requests", response_model=list[InventoryOperationRequestRead])
 def list_inventory_operation_requests(
     company_id: UUID,
     site_id: UUID | None = None,
