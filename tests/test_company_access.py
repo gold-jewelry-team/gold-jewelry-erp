@@ -112,6 +112,8 @@ def test_company_id_is_extracted_only_from_scoped_paths():
         ("/companies/00000000-0000-0000-0000-000000000001/sales/00000000-0000-0000-0000-000000000002/void", "POST", "sales.void"),
         ("/companies/00000000-0000-0000-0000-000000000001/supplier-payables/bills/00000000-0000-0000-0000-000000000002/void", "POST", "supplier_payables.void"),
         ("/companies/00000000-0000-0000-0000-000000000001/bank-accounts/00000000-0000-0000-0000-000000000002/statement-imports", "GET", "bank_reconciliation.view"),
+        ("/companies/00000000-0000-0000-0000-000000000001/suppliers/00000000-0000-0000-0000-000000000002/category-offerings", "POST", "supplier_offerings.create"),
+        ("/companies/00000000-0000-0000-0000-000000000001/products/00000000-0000-0000-0000-000000000002/supplier-offerings", "GET", "supplier_offerings.view"),
     ],
 )
 def test_permission_code_maps_route_and_action(path, method, expected):
