@@ -186,3 +186,50 @@ def test_pre_registry_legacy_movement_is_linked_without_duplicate_write():
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+
+def test_pending_operation_can_be_explicitly_resumed_from_immutable_server_payload():
+    engine, TestSession, ids = _context()
+    try:
+        key = uuid4()
+        raw_payload = _transfer_payload(ids, key)
+        validated = InventoryTransferCreate.model_validate(raw_payload)
+        canonical, fingerprint = fingerprint_inventory_operation(
+            operation_type="MANUAL_TRANSFER",
+            company_id=ids["company_id"],
+            site_id=ids["site_id"],
+            payload=validated.model_dump(mode="python"),
+        )
+        with TestSession() as session:
+            request = InventoryOperationRequest(
+                company_id=ids["company_id"],
+                site_id=ids["site_id"],
+                idempotency_key=key,
+                operation_type="MANUAL_TRANSFER",
+                payload=canonical,
+                payload_fingerprint=fingerprint,
+                status="PENDING",
+            )
+            session.add(request)
+            session.commit()
+            request_id = request.id
+
+        client = TestClient(app)
+        response = client.post(
+            f"/companies/{ids['company_id']}/inventory/operation-requests/{request_id}/retry",
+            json={**raw_payload, "quantity": "4.000"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["quantity"] == "2.000"
+
+        with TestSession() as session:
+            row = session.get(InventoryOperationRequest, request_id)
+            movement = session.get(InventoryMovement, row.movement_id)
+            assert row.status == "COMPLETED"
+            assert movement.quantity == Decimal("2.000")
+            assert session.scalar(select(InventoryMovement).where(
+                InventoryMovement.movement_type == "TRANSFER"
+            )) is not None
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
