@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -83,6 +84,7 @@ def test_partially_received_purchase_cannot_be_cancelled_and_receipt_remains():
             json={
                 "purchase_line_id": line_id, "location_id": str(location_id),
                 "received_quantity": "1",
+                "idempotency_key": str(uuid4()),
             },
         )
         assert received.status_code == 200, received.text
