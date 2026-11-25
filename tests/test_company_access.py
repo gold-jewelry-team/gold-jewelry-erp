@@ -368,6 +368,7 @@ def test_company_management_root_routes_are_not_granted_to_google_members():
         ("/companies/{company_id}/customer-orders/{order_id}/payments", "POST", ["customer_orders.update", "payments.view"]),
         ("/companies/{company_id}/customer-orders/{order_id}/refunds", "POST", ["customer_orders.update", "payments.view"]),
         ("/companies/{company_id}/operating-expenses/{expense_id}/pay", "POST", ["payments.create"]),
+        ("/companies/{company_id}/gold-material/movements", "GET", ["supplier_payables.view"]),
     ],
 )
 def test_cross_module_business_operations_require_dependent_permissions(path, method, expected):
