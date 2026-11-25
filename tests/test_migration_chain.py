@@ -50,14 +50,11 @@ def test_alembic_history_is_a_single_linear_chain_through_bank_operation_idempot
     assert root.down_revision is None
 
 
-def test_docker_startup_applies_pending_migrations_before_serving_requests():
+def test_docker_startup_does_not_apply_production_migrations():
     from pathlib import Path
 
     dockerfile = (Path(__file__).resolve().parents[1] / "Dockerfile").read_text(
         encoding="utf-8"
     )
-    migration = "alembic upgrade head"
-    server = "exec uvicorn app.main:app"
-    assert migration in dockerfile
-    assert server in dockerfile
-    assert dockerfile.index(migration) < dockerfile.index(server)
+    assert "alembic upgrade head" not in dockerfile
+    assert "exec uvicorn app.main:app" in dockerfile
