@@ -141,6 +141,44 @@ def upgrade() -> None:
         ["role_id"],
     )
 
+
+    op.create_table(
+        "record_actors",
+        sa.Column("id", sa.Uuid(), nullable=False),
+        sa.Column("company_id", sa.Uuid(), nullable=False),
+        sa.Column("resource_code", sa.String(length=50), nullable=False),
+        sa.Column("record_id", sa.Uuid(), nullable=False),
+        sa.Column("created_by_user_id", sa.Uuid(), nullable=True),
+        sa.Column("created_by_admin_username", sa.String(length=128), nullable=True),
+        sa.Column("updated_by_user_id", sa.Uuid(), nullable=True),
+        sa.Column("updated_by_admin_username", sa.String(length=128), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.CheckConstraint(
+            "(created_by_user_id IS NULL) OR (created_by_admin_username IS NULL)",
+            name="ck_record_actors_created_actor_exclusive",
+        ),
+        sa.CheckConstraint(
+            "(updated_by_user_id IS NULL) OR (updated_by_admin_username IS NULL)",
+            name="ck_record_actors_updated_actor_exclusive",
+        ),
+        sa.ForeignKeyConstraint(["company_id"], ["companies.id"], ondelete="RESTRICT"),
+        sa.ForeignKeyConstraint(["created_by_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["updated_by_user_id"], ["users.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("resource_code", "record_id", name="uq_record_actors_resource_record"),
+    )
+    op.create_index(
+        "ix_record_actors_company_resource_creator",
+        "record_actors",
+        ["company_id", "resource_code", "created_by_user_id"],
+    )
+    op.create_index(
+        "ix_record_actors_company_resource_admin_creator",
+        "record_actors",
+        ["company_id", "resource_code", "created_by_admin_username"],
+    )
+
     bind = op.get_bind()
     permission_rows = []
     permission_ids = {}
@@ -260,6 +298,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index("ix_record_actors_company_resource_admin_creator", table_name="record_actors")
+    op.drop_index("ix_record_actors_company_resource_creator", table_name="record_actors")
+    op.drop_table("record_actors")
     op.drop_index("ix_company_membership_roles_role_id", table_name="company_membership_roles")
     op.drop_table("company_membership_roles")
     op.drop_index("ix_company_role_permissions_role_allowed", table_name="company_role_permissions")
