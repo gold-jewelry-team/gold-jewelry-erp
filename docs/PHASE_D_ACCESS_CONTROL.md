@@ -7,7 +7,7 @@
 - Permission catalogue: each resource supports the four requested actions — view, create, update, void.
 - Company-specific roles are stored separately per company; one membership can hold multiple roles.
 - Permission grants carry both allow/deny and a data scope (ALL or OWN).
-- Existing companies are provisioned with OWNER, MANAGER, and STAFF roles by migration. New companies receive the same role baseline when created.
+- Existing companies are provisioned with OWNER, MANAGER, and STAFF roles by migration. New companies receive the same baseline lazily when the owner first opens the role editor or a member is assigned.
 - New Google members in a one-company setup are assigned the default STAFF role while pending approval.
 - An administrator API and mobile-friendly role editor support custom roles and permission configuration.
 - The request middleware resolves a company API path to a permission code and authorizes it from the member's assigned roles. Unknown company API routes fail closed.
@@ -28,7 +28,7 @@ Historical rows are not assigned to a person by inference. They have no actor re
 
 ## Remaining before employee rollout
 
-- Run the new Alembic migration 0035 against an isolated Neon clone and inspect the seeded catalogue/role associations.
+- CI validates Migration 0035 on PostgreSQL 16 using both a clean schema upgrade/downgrade/re-upgrade and synthetic 0034 data (two companies and three memberships), then verifies the 24-resource permission catalogue, default grants, and membership-role backfill. A separate Neon production-data clone has not been created; the available Neon branch connector does not expose schema-only branching, and copying live business data needs explicit approval.
 - Complete the remaining own-scope write and void checks.
 - Exercise the role editor and member multi-role assignment through an authenticated browser session.
 - Verify every company-scoped route is mapped to a permission resource.
