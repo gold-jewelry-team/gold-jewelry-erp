@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#202522">
+  <meta name="robots" content="noindex,nofollow">
+  <title>銀樓 ERP｜員工銷售紀錄</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202522;background:#f4f5f2;font-synthesis:none}
+    *{box-sizing:border-box}
+    body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+    header{background:#202522;color:#fff;padding:20px 16px 18px}
+    .header-inner,main{width:min(100%,960px);margin:0 auto}
+    .back{display:inline-flex;align-items:center;min-height:40px;color:#e2ebe3;text-decoration:none;font-size:13px;font-weight:700}
+    header h1{font-size:22px;margin:10px 0 4px}
+    header p{font-size:13px;color:#d2dad4;margin:0;line-height:1.6;overflow-wrap:anywhere}
+    main{padding:14px;display:grid;gap:12px}
+    .panel{background:#fff;border:1px solid #e2e7e1;border-radius:15px;padding:14px;box-shadow:0 2px 10px #17231a0a}
+    .identity{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+    .identity strong{font-size:15px;display:block}
+    .muted{color:#6b756e;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    button,select{min-height:44px;border:1px solid #dbe3db;border-radius:10px;padding:9px 12px;background:#f5f7f4;color:#304337;font:inherit;font-size:14px}
+    button{font-weight:750;cursor:pointer}
+    button[aria-pressed="true"]{background:#263b30;color:#fff;border-color:#263b30}
+    button:disabled{opacity:.55;cursor:wait}
+    select{width:100%;background:#fff}
+    input{width:100%;min-width:0;min-height:44px;border:1px solid #cfd8cf;border-radius:10px;padding:9px 12px;font:inherit;font-size:16px;background:#fff;color:#202522}
+    input:focus-visible,select:focus-visible,button:focus-visible,.back:focus-visible{outline:3px solid #8ba992;outline-offset:2px}
+    .filters{display:grid;grid-template-columns:1fr;gap:8px}
+    .search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+    .date-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .filter-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .count{font-size:12px;color:#657168;margin:10px 2px}
+    .notice{border:1px solid #dce5dc;background:#f6faf6;border-radius:12px;padding:12px;color:#34463a;font-size:13px;line-height:1.65}
+    .notice.warning{background:#fff9ec;border-color:#f0dfb8;color:#74501b}
+    .notice.error{background:#fff4f2;border-color:#f0d1cb;color:#9a3327}
+    .list{display:grid;gap:10px}
+    .record{min-width:0;border:1px solid #e2e8e1;border-radius:12px;padding:12px;background:#fff}
+    .record-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .record h3{font-size:15px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+    .record-sub{color:#68746b;font-size:12px;margin-top:2px;line-height:1.55}
+    .badge{flex:none;border-radius:999px;padding:4px 8px;background:#edf2ed;color:#39513f;font-size:11px;font-weight:750}
+    .badge.draft{background:#fff3dc;color:#7b571e}
+    .badge.void{background:#f0f1ef;color:#69736b}
+    .amount{font-size:18px;font-weight:800;letter-spacing:.01em;margin-top:8px}
+    .details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    .detail{padding:8px;border-radius:9px;background:#f6f8f5;min-width:0}
+    .detail small{display:block;font-size:11px;color:#68746b}
+    .detail strong{display:block;font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+    .lines{display:grid;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid #edf0ec}
+    .line{font-size:12px;line-height:1.55;color:#45534a;overflow-wrap:anywhere}
+    .empty{padding:22px 8px;text-align:center;color:#6b756e;font-size:13px;line-height:1.7}
+    .subheading{font-size:14px;font-weight:800;margin:0 0 8px}
+    [hidden]{display:none!important}
+    @media(min-width:600px){
+      header{padding-left:16px;padding-right:16px}
+      main{padding-top:18px}
+      .panel{padding:16px}
+      .filters{grid-template-columns:minmax(0,1.6fr) minmax(140px,.8fr)}
+      .date-row{grid-column:1/-1}
+      .list{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="back" href="/employee">← 回員工工作區</a>
+      <h1>銷售與退貨紀錄</h1>
+      <p id="companyName">正在確認公司與功能授權…</p>
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="identity">
+        <div>
+          <strong id="displayName">載入中…</strong>
+          <div class="muted" id="companyCode"></div>
+        </div>
+        <div class="muted">唯讀查詢，不會建立銷售或退款</div>
+      </div>
+      <div id="status" class="notice" role="status" aria-live="polite" style="margin-top:12px">正在確認登入與授權…</div>
+    </section>
+    <section class="panel" id="workspace" hidden>
+      <div class="tabs">
+        <button type="button" id="salesTab" aria-pressed="true">銷售紀錄</button>
+        <button type="button" id="returnsTab" aria-pressed="false" hidden>退貨紀錄</button>
+      </div>
+      <section id="salesPane">
+        <div class="filters">
+          <div class="search-row">
+            <input id="search" type="search" autocomplete="off" placeholder="搜尋銷售單號、商品編號、條碼或名稱" aria-label="搜尋銷售紀錄">
+            <button type="button" id="searchButton">搜尋</button>
+          </div>
+          <div class="filter-row">
+            <select id="saleStatus" aria-label="銷售狀態">
+              <option value="">全部狀態</option>
+              <option value="COMPLETED">已完成</option>
+              <option value="DRAFT">草稿</option>
+              <option value="VOID">已作廢</option>
+            </select>
+            <button type="button" id="resetButton">清除條件</button>
+          </div>
+          <div class="date-row">
+            <input id="fromDate" type="date" aria-label="銷售起始日期">
+            <input id="toDate" type="date" aria-label="銷售結束日期">
+          </div>
+        </div>
+        <div id="salesCount" class="count">尚未載入資料</div>
+        <div id="salesList" class="list" aria-live="polite"><div class="empty">正在載入銷售紀錄…</div></div>
+      </section>
+      <section id="returnsPane" hidden>
+        <h2 class="subheading">選擇原銷售單</h2>
+        <select id="returnSale" aria-label="選擇原銷售單"></select>
+        <div class="search-row" style="margin-top:9px">
+          <div class="muted" style="align-self:center">只列出最近 100 筆已完成銷售</div>
+          <button type="button" id="loadReturnsButton">查詢退貨</button>
+        </div>
+        <div id="returnsCount" class="count">請選擇銷售單</div>
+        <div id="returnsList" class="list" aria-live="polite"><div class="empty">選擇銷售單後，即可查看該筆銷售的退貨紀錄。</div></div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const params=new URLSearchParams(window.location.search);
+    const companyId=params.get("company_id")||"";
+    let canSales=false;
+    let canReturns=false;
+    let activePane="sales";
+    let salesRows=[];
+    function node(tag,cls,text){
+      const el=document.createElement(tag);
+      if(cls)el.className=cls;
+      if(text!==undefined)el.textContent=text;
+      return el;
+    }
+    function setStatus(message,kind){
+      const box=$("status");
+      box.className="notice"+(kind?" "+kind:"");
+      box.textContent=message;
+    }
+    function grantScope(membership,code){
+      const item=(membership.permissions||[]).find(grant=>grant.code===code);
+      return item?item.data_scope:null;
+    }
+    function validView(scope){
+      return scope==="ALL"||scope==="OWN";
+    }
+    function formatAmount(value,currency){
+      const amount=Number(value);
+      if(!Number.isFinite(amount))return "—";
+      try{
+        return new Intl.NumberFormat("zh-TW",{style:"currency",currency:currency||"TWD",maximumFractionDigits:2}).format(amount);
+      }catch(_error){
+        return amount.toLocaleString("zh-TW",{maximumFractionDigits:2})+" "+(currency||"");
+      }
+    }
+    function formatDate(value){
+      if(!value)return "—";
+      const date=new Date(value);
+      return Number.isNaN(date.getTime())?"—":date.toLocaleString("zh-TW",{hour12:false});
+    }
+    function formatWeight(value,unit){
+      const amount=Number(value);
+      return (Number.isFinite(amount)?amount.toLocaleString("zh-TW",{maximumFractionDigits:4}):"—")+" "+(unit||"");
+    }
+    function statusInfo(status){
+      const map={
+        COMPLETED:{label:"已完成",cls:"badge"},
+        DRAFT:{label:"草稿",cls:"badge draft"},
+        VOID:{label:"已作廢",cls:"badge void"}
+      };
+      return map[status]||{label:status||"未知",cls:"badge"};
+    }
+    const paymentLabels={CASH:"現金",CARD:"刷卡",MIXED:"現金＋刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    function detail(label,value){
+      const box=node("div","detail");
+      box.append(node("small","",label));
+      box.append(node("strong","",value===null||value===undefined||value===""?"—":String(value)));
+      return box;
+    }
+    async function fetchJson(path){
+      const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});
+      const data=await response.json().catch(()=>({}));
+      if(response.status===401){
+        window.location.replace("/login");
+        throw new Error("登入已失效，請重新登入。");
+      }
+      if(!response.ok)throw new Error(data.detail||"無法載入資料，請稍後再試。");
+      return data;
+    }
+    function renderSales(rows){
+      const list=$("salesList");
+      list.replaceChildren();
+      if(!rows.length){
+        list.append(node("div","empty","找不到符合條件的銷售紀錄。"));
+        $("salesCount").textContent="共 0 筆銷售";
+        return;
+      }
+      rows.forEach(sale=>{
+        const card=node("article","record");
+        const head=node("div","record-head");
+        const title=node("div","");
+        title.append(node("h3","",sale.sale_no||"未命名銷售單"));
+        title.append(node("div","record-sub",formatDate(sale.created_at)));
+        head.append(title);
+        const status=statusInfo(sale.status);
+        head.append(node("span",status.cls,status.label));
+        card.append(head);
+        card.append(node("div","amount",formatAmount(sale.final_amount,sale.currency_code)));
+        const details=node("div","details");
+        details.append(detail("付款方式",paymentLabels[sale.payment_method]||sale.payment_method));
+        details.append(detail("刷卡金額",formatAmount(sale.card_amount,sale.currency_code)));
+        details.append(detail("刷卡手續費",formatAmount(sale.card_fee,sale.currency_code)));
+        details.append(detail("商品項目",String((sale.lines||[]).length)+" 項"));
+        card.append(details);
+        const lines=node("div","lines");
+        (sale.lines||[]).slice(0,3).forEach(line=>{
+          lines.append(node("div","line",
+            (line.product_code_snapshot||"")+
+            (line.product_code_snapshot?"　":"")+
+            (line.product_name_snapshot||"商品")+
+            "　"+formatWeight(line.net_weight,line.weight_unit_code)
+          ));
+        });
+        if((sale.lines||[]).length>3){
+          lines.append(node("div","line","另有 "+((sale.lines||[]).length-3)+" 項商品"));
+        }
+        card.append(lines);
+        if(sale.note)card.append(node("div","record-sub","備註："+sale.note));
+        list.append(card);
+      });
+      $("salesCount").textContent="共 "+rows.length+" 筆銷售（最多顯示 100 筆）";
+    }
+    function renderReturns(rows){
+      const list=$("returnsList");
+      list.replaceChildren();
+      if(!rows.length){
+        list.append(node("div","empty","這筆銷售目前沒有退貨紀錄。"));
+        $("returnsCount").textContent="共 0 筆退貨";
+        return;
+      }
+      rows.forEach(record=>{
+        const card=node("article","record");
+        const head=node("div","record-head");
+        const title=node("div","");
+        title.append(node("h3","",record.return_no||"未命名退貨單"));
+        title.append(node("div","record-sub",formatDate(record.created_at)));
+        head.append(title);
+        head.append(node("span","badge","已建立"));
+        card.append(head);
+        card.append(node("div","amount",formatAmount(record.settlement_reversal_amount,record.currency_code)));
+        const details=node("div","details");
+        details.append(detail("商品項目",String((record.lines||[]).length)+" 項"));
+        details.append(detail("退貨原因",record.reason||"未填寫"));
+        card.append(details);
+        const lines=node("div","lines");
+        (record.lines||[]).forEach(line=>{
+          lines.append(node("div","line",
+            (line.product_code_snapshot||"")+
+            (line.product_code_snapshot?"　":"")+
+            (line.product_name_snapshot||"商品")+
+            "　"+formatWeight(line.net_weight,line.weight_unit_code)
+          ));
+        });
+        card.append(lines);
+        if(record.note)card.append(node("div","record-sub","備註："+record.note));
+        list.append(card);
+      });
+      $("returnsCount").textContent="共 "+rows.length+" 筆退貨";
+    }
+    function buildSalesQuery(statusOverride){
+      const query=new URLSearchParams();
+      query.set("limit","100");
+      const q=$("search").value.trim();
+      const status=statusOverride===undefined?$("saleStatus").value:statusOverride;
+      if(q)query.set("q",q);
+      if(status)query.set("status",status);
+      if($("fromDate").value)query.set("from_date",$("fromDate").value);
+      if($("toDate").value)query.set("to_date",$("toDate").value);
+      return query.toString();
+    }
+    async function loadSales(){
+      $("searchButton").disabled=true;
+      $("salesList").replaceChildren(node("div","empty","正在載入銷售紀錄…"));
+      try{
+        const base="/companies/"+encodeURIComponent(companyId)+"/sales";
+        const rows=await fetchJson(base+"?"+buildSalesQuery());
+        salesRows=Array.isArray(rows)?rows:[];
+        renderSales(salesRows);
+      }catch(error){
+        $("salesList").replaceChildren(node("div","empty",error.message||"載入失敗。"));
+        $("salesCount").textContent="資料載入失敗";
+      }finally{
+        $("searchButton").disabled=false;
+      }
+    }
+    async function loadCompletedSalesForReturns(){
+      $("returnSale").replaceChildren();
+      const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/sales?limit=100&status=COMPLETED");
+      salesRows=Array.isArray(rows)?rows:[];
+      if(!salesRows.length){
+        $("returnSale").append(new Option("沒有可查詢的已完成銷售單",""));
+        $("returnsList").replaceChildren(node("div","empty","目前沒有已完成銷售單可查詢退貨紀錄。"));
+        $("returnsCount").textContent="共 0 筆已完成銷售";
+        $("loadReturnsButton").disabled=true;
+        return;
+      }
+      salesRows.forEach(sale=>$("returnSale").append(new Option(
+        (sale.sale_no||"未命名銷售單")+"　"+formatDate(sale.created_at),
+        sale.id
+      )));
+      $("loadReturnsButton").disabled=false;
+      await loadReturns();
+    }
+    async function loadReturns(){
+      const saleId=$("returnSale").value;
+      if(!saleId){
+        $("returnsList").replaceChildren(node("div","empty","請先選擇原銷售單。"));
+        $("returnsCount").textContent="請選擇銷售單";
+        return;
+      }
+      $("loadReturnsButton").disabled=true;
+      $("returnsList").replaceChildren(node("div","empty","正在載入退貨紀錄…"));
+      try{
+        const path="/companies/"+encodeURIComponent(companyId)+"/sales/"+encodeURIComponent(saleId)+"/returns";
+        const rows=await fetchJson(path);
+        renderReturns(Array.isArray(rows)?rows:[]);
+      }catch(error){
+        $("returnsList").replaceChildren(node("div","empty",error.message||"載入失敗。"));
+        $("returnsCount").textContent="資料載入失敗";
+      }finally{
+        $("loadReturnsButton").disabled=false;
+      }
+    }
+    function setPane(pane){
+      activePane=pane;
+      $("salesPane").hidden=pane!=="sales";
+      $("returnsPane").hidden=pane!=="returns";
+      $("salesTab").setAttribute("aria-pressed",String(pane==="sales"));
+      $("returnsTab").setAttribute("aria-pressed",String(pane==="returns"));
+      if(pane==="returns")loadCompletedSalesForReturns();
+    }
+    async function loadWorkspace(){
+      if(!companyId){
+        setStatus("缺少公司識別資訊，請從員工工作區重新進入。","warning");
+        $("companyName").textContent="尚未選擇公司";
+        return;
+      }
+      try{
+        const data=await fetchJson("/auth/google/workspace");
+        $("displayName").textContent=data.user?.display_name||"Google 使用者";
+        const membership=(data.memberships||[]).find(item=>item.company_id===companyId)||null;
+        if(!membership){
+          setStatus("此帳號沒有這間公司的成員資格，無法查看公司資料。","error");
+          return;
+        }
+        $("companyName").textContent=membership.company_name||"公司工作區";
+        $("companyCode").textContent="公司代碼："+(membership.company_code||"—");
+        if(membership.status!=="ACTIVE"){
+          setStatus("此公司成員資格目前不是核准狀態，無法查看營運資料。","warning");
+          return;
+        }
+        const salesScope=grantScope(membership,"sales.view");
+        canSales=validView(salesScope)&&grantScope(membership,"payments.view")==="ALL";
+        canReturns=canSales&&salesScope==="ALL"&&grantScope(membership,"sales_returns.view")==="ALL";
+        if(!canSales){
+          setStatus("目前尚未具備銷售紀錄查詢所需權限。此查詢需要銷售查看，以及全公司收付款查看權限。","warning");
+          return;
+        }
+        $("workspace").hidden=false;
+        $("returnsTab").hidden=!canReturns;
+        setStatus("已確認公司資格與查詢權限。此頁僅供銷售與退貨紀錄查閱，不會新增銷售、退款或改動庫存。");
+        await loadSales();
+      }catch(error){
+        setStatus(error.message||"目前無法確認登入與公司權限。","error");
+      }
+    }
+    $("salesTab").addEventListener("click",()=>setPane("sales"));
+    $("returnsTab").addEventListener("click",()=>canReturns&&setPane("returns"));
+    $("searchButton").addEventListener("click",loadSales);
+    $("search").addEventListener("keydown",event=>{if(event.key==="Enter")loadSales();});
+    $("saleStatus").addEventListener("change",loadSales);
+    $("fromDate").addEventListener("change",loadSales);
+    $("toDate").addEventListener("change",loadSales);
+    $("resetButton").addEventListener("click",()=>{
+      $("search").value="";
+      $("saleStatus").value="";
+      $("fromDate").value="";
+      $("toDate").value="";
+      loadSales();
+    });
+    $("loadReturnsButton").addEventListener("click",loadReturns);
+    $("returnSale").addEventListener("change",()=>{if(activePane==="returns")loadReturns();});
+    loadWorkspace();
+  </script>
+</body>
+</html>
