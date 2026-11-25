@@ -10,6 +10,8 @@ from sqlalchemy.pool import StaticPool
 
 from app import models  # noqa: F401
 from app.db.base import Base
+from app.core.auth import create_session_token
+from app.core.config import settings
 from app.main import app
 from app.models import AuthIdentity, Company, CompanyMembership, User, UserSession
 from app.routers.member_admin import get_db
@@ -181,3 +183,30 @@ def test_membership_transition_rejects_invalid_state():
         json={"action": "APPROVE"},
     )
     assert response.status_code == 409
+
+
+
+def test_member_management_requires_administrator_session(monkeypatch):
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "admin_username", "owner")
+    monkeypatch.setattr(settings, "admin_password", "test-password-12345")
+    monkeypatch.setattr(settings, "session_secret_key", "test-session-secret-key-at-least-32-chars")
+    monkeypatch.setattr(settings, "session_cookie_secure", False)
+    monkeypatch.setattr(settings, "session_max_age_seconds", 3600)
+
+    google_only = client.get(
+        "/admin/api/members",
+        cookies={settings.google_session_cookie_name: "google-session-only"},
+    )
+    assert google_only.status_code == 401
+
+    no_session = client.get("/member-management")
+    assert no_session.status_code == 401
+
+    admin_token = create_session_token("owner")
+    admin_page = client.get(
+        "/member-management",
+        cookies={settings.session_cookie_name: admin_token},
+    )
+    assert admin_page.status_code == 200
+    assert "家庭／店員成員管理" in admin_page.text
