@@ -11,11 +11,12 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.company import Company
 from app.models.inventory import InventoryMovement
+from app.models.inventory_operation_request import InventoryOperationRequest
 from app.models.product import Product
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.routers.schemas.inventory import (
-    InventoryAdjustmentCreate, InventoryMovementRead, InventoryTransferCreate, StockBalanceRead,
+    InventoryAdjustmentCreate, InventoryMovementRead, InventoryOperationRequestRead, InventoryTransferCreate, StockBalanceRead,
     StocktakeAdjustmentBatchCreate, StocktakeAdjustmentBatchRead,
 )
 from app.services.inventory import (
@@ -192,7 +193,32 @@ def post_stocktake_adjustment_batch(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
-        raise HTTPException(s@router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
+        raise HTTPException(s@router.get("/operation-requests", response_model=list[InventoryOperationRequestRead])
+def list_inventory_operation_requests(
+    company_id: UUID,
+    site_id: UUID | None = None,
+    status: str | None = Query(default=None, pattern="^(PENDING|COMPLETED|FAILED)$"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """List durable operation records so ambiguous writes can be inspected safely."""
+    if db.get(Company, company_id) is None:
+        raise HTTPException(status_code=404, detail="找不到指定公司。")
+    statement = select(InventoryOperationRequest).where(
+        InventoryOperationRequest.company_id == company_id
+    )
+    if site_id is not None:
+        statement = statement.where(InventoryOperationRequest.site_id == site_id)
+    if status is not None:
+        statement = statement.where(InventoryOperationRequest.status == status)
+    return list(db.scalars(statement.order_by(
+        InventoryOperationRequest.created_at.desc(),
+        InventoryOperationRequest.id.desc(),
+    ).offset(offset).limit(limit)).all())
+
+
+@router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
 def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCreate,
                               response: Response, db: Session = Depends(get_db)):
     try:
