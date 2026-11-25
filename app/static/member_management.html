@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>成員管理｜黃金珠寶 ERP</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f5f2;color:#202720;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+header{background:#202522;color:#fff;padding:18px 16px}header h1{font-size:20px;margin:0 0 4px}header p{font-size:12px;color:#cbd3cd;margin:0}
+main{max-width:820px;margin:auto;padding:16px;display:grid;gap:14px}.panel,.member{background:#fff;border:1px solid #e1e6e1;border-radius:14px;padding:15px}
+h2{font-size:16px;margin:0 0 10px}.hint,.meta{font-size:12px;color:#657067;line-height:1.6}
+.member{display:grid;gap:10px}.member-head{display:flex;justify-content:space-between;gap:10px;align-items:start}.member-name{font-weight:750}.status{font-size:11px;padding:4px 8px;border-radius:30px;background:#edf2ed;color:#405647;white-space:nowrap}
+.membership{border-top:1px solid #edf0ed;padding-top:10px;display:grid;gap:7px}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,select{font:inherit;min-height:40px;border-radius:9px}button{border:0;padding:8px 12px;background:#263b30;color:#fff;font-weight:650}button.secondary{background:#edf1ed;color:#263b30}button.danger{background:#8d302a;color:white}button:disabled{opacity:.5}
+select{border:1px solid #d5ddd5;background:white;padding:7px;min-width:120px}.assign{display:grid;grid-template-columns:minmax(0,1fr) 120px auto;gap:7px}.notice{font-size:13px;min-height:20px;color:#4e6554}.notice.error{color:#a32d25}.empty{padding:20px;text-align:center;color:#68736b;font-size:13px}
+@media(max-width:560px){.assign{grid-template-columns:1fr 1fr}.assign select:first-child{grid-column:1/-1}.assign button{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<header><h1>家庭／店員成員管理</h1><p>僅管理者可使用。Google 帳號核准前不會取得商品、庫存或營運資料權限。</p></header>
+<main>
+<section class="panel">
+<h2>管理說明</h2>
+<div class="hint">首次登入會建立待處理成員。請先指定公司與角色，再核准申請。停用使用者會撤銷其所有 Google 登入 Session；暫停單一公司成員關係則只影響該公司。</div>
+<div id="notice" class="notice" role="status" aria-live="polite"></div>
+</section>
+<section class="panel">
+<div class="row" style="justify-content:space-between"><h2 style="margin:0">Google 使用者</h2><button id="reload" class="secondary" type="button">重新整理</button></div>
+<div id="members"><div class="empty">載入中…</div></div>
+</section>
+</main>
+<script>
+const membersEl=document.getElementById("members"),noticeEl=document.getElementById("notice");
+const labels={PENDING:"待核准",ACTIVE:"已啟用",REJECTED:"已拒絕",SUSPENDED:"已暫停"};
+const roles={OWNER:"負責人",MANAGER:"管理者",STAFF:"一般成員"};
+function el(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;}
+async function api(path,options={}){const response=await fetch("/admin/api"+path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||"操作失敗，請稍後再試。");return data;}
+function setNotice(message,error=false){noticeEl.textContent=message;noticeEl.className=error?"notice error":"notice";}
+function actionButton(label,action,handler,style=""){const button=el("button",label,style);button.type="button";button.addEventListener("click",handler);return button;}
+async function changeMembership(id,action,role){try{await api("/memberships/"+id,{method:"PATCH",body:JSON.stringify({action,role:role||null})});setNotice("成員狀態已更新。");await load();}catch(e){setNotice(e.message,true);}}
+async function assign(userId,companySelect,roleSelect){try{await api("/users/"+userId+"/memberships",{method:"POST",body:JSON.stringify({company_id:companySelect.value,role:roleSelect.value})});setNotice("已建立待核准的公司成員申請。");await load();}catch(e){setNotice(e.message,true);}}
+async function toggleUser(userId,isActive){try{await api("/users/"+userId,{method:"PATCH",body:JSON.stringify({is_active:!isActive})});setNotice(isActive?"使用者已停用，登入 Session 已撤銷。":"使用者已重新啟用。");await load();}catch(e){setNotice(e.message,true);}}
+function makeSelect(options,selected){const select=el("select");for(const [value,label] of options){const option=el("option",label);option.value=value;select.append(option);}if(selected)select.value=selected;return select;}
+async function load(){membersEl.replaceChildren(el("div","載入中…","empty"));try{const [users,companies]=await Promise.all([api("/members"),api("/companies")]);membersEl.replaceChildren();if(!users.length){membersEl.append(el("div","目前尚無 Google 使用者。","empty"));return;}
+for(const user of users){const card=el("article",undefined,"member");const head=el("div",undefined,"member-head");const info=el("div");info.append(el("div",user.display_name,"member-name"),el("div",user.email||"未提供 Email","meta"),el("div","建立時間："+(user.created_at||"—"),"meta"));head.append(info,el("span",user.is_active?"使用者啟用中":"使用者已停用","status"));card.append(head);
+for(const identity of user.identities||[]){card.append(el("div","登入方式："+identity.provider+"｜"+(identity.email||"")+"｜Email 驗證："+(identity.email_verified?"已驗證":"未驗證"),"meta"));}
+if(user.memberships&&user.memberships.length){for(const membership of user.memberships){const section=el("div",undefined,"membership");section.append(el("div",membership.company_name+"｜"+(labels[membership.status]||membership.status)+"｜"+(roles[membership.role]||membership.role),"member-name"));section.append(el("div","角色："+(roles[membership.role]||membership.role)+"｜建立："+(membership.created_at||"—"),"meta"));const actions=el("div",undefined,"row");
+if(membership.status==="PENDING"){const role=makeSelect(Object.entries(roles),membership.role);actions.append(role,actionButton("核准", "APPROVE",()=>changeMembership(membership.id,"APPROVE",role.value)),actionButton("拒絕", "REJECT",()=>changeMembership(membership.id,"REJECT"),"danger"));}
+if(membership.status==="ACTIVE"){actions.append(actionButton("暫停此公司成員", "SUSPEND",()=>changeMembership(membership.id,"SUSPEND"),"danger"));}
+if(membership.status==="SUSPENDED"){actions.append(actionButton("恢復此公司成員", "REACTIVATE",()=>changeMembership(membership.id,"REACTIVATE"),"secondary"));}
+section.append(actions);card.append(section);}}
+else{card.append(el("div","尚未指定公司，請選擇公司建立待核准申請。","hint"));}
+if(companies.length){const assignRow=el("div",undefined,"assign");const companySelect=makeSelect(companies.map(c=>[c.id,c.name+"（"+c.code+"）"]));const roleSelect=makeSelect(Object.entries(roles), "STAFF");assignRow.append(companySelect,roleSelect,actionButton("指定公司", "ASSIGN",()=>assign(user.id,companySelect,roleSelect),"secondary"));card.append(assignRow);}
+card.append(actionButton(user.is_active?"停用整個使用者":"重新啟用使用者", "TOGGLE",()=>toggleUser(user.id,user.is_active),user.is_active?"danger":"secondary"));membersEl.append(card);}
+}catch(e){membersEl.replaceChildren(el("div",e.message,"empty"));setNotice(e.message,true);}}
+document.getElementById("reload").addEventListener("click",load);load();
+</script>
+</body>
+</html>
