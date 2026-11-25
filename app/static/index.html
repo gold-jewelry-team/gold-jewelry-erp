@@ -4329,6 +4329,13 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  label.className="category-shortcuts-label";
  label.textContent="本分類快速功能（點選直接定位）";
  shortcuts.appendChild(label);
+ const search=document.createElement("input");
+ search.type="search";
+ search.className="category-settings-search";
+ search.placeholder="搜尋設定功能，例如：公司、據點、儲存位置";
+ search.setAttribute("aria-label","搜尋設定功能");
+ search.hidden=true;
+ shortcuts.appendChild(search);
  const status=document.createElement("span");
  status.className="category-shortcuts-status";
  status.setAttribute("role","status");
@@ -4404,7 +4411,9 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  });
  const renderShortcuts=category=>{
   shortcuts.querySelectorAll("button").forEach(b=>b.remove());
-  status.textContent="可展開或收合本分類功能區";
+  search.hidden=category!=="settings";
+  search.value="";
+  status.textContent=category==="settings"?"可搜尋設定名稱，點選項目後才展開內容":"可展開或收合本分類功能區";
   const categoryPanels=panels.filter(p=>p.dataset.category===category);
   const expandAll=document.createElement("button");
   expandAll.type="button";
@@ -4435,10 +4444,15 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   });
   shortcuts.appendChild(collapseAll);
   categoryPanels.forEach(panel=>{
+   if(category==="settings"&&!panel.classList.contains("panel-collapsed")){
+    const toggle=panel.querySelector(":scope > h2 .panel-toggle");
+    if(toggle)toggle.click();
+   }
    const button=document.createElement("button");
    button.type="button";
    button.textContent=titleFor(panel);
    button.title="定位到："+titleFor(panel);
+   button.dataset.settingsPanel=panel.id||titleFor(panel);
    button.addEventListener("click",()=>{
     if(panel.classList.contains("panel-collapsed")){
      const toggle=panel.querySelector(":scope > h2 .panel-toggle");
@@ -4449,7 +4463,23 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
    shortcuts.appendChild(button);
   });
   shortcuts.hidden=!panels.some(p=>p.dataset.category===category);
+  if(category==="settings")applySettingsFilter("");
  };
+ const applySettingsFilter=query=>{
+  const q=String(query||"").trim().toLocaleLowerCase();
+  const categoryPanels=panels.filter(p=>p.dataset.category==="settings");
+  let shown=0;
+  categoryPanels.forEach(panel=>{
+   const text=[titleFor(panel),...subTitlesOf(panel)].join(" ").toLocaleLowerCase();
+   const match=!q||text.includes(q);
+   panel.style.display=match?"":"none";
+   const button=shortcuts.querySelector('button[data-settings-panel="'+(panel.id||titleFor(panel))+'"]');
+   if(button)button.hidden=!match;
+   if(match)shown++;
+  });
+  status.textContent=q?(shown?"找到 "+shown+" 個設定區塊":"沒有符合的設定項目"):"可搜尋設定名稱，點選項目後才展開內容";
+ };
+ search.addEventListener("input",()=>applySettingsFilter(search.value));
  categoryNav.querySelectorAll("button[data-category]").forEach(button=>{
   button.addEventListener("click",()=>renderShortcuts(button.dataset.category));
  });
