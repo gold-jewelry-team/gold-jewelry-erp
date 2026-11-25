@@ -260,7 +260,7 @@ def google_login_status(request: Request) -> dict:
             if not memberships:
                 status = "NEEDS_COMPANY_ASSIGNMENT"
             elif any(item.status == "ACTIVE" for item in memberships):
-                status = "APPROVED_BUT_NOT_OPEN"
+                status = "ACTIVE"
             elif any(item.status == "PENDING" for item in memberships):
                 status = "PENDING_APPROVAL"
             elif any(item.status == "SUSPENDED" for item in memberships):
