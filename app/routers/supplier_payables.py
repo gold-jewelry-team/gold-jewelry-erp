@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
 from app.core.company_access import require_current_actor_permission
+from app.core.company_access import require_current_actor_permission
 from app.models.purchase import Purchase
 from app.models.supplier_payable import SupplierBill, SupplierPayment
 from app.routers.schemas.supplier_payables import (
@@ -182,6 +183,7 @@ def post_supplier_payment(
     response: Response,
     db: Session = Depends(get_db),
 ):
+    require_current_actor_permission(db, "suppliers.view")
     try:
         payment, created = record_supplier_payment(
             db,
