@@ -151,6 +151,10 @@
         if(purchaseGrant && ["ALL","OWN"].includes(purchaseGrant.data_scope)){
           features.push({label:"採購／進貨紀錄",view:"purchases"});
         }
+        const customerOrderGrant=grants.get("customer_orders.view");
+        if(customerOrderGrant && ["ALL","OWN"].includes(customerOrderGrant.data_scope) && hasAllView("payments.view")){
+          features.push({label:"客戶訂單",view:"customer-orders"});
+        }
         if(hasAllView("supplier_payables.view")){
           features.push({label:"供應商帳款",view:"payables"});
         }
@@ -165,6 +169,8 @@
               link.href="/employee/purchases?company_id="+encodeURIComponent(item.company_id);
             }else if(feature.view==="payables"){
               link.href="/employee/payables?company_id="+encodeURIComponent(item.company_id);
+            }else if(feature.view==="customer-orders"){
+              link.href="/employee/customer-orders?company_id="+encodeURIComponent(item.company_id);
             }else{
               link.href="/employee/catalog?company_id="+encodeURIComponent(item.company_id)+"&view="+feature.view;
             }
