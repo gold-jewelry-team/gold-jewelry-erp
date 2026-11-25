@@ -1,6 +1,6 @@
 """Add durable inventory operation request registry.
 
-Revision ID: 0033_inventory_operation_requests
+Revision ID: 0033_inventory_op_requests
 Revises: 0032_bank_operation_idempotency
 Create Date: 2026-11-25
 """
@@ -9,7 +9,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = "0033_inventory_operation_requests"
+revision: str = "0033_inventory_op_requests"
 down_revision: Union[str, None] = "0032_bank_operation_idempotency"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
