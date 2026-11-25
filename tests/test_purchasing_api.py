@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -85,12 +86,14 @@ def test_supplier_purchase_submit_and_receive_api():
 
         first_received = client.post(f"/companies/{company_id}/purchases/{purchase_id}/receive", json={
             "purchase_line_id": line_id, "location_id": str(location_id), "received_quantity": "1",
+            "idempotency_key": str(uuid4()),
         })
         assert first_received.status_code == 200, first_received.text
         assert first_received.json()["status"] == "PARTIALLY_RECEIVED"
 
         second_received = client.post(f"/companies/{company_id}/purchases/{purchase_id}/receive", json={
             "purchase_line_id": line_id, "location_id": str(second_location_id), "received_quantity": "1",
+            "idempotency_key": str(uuid4()),
         })
         assert second_received.status_code == 200, second_received.text
         assert second_received.json()["status"] == "RECEIVED"
