@@ -34,7 +34,6 @@ OWN_SCOPE_RESOURCES = {
     "sales",
     "customer_orders",
     "expenses",
-    "cash_drawer",
 }
 
 RESOURCE_ROOTS = {
