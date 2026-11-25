@@ -151,7 +151,7 @@ async def security_middleware(request: Request, call_next):
         try:
             with SessionLocal() as db:
                 grant = authorize_google_company_request(
-                    db, google_token, company_id, request.method
+                    db, google_token, company_id, request.method, path=path
                 )
         except HTTPException as exc:
             return JSONResponse(
