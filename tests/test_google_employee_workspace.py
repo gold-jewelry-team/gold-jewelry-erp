@@ -160,6 +160,11 @@ def test_employee_pages_are_public_shells_and_workspace_requires_google_session(
     assert "銷售與退貨紀錄" in sales_page.text
     assert "/auth/google/workspace" in sales_page.text
 
+    purchases_page = client.get("/employee/purchases")
+    assert purchases_page.status_code == 200
+    assert "採購與進貨紀錄" in purchases_page.text
+    assert "/auth/google/workspace" in purchases_page.text
+
     response = client.get("/auth/google/workspace")
     assert response.status_code == 401
 
