@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import requests
+from google.auth.exceptions import GoogleAuthError
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 from google.auth.transport.requests import Request as GoogleRequest
@@ -142,7 +143,7 @@ def google_callback(request: Request):
         display_name = str(claims.get("name") or email or "Google 使用者").strip()[:120]
         if not subject or not email:
             raise ValueError("Missing identity claims")
-    except (requests.RequestException, ValueError, KeyError, TypeError):
+    except (requests.RequestException, GoogleAuthError, ValueError, KeyError, TypeError):
         raise HTTPException(status_code=401, detail="無法驗證 Google 帳號，請重新登入。")
 
     raw_session_token = secrets.token_urlsafe(48)
