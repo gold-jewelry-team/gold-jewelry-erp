@@ -1832,7 +1832,7 @@ function restorePendingInventoryTransfer(){
  $("transferQuantity").value=payload.quantity;
  $("transferNote").value=payload.note||"";
  setInventoryTransferFormLocked(true);
- message("transferStatus","已恢復一筆尚未確認結果的櫃位調撥。請按「重試尚未確認的調撥」沿用原識別碼；確認前不要修改內容。","error");
+ message("transferStatus","已恢復一筆尚未確認結果的櫃位調撥。請按「重試尚未確認的調撥」沿用原識別碼；確認前不要修改內容。",true);
 }
 async function loadInventoryOptions(){
  setInventoryTransferFormLocked(false);
