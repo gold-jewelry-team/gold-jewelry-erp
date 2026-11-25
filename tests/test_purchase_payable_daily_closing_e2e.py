@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from zoneinfo import ZoneInfo
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -115,6 +115,7 @@ def test_purchase_receipt_supplier_bill_partial_payments_and_daily_close_e2e():
                 "purchase_line_id": purchase["lines"][0]["id"],
                 "location_id": str(location_id),
                 "received_quantity": "1",
+                "idempotency_key": str(uuid4()),
             },
         )
         assert receipt.status_code == 200, receipt.text
@@ -196,8 +197,9 @@ def test_purchase_receipt_supplier_bill_partial_payments_and_daily_close_e2e():
         assert persisted_purchase.status == "RECEIVED"
         assert verify.query(SupplierBill).count() == 1
         assert verify.query(SupplierPayment).count() == 2
-        assert verify.query(InventoryMovement).filter_by(
-            reference_type="PURCHASE_LINE"
+        assert verify.query(InventoryMovement).filter(
+            InventoryMovement.reference_type.like("PR-%"),
+            InventoryMovement.movement_type == "RECEIPT",
         ).count() == 1
         assert get_stock_balance(
             verify, product_id=product_id, location_id=location_id
