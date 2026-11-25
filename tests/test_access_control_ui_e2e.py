@@ -230,7 +230,7 @@ def test_owner_login_can_manage_real_roles_and_member_assignments():
                         CompanyRole.code == "STAFF",
                     )),
                     db.scalar(select(CompanyRole.id).where(
-                        CompanyRole.company_id == seeded["company_id"],
+                        CompanyRole.company_id == UUID(seeded["company_id"]),
                         CompanyRole.code == "STOCK_VIEWER",
                     )),
                 }
