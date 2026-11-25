@@ -1771,6 +1771,69 @@ async function addStocktakeProduct(product){
  persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
  message("stocktakeStatus","已確認商品："+product.product_code+" · "+product.name+"；請繼續掃描下一件。");
 }
+function inventoryAdjustmentPendingStorageKey(company,site){
+ return "gold-erp:inventory-adjustment:"+company+":"+site;
+}
+function readPendingInventoryAdjustment(company,site){
+ const raw=localStorage.getItem(inventoryAdjustmentPendingStorageKey(company,site));
+ if(!raw)return null;
+ try{
+  const pending=JSON.parse(raw);
+  if(pending&&pending.key&&pending.fingerprint&&pending.payload)return pending;
+ }catch(_error){}
+ return {invalid:true};
+}
+function savePendingInventoryAdjustment(company,site,payload){
+ const storageKey=inventoryAdjustmentPendingStorageKey(company,site);
+ const fingerprint=JSON.stringify(payload);
+ const existing=readPendingInventoryAdjustment(company,site);
+ if(existing){
+  if(existing.invalid)
+   throw new Error("找到無法讀取的待確認庫存調整資料。請先核對庫存異動紀錄，再處理此瀏覽器的待確認資料。");
+  if(existing.fingerprint!==fingerprint)
+   throw new Error("上一筆庫存調整尚未確認結果，請使用原商品、位置、方向及數量重試；不可修改內容另送。");
+  return existing;
+ }
+ if(!globalThis.crypto||typeof globalThis.crypto.randomUUID!=="function")
+  throw new Error("瀏覽器無法產生安全的庫存調整識別碼，請更新瀏覽器後再操作。");
+ const pending={key:globalThis.crypto.randomUUID(),fingerprint,payload};
+ try{localStorage.setItem(storageKey,JSON.stringify(pending));}
+ catch(_error){throw new Error("瀏覽器無法保存庫存調整重送資料，請確認儲存空間後再試。");}
+ return pending;
+}
+function clearPendingInventoryAdjustment(company,site){
+ try{localStorage.removeItem(inventoryAdjustmentPendingStorageKey(company,site));}catch(_error){}
+}
+function setInventoryAdjustmentFormLocked(locked){
+ const form=$("inventoryAdjustmentForm");
+ form.querySelectorAll("input,select,textarea,button[type=button]").forEach(el=>{el.disabled=locked;});
+ const submit=form.querySelector('button[type="submit"]');
+ submit.textContent=locked?"重試尚未確認的庫存調整":"送出庫存調整";
+}
+function restorePendingInventoryAdjustment(){
+ setInventoryAdjustmentFormLocked(false);
+ if(!companyId||!selectedSiteId)return;
+ const pending=readPendingInventoryAdjustment(companyId,selectedSiteId);
+ if(!pending)return;
+ if(pending.invalid){
+  setInventoryAdjustmentFormLocked(true);
+  message("adjustmentStatus","偵測到無法讀取的待確認庫存調整資料。請先查詢原庫存異動紀錄，不要另建立調整。",true);
+  return;
+ }
+ const payload=pending.payload;
+ if(!payload||payload.site_id!==selectedSiteId){
+  setInventoryAdjustmentFormLocked(true);
+  message("adjustmentStatus","待確認庫存調整與目前據點不符。請切回原據點核對後再操作。",true);
+  return;
+ }
+ $("adjustmentProduct").value=payload.product_id;
+ $("adjustmentLocation").value=payload.location_id;
+ $("adjustmentDirection").value=payload.direction;
+ $("adjustmentQuantity").value=payload.quantity;
+ $("adjustmentNote").value=payload.note||"";
+ setInventoryAdjustmentFormLocked(true);
+ message("adjustmentStatus","已恢復一筆尚未確認結果的庫存調整。請按「重試尚未確認的庫存調整」沿用原識別碼；確認前不要修改內容。",true);
+}
 function inventoryTransferPendingStorageKey(company,site){
  return "gold-erp:inventory-transfer:"+company+":"+site;
 }
@@ -1835,7 +1898,10 @@ function restorePendingInventoryTransfer(){
  message("transferStatus","已恢復一筆尚未確認結果的櫃位調撥。請按「重試尚未確認的調撥」沿用原識別碼；確認前不要修改內容。",true);
 }
 async function loadInventoryOptions(){
+ setInventoryAdjustmentFormLocked(false);
  setInventoryTransferFormLocked(false);
+ if(companyId&&selectedSiteId&&readPendingInventoryAdjustment(companyId,selectedSiteId))
+  setInventoryAdjustmentFormLocked(true);
  if(companyId&&selectedSiteId&&readPendingInventoryTransfer(companyId,selectedSiteId))
   setInventoryTransferFormLocked(true);
  const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct","quoteProduct","purchaseProduct"];
@@ -1889,6 +1955,7 @@ async function loadInventoryOptions(){
  if(stocktakeLocationId)await loadStocktakeBaseline();
  await loadInventoryStock();
  await loadInventoryMovements();
+ restorePendingInventoryAdjustment();
  restorePendingInventoryTransfer();
 }
 async function loadInventoryStock(){
@@ -3930,16 +3997,43 @@ $("inventoryAdjustmentForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("adjustmentStatus","請先選擇公司與據點。",true);return;}
  const selectedProduct=inventoryProducts.find(x=>x.id===$("adjustmentProduct").value);
- const payload={site_id:selectedSiteId,product_id:$("adjustmentProduct").value,location_id:$("adjustmentLocation").value,direction:$("adjustmentDirection").value,quantity:$("adjustmentQuantity").value,weight:selectedProduct?selectedProduct.net_weight:null,weight_unit_code:selectedProduct?selectedProduct.weight_unit_code:null,note:$("adjustmentNote").value.trim()||null};
+ const currentPayload={
+  site_id:selectedSiteId,product_id:$("adjustmentProduct").value,
+  location_id:$("adjustmentLocation").value,direction:$("adjustmentDirection").value,
+  quantity:$("adjustmentQuantity").value,
+  weight:selectedProduct?selectedProduct.net_weight:null,
+  weight_unit_code:selectedProduct?selectedProduct.weight_unit_code:null,
+  note:$("adjustmentNote").value.trim()||null
+ };
+ const existingPending=readPendingInventoryAdjustment(companyId,selectedSiteId);
+ const payload=existingPending&&!existingPending.invalid?existingPending.payload:currentPayload;
  const button=$("inventoryAdjustmentForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
-  await api("/companies/"+companyId+"/inventory/adjustments",{method:"POST",body:JSON.stringify(payload)});
+  const pending=savePendingInventoryAdjustment(companyId,selectedSiteId,payload);
+  setInventoryAdjustmentFormLocked(true);
+  message("adjustmentStatus","正在確認庫存調整…");
+  await api("/companies/"+companyId+"/inventory/adjustments",{
+   method:"POST",body:JSON.stringify({...payload,idempotency_key:pending.key})
+  });
+  clearPendingInventoryAdjustment(companyId,selectedSiteId);
+  setInventoryAdjustmentFormLocked(false);
   $("adjustmentQuantity").value="1";$("adjustmentNote").value="";
-  message("adjustmentStatus","庫存調整已記錄。");
-  try{await loadInventoryStock();await loadInventoryMovements();}
-  catch(refreshError){message("globalStatus","庫存調整已記錄，但畫面重新載入失敗："+refreshError.message,true);}
- }catch(error){message("adjustmentStatus",error.message,true);}
- finally{button.disabled=false;}
+  message("adjustmentStatus","庫存調整已成功入帳。");
+  try{
+   await loadInventoryStock();await loadInventoryMovements();
+   message("adjustmentStatus","庫存調整已成功入帳，庫存與異動紀錄已更新。");
+  }catch(refreshError){
+   message("adjustmentStatus","庫存調整已成功入帳，但清單更新失敗。請重新整理庫存及異動紀錄；不要再次建立新調整。",true);
+  }
+ }catch(error){
+  if(error.status===422){
+   clearPendingInventoryAdjustment(companyId,selectedSiteId);
+   setInventoryAdjustmentFormLocked(false);
+  }else if(readPendingInventoryAdjustment(companyId,selectedSiteId)){
+   setInventoryAdjustmentFormLocked(true);
+  }
+  message("adjustmentStatus",error.message,true);
+ }finally{button.disabled=false;}
 });
 $("inventoryTransferForm").addEventListener("submit",async event=>{
  event.preventDefault();
