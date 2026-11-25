@@ -26,7 +26,6 @@ __all__ = [
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine
-from app.models.daily_closing import SaleReturn, SaleReturnLine
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
 from app.models.payment_transaction import PaymentTransaction
 from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
