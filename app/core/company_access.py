@@ -26,7 +26,15 @@ COMPANY_PATH_RE = re.compile(
 )
 
 VOID_ENDPOINTS = {"void", "cancel", "deactivate", "reject"}
-UPDATE_ENDPOINTS = {"submit", "receive", "complete", "review", "match", "ignore", "approve", "suspend", "reactivate", "status"}
+UPDATE_ENDPOINTS = {"submit", "receive", "complete", "review", "match", "ignore", "approve", "suspend", "reactivate", "status", "retry", "restore"}
+OWN_SCOPE_RESOURCES = {
+    "products", "product_categories", "inventory", "purchases", "sales",
+    "sales_returns", "customer_orders", "suppliers", "supplier_offerings",
+    "supplier_payables", "payments", "expenses", "daily_closing",
+    "cash_drawer", "bank_accounts", "bank_reconciliation", "gold_material",
+    "gold_prices",
+}
+
 RESOURCE_ROOTS = {
     "products": "products",
     "product-categories": "product_categories",
@@ -194,10 +202,12 @@ def authorize_google_company_request(
     # Multiple roles are additive: ALL is the broadest scope among allowed grants.
     scope = "ALL" if any(value == "ALL" for _allowed, value in allowed_grants) else "OWN"
     if scope == "OWN":
-        raise HTTPException(
-            status_code=403,
-            detail="此權限限定本人建立的資料；建立者追蹤及資料過濾尚未完成，暫不開放。",
-        )
+        resource_code, action_code = permission_code.split(".", 1)
+        if resource_code not in OWN_SCOPE_RESOURCES or action_code not in {"view", "create"}:
+            raise HTTPException(
+                status_code=403,
+                detail="本人資料範圍目前僅支援查看與新增；此操作暫不開放。",
+            )
 
     return {
         "user_id": user.id,
