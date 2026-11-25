@@ -22,7 +22,7 @@ from app.db.session import SessionLocal
 from app.services.access_control import replace_membership_roles
 from app.models import (
     AuthIdentity, Company, CompanyMembership, CompanyMembershipRole,
-    Permission, User, UserSession,
+    Permission, RecordActor, User, UserSession,
 )
 
 router = APIRouter(prefix="/auth/google", tags=["Google authentication"])
@@ -35,12 +35,13 @@ OAUTH_COOKIE_MAX_AGE = 600
 def _oauth_ready() -> None:
     if not settings.google_oauth_configured:
         raise HTTPException(status_code=503, detail="Google 登入尚未啟用或尚未完成部署設定。")
-    # Do not start OAuth until migration 0034 is present in this database.
+    # Do not start OAuth until user, membership, role, permission, and record-actor schemas exist.
     try:
         with SessionLocal() as db:
             db.scalar(select(UserSession.id).limit(1))
             db.scalar(select(CompanyMembershipRole.id).limit(1))
             db.scalar(select(Permission.id).limit(1))
+            db.scalar(select(RecordActor.id).limit(1))
     except SQLAlchemyError:
         raise HTTPException(status_code=503, detail="Google 登入資料庫尚未完成設定。")
 
