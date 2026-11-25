@@ -347,6 +347,15 @@ def create_inventory_movement(
     if weight is not None and (not isinstance(weight, Decimal) or weight < 0):
         raise ValueError("重量必須是非負 Decimal。")
 
+    # Store explicit timestamps in UTC before persistence. SQLite drops timezone
+    # metadata for DateTime columns, so persisting a non-UTC wall time would make
+    # a later equivalent retry impossible to compare correctly.
+    if occurred_at is not None:
+        if occurred_at.tzinfo is None:
+            occurred_at = occurred_at.replace(tzinfo=timezone.utc)
+        else:
+            occurred_at = occurred_at.astimezone(timezone.utc)
+
     company_query = select(Company).where(Company.id == company_id)
     if idempotency_key is not None:
         # Serialize keyed inventory writes before the idempotency lookup.
