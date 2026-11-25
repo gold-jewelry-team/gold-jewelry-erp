@@ -87,3 +87,39 @@ class CompanyMembershipRole(Base):
     role_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("company_roles.id", ondelete="RESTRICT"), nullable=False)
     assigned_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class RecordActor(Base):
+    """Creator and last-modifier identity for a company-scoped business record."""
+
+    __tablename__ = "record_actors"
+    __table_args__ = (
+        UniqueConstraint("resource_code", "record_id", name="uq_record_actors_resource_record"),
+        CheckConstraint(
+            "(created_by_user_id IS NULL) OR (created_by_admin_username IS NULL)",
+            name="ck_record_actors_created_actor_exclusive",
+        ),
+        CheckConstraint(
+            "(updated_by_user_id IS NULL) OR (updated_by_admin_username IS NULL)",
+            name="ck_record_actors_updated_actor_exclusive",
+        ),
+        Index(
+            "ix_record_actors_company_resource_creator",
+            "company_id", "resource_code", "created_by_user_id",
+        ),
+        Index(
+            "ix_record_actors_company_resource_admin_creator",
+            "company_id", "resource_code", "created_by_admin_username",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
+    resource_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    record_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_admin_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    updated_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by_admin_username: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
