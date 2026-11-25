@@ -75,7 +75,7 @@ section.append(el("div","角色："+(assignedRoles.length?assignedRoles.join("�
 if(membership.status==="PENDING"){const role=makeSelect(Object.entries(roles),membership.role);actions.append(role,actionButton("核准", "APPROVE",()=>changeMembership(membership.id,"APPROVE",role.value)),actionButton("拒絕", "REJECT",()=>changeMembership(membership.id,"REJECT"),"danger"));}
 if(membership.status==="ACTIVE"){actions.append(actionButton("暫停此公司成員", "SUSPEND",()=>changeMembership(membership.id,"SUSPEND"),"danger"));}
 if(membership.status==="SUSPENDED"){actions.append(actionButton("恢復此公司成員", "REACTIVATE",()=>changeMembership(membership.id,"REACTIVATE"),"secondary"));}
-actions.append(actionButton("編輯角色", "EDIT_ROLES",()=>showRoleEditor(membership,section),"secondary"));
+if(membership.status!=="PENDING"){actions.append(actionButton("編輯角色", "EDIT_ROLES",()=>showRoleEditor(membership,section),"secondary"));}
 section.append(actions);card.append(section);}}
 else{card.append(el("div","尚未指定公司，請選擇公司建立待核准申請。","hint"));}
 if(companies.length){const assignRow=el("div",undefined,"assign");const companySelect=makeSelect(companies.map(c=>[c.id,c.name+"（"+c.code+"）"]));const roleSelect=makeSelect(Object.entries(roles), "STAFF");assignRow.append(companySelect,roleSelect,actionButton("指定公司", "ASSIGN",()=>assign(user.id,companySelect,roleSelect),"secondary"));card.append(assignRow);}
