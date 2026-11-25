@@ -15,7 +15,7 @@ class InventoryAdjustmentCreate(BaseModel):
     weight_unit_code: str | None = Field(default=None, max_length=20)
     occurred_at: datetime | None = None
     note: str | None = Field(default=None, max_length=500)
-    idempotency_key: UUID | None = None
+    idempotency_key: UUID
 
 
 class InventoryTransferCreate(BaseModel):
