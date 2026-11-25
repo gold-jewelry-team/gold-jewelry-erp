@@ -8,6 +8,7 @@ from app.models.product_code_sequence import ProductCodeSequence
 from app.models.inventory import InventoryMovement
 from app.models.inventory_operation_request import InventoryOperationRequest
 from app.models.user_identity import AuthIdentity, CompanyMembership, User, UserSession
+from app.models.access_control import CompanyMembershipRole, CompanyRole, CompanyRolePermission, Permission
 from app.models.supplier import Supplier
 from app.models.purchase import Purchase, PurchaseLine
 from app.models.gold_material import GoldMaterialMovement, GoldMaterialSettlementAllocation
@@ -17,7 +18,7 @@ __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "ProductCodeSequence", "InventoryMovement",
     "InventoryOperationRequest", "User", "AuthIdentity", "CompanyMembership",
-    "UserSession", "Supplier", "Purchase", "PurchaseLine",
+    "UserSession", "Permission", "CompanyRole", "CompanyRolePermission", "CompanyMembershipRole", "Supplier", "Purchase", "PurchaseLine",
     "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary",
     "PaymentTransaction", "SupplierBill", "SupplierPayment", "SupplierPaymentAllocation",
     "OperatingExpense", "DailyCashCount", "CashDrawerMovement", "BankAccount",
