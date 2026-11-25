@@ -1,12 +1,11 @@
 """Administrator-only Google member, company role, and permission management API."""
-import re
 from datetime import datetime, timezone
 from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import and_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -95,8 +94,15 @@ def _role_payload(db: Session, role: CompanyRole) -> dict:
         select(Permission.code, Permission.name, Permission.resource_code,
                Permission.action_code, CompanyRolePermission.is_allowed,
                CompanyRolePermission.data_scope)
-        .join(CompanyRolePermission, CompanyRolePermission.permission_id == Permission.id)
-        .where(CompanyRolePermission.role_id == role.id)
+        .select_from(Permission)
+        .outerjoin(
+            CompanyRolePermission,
+            and_(
+                CompanyRolePermission.permission_id == Permission.id,
+                CompanyRolePermission.role_id == role.id,
+            ),
+        )
+        .where(Permission.is_active.is_(True))
         .order_by(Permission.resource_code, Permission.action_code)
     ).all()
     return {
@@ -112,8 +118,8 @@ def _role_payload(db: Session, role: CompanyRole) -> dict:
             "name": name,
             "resource_code": resource_code,
             "action_code": action_code,
-            "is_allowed": is_allowed,
-            "data_scope": data_scope,
+            "is_allowed": bool(is_allowed) if is_allowed is not None else False,
+            "data_scope": data_scope or "OWN",
         } for code, name, resource_code, action_code, is_allowed, data_scope in rows],
     }
 
@@ -198,8 +204,6 @@ def list_company_roles(company_id: UUID, db: Session = Depends(get_db)) -> list[
     company = db.get(Company, company_id)
     if company is None:
         raise HTTPException(status_code=404, detail="找不到指定公司。")
-    ensure_company_system_roles(db, company_id)
-    db.commit()
     roles = db.scalars(
         select(CompanyRole).where(CompanyRole.company_id == company_id)
         .order_by(CompanyRole.is_system.desc(), CompanyRole.name)
