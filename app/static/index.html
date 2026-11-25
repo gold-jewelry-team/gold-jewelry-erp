@@ -760,7 +760,7 @@ button.secondary:disabled{opacity:.42}
 </section>
 <section class="panel" id="inventoryAdjustmentPanel">
 <h2>庫存調整</h2>
-<p class="sub">用於期初入庫或盤點差異調整；出庫時不可超過目前庫存。</p>
+<p class="sub">用於期初入庫或盤點差異調整；出庫時不可超過目前庫存。若瀏覽器暫存遺失且結果不明，先查詢下方異動紀錄，核對商品、位置、數量、時間與備註；確認前不要重新建立調整。</p>
 <form id="inventoryAdjustmentForm">
 <div class="field"><label for="adjustmentProduct">商品</label><select id="adjustmentProduct" required><option value="">請選擇商品</option></select><div class="toolbar"><input id="adjustmentScanCode" placeholder="掃描／輸入條碼後按 Enter／Tab"><button id="scanAdjustmentButton" class="secondary" type="button">相機</button></div></div>
 <div class="field"><label for="adjustmentLocation">儲存位置</label><select id="adjustmentLocation" required><option value="">請選擇位置</option></select></div>
@@ -773,7 +773,7 @@ button.secondary:disabled{opacity:.42}
 </section>
 <section class="panel" id="inventoryTransferPanel">
 <h2>櫃位調撥</h2>
-<p class="sub">同一據點內將商品從一個儲存位置移至另一個位置。</p>
+<p class="sub">同一據點內將商品從一個儲存位置移至另一個位置。若瀏覽器暫存遺失且結果不明，先查詢下方異動紀錄，核對商品、來源／目的位置、數量、時間與備註；確認前不要重新建立調撥。</p>
 <form id="inventoryTransferForm">
 <div class="field"><label for="transferProduct">商品</label><select id="transferProduct" required><option value="">請選擇商品</option></select><div class="toolbar"><input id="transferScanCode" placeholder="掃描／輸入條碼後按 Enter／Tab"><button id="scanTransferButton" class="secondary" type="button">相機</button></div></div>
 <div class="field"><label for="transferFromLocation">來源位置</label><select id="transferFromLocation" required><option value="">請選擇來源</option></select></div>
@@ -786,6 +786,7 @@ button.secondary:disabled{opacity:.42}
 </section>
 <section class="panel span2" id="inventoryMovementPanel">
 <h2>庫存異動紀錄</h2>
+<p class="sub">結果不明時，先依異動類型、商品與位置篩選並核對時間、數量及備註。異動紀錄 ID 可供人工追查；冪等識別碼是系統重送核對用，不代表可在遺失後自動恢復原請求。</p>
 <div class="grid">
 <div class="field"><label for="movementTypeFilter">異動類型</label><select id="movementTypeFilter"><option value="">全部類型</option><option value="RECEIPT">入庫</option><option value="SALE">銷售</option><option value="TRANSFER">櫃位調撥</option><option value="ADJUSTMENT">庫存調整</option><option value="RETURN">退貨</option><option value="REPAIR_SEND">送修</option><option value="REPAIR_RETURN">維修返還</option></select></div>
 <div class="field"><label for="movementProductFilter">商品</label><select id="movementProductFilter"><option value="">全部商品</option></select></div>
@@ -1981,7 +1982,7 @@ async function loadInventoryMovements(){
  const rows=await api("/companies/"+companyId+"/inventory/movements?"+params.toString());
  const locationNames=new Map(inventoryLocations.map(x=>[x.id,x.name+"（"+x.code+"）"]));
  const productNames=new Map(inventoryProducts.map(x=>[x.id,x.product_code+" · "+x.name]));
- box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(productNames.get(x.product_id)||"商品資料不存在")+'</strong><span class="pill">'+escapeHtml(movementTypeLabels[x.movement_type]||x.movement_type)+'</span><span class="muted">來源：'+escapeHtml(x.from_location_id?(locationNames.get(x.from_location_id)||"位置資料不存在"):"—")+' → 目的：'+escapeHtml(x.to_location_id?(locationNames.get(x.to_location_id)||"位置資料不存在"):"—")+'</span><span class="muted">數量：'+escapeHtml(x.quantity)+(x.weight!==null&&x.weight!==undefined?' · 異動重量：'+escapeHtml(x.weight)+' '+escapeHtml(goldUnitLabel(x.weight_unit_code||"QIAN")):'')+' · 時間：'+escapeHtml(x.occurred_at?new Date(x.occurred_at).toLocaleString("zh-TW"):"—")+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">目前沒有符合條件的異動紀錄</div>';
+ box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(productNames.get(x.product_id)||"商品資料不存在")+'</strong><span class="pill">'+escapeHtml(movementTypeLabels[x.movement_type]||x.movement_type)+'</span><span class="muted">來源：'+escapeHtml(x.from_location_id?(locationNames.get(x.from_location_id)||"位置資料不存在"):"—")+' → 目的：'+escapeHtml(x.to_location_id?(locationNames.get(x.to_location_id)||"位置資料不存在"):"—")+'</span><span class="muted">數量：'+escapeHtml(x.quantity)+(x.weight!==null&&x.weight!==undefined?' · 異動重量：'+escapeHtml(x.weight)+' '+escapeHtml(goldUnitLabel(x.weight_unit_code||"QIAN")):'')+' · 時間：'+escapeHtml(x.occurred_at?new Date(x.occurred_at).toLocaleString("zh-TW"):"—")+'</span><span class="muted">異動紀錄 ID：'+escapeHtml(x.id||"—")+' · 冪等識別碼：'+escapeHtml(x.reference_id||"—")+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">目前沒有符合條件的異動紀錄</div>';
 }
 function taipeiDateTimeLocalValue(){
  return new Date(Date.now()+8*60*60*1000).toISOString().slice(0,16);
