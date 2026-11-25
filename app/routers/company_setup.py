@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models.company import Company
+from app.models.access_control import Permission
 from app.models.inventory import InventoryMovement
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
@@ -39,7 +40,13 @@ def _role_schema_available(db: Session) -> bool:
         "company_role_permissions",
         "company_membership_roles",
     }
-    return all(inspector.has_table(table) for table in required_tables)
+    if not all(inspector.has_table(table) for table in required_tables):
+        return False
+    # The presence of empty tables is not a completed permission migration.
+    # Only provision role rows after the global permission catalogue was seeded.
+    return db.scalar(
+        select(Permission.id).where(Permission.is_active.is_(True)).limit(1)
+    ) is not None
 
 
 @router.get("/companies", response_model=list[CompanyRead])
