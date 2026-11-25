@@ -828,7 +828,10 @@ def test_employee_purchase_history_loads_supplier_product_and_receiving_status(s
         page.locator("span.badge.partial").wait_for(state="visible")
         page.get_by_text("已入庫 1／3").wait_for()
         page.get_by_text("採購測試備註").wait_for()
-        page.locator("#purchaseStatus").select_option("ORDERED")
+        with page.expect_response(
+            lambda response: "/purchases?" in response.url and "status=ORDERED" in response.url
+        ):
+            page.locator("#purchaseStatus").select_option("ORDERED")
         assert any("/purchases?" in url and "status=ORDERED" in url for method, url in requests)
         page.get_by_role("searchbox", name="搜尋採購紀錄").fill("G00E-22618")
         page.get_by_role("button", name="搜尋").click()
