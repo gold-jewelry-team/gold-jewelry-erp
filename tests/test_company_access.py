@@ -142,12 +142,12 @@ def test_manager_role_is_read_only_from_permission_catalog(db):
     assert exc.value.status_code == 403
 
 
-def test_staff_role_fails_closed_until_own_record_scope_is_available(db):
+def test_staff_role_has_no_access_until_owner_grants_permissions(db):
     company, _user, _membership, token = seed_member(db, role="STAFF")
     with pytest.raises(HTTPException) as exc:
         authorize_google_company_request(db, token, company.id, "GET")
     assert exc.value.status_code == 403
-    assert "本人建立的資料" in exc.value.detail
+    assert "未獲授權" in exc.value.detail
 
 
 def test_custom_role_permission_is_used_instead_of_legacy_role_label(db):
