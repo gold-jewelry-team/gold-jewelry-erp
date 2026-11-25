@@ -212,8 +212,8 @@ def test_member_management_requires_administrator_session(monkeypatch):
     assert "家庭／店員成員管理" in admin_page.text
 
 
-def seed_permission_catalog(company_id=None):
-    from app.models import CompanyRolePermission
+def seed_permission_catalog(company_id):
+    from app.services.access_control import ensure_company_system_roles
 
     with TestingSessionLocal() as db:
         for resource, resource_name in (
@@ -231,12 +231,14 @@ def seed_permission_catalog(company_id=None):
                     name=f"{resource_name}-{action_name}",
                     is_active=True,
                 ))
+        db.flush()
+        ensure_company_system_roles(db, UUID(company_id))
         db.commit()
 
 
 def test_owner_can_create_custom_role_and_configure_permissions():
     user_id, company_id = seed_user_and_company()
-    seed_permission_catalog()
+    seed_permission_catalog(company_id)
 
     roles_response = client.get(f"/admin/api/companies/{company_id}/roles")
     assert roles_response.status_code == 200, roles_response.text
@@ -270,7 +272,7 @@ def test_owner_can_create_custom_role_and_configure_permissions():
 
 def test_membership_can_hold_multiple_company_roles_but_not_foreign_company_roles():
     user_id, company_id = seed_user_and_company()
-    seed_permission_catalog()
+    seed_permission_catalog(company_id)
     client.get(f"/admin/api/companies/{company_id}/roles")
 
     with TestingSessionLocal() as db:
