@@ -31,6 +31,8 @@ def _context():
         session.add(company)
         session.flush()
         site = Site(company_id=company.id, code="MAIN", name="總店")
+        session.add(site)
+        session.flush()
         source = StorageLocation(
             site_id=site.id, code="SAFE", name="保險櫃", location_type="SAFE"
         )
@@ -45,7 +47,7 @@ def _context():
             net_weight=Decimal("1.0000"),
             weight_unit_code="QIAN",
         )
-        session.add_all([site, source, destination, product])
+        session.add_all([source, destination, product])
         session.flush()
         session.add(InventoryMovement(
             company_id=company.id,
