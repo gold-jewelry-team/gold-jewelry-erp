@@ -420,6 +420,10 @@ def create_inventory_movement(
                 "冪等識別碼目前僅支援庫存盤點調整及櫃位調撥。"
             )
         if existing is not None:
+            # The route may have completed its first lookup before another request
+            # committed the same key. Mark this service-level replay so the API
+            # can return HTTP 200 instead of incorrectly reporting a new creation.
+            setattr(existing, "_idempotent_replay", True)
             return existing
 
     # Existing keyed movements are returned before checking current location
