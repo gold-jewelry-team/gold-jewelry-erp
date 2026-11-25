@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
+from app.core.company_access import require_current_actor_permission
 from app.models.purchase import Purchase
 from app.models.supplier_payable import SupplierBill, SupplierPayment
 from app.routers.schemas.supplier_payables import (
@@ -55,6 +56,8 @@ def post_supplier_bill(
     payload: SupplierBillCreate,
     db: Session = Depends(get_db),
 ):
+    if payload.purchase_id is not None:
+        require_current_actor_permission(db, "purchases.view")
     try:
         bill = create_supplier_bill(
             db,
@@ -138,6 +141,7 @@ def patch_supplier_bill(
     if effective_due_date is not None and effective_due_date < effective_bill_date:
         raise HTTPException(status_code=422, detail="到期日不可早於帳單日期。")
     if bill.purchase_id is not None and "currency_code" in changes:
+        require_current_actor_permission(db, "purchases.view")
         purchase = db.get(Purchase, bill.purchase_id)
         if purchase is None or changes["currency_code"].upper() != purchase.currency_code:
             raise HTTPException(status_code=422, detail="帳單幣別必須與關聯採購單一致。")
