@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.actor_context import current_actor
 from app.models import (
     Company,
     CompanyMembership,
@@ -26,7 +27,11 @@ COMPANY_PATH_RE = re.compile(
 )
 
 VOID_ENDPOINTS = {"void", "cancel", "deactivate", "reject"}
-UPDATE_ENDPOINTS = {"submit", "receive", "complete", "review", "match", "ignore", "approve", "suspend", "reactivate", "status", "retry", "restore", "pay"}
+UPDATE_ENDPOINTS = {
+    "submit", "receive", "complete", "review", "match", "ignore",
+    "approve", "suspend", "reactivate", "status", "retry", "restore", "pay",
+}
+
 # OWN is deliberately limited to independent transaction lists. Shared master
 # data, balances, reconciliation, and aggregate reports must remain ALL-scoped.
 OWN_SCOPE_RESOURCES = {
@@ -91,7 +96,9 @@ def permission_for_request(path: str, method: str) -> str:
     elif root == "bank-accounts":
         resource = (
             "bank_reconciliation"
-            if "statement-imports" in tail or "reconciliation-snapshots" in tail or "reconciliation-report" in tail
+            if "statement-imports" in tail
+            or "reconciliation-snapshots" in tail
+            or "reconciliation-report" in tail
             else "bank_accounts"
         )
     elif root == "sites":
@@ -135,6 +142,127 @@ def permission_for_request(path: str, method: str) -> str:
         raise HTTPException(status_code=403, detail="不支援此 API 操作方式。")
 
     return f"{resource}.{action}"
+
+
+def additional_permissions_for_request(path: str, method: str) -> list[str]:
+    """Return cross-module permissions required by side effects or embedded data."""
+    parts = [part for part in path.strip("/").split("/") if part]
+    if len(parts) < 3 or parts[0] != "companies":
+        return []
+    tail = parts[2:]
+    root = tail[0]
+    endpoint = tail[-1]
+    verb = method.upper()
+    required: set[str] = set()
+
+    if root == "sales":
+        if "payments" in tail:
+            required.add("sales_returns.view" if "returns" in tail else "sales.view")
+        elif "returns" in tail:
+            required.add("sales.view")
+            if verb == "POST" and endpoint == "returns":
+                required.add("inventory.create")
+        elif verb == "POST" and len(tail) == 1:
+            # Sale drafts include payment method and card tender details.
+            required.add("payments.create")
+        elif verb == "PATCH" and len(tail) == 2:
+            # Editing a draft can change payment method and card tender details.
+            required.add("payments.update")
+        elif verb == "POST" and endpoint == "complete":
+            required.add("inventory.create")
+
+    if root == "purchases" and verb == "POST" and endpoint == "receive":
+        required.add("inventory.create")
+
+    if root == "customer-orders":
+        # CustomerOrderRead embeds payment transactions in list/detail and
+        # mutation responses. Never expose those without the payments view grant.
+        required.add("payments.view")
+        if verb == "POST" and len(tail) == 1:
+            # Creating an order also records its initial deposit.
+            required.add("payments.create")
+        elif verb == "POST" and any(part in {"payments", "refunds"} for part in tail):
+            required.add("customer_orders.update")
+
+    if root == "operating-expenses" and verb == "POST" and endpoint == "pay":
+        required.add("payments.create")
+
+    return sorted(required)
+
+
+def _permission_grants(
+    db: Session,
+    membership_id: UUID,
+    company_id: UUID,
+    permission_code: str,
+) -> list[tuple[bool, str]]:
+    return list(db.execute(
+        select(CompanyRolePermission.is_allowed, CompanyRolePermission.data_scope)
+        .join(
+            CompanyMembershipRole,
+            CompanyMembershipRole.role_id == CompanyRolePermission.role_id,
+        )
+        .join(CompanyRole, CompanyRole.id == CompanyMembershipRole.role_id)
+        .join(Permission, Permission.id == CompanyRolePermission.permission_id)
+        .where(
+            CompanyMembershipRole.membership_id == membership_id,
+            CompanyRole.company_id == company_id,
+            CompanyRole.is_active.is_(True),
+            Permission.code == permission_code,
+            Permission.is_active.is_(True),
+        )
+    ).all())
+
+
+def _require_all_scope_permission(
+    db: Session,
+    membership_id: UUID,
+    company_id: UUID,
+    permission_code: str,
+) -> None:
+    grants = _permission_grants(db, membership_id, company_id, permission_code)
+    allowed = [(is_allowed, scope) for is_allowed, scope in grants if is_allowed]
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"此操作還需要「{permission_code}」權限。",
+        )
+    if not any(scope == "ALL" for _is_allowed, scope in allowed):
+        raise HTTPException(
+            status_code=403,
+            detail=f"跨模組操作「{permission_code}」必須授予全公司資料範圍。",
+        )
+
+
+def require_current_actor_permission(
+    db: Session,
+    permission_code: str,
+    *,
+    require_all_scope: bool = True,
+) -> None:
+    """Enforce a payload-dependent extra grant from inside a company API handler."""
+    actor = current_actor.get()
+    if actor is None or actor.actor_type == "ADMIN":
+        return
+    if (
+        actor.actor_type != "GOOGLE"
+        or actor.company_id is None
+        or actor.membership_id is None
+    ):
+        raise HTTPException(status_code=403, detail="無法確認目前成員的公司權限。")
+
+    grants = _permission_grants(db, actor.membership_id, actor.company_id, permission_code)
+    allowed = [(is_allowed, scope) for is_allowed, scope in grants if is_allowed]
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"此操作還需要「{permission_code}」權限。",
+        )
+    if require_all_scope and not any(scope == "ALL" for _is_allowed, scope in allowed):
+        raise HTTPException(
+            status_code=403,
+            detail=f"跨模組操作「{permission_code}」必須授予全公司資料範圍。",
+        )
 
 
 def authorize_google_company_request(
@@ -185,25 +313,17 @@ def authorize_google_company_request(
 
     request_path = path or f"/companies/{company_id}/products"
     permission_code = permission_for_request(request_path, method)
-    grants = db.execute(
-        select(CompanyRolePermission.is_allowed, CompanyRolePermission.data_scope)
-        .join(CompanyMembershipRole, CompanyMembershipRole.role_id == CompanyRolePermission.role_id)
-        .join(CompanyRole, CompanyRole.id == CompanyMembershipRole.role_id)
-        .join(Permission, Permission.id == CompanyRolePermission.permission_id)
-        .where(
-            CompanyMembershipRole.membership_id == membership.id,
-            CompanyRole.company_id == company_id,
-            CompanyRole.is_active.is_(True),
-            Permission.code == permission_code,
-            Permission.is_active.is_(True),
-        )
-    ).all()
-
+    grants = _permission_grants(db, membership.id, company_id, permission_code)
     allowed_grants = [(allowed, scope) for allowed, scope in grants if allowed]
     if not allowed_grants:
         raise HTTPException(
             status_code=403,
             detail=f"此角色未獲授權執行「{permission_code}」。",
+        )
+
+    for additional_code in additional_permissions_for_request(request_path, method):
+        _require_all_scope_permission(
+            db, membership.id, company_id, additional_code
         )
 
     # Multiple roles are additive: ALL is the broadest scope among allowed grants.
