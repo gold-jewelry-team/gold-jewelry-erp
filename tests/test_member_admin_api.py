@@ -13,7 +13,7 @@ from app.db.base import Base
 from app.core.auth import create_session_token
 from app.core.config import settings
 from app.main import app
-from app.models import (AuthIdentity, Company, CompanyMembership, CompanyMembershipRole, CompanyRole, Permission, User, UserSession)
+from app.models import (AuthIdentity, Company, CompanyMembership, CompanyMembershipRole, CompanyRole, CompanyRolePermission, Permission, User, UserSession)
 from app.routers.member_admin import get_db
 
 engine = create_engine(
