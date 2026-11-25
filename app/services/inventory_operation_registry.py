@@ -73,7 +73,6 @@ def prepare_inventory_operation_request(
         # A durable PENDING marker survives a process crash before ledger write.
         # For a legacy match, this commits only the registry link to the old row.
         session.commit()
-        session.refresh(row)
     except IntegrityError:
         # A concurrent request may have won the unique company/key race.
         # Roll back the failed transaction before loading and comparing its row.
@@ -84,6 +83,7 @@ def prepare_inventory_operation_request(
         return _resolve_existing(session, winner, operation_type, site_id, canonical, fingerprint)
 
     if legacy_movement is not None:
+        session.refresh(row)
         movement = session.get(InventoryMovement, legacy_movement.id)
         return row, movement, True
 
