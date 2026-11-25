@@ -189,6 +189,20 @@ def google_callback(request: Request):
                         role="STAFF",
                     ))
 
+            if identity is not None:
+                membership_statuses = list(db.scalars(
+                    select(CompanyMembership.status).where(
+                        CompanyMembership.user_id == user.id
+                    )
+                ))
+                if membership_statuses and not any(
+                    status in {"ACTIVE", "PENDING"} for status in membership_statuses
+                ):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="此帳號目前沒有可使用的公司成員資格，請聯絡管理者。",
+                    )
+
             db.add(UserSession(
                 user_id=user.id,
                 token_hash=token_hash,
@@ -239,10 +253,10 @@ def google_login_status(request: Request) -> dict:
             )))
             if not memberships:
                 status = "NEEDS_COMPANY_ASSIGNMENT"
-            elif any(item.status == "PENDING" for item in memberships):
-                status = "PENDING_APPROVAL"
             elif any(item.status == "ACTIVE" for item in memberships):
                 status = "APPROVED_BUT_NOT_OPEN"
+            elif any(item.status == "PENDING" for item in memberships):
+                status = "PENDING_APPROVAL"
             elif any(item.status == "SUSPENDED" for item in memberships):
                 status = "SUSPENDED"
             else:
