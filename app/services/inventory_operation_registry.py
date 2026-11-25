@@ -86,7 +86,16 @@ def prepare_inventory_operation_request(
     if legacy_movement is not None:
         movement = session.get(InventoryMovement, legacy_movement.id)
         return row, movement, True
-    return row, None, False
+
+    # Keep a row lock from the durable PENDING commit through the movement
+    # transaction. A concurrent exact retry waits here, then observes COMPLETED
+    # instead of racing ahead or returning a false "still pending" conflict.
+    locked_row = load_winner()
+    if locked_row is None:
+        raise InventoryOperationRequestConflict(
+            "操作登記暫時無法讀取，請先核對操作清單。"
+        )
+    return locked_row, None, False
 
 
 def _resolve_existing(session, row, operation_type, site_id, canonical, fingerprint):
