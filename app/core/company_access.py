@@ -26,7 +26,7 @@ COMPANY_PATH_RE = re.compile(
 )
 
 VOID_ENDPOINTS = {"void", "cancel", "deactivate", "reject"}
-UPDATE_ENDPOINTS = {"submit", "receive", "complete", "review", "match", "ignore", "approve", "suspend", "reactivate", "status", "retry", "restore"}
+UPDATE_ENDPOINTS = {"submit", "receive", "complete", "review", "match", "ignore", "approve", "suspend", "reactivate", "status", "retry", "restore", "pay"}
 OWN_SCOPE_RESOURCES = {
     "products", "product_categories", "inventory", "purchases", "sales",
     "sales_returns", "customer_orders", "suppliers", "supplier_offerings",
@@ -77,12 +77,16 @@ def permission_for_request(path: str, method: str) -> str:
     if any(part in {"category-offerings", "product-offerings", "supplier-offerings"} for part in tail):
         resource = "supplier_offerings"
     elif root == "sales":
-        if "returns" in tail:
-            resource = "sales_returns"
-        elif "payments" in tail:
+        if "payments" in tail:
             resource = "payments"
+        elif "returns" in tail:
+            resource = "sales_returns"
         else:
             resource = "sales"
+    elif root == "customer-orders" and any(
+        part in {"payments", "refunds"} for part in tail
+    ):
+        resource = "payments"
     elif root == "bank-accounts":
         resource = (
             "bank_reconciliation"
