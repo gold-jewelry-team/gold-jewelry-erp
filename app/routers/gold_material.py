@@ -69,6 +69,8 @@ def post_gold_material_movement(
     company_id: UUID, payload: GoldMaterialMovementCreate, response: Response,
     db: Session = Depends(get_db)
 ):
+    if payload.purchase_id is not None:
+        require_current_actor_permission(db, "purchases.view")
     if payload.movement_type == "SUPPLIER_DELIVERY":
         require_current_actor_permission(db, "supplier_payables.view")
         require_current_actor_permission(db, "supplier_payables.update")
