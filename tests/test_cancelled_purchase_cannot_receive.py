@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -85,6 +85,7 @@ def test_cancelled_purchase_cannot_be_received_or_create_inventory_movement():
             json={
                 "purchase_line_id": line_id, "location_id": str(location_id),
                 "received_quantity": "1",
+                "idempotency_key": str(uuid4()),
             },
         )
         assert rejected.status_code == 422, rejected.text
