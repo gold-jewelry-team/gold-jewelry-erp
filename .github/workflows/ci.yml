@@ -187,6 +187,11 @@ jobs:
               "bank_statement_imports",
               "bank_statement_lines",
               "bank_reconciliation_snapshots",
+              "permissions",
+              "company_roles",
+              "company_role_permissions",
+              "company_membership_roles",
+              "record_actors",
           }
           missing = sorted(required_tables - tables)
           assert not missing, f"Missing PostgreSQL tables: {missing}"
@@ -271,6 +276,14 @@ jobs:
           print("PostgreSQL schema verification passed.")
           engine.dispose()
           PY
+      - name: Verify Migration 0035 backfills existing companies and memberships
+        run: |
+          alembic downgrade 0034_user_identity_memberships
+          python scripts/verify_migration_0035_seed.py seed
+          alembic upgrade head
+          python scripts/verify_migration_0035_seed.py verify
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
       - name: Verify full downgrade
         run: alembic downgrade base
         env:
