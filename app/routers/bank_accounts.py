@@ -8,10 +8,40 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
+from app.core.company_access import require_current_actor_permission
 from app.models.bank_account import BankAccount, BankTransaction
 from app.services.bank_accounts import (BankTransactionIdempotencyConflict, BankTransferLinkConflict, create_bank_account, get_bank_account_balance, link_transfer_source_to_bank_account, list_unlinked_transfer_sources, record_cash_deposit, record_cash_withdrawal, transfer_between_bank_accounts)
 
 router=APIRouter(prefix="/companies/{company_id}/bank-accounts",tags=["bank accounts"])
+
+TRANSFER_SOURCE_VIEW_PERMISSIONS = {
+    "PAYMENT_TRANSACTION": "payments.view",
+    "SUPPLIER_PAYMENT": "supplier_payables.view",
+    "OPERATING_EXPENSE": "expenses.view",
+}
+
+
+def _allowed_transfer_source_types(db: Session) -> set[str]:
+    """Expose only pending transfers whose source module the actor may view."""
+    allowed: set[str] = set()
+    for source_type, permission_code in TRANSFER_SOURCE_VIEW_PERMISSIONS.items():
+        try:
+            require_current_actor_permission(db, permission_code)
+        except HTTPException as exc:
+            if exc.status_code != 403:
+                raise
+        else:
+            allowed.add(source_type)
+    return allowed
+
+
+def _require_transfer_source_view_permission(db: Session, source_type: str) -> None:
+    permission_code = TRANSFER_SOURCE_VIEW_PERMISSIONS.get(source_type)
+    if permission_code is None:
+        raise HTTPException(status_code=403, detail="不支援的轉帳來源權限。")
+    require_current_actor_permission(db, permission_code)
+
+
 def get_db():
     db=SessionLocal()
     try: yield db
@@ -113,7 +143,12 @@ def get_pending_transfers(
     limit:int=Query(default=200,ge=1,le=500),
     db:Session=Depends(get_db),
 ):
-    return list_unlinked_transfer_sources(db,company_id=company_id,limit=limit)
+    return list_unlinked_transfer_sources(
+        db,
+        company_id=company_id,
+        limit=limit,
+        source_types=_allowed_transfer_source_types(db),
+    )
 
 
 @router.post("/{account_id}/transfer-links",response_model=BankTransactionRead,status_code=201)
@@ -124,6 +159,7 @@ def post_transfer_link(
     response:Response,
     db:Session=Depends(get_db),
 ):
+    _require_transfer_source_view_permission(db, payload.source_type)
     try:
         row,created=link_transfer_source_to_bank_account(
             db,

@@ -413,8 +413,19 @@ def _transfer_source_details(
 
 
 def list_unlinked_transfer_sources(
-    session: Session, *, company_id: UUID, limit: int = 200
+    session: Session,
+    *,
+    company_id: UUID,
+    limit: int = 200,
+    source_types: set[str] | None = None,
 ) -> list[dict]:
+    """List only transfer sources whose module the caller is authorized to view."""
+    allowed_types = source_types if source_types is not None else {
+        "PAYMENT_TRANSACTION", "SUPPLIER_PAYMENT", "OPERATING_EXPENSE"
+    }
+    if not allowed_types:
+        return []
+
     linked = {
         (row.source_type, row.source_id)
         for row in session.scalars(
@@ -426,47 +437,54 @@ def list_unlinked_transfer_sources(
         ).all()
     }
     candidates: list[tuple[datetime, str, UUID]] = []
-    payment_rows = session.scalars(
-        select(PaymentTransaction).where(
-            PaymentTransaction.company_id == company_id,
-            PaymentTransaction.payment_method == "TRANSFER",
-            PaymentTransaction.currency_code == "TWD",
-        ).order_by(PaymentTransaction.paid_at.desc()).limit(limit)
-    ).all()
-    candidates.extend(
-        (row.paid_at, "PAYMENT_TRANSACTION", row.id)
-        for row in payment_rows
-        if ("PAYMENT_TRANSACTION", row.id) not in linked
-    )
-    supplier_rows = session.scalars(
-        select(SupplierPayment).where(
-            SupplierPayment.company_id == company_id,
-            SupplierPayment.payment_method == "TRANSFER",
-            SupplierPayment.currency_code == "TWD",
-        ).order_by(SupplierPayment.paid_at.desc()).limit(limit)
-    ).all()
-    candidates.extend(
-        (row.paid_at, "SUPPLIER_PAYMENT", row.id)
-        for row in supplier_rows
-        if ("SUPPLIER_PAYMENT", row.id) not in linked
-    )
-    expense_rows = session.scalars(
-        select(OperatingExpense).where(
-            OperatingExpense.company_id == company_id,
-            OperatingExpense.status == "PAID",
-            OperatingExpense.payment_method == "TRANSFER",
-            OperatingExpense.currency_code == "TWD",
-            OperatingExpense.paid_at.is_not(None),
-        ).order_by(OperatingExpense.paid_at.desc()).limit(limit)
-    ).all()
-    candidates.extend(
-        (row.paid_at, "OPERATING_EXPENSE", row.id)
-        for row in expense_rows
-        if ("OPERATING_EXPENSE", row.id) not in linked
-    )
+
+    if "PAYMENT_TRANSACTION" in allowed_types:
+        payment_rows = session.scalars(
+            select(PaymentTransaction).where(
+                PaymentTransaction.company_id == company_id,
+                PaymentTransaction.payment_method == "TRANSFER",
+                PaymentTransaction.currency_code == "TWD",
+            ).order_by(PaymentTransaction.paid_at.desc()).limit(limit)
+        ).all()
+        candidates.extend(
+            (row.paid_at, "PAYMENT_TRANSACTION", row.id)
+            for row in payment_rows
+            if ("PAYMENT_TRANSACTION", row.id) not in linked
+        )
+
+    if "SUPPLIER_PAYMENT" in allowed_types:
+        supplier_rows = session.scalars(
+            select(SupplierPayment).where(
+                SupplierPayment.company_id == company_id,
+                SupplierPayment.payment_method == "TRANSFER",
+                SupplierPayment.currency_code == "TWD",
+            ).order_by(SupplierPayment.paid_at.desc()).limit(limit)
+        ).all()
+        candidates.extend(
+            (row.paid_at, "SUPPLIER_PAYMENT", row.id)
+            for row in supplier_rows
+            if ("SUPPLIER_PAYMENT", row.id) not in linked
+        )
+
+    if "OPERATING_EXPENSE" in allowed_types:
+        expense_rows = session.scalars(
+            select(OperatingExpense).where(
+                OperatingExpense.company_id == company_id,
+                OperatingExpense.status == "PAID",
+                OperatingExpense.payment_method == "TRANSFER",
+                OperatingExpense.currency_code == "TWD",
+                OperatingExpense.paid_at.is_not(None),
+            ).order_by(OperatingExpense.paid_at.desc()).limit(limit)
+        ).all()
+        candidates.extend(
+            (row.paid_at, "OPERATING_EXPENSE", row.id)
+            for row in expense_rows
+            if ("OPERATING_EXPENSE", row.id) not in linked
+        )
+
     candidates.sort(key=lambda item: _utc_datetime(item[0]), reverse=True)
     output = []
-    for occurred_at, source_type, source_id in candidates[:limit]:
+    for _occurred_at, source_type, source_id in candidates[:limit]:
         details = _transfer_source_details(
             session,
             company_id=company_id,
