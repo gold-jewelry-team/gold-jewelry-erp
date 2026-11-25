@@ -41,12 +41,14 @@ Historical rows are not assigned to a person by inference. Rows without a record
 - CI rolls the disposable database back to 0034, seeds two synthetic companies and three existing memberships, then upgrades to 0035 and verifies the 24-resource × 4-action catalogue, six company roles, 576 role grants, default-role baselines, and three membership-role backfills.
 - CI checks every published `/companies/{company_id}/...` route in OpenAPI for an explicit permission mapping.
 - CI covers cross-module permission dependencies, data-scope requirements, own-record filtering, member/role management, session lifecycle, and PostgreSQL inventory/reconciliation behavior.
-- Playwright runs the role editor and multi-role member assignment in Chromium at a mobile viewport with deterministic API fixtures. Backend tests separately verify that administrator-only pages and APIs reject unauthenticated and Google-only access. The browser tests exercise the actual page JavaScript and user interactions, but do not claim a live authenticated browser test against production.
-- Latest CI run: all checks successful. See the [GitHub Actions run](https://github.com/gold-jewelry-team/gold-jewelry-erp/actions).
+- Playwright runs isolated Chromium UI tests for permission toggles, ALL/OWN scope selection, saving grants, and multi-role member assignment using deterministic API fixtures.
+- A separate authenticated Chromium end-to-end test starts the real FastAPI application against the disposable CI PostgreSQL database. It verifies an unauthenticated request receives 401, signs in through the legacy owner username/password flow, updates STAFF grants, creates a custom role, assigns STAFF plus the custom role to a member through the real administrator APIs, and verifies the persisted grants and membership-role rows directly in PostgreSQL.
+- The role editor rejects stale asynchronous responses when company/role selections change and disables permission saving while new role data is loading.
+- Latest CI run: 393 Python tests passed, 3 skipped; both fixture-backed Chromium UI tests passed; the authenticated FastAPI/PostgreSQL browser end-to-end test passed; PostgreSQL Migration 0035 backfill, full downgrade, clean re-upgrade, and final revision checks passed. See the [GitHub Actions run](https://github.com/gold-jewelry-team/gold-jewelry-erp/actions/runs/45567252002).
 
 ## Remaining before employee rollout
 
-- Perform a final owner-session smoke test against an isolated or staging deployment with Migration 0035 before employee rollout. The automated Chromium test uses API fixtures and does not replace this live authenticated check.
+- Perform a final owner-session smoke test against the intended staging deployment with Migration 0035 applied. CI E2E uses an isolated database and temporary owner credentials; it does not change or verify the production Render/Neon environment.
 - Complete the Google OAuth end-to-end test with the new schema, while keeping the feature flag disabled until the owner explicitly approves activation.
 - Complete employee-facing workspace and onboarding UX; do not invite employees until access tests and production migration have been approved.
 - OWN-scope update and void remain intentionally unavailable until write paths can be consistently constrained to records created by the member.
