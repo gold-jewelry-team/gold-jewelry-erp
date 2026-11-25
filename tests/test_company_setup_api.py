@@ -223,3 +223,15 @@ def test_company_setup_updates_are_company_scoped_and_require_active_parents():
         json={"code": "BLOCKED", "name": "不可建立"},
     )
     assert blocked_site.status_code == 422
+
+
+def test_company_creation_remains_available_before_permission_migration(monkeypatch):
+    import app.routers.company_setup as company_setup_module
+
+    monkeypatch.setattr(company_setup_module, "_role_schema_available", lambda db: False)
+    response = client.post(
+        "/companies",
+        json={"code": "PREMIG", "name": "Migration 尚未執行的測試公司"},
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["code"] == "PREMIG"
