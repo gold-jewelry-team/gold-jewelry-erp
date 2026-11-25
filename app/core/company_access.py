@@ -132,7 +132,10 @@ def permission_for_request(path: str, method: str) -> str:
     elif normalized_method == "DELETE":
         action = "void"
     elif normalized_method == "POST":
-        if endpoint in VOID_ENDPOINTS:
+        if root == "inventory" and "operation-requests" in tail and endpoint == "retry":
+            # Recovery can create a new inventory ledger row; it is not an ordinary edit.
+            action = "create"
+        elif endpoint in VOID_ENDPOINTS:
             action = "void"
         elif endpoint in UPDATE_ENDPOINTS:
             action = "update"

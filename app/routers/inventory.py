@@ -61,6 +61,29 @@ def get_db():
         db.close()
 
 
+def _serialize_inventory_recovery(endpoint):
+    """Coordinate manual recovery with any live request using the same key."""
+    @wraps(endpoint)
+    def wrapped(*args, **kwargs):
+        db = kwargs["db"]
+        company_id = kwargs["company_id"]
+        request_id = kwargs["request_id"]
+        idempotency_key = db.scalar(
+            select(InventoryOperationRequest.idempotency_key).where(
+                InventoryOperationRequest.id == request_id,
+                InventoryOperationRequest.company_id == company_id,
+            )
+        )
+        if idempotency_key is None:
+            return endpoint(*args, **kwargs)
+        with inventory_operation_lock(
+            db, company_id=company_id, idempotency_key=idempotency_key
+        ):
+            db.expire_all()
+            return endpoint(*args, **kwargs)
+    return wrapped
+
+
 @router.get("/stock", response_model=list[StockBalanceRead])
 def list_stock_balances(
     company_id: UUID,
@@ -242,6 +265,7 @@ def list_inventory_operation_requests(
     "/operation-requests/{request_id}/retry",
     response_model=InventoryMovementRead,
 )
+@_serialize_inventory_recovery
 def retry_inventory_operation_request(
     company_id: UUID,
     request_id: UUID,

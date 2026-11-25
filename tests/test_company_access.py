@@ -330,3 +330,48 @@ def test_owner_admin_actor_can_perform_payload_dependent_payment_action(db):
         require_current_actor_permission(db, "payments.create")
     finally:
         current_actor.reset(token)
+
+
+
+def test_inventory_recovery_requires_inventory_create_permission(db):
+    company, _user, _membership, token = seed_member(db, role="STAFF")
+    role = db.query(CompanyRole).filter_by(company_id=company.id, code="STAFF").one()
+    inventory_create = Permission(
+        code="inventory.create",
+        resource_code="inventory",
+        action_code="create",
+        name="庫存－新增",
+        is_active=True,
+    )
+    inventory_update = Permission(
+        code="inventory.update",
+        resource_code="inventory",
+        action_code="update",
+        name="庫存－修改",
+        is_active=True,
+    )
+    db.add_all([inventory_create, inventory_update])
+    db.flush()
+    create_grant = CompanyRolePermission(
+        role_id=role.id, permission_id=inventory_create.id,
+        is_allowed=False, data_scope="ALL",
+    )
+    db.add_all([
+        create_grant,
+        CompanyRolePermission(
+            role_id=role.id, permission_id=inventory_update.id,
+            is_allowed=True, data_scope="ALL",
+        ),
+    ])
+    db.commit()
+
+    path = f"/companies/{company.id}/inventory/operation-requests/{uuid4()}/retry"
+    with pytest.raises(HTTPException) as exc:
+        authorize_google_company_request(db, token, company.id, "POST", path=path)
+    assert exc.value.status_code == 403
+    assert "inventory.create" in exc.value.detail
+
+    create_grant.is_allowed = True
+    db.commit()
+    grant = authorize_google_company_request(db, token, company.id, "POST", path=path)
+    assert grant["permission_code"] == "inventory.create"
