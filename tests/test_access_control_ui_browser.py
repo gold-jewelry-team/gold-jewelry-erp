@@ -336,8 +336,9 @@ def test_employee_catalog_loads_authorized_product_and_inventory_views(static_se
     requests = []
 
     def handle_company_api(route):
-        path = route.request.url.split("?", 1)[0]
-        requests.append(path)
+        request_url = route.request.url
+        path = request_url.split("?", 1)[0]
+        requests.append(request_url)
         if path.endswith("/products"):
             json_response(route, [{
                 "id": "product-1",
@@ -392,18 +393,18 @@ def test_employee_catalog_loads_authorized_product_and_inventory_views(static_se
         page.get_by_text("黃金耳環").wait_for()
         assert page.locator("#productsTab").is_visible()
         assert page.locator("#inventoryTab").is_visible()
-        assert len(requests) == 1 and requests[0].endswith("/products")
+        assert len(requests) == 1 and "/products?limit=200" in requests[0]
 
         page.get_by_role("button", name="庫存查詢").click()
         page.get_by_text("一樓展示櫃").wait_for()
         page.get_by_text("庫存 3").wait_for()
-        assert any(path.endswith("/inventory/stock") for path in requests)
+        assert any("/inventory/stock" in url for url in requests)
 
         page.get_by_role("button", name="商品查詢").click()
         page.get_by_role("searchbox", name="搜尋商品").fill("耳環")
         page.get_by_role("button", name="搜尋").click()
         page.get_by_text("黃金耳環").wait_for()
-        assert any(path.endswith("/products") and "q=" in path for path in requests)
+        assert any("/products?" in url and "q=" in url for url in requests)
         assert not page_errors, page_errors
         browser.close()
 
@@ -422,8 +423,8 @@ def test_employee_catalog_hides_own_scope_shared_data_features(static_server):
             "status": "ACTIVE",
             "roles": [{"code": "STAFF", "name": "一般成員"}],
             "permissions": [
-                permission("products.view", "商品－查看", "products", "view", True, "OWN"),
-                permission("inventory.view", "庫存－查看", "inventory", "view", True, "ALL"),
+                permission("products.view", "商品－查看", "products", "view", True, "ALL"),
+                permission("inventory.view", "庫存－查看", "inventory", "view", True, "OWN"),
             ],
         }],
     }
