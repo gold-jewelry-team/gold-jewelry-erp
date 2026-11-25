@@ -101,7 +101,7 @@ def test_suspending_last_membership_revokes_google_sessions():
     token_hash = hashlib.sha256(b"test-session-token").hexdigest()
     with TestingSessionLocal() as db:
         membership = CompanyMembership(
-            user_id=UUID(user_id), company_id=__import__('uuid').UUID(company_id), status="ACTIVE", role="STAFF"
+            user_id=UUID(user_id), company_id=UUID(company_id), status="ACTIVE", role="STAFF"
         )
         session = UserSession(
             user_id=__import__('uuid').UUID(user_id), token_hash=token_hash,
@@ -142,7 +142,7 @@ def test_inactive_user_cannot_be_assigned_and_existing_sessions_are_revoked():
     token_hash = hashlib.sha256(b"another-session-token").hexdigest()
     with TestingSessionLocal() as db:
         db.add(UserSession(
-            user_id=user_id, token_hash=token_hash,
+            user_id=UUID(user_id), token_hash=token_hash,
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
         ))
         db.commit()
@@ -170,7 +170,7 @@ def test_membership_transition_rejects_invalid_state():
     user_id, company_id = seed_user_and_company()
     with TestingSessionLocal() as db:
         membership = CompanyMembership(
-            user_id=user_id, company_id=company_id, status="ACTIVE", role="STAFF"
+            user_id=UUID(user_id), company_id=UUID(company_id), status="ACTIVE", role="STAFF"
         )
         db.add(membership)
         db.commit()
