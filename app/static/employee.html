@@ -37,6 +37,10 @@
     .pill.danger{background:#fde9e6;color:#9a3327}
     .role-list{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
     .role{font-size:12px;border:1px solid #e1e6e0;border-radius:8px;padding:5px 8px;background:#fafbf9}
+    .feature-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:9px;margin:12px 0 4px}
+    .feature-link{display:flex;align-items:center;justify-content:center;min-height:48px;padding:10px 12px;border:1px solid #d5e0d6;border-radius:11px;background:#f4f8f4;color:#263b30;text-decoration:none;font-size:14px;font-weight:750;text-align:center}
+    .feature-link:focus-visible{outline:3px solid #8ba992;outline-offset:2px}
+    .feature-title{font-size:13px;font-weight:750;margin:14px 0 8px}
     .permission-title{font-size:13px;font-weight:750;margin:14px 0 8px}
     .permission-list{display:grid;gap:8px}
     .permission{border:1px solid #edf0ec;border-radius:10px;padding:9px 10px}
@@ -125,6 +129,31 @@
         roleList.append(node("span","muted","尚未設定角色"));
       }
       card.append(roleList);
+
+      if(item.status==="ACTIVE"){
+        const grants=new Map((item.permissions||[]).map(grant=>[grant.code,grant]));
+        const hasAllView=code=>{
+          const grant=grants.get(code);
+          return Boolean(grant && grant.data_scope==="ALL");
+        };
+        const features=[];
+        if(hasAllView("products.view")){
+          features.push({label:"商品查詢",view:"products"});
+        }
+        if(hasAllView("inventory.view") && hasAllView("products.view")){
+          features.push({label:"庫存查詢",view:"inventory"});
+        }
+        if(features.length){
+          card.append(node("div","feature-title","可使用功能"));
+          const featureList=node("div","feature-list");
+          features.forEach(feature=>{
+            const link=node("a","feature-link",feature.label);
+            link.href="/employee/catalog?company_id="+encodeURIComponent(item.company_id)+"&view="+feature.view;
+            featureList.append(link);
+          });
+          card.append(featureList);
+        }
+      }
 
       if(item.status==="ACTIVE"){
         card.append(node("div","permission-title","已授權功能"));
