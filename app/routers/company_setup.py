@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import inspect, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -29,6 +29,19 @@ def get_db():
         db.close()
 
 
+
+def _role_schema_available(db: Session) -> bool:
+    """Keep legacy company setup usable during migration-first deployments."""
+    inspector = inspect(db.get_bind())
+    required_tables = {
+        "permissions",
+        "company_roles",
+        "company_role_permissions",
+        "company_membership_roles",
+    }
+    return all(inspector.has_table(table) for table in required_tables)
+
+
 @router.get("/companies", response_model=list[CompanyRead])
 def list_companies(include_inactive: bool = False, db: Session = Depends(get_db)):
     statement = select(Company)
@@ -45,7 +58,8 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
         db.flush()
         db.add(ProductCodeSequence(company_id=company.id, next_number=1, number_width=5))
         ensure_default_product_categories(db, company.id)
-        ensure_company_system_roles(db, company.id)
+        if _role_schema_available(db):
+            ensure_company_system_roles(db, company.id)
         db.commit()
         db.refresh(company)
         return company
