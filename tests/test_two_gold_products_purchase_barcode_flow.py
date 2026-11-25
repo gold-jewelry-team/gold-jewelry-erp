@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -138,6 +139,7 @@ def test_two_gold_products_purchase_receive_stock_and_barcode_flow():
                 "purchase_line_id": line_by_product[str(ring_id)]["id"],
                 "location_id": str(safe_id),
                 "received_quantity": "1",
+                "idempotency_key": str(uuid4()),
             },
         )
         assert ring_receipt.status_code == 200, ring_receipt.text
@@ -149,6 +151,7 @@ def test_two_gold_products_purchase_receive_stock_and_barcode_flow():
                 "purchase_line_id": line_by_product[str(bracelet_id)]["id"],
                 "location_id": str(display_id),
                 "received_quantity": "1",
+                "idempotency_key": str(uuid4()),
             },
         )
         assert bracelet_receipt.status_code == 200, bracelet_receipt.text
