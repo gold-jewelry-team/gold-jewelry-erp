@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#202522">
+  <meta name="robots" content="noindex,nofollow">
+  <title>銀樓 ERP｜員工供應商帳款</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202522;background:#f4f5f2;font-synthesis:none}
+    *{box-sizing:border-box}
+    body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+    header{background:#202522;color:#fff;padding:20px 16px 18px}
+    .header-inner,main{width:min(100%,960px);margin:0 auto}
+    .back{display:inline-flex;align-items:center;min-height:40px;color:#e2ebe3;text-decoration:none;font-size:13px;font-weight:700}
+    header h1{font-size:22px;margin:10px 0 4px}
+    header p{font-size:13px;color:#d2dad4;margin:0;line-height:1.6;overflow-wrap:anywhere}
+    main{padding:14px;display:grid;gap:12px}
+    .panel{background:#fff;border:1px solid #e2e7e1;border-radius:15px;padding:14px;box-shadow:0 2px 10px #17231a0a}
+    .identity{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+    .identity strong{font-size:15px;display:block}
+    .muted{color:#6b756e;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+    button,select{min-height:44px;border:1px solid #dbe3db;border-radius:10px;padding:9px 12px;background:#f5f7f4;color:#304337;font:inherit;font-size:14px}
+    button{font-weight:750;cursor:pointer}
+    button[aria-pressed="true"]{background:#263b30;color:#fff;border-color:#263b30}
+    button:disabled{opacity:.55;cursor:wait}
+    input{width:100%;min-width:0;min-height:44px;border:1px solid #cfd8cf;border-radius:10px;padding:9px 12px;font:inherit;font-size:16px;background:#fff;color:#202522}
+    input:focus-visible,select:focus-visible,button:focus-visible,.back:focus-visible{outline:3px solid #8ba992;outline-offset:2px}
+    select{width:100%;background:#fff}
+    .filters{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+    .search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+    .count{font-size:12px;color:#657168;margin:10px 2px}
+    .notice{border:1px solid #dce5dc;background:#f6faf6;border-radius:12px;padding:12px;color:#34463a;font-size:13px;line-height:1.65}
+    .notice.warning{background:#fff9ec;border-color:#f0dfb8;color:#74501b}
+    .notice.error{background:#fff4f2;border-color:#f0d1cb;color:#9a3327}
+    .list{display:grid;gap:10px}
+    .record{min-width:0;border:1px solid #e2e8e1;border-radius:12px;padding:12px;background:#fff}
+    .record-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .record h3{font-size:15px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+    .record-sub{color:#68746b;font-size:12px;margin-top:2px;line-height:1.55;overflow-wrap:anywhere}
+    .badge{flex:none;border-radius:999px;padding:4px 8px;background:#edf2ed;color:#39513f;font-size:11px;font-weight:750;white-space:nowrap}
+    .badge.partial{background:#eaf1fb;color:#345379}
+    .badge.void{background:#f0f1ef;color:#69736b}
+    .amount{font-size:18px;font-weight:800;margin-top:9px}
+    .details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    .detail{padding:8px;border-radius:9px;background:#f6f8f5;min-width:0}
+    .detail small{display:block;font-size:11px;color:#68746b}
+    .detail strong{display:block;font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+    .allocations{display:grid;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid #edf0ec}
+    .allocation{font-size:12px;line-height:1.55;color:#45534a;overflow-wrap:anywhere}
+    .empty{padding:22px 8px;text-align:center;color:#6b756e;font-size:13px;line-height:1.7}
+    [hidden]{display:none!important}
+    @media(min-width:600px){header{padding-left:16px;padding-right:16px}main{padding-top:18px}.panel{padding:16px}.filters{grid-template-columns:minmax(0,1.5fr) minmax(160px,.8fr)}.list{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="back" href="/employee">← 回員工工作區</a>
+      <h1>供應商帳款</h1>
+      <p id="companyName">正在確認公司與功能授權…</p>
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="identity">
+        <div>
+          <strong id="displayName">載入中…</strong>
+          <div class="muted" id="companyCode"></div>
+        </div>
+        <div class="muted">唯讀查詢，不會建立帳單或付款</div>
+      </div>
+      <div id="status" class="notice" role="status" aria-live="polite" style="margin-top:12px">正在確認登入與授權…</div>
+    </section>
+    <section class="panel" id="workspace" hidden>
+      <div class="tabs">
+        <button type="button" id="billsTab" aria-pressed="true">供應商帳單</button>
+        <button type="button" id="paymentsTab" aria-pressed="false" hidden>供應商付款</button>
+      </div>
+      <section id="billsPane">
+        <div class="filters">
+          <div class="search-row">
+            <input id="billSearch" type="search" autocomplete="off" placeholder="搜尋帳單號碼、供應商或備註" aria-label="搜尋供應商帳單">
+            <button type="button" id="billSearchButton">搜尋</button>
+          </div>
+          <select id="billStatus" aria-label="帳單狀態">
+            <option value="">全部狀態</option>
+            <option value="OPEN">未付款</option>
+            <option value="PARTIALLY_PAID">部分付款</option>
+            <option value="PAID">已付清</option>
+            <option value="VOID">已作廢</option>
+          </select>
+        </div>
+        <div id="billsCount" class="count">尚未載入資料</div>
+        <div id="billsList" class="list" aria-live="polite"><div class="empty">正在載入供應商帳單…</div></div>
+      </section>
+      <section id="paymentsPane" hidden>
+        <div class="search-row">
+          <input id="paymentSearch" type="search" autocomplete="off" placeholder="搜尋付款單號、付款方式或備註" aria-label="搜尋供應商付款">
+          <button type="button" id="paymentSearchButton">搜尋</button>
+        </div>
+        <div id="paymentsCount" class="count">尚未載入資料</div>
+        <div id="paymentsList" class="list" aria-live="polite"><div class="empty">正在載入供應商付款…</div></div>
+      </section>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const params=new URLSearchParams(window.location.search);
+    const companyId=params.get("company_id")||"";
+    let canPayments=false;
+    let activePane="bills";
+    let bills=[];
+    let payments=[];
+    let suppliersById=new Map();
+    let billsById=new Map();
+    let canSuppliers=false;
+    function node(tag,cls,text){
+      const el=document.createElement(tag);
+      if(cls)el.className=cls;
+      if(text!==undefined)el.textContent=text;
+      return el;
+    }
+    function setStatus(message,kind){
+      const box=$("status");
+      box.className="notice"+(kind?" "+kind:"");
+      box.textContent=message;
+    }
+    function grantScope(membership,code){
+      const grant=(membership.permissions||[]).find(item=>item.code===code);
+      return grant?grant.data_scope:null;
+    }
+    async function fetchJson(path){
+      const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});
+      const data=await response.json().catch(()=>({}));
+      if(response.status===401){
+        window.location.replace("/login");
+        throw new Error("登入已失效，請重新登入。");
+      }
+      if(!response.ok)throw new Error(data.detail||"無法載入資料，請稍後再試。");
+      return data;
+    }
+    function dateText(value){
+      if(!value)return "—";
+      const date=new Date(value+(String(value).length===10?"T00:00:00":""));
+      return Number.isNaN(date.getTime())?String(value):date.toLocaleDateString("zh-TW");
+    }
+    function dateTimeText(value){
+      if(!value)return "—";
+      const date=new Date(value);
+      return Number.isNaN(date.getTime())?"—":date.toLocaleString("zh-TW",{hour12:false});
+    }
+    function amountText(value,currency){
+      const n=Number(value);
+      if(!Number.isFinite(n))return "—";
+      try{return new Intl.NumberFormat("zh-TW",{style:"currency",currency:currency||"TWD",maximumFractionDigits:2}).format(n);}
+      catch(_error){return n.toLocaleString("zh-TW")+" "+(currency||"");}
+    }
+    const billStatusMap={
+      OPEN:{label:"未付款",cls:"badge"},
+      PARTIALLY_PAID:{label:"部分付款",cls:"badge partial"},
+      PAID:{label:"已付清",cls:"badge"},
+      VOID:{label:"已作廢",cls:"badge void"}
+    };
+    const paymentLabels={CASH:"現金",CARD:"刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    function detail(label,value){
+      const box=node("div","detail");
+      box.append(node("small","",label));
+      box.append(node("strong","",value===null||value===undefined||value===""?"—":String(value)));
+      return box;
+    }
+    function renderBills(rows){
+      const list=$("billsList");
+      list.replaceChildren();
+      if(!rows.length){
+        list.append(node("div","empty","找不到符合條件的供應商帳單。"));
+        $("billsCount").textContent="共 0 張帳單";
+        return;
+      }
+      rows.forEach(bill=>{
+        const card=node("article","record");
+        const head=node("div","record-head");
+        const title=node("div","");
+        title.append(node("h3","",bill.bill_no||"未命名帳單"));
+        const supplier=suppliersById.get(bill.supplier_id);
+        title.append(node("div","record-sub",supplier
+          ? "供應商："+supplier.code+"　"+supplier.name
+          : (canSuppliers?"供應商資料無法載入":"供應商名稱尚未授權顯示")
+        ));
+        head.append(title);
+        const s=billStatusMap[bill.status]||{label:bill.status||"未知",cls:"badge"};
+        head.append(node("span",s.cls,s.label));
+        card.append(head);
+        card.append(node("div","amount",amountText(bill.total_amount,bill.currency_code)));
+        const details=node("div","details");
+        details.append(detail("帳單日期",dateText(bill.bill_date)));
+        details.append(detail("到期日",dateText(bill.due_date)));
+        details.append(detail("已付金額",amountText(bill.paid_amount,bill.currency_code)));
+        details.append(detail("未付餘額",amountText(bill.outstanding_amount,bill.currency_code)));
+        card.append(details);
+        if(bill.purchase_id){
+          card.append(node("div","record-sub","此帳單已關聯採購單"));
+        }
+        if(bill.note)card.append(node("div","record-sub","備註："+bill.note));
+        list.append(card);
+      });
+      $("billsCount").textContent="共 "+rows.length+" 張帳單（最多顯示 100 張）";
+    }
+    function applyBillSearch(rows){
+      const q=$("billSearch").value.trim().toLocaleLowerCase();
+      if(!q)return rows;
+      return rows.filter(bill=>{
+        const supplier=suppliersById.get(bill.supplier_id);
+        return [
+          bill.bill_no,bill.note,supplier?.name,supplier?.code
+        ].some(value=>String(value||"").toLocaleLowerCase().includes(q));
+      });
+    }
+    function renderPayments(rows){
+      const list=$("paymentsList");
+      list.replaceChildren();
+      if(!rows.length){
+        list.append(node("div","empty","找不到符合條件的供應商付款紀錄。"));
+        $("paymentsCount").textContent="共 0 筆付款";
+        return;
+      }
+      rows.forEach(payment=>{
+        const card=node("article","record");
+        const head=node("div","record-head");
+        const title=node("div","");
+        title.append(node("h3","",payment.payment_no||"未命名付款單"));
+        title.append(node("div","record-sub",dateTimeText(payment.paid_at)));
+        head.append(title);
+        head.append(node("span","badge",paymentLabels[payment.payment_method]||payment.payment_method||"付款"));
+        card.append(head);
+        card.append(node("div","amount",amountText(payment.total_amount,payment.currency_code)));
+        const supplier=suppliersById.get(payment.supplier_id);
+        if(supplier)card.append(node("div","record-sub","供應商："+supplier.code+"　"+supplier.name));
+        else if(!canSuppliers)card.append(node("div","record-sub","供應商名稱尚未授權顯示"));
+        const allocations=node("div","allocations");
+        (payment.allocations||[]).forEach(allocation=>{
+          const bill=billsById.get(allocation.bill_id);
+          allocations.append(node("div","allocation",
+            (bill?("帳單 "+bill.bill_no):"關聯帳單")+
+            "　｜　分攤 "+amountText(allocation.amount,payment.currency_code)
+          ));
+        });
+        card.append(allocations);
+        if(payment.reference_no)card.append(node("div","record-sub","參考編號："+payment.reference_no));
+        if(payment.note)card.append(node("div","record-sub","備註："+payment.note));
+        list.append(card);
+      });
+      $("paymentsCount").textContent="共 "+rows.length+" 筆付款紀錄（最多顯示 100 筆）";
+    }
+    async function loadBills(){
+      $("billSearchButton").disabled=true;
+      $("billsList").replaceChildren(node("div","empty","正在載入供應商帳單…"));
+      try{
+        const query=new URLSearchParams({limit:"100"});
+        if($("billStatus").value)query.set("status",$("billStatus").value);
+        const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/supplier-payables/bills?"+query.toString());
+        bills=Array.isArray(rows)?rows:[];
+        billsById=new Map(bills.map(bill=>[bill.id,bill]));
+        renderBills(applyBillSearch(bills));
+      }catch(error){
+        $("billsList").replaceChildren(node("div","empty",error.message||"載入失敗。"));
+        $("billsCount").textContent="資料載入失敗";
+      }finally{
+        $("billSearchButton").disabled=false;
+      }
+    }
+    async function loadPayments(){
+      $("paymentSearchButton").disabled=true;
+      $("paymentsList").replaceChildren(node("div","empty","正在載入供應商付款…"));
+      try{
+        const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/supplier-payables/payments?limit=100");
+        payments=Array.isArray(rows)?rows:[];
+        renderPayments(applyPaymentSearch(payments));
+      }catch(error){
+        $("paymentsList").replaceChildren(node("div","empty",error.message||"載入失敗。"));
+        $("paymentsCount").textContent="資料載入失敗";
+      }finally{
+        $("paymentSearchButton").disabled=false;
+      }
+    }
+    function applyPaymentSearch(rows){
+      const q=$("paymentSearch").value.trim().toLocaleLowerCase();
+      if(!q)return rows;
+      return rows.filter(payment=>[
+        payment.payment_no,payment.payment_method,payment.note,payment.reference_no
+      ].some(value=>String(value||"").toLocaleLowerCase().includes(q)));
+    }
+    async function loadOptionalSuppliers(){
+      if(!canSuppliers)return;
+      try{
+        const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/suppliers?limit=500");
+        suppliersById=new Map((rows||[]).map(item=>[item.id,item]));
+      }catch(_error){
+        suppliersById=new Map();
+      }
+    }
+    async function loadWorkspace(){
+      if(!companyId){
+        setStatus("缺少公司識別資訊，請從員工工作區重新進入。","warning");
+        $("companyName").textContent="尚未選擇公司";
+        return;
+      }
+      try{
+        const data=await fetchJson("/auth/google/workspace");
+        $("displayName").textContent=data.user?.display_name||"Google 使用者";
+        const membership=(data.memberships||[]).find(item=>item.company_id===companyId)||null;
+        if(!membership){
+          setStatus("此帳號沒有這間公司的成員資格，無法查看公司資料。","error");
+          return;
+        }
+        $("companyName").textContent=membership.company_name||"公司工作區";
+        $("companyCode").textContent="公司代碼："+(membership.company_code||"—");
+        if(membership.status!=="ACTIVE"){
+          setStatus("此公司成員資格目前不是核准狀態，無法查看營運資料。","warning");
+          return;
+        }
+        if(grantScope(membership,"supplier_payables.view")!=="ALL"){
+          setStatus("目前尚未授予全公司供應商帳款查看權限。請聯絡公司管理者設定。","warning");
+          return;
+        }
+        canPayments=grantScope(membership,"payments.view")==="ALL";
+        canSuppliers=grantScope(membership,"suppliers.view")==="ALL";
+        $("workspace").hidden=false;
+        $("paymentsTab").hidden=!canPayments;
+        setStatus("已確認供應商帳款查看權限。付款紀錄會另外檢查收付款權限；本頁不會建立帳單或付款。");
+        await loadOptionalSuppliers();
+        await loadBills();
+      }catch(error){
+        setStatus(error.message||"目前無法確認登入與公司權限。","error");
+      }
+    }
+    function setPane(pane){
+      activePane=pane;
+      $("billsPane").hidden=pane!=="bills";
+      $("paymentsPane").hidden=pane!=="payments";
+      $("billsTab").setAttribute("aria-pressed",String(pane==="bills"));
+      $("paymentsTab").setAttribute("aria-pressed",String(pane==="payments"));
+      if(pane==="payments")loadPayments();
+    }
+    $("billsTab").addEventListener("click",()=>setPane("bills"));
+    $("paymentsTab").addEventListener("click",()=>canPayments&&setPane("payments"));
+    $("billSearchButton").addEventListener("click",()=>renderBills(applyBillSearch(bills)));
+    $("billSearch").addEventListener("keydown",event=>{if(event.key==="Enter")renderBills(applyBillSearch(bills));});
+    $("billStatus").addEventListener("change",loadBills);
+    $("paymentSearchButton").addEventListener("click",()=>renderPayments(applyPaymentSearch(payments)));
+    $("paymentSearch").addEventListener("keydown",event=>{if(event.key==="Enter")renderPayments(applyPaymentSearch(payments));});
+    loadWorkspace();
+  </script>
+</body>
+</html>
