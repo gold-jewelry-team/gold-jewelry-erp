@@ -13,7 +13,7 @@ from app.db.base import Base
 from app.core.auth import create_session_token
 from app.core.config import settings
 from app.main import app
-from app.models import AuthIdentity, Company, CompanyMembership, User, UserSession
+from app.models import (AuthIdentity, Company, CompanyMembership, CompanyMembershipRole, CompanyRole, Permission, User, UserSession)
 from app.routers.member_admin import get_db
 
 engine = create_engine(
@@ -210,3 +210,103 @@ def test_member_management_requires_administrator_session(monkeypatch):
     )
     assert admin_page.status_code == 200
     assert "家庭／店員成員管理" in admin_page.text
+
+
+def seed_permission_catalog(company_id=None):
+    from app.models import CompanyRolePermission
+
+    with TestingSessionLocal() as db:
+        for resource, resource_name in (
+            ("products", "商品"),
+            ("inventory", "庫存"),
+        ):
+            for action, action_name in (
+                ("view", "查看"), ("create", "新增"),
+                ("update", "修改"), ("void", "作廢"),
+            ):
+                db.add(Permission(
+                    code=f"{resource}.{action}",
+                    resource_code=resource,
+                    action_code=action,
+                    name=f"{resource_name}-{action_name}",
+                    is_active=True,
+                ))
+        db.commit()
+
+
+def test_owner_can_create_custom_role_and_configure_permissions():
+    user_id, company_id = seed_user_and_company()
+    seed_permission_catalog()
+
+    roles_response = client.get(f"/admin/api/companies/{company_id}/roles")
+    assert roles_response.status_code == 200, roles_response.text
+    system_roles = {row["code"]: row for row in roles_response.json()}
+    assert {"OWNER", "MANAGER", "STAFF"} <= set(system_roles)
+
+    created = client.post(
+        f"/admin/api/companies/{company_id}/roles",
+        json={"code": "STOCK_VIEWER", "name": "庫存檢視", "description": "僅查看商品與庫存"},
+    )
+    assert created.status_code == 201, created.text
+    role = created.json()
+    assert role["is_system"] is False
+    assert all(not item["is_allowed"] for item in role["permissions"])
+
+    updated = client.put(
+        f"/admin/api/roles/{role['id']}/permissions",
+        json={"permissions": [
+            {"code": "products.view", "is_allowed": True, "data_scope": "ALL"},
+            {"code": "inventory.view", "is_allowed": True, "data_scope": "OWN"},
+            {"code": "products.create", "is_allowed": False, "data_scope": "OWN"},
+        ]},
+    )
+    assert updated.status_code == 200, updated.text
+    grants = {item["code"]: item for item in updated.json()["permissions"]}
+    assert grants["products.view"]["is_allowed"] is True
+    assert grants["products.view"]["data_scope"] == "ALL"
+    assert grants["inventory.view"]["data_scope"] == "OWN"
+    assert grants["products.create"]["is_allowed"] is False
+
+
+def test_membership_can_hold_multiple_company_roles_but_not_foreign_company_roles():
+    user_id, company_id = seed_user_and_company()
+    seed_permission_catalog()
+    client.get(f"/admin/api/companies/{company_id}/roles")
+
+    with TestingSessionLocal() as db:
+        membership = CompanyMembership(
+            user_id=UUID(user_id), company_id=UUID(company_id),
+            status="PENDING", role="STAFF",
+        )
+        other_company = Company(code="OTHER", name="另一間公司", is_active=True)
+        db.add_all([membership, other_company])
+        db.flush()
+        role_a = db.scalar(select(CompanyRole).where(
+            CompanyRole.company_id == UUID(company_id), CompanyRole.code == "STAFF"
+        ))
+        role_b = CompanyRole(
+            company_id=UUID(company_id), code="STOCK_VIEWER", name="庫存檢視",
+            is_system=False, is_active=True,
+        )
+        foreign_role = CompanyRole(
+            company_id=other_company.id, code="FOREIGN", name="其他公司角色",
+            is_system=False, is_active=True,
+        )
+        db.add_all([role_b, foreign_role])
+        db.commit()
+        membership_id = str(membership.id)
+        role_ids = [str(role_a.id), str(role_b.id)]
+        foreign_role_id = str(foreign_role.id)
+
+    assigned = client.put(
+        f"/admin/api/memberships/{membership_id}/roles",
+        json={"role_ids": role_ids},
+    )
+    assert assigned.status_code == 200, assigned.text
+    assert set(assigned.json()["role_ids"]) == set(role_ids)
+
+    rejected = client.put(
+        f"/admin/api/memberships/{membership_id}/roles",
+        json={"role_ids": [foreign_role_id]},
+    )
+    assert rejected.status_code == 422
