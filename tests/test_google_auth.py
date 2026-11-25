@@ -35,3 +35,20 @@ def test_google_callback_does_not_accept_missing_state(monkeypatch) -> None:
 
     response = client.get("/auth/google/callback?code=fake&state=fake")
     assert response.status_code == 503
+
+
+def test_google_session_cookie_does_not_unlock_admin_workspace(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "admin_username", "owner")
+    monkeypatch.setattr(settings, "admin_password", "test-password-12345")
+    monkeypatch.setattr(settings, "session_secret_key", "test-session-secret-key-at-least-32-chars")
+    monkeypatch.setattr(settings, "session_cookie_secure", False)
+    monkeypatch.setattr(settings, "session_max_age_seconds", 3600)
+
+    response = client.get(
+        "/app",
+        cookies={settings.google_session_cookie_name: "not-an-admin-session"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
