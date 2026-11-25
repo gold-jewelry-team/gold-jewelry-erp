@@ -145,7 +145,7 @@ def permission_for_request(path: str, method: str) -> str:
 
 
 def additional_permissions_for_request(path: str, method: str) -> list[str]:
-    """Return cross-module permissions required by side effects or embedded data."""
+    """Return cross-module grants required by linked records or embedded response data."""
     parts = [part for part in path.strip("/").split("/") if part]
     if len(parts) < 3 or parts[0] != "companies":
         return []
@@ -162,37 +162,88 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
             required.add("sales.view")
             if verb == "POST" and endpoint == "returns":
                 required.add("inventory.create")
+        elif verb in {"GET", "HEAD"}:
+            # Sale responses include payment-tender details.
+            required.add("payments.view")
         elif verb == "POST" and len(tail) == 1:
-            # Sale drafts include payment method and card tender details.
-            required.add("payments.create")
+            # Draft creation reads product, location and effective gold-price data.
+            required.update({
+                "payments.create",
+                "products.view",
+                "inventory.view",
+                "gold_prices.view",
+            })
         elif verb == "PATCH" and len(tail) == 2:
-            # Editing a draft can change payment method and card tender details.
-            required.add("payments.update")
+            required.update({
+                "payments.update",
+                "products.view",
+                "inventory.view",
+                "gold_prices.view",
+            })
         elif verb == "POST" and endpoint == "complete":
             required.add("inventory.create")
 
-    if root == "purchases" and verb == "POST" and endpoint == "receive":
-        required.add("inventory.create")
+    if root == "purchases":
+        if verb in {"POST", "PATCH"} and len(tail) <= 2:
+            # Purchase drafts reference a supplier and existing product records.
+            required.update({"suppliers.view", "products.view"})
+        if verb == "POST" and endpoint == "receive":
+            required.add("inventory.create")
 
     if root == "customer-orders":
-        # CustomerOrderRead embeds payment transactions in list/detail and
-        # mutation responses. Never expose those without the payments view grant.
+        # CustomerOrderRead embeds payment transactions and tender details.
         required.add("payments.view")
         if verb == "POST" and len(tail) == 1:
-            # Creating an order also records its initial deposit.
             required.add("payments.create")
         elif verb == "POST" and any(part in {"payments", "refunds"} for part in tail):
             required.add("customer_orders.update")
 
+    if root == "supplier-category-offerings" or "category-offerings" in tail:
+        required.update({"suppliers.view", "product_categories.view"})
+    if (
+        root == "supplier-product-offerings"
+        or "product-offerings" in tail
+        or "supplier-offerings" in tail
+    ):
+        required.update({"suppliers.view", "products.view"})
+
+    if root == "supplier-payables" and "payments" in tail:
+        required.add("payments.view" if verb in {"GET", "HEAD"} else "payments.create")
+
     if root == "operating-expenses" and verb == "POST" and endpoint == "pay":
         required.add("payments.create")
 
-    if root == "gold-material" and verb == "GET" and endpoint == "movements":
-        # Movement rows can include supplier-bill settlement allocations.
-        required.add("supplier_payables.view")
+    if root == "gold-material":
+        if verb == "GET" and endpoint == "movements":
+            required.add("supplier_payables.view")
+        if verb == "POST" and endpoint == "movements":
+            required.add("suppliers.view")
+
+    if root == "daily-closings":
+        # DailyClosingRead contains customer, supplier and expense payment summaries.
+        required.update({
+            "payments.view",
+            "supplier_payables.view",
+            "expenses.view",
+        })
+
+    if root == "sites" and "operational-report" in tail:
+        # Period reports combine sales, collections, refunds, supplier payments,
+        # expenses, cash drawer movements and payable/outstanding balances.
+        required.update({
+            "sales.view",
+            "sales_returns.view",
+            "customer_orders.view",
+            "payments.view",
+            "supplier_payables.view",
+            "expenses.view",
+            "cash_drawer.view",
+        })
+
+    if root == "inventory" and any(part in {"stock", "movements"} for part in tail):
+        required.add("products.view")
 
     return sorted(required)
-
 
 def _permission_grants(
     db: Session,
