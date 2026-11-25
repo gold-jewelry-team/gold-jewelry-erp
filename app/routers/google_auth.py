@@ -223,7 +223,7 @@ def google_callback(request: Request):
         httponly=True,
         secure=settings.session_cookie_secure,
         samesite="lax",
-        path="/auth/google",
+        path="/",
     )
     _clear_flow_cookies(redirect)
     return redirect
@@ -286,7 +286,7 @@ def google_logout(request: Request, response: Response) -> dict[str, bool]:
             pass
     response.delete_cookie(
         settings.google_session_cookie_name,
-        path="/auth/google",
+        path="/",
         secure=settings.session_cookie_secure,
         httponly=True,
         samesite="lax",
