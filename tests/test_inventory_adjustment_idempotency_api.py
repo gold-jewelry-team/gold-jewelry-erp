@@ -186,6 +186,7 @@ def test_reusing_manual_adjustment_key_for_different_content_is_rejected():
         conflict = client.post(url, json={**common, "quantity": "3"})
         timestamp_conflict = client.post(url, json={
             **common,
+            "quantity": "2",
             "occurred_at": "2026-01-02T00:00:00Z",
         })
 
