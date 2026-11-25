@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from app.core.auth import verify_session_token
 from app.core.config import settings
 from app.routers.auth import router as auth_router
+from app.routers.google_auth import router as google_auth_router
 from app.routers.health import router as health_router
 from app.routers.company_setup import router as company_setup_router
 from app.routers.product_master import router as product_master_router
@@ -40,6 +41,7 @@ app = FastAPI(
 )
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(google_auth_router)
 app.include_router(company_setup_router)
 app.include_router(product_master_router)
 app.include_router(labor_code_settings_router)
@@ -86,6 +88,14 @@ async def security_middleware(request: Request, call_next):
         return await call_next(request)
 
     if path == "/login":
+        return await call_next(request)
+
+    # OAuth endpoints enforce their own state/session checks. In particular,
+    # Google sessions are not administrator sessions and never unlock /app or APIs.
+    if path in {
+        "/auth/google/config", "/auth/google/start", "/auth/google/callback",
+        "/auth/google/status", "/auth/google/logout",
+    }:
         return await call_next(request)
 
     if path == "/auth/login" and request.method == "POST":
