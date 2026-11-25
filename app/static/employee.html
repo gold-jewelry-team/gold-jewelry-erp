@@ -147,14 +147,22 @@
         if(salesGrant && ["ALL","OWN"].includes(salesGrant.data_scope) && hasAllView("payments.view")){
           features.push({label:"銷售紀錄",view:"sales"});
         }
+        const purchaseGrant=grants.get("purchases.view");
+        if(purchaseGrant && ["ALL","OWN"].includes(purchaseGrant.data_scope)){
+          features.push({label:"採購／進貨紀錄",view:"purchases"});
+        }
         if(features.length){
           card.append(node("div","feature-title","可使用功能"));
           const featureList=node("div","feature-list");
           features.forEach(feature=>{
             const link=node("a","feature-link",feature.label);
-            link.href=feature.view==="sales"
-              ? "/employee/sales?company_id="+encodeURIComponent(item.company_id)
-              : "/employee/catalog?company_id="+encodeURIComponent(item.company_id)+"&view="+feature.view;
+            if(feature.view==="sales"){
+              link.href="/employee/sales?company_id="+encodeURIComponent(item.company_id);
+            }else if(feature.view==="purchases"){
+              link.href="/employee/purchases?company_id="+encodeURIComponent(item.company_id);
+            }else{
+              link.href="/employee/catalog?company_id="+encodeURIComponent(item.company_id)+"&view="+feature.view;
+            }
             featureList.append(link);
           });
           card.append(featureList);
