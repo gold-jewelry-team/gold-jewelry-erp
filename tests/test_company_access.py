@@ -135,3 +135,96 @@ def test_membership_cannot_access_inactive_company(db):
     with pytest.raises(HTTPException) as exc:
         authorize_google_company_request(db, token, company.id, "GET")
     assert exc.value.status_code == 404
+
+
+def _build_request(path, method, cookie_name, cookie_value):
+    from starlette.requests import Request
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": method,
+        "scheme": "https",
+        "path": path,
+        "raw_path": path.encode("ascii"),
+        "query_string": b"",
+        "headers": [
+            (b"host", b"testserver"),
+            (b"cookie", f"{cookie_name}={cookie_value}".encode("ascii")),
+        ],
+        "client": ("127.0.0.1", 12345),
+        "server": ("testserver", 443),
+        "root_path": "",
+    }
+    return Request(scope)
+
+
+def _configure_production_auth(monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "environment", "production")
+    monkeypatch.setattr(settings, "admin_username", "owner")
+    monkeypatch.setattr(settings, "admin_password", "test-password-12345")
+    monkeypatch.setattr(settings, "session_secret_key", "test-session-secret-key-at-least-32-chars")
+    monkeypatch.setattr(settings, "session_cookie_name", "test_admin_session")
+    monkeypatch.setattr(settings, "google_session_cookie_name", "test_google_session")
+
+
+def test_security_middleware_enforces_exact_company_membership(db, monkeypatch):
+    import asyncio
+    import json
+
+    import app.main as main_module
+    from starlette.responses import JSONResponse
+
+    company, _user, _membership, token = seed_member(db, role="OWNER")
+    other_company = Company(code=f"Z{uuid4().hex[:8]}", name="未授權公司", is_active=True)
+    db.add(other_company)
+    db.commit()
+    _configure_production_auth(monkeypatch)
+    monkeypatch.setattr(main_module, "SessionLocal", TestingSessionLocal)
+
+    async def downstream(request):
+        return JSONResponse({"role": request.state.company_role})
+
+    allowed_request = _build_request(
+        f"/companies/{company.id}/products", "GET", "test_google_session", token
+    )
+    allowed = asyncio.run(main_module.security_middleware(allowed_request, downstream))
+    assert allowed.status_code == 200
+    assert json.loads(allowed.body)["role"] == "OWNER"
+
+    denied_request = _build_request(
+        f"/companies/{other_company.id}/products", "GET", "test_google_session", token
+    )
+    denied = asyncio.run(main_module.security_middleware(denied_request, downstream))
+    assert denied.status_code == 403
+
+
+def test_security_middleware_preserves_owner_admin_session(db, monkeypatch):
+    import asyncio
+    import json
+
+    import app.main as main_module
+    from app.core.auth import create_session_token
+    from starlette.responses import JSONResponse
+
+    company = Company(code=f"A{uuid4().hex[:8]}", name="店家", is_active=True)
+    db.add(company)
+    db.commit()
+    _configure_production_auth(monkeypatch)
+    monkeypatch.setattr(main_module, "SessionLocal", TestingSessionLocal)
+
+    async def downstream(request):
+        return JSONResponse({"admin": request.state.admin_username})
+
+    request = _build_request(
+        f"/companies/{company.id}/products",
+        "GET",
+        "test_admin_session",
+        create_session_token("owner"),
+    )
+    response = asyncio.run(main_module.security_middleware(request, downstream))
+    assert response.status_code == 200
+    assert json.loads(response.body)["admin"] == "owner"
