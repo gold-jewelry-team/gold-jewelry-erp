@@ -56,7 +56,7 @@ jobs:
 
       - name: Verify final Alembic revision matches repository heads
         env:
-          DATABASE_URL: ${"{"}${"{"} secrets.DATABASE_URL ${"}"}${"}"}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           python - <<'PY'
           from alembic.config import Config
