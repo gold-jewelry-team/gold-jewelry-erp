@@ -11,8 +11,7 @@ services:
     autoDeployTrigger: off
     healthCheckPath: /health/db
     dockerfilePath: ./Dockerfile
-    dockerCommand: >-
-      /bin/bash -c "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+    dockerCommand: sh scripts/start_staging.sh
     envVars:
       - key: ENVIRONMENT
         value: staging
