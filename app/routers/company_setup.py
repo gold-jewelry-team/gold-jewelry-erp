@@ -65,10 +65,16 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
         db.flush()
         db.add(ProductCodeSequence(company_id=company.id, next_number=1, number_width=5))
         ensure_default_product_categories(db, company.id)
-        if _role_schema_available(db):
-            ensure_company_system_roles(db, company.id)
         db.commit()
         db.refresh(company)
+
+        # Provision roles only after the legacy company setup transaction has
+        # committed. A separate Session keeps the existing company object and
+        # company-creation transaction independent from the new permission schema.
+        if _role_schema_available(db):
+            with Session(bind=db.get_bind()) as role_db:
+                ensure_company_system_roles(role_db, company.id)
+                role_db.commit()
         return company
     except IntegrityError as exc:
         db.rollback()
