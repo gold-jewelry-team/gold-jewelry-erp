@@ -12,6 +12,7 @@ from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.models.product_code_sequence import ProductCodeSequence
 from app.services.default_product_categories import ensure_default_product_categories
+from app.services.access_control import ensure_company_system_roles
 from app.routers.schemas.company_setup import (
     CompanyCreate, CompanyRead, CompanyUpdate, SiteCreate, SiteRead, SiteUpdate,
     StorageLocationCreate, StorageLocationRead, StorageLocationUpdate,
@@ -44,6 +45,7 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
         db.flush()
         db.add(ProductCodeSequence(company_id=company.id, next_number=1, number_width=5))
         ensure_default_product_categories(db, company.id)
+        ensure_company_system_roles(db, company.id)
         db.commit()
         db.refresh(company)
         return company
