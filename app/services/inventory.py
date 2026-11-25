@@ -352,12 +352,6 @@ def create_inventory_movement(
     if movement_type == "ADJUSTMENT" and (from_location_id is None) == (to_location_id is None):
         raise ValueError("盤點調整必須且只能指定來源或目的儲存位置其中之一。")
 
-    for location_id in (from_location_id, to_location_id):
-        if location_id is not None:
-            location = session.get(StorageLocation, location_id)
-            if location is None or location.site_id != site_id or not location.is_active:
-                raise ValueError("儲存位置不存在、未啟用或不屬於指定據點。")
-
     if idempotency_key is not None:
         if movement_type == "ADJUSTMENT":
             existing = get_idempotent_adjustment(
@@ -393,6 +387,14 @@ def create_inventory_movement(
             )
         if existing is not None:
             return existing
+
+    # Existing keyed movements are returned before checking current location
+    # activation state; a retry must be able to retrieve the original ledger row.
+    for location_id in (from_location_id, to_location_id):
+        if location_id is not None:
+            location = session.get(StorageLocation, location_id)
+            if location is None or location.site_id != site_id or not location.is_active:
+                raise ValueError("儲存位置不存在、未啟用或不屬於指定據點。")
 
     # Serialize movements for one product in PostgreSQL and prevent negative stock.
     if from_location_id is not None:
