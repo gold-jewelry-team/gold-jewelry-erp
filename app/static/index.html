@@ -1817,13 +1817,13 @@ function restorePendingInventoryTransfer(){
  if(!pending)return;
  if(pending.invalid){
   setInventoryTransferFormLocked(true);
-  message("transferStatus","偵測到無法讀取的待確認調撥資料。請先查詢原庫存異動紀錄，不要另建立調撥。","error");
+  message("transferStatus","偵測到無法讀取的待確認調撥資料。請先查詢原庫存異動紀錄，不要另建立調撥。",true);
   return;
  }
  const payload=pending.payload;
  if(!payload||payload.site_id!==selectedSiteId){
   setInventoryTransferFormLocked(true);
-  message("transferStatus","待確認調撥與目前據點不符。請切回原據點核對後再操作。","error");
+  message("transferStatus","待確認調撥與目前據點不符。請切回原據點核對後再操作。",true);
   return;
  }
  $("transferProduct").value=payload.product_id;
