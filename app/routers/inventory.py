@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import wraps
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
@@ -32,9 +33,24 @@ from app.services.inventory_operation_registry import (
     InventoryOperationRequestConflict,
     prepare_inventory_operation_request,
     mark_inventory_operation_failed,
+    inventory_operation_lock,
 )
 
 router = APIRouter(prefix="/companies/{company_id}/inventory", tags=["inventory"])
+
+
+def _serialize_inventory_operation(endpoint):
+    """Keep the same idempotency key from registration through ledger commit."""
+    @wraps(endpoint)
+    def wrapped(*args, **kwargs):
+        db = kwargs["db"]
+        with inventory_operation_lock(
+            db,
+            company_id=kwargs["company_id"],
+            idempotency_key=kwargs["payload"].idempotency_key,
+        ):
+            return endpoint(*args, **kwargs)
+    return wrapped
 
 
 def get_db():
@@ -374,6 +390,7 @@ def retry_inventory_operation_request(
 
 
 @router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
+@_serialize_inventory_operation
 def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCreate,
                               response: Response, db: Session = Depends(get_db)):
     try:
@@ -440,6 +457,7 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
 
 
 @router.post("/transfers", response_model=InventoryMovementRead, status_code=201)
+@_serialize_inventory_operation
 def post_inventory_transfer(company_id: UUID, payload: InventoryTransferCreate,
                             response: Response, db: Session = Depends(get_db)):
     try:
