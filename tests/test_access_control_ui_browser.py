@@ -825,7 +825,7 @@ def test_employee_purchase_history_loads_supplier_product_and_receiving_status(s
         page.get_by_role("heading", name="PO20261125-001").wait_for()
         page.get_by_text("大展金料行").wait_for()
         page.get_by_text("黃金耳環").wait_for()
-        page.get_by_text("部分入庫").wait_for()
+        page.locator("span.badge.partial").wait_for(state="visible")
         page.get_by_text("已入庫 1／3").wait_for()
         page.get_by_text("採購測試備註").wait_for()
         page.locator("#purchaseStatus").select_option("ORDERED")
