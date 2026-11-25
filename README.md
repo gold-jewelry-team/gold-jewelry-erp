@@ -19,14 +19,22 @@
 - 驗收成功才建立入庫流水；部分到貨按比例分配重量，最後一批吸收精度尾差
 
 ## 資料模型與 Migration
-Alembic 版本鏈：
-1. `0001_core`：公司、據點、儲存位置
-2. `0002_gold_prices`：金價歷史
-3. `0003_sales_snapshots`：銷售訂單及成交快照
-4. `0004_products_inventory`：商品分類、商品主檔及庫存異動流水
-5. `0005_suppliers_purchasing`：供應商、採購單及採購明細
+- Alembic Migration 完整版本鏈由 `alembic/versions/` 管理；新增版本必須提交 Migration 檔案，不可只修改資料模型。
+- GitHub Actions CI 使用獨立 PostgreSQL 測試資料庫，驗證完整升級、降版及重新升級流程；CI 不連接 Neon production。
+- 正式 Neon production 的實際版本以資料庫中的 `alembic_version` 及手動 Migration Workflow 結果為準，不以程式碼版本或 Render 部署成功推定。
 
-以上為程式碼中的 Migration 版本鏈。正式 Neon production 資料庫已建立，並曾依使用者明確授權執行 Migration；部署與資料庫實際版本應以 Neon、Render 的即時狀態及部署紀錄為準。此文件不代表 production migration 可由 CI 或一般部署自動執行。
+## 正式環境 Migration 與部署流程
+正式環境的資料庫結構變更與應用程式部署分開執行。Docker 容器啟動時只啟動 FastAPI，不會自動執行 `alembic upgrade`；Render 自動部署也不得成為正式資料庫 Migration 的觸發方式。
+
+需要新增資料庫結構時，採取向前相容的分階段流程：
+1. **先提交 Migration-only PR**：只加入向前相容的資料庫變更，確認 GitHub Actions CI 全部成功後合併。
+2. **執行正式 Migration**：合併後，前往 GitHub Actions，手動執行 `Manual Production Alembic Migration`，並在 `confirm_production` 欄位輸入 `RUN PRODUCTION MIGRATION`。此 Workflow 固定從 `main` 讀取 Migration，先顯示現況，再執行 `alembic upgrade head`，最後比對資料庫目前版本與 Repository 的 Alembic heads。
+3. **確認 Migration 成功**：只有 Workflow 成功且 Neon production 的版本已到達程式碼目前的 Alembic heads，才進行依賴新結構的應用程式 PR。
+4. **再部署應用程式**：合併應用程式 PR 後，Render 應設定為 `After CI Checks Pass`（Blueprint 欄位 `autoDeployTrigger: checksPass`），只在該提交的 GitHub CI 全部通過後部署；接著檢查 Render Deploy 狀態及 `/health`。
+
+若變更涉及刪欄位、改名、資料轉換或其他不向前相容操作，必須拆成多階段 expand/contract 變更，先確保舊版與新版應用程式可在過渡期間共存，不可把破壞性 Migration 與依賴它的新程式碼一次部署。沒有資料庫結構變更的程式碼可照一般 PR 流程合併。
+
+**安全界線：** 不得由一般 CI、Docker 啟動程序或 Render 自動部署執行 production Migration。正式 Migration 僅能由上述手動 Workflow 執行，且必須有使用者明確授權；不可將 CI 測試資料庫與 Neon production 混用。
 
 ## 重要設計
 - 每筆商品資料代表一件可獨立追蹤的珠寶商品；條碼在同一公司內唯一。
@@ -58,7 +66,7 @@ Alembic 版本鏈：
 ## 目前部署與資料安全狀態
 - Render 正式服務：`https://gold-jewelry-erp.onrender.com`
 - 使用者介面：`/app`；API 文件：`/docs`；健康檢查：`/health`
-- GitHub `main` 更新會依 Render 自動部署設定觸發部署；每次部署仍須確認 Render deploy 狀態及健康檢查。
+- Render Blueprint 將 `autoDeployTrigger` 設為 `checksPass`；Render Dashboard 的 Auto-Deploy 也應確認為 `After CI Checks Pass`，避免 CI 尚未完成就部署。每次部署仍須確認 Render Deploy 狀態及健康檢查。
 - 正式 Neon production 資料庫已存在；不可將本機測試、CI 測試資料庫與 production 混為一談。
 - 未經使用者明確授權，不得對 production 執行 Migration、資料寫入、刪除或重設。
 - 測試期間不建立虛構商品或交易資料；商品建檔及實際標籤列印須使用使用者提供的真實資料與設備驗證。

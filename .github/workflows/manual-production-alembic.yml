@@ -54,15 +54,40 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: alembic upgrade head
 
-      - name: Verify final Alembic revision
+      - name: Verify final Alembic revision matches repository heads
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          expected_revision="0032_bank_operation_idempotency"
-          current_revision="$(alembic current)"
-          printf '%s\n' "$current_revision"
+          python - <<'PY'
+          from alembic.config import Config
+          from alembic.runtime.migration import MigrationContext
+          from alembic.script import ScriptDirectory
+          from sqlalchemy import create_engine
 
-          if ! printf '%s\n' "$current_revision" | grep -Eq "(^|[[:space:]])${expected_revision}([[:space:]]|$)"; then
-            echo "::error::Expected Alembic revision ${expected_revision}, but the database is not at that revision."
-            exit 1
-          fi
+          from app.core.config import settings
+
+          config = Config("alembic.ini")
+          script = ScriptDirectory.from_config(config)
+          expected_heads = set(script.get_heads())
+
+          engine = create_engine(settings.database_url, pool_pre_ping=True)
+          try:
+              with engine.connect() as connection:
+                  current_heads = set(
+                      MigrationContext.configure(connection).get_current_heads()
+                  )
+          finally:
+              engine.dispose()
+
+          print(f"Repository Alembic heads: {sorted(expected_heads)}")
+          print(f"Production Alembic heads: {sorted(current_heads)}")
+
+          if not expected_heads:
+              raise SystemExit("No Alembic heads were found in the repository.")
+          if current_heads != expected_heads:
+              raise SystemExit(
+                  "Production Alembic revision does not match repository heads."
+              )
+
+          print("Production Alembic revision verification passed.")
+          PY
