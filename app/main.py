@@ -94,14 +94,16 @@ async def security_middleware(request: Request, call_next):
     if path in health_paths:
         return await call_next(request)
 
-    if path == "/login":
+    if path in {"/login", "/employee"}:
+        # /employee serves only a static onboarding shell; its API independently
+        # validates the HttpOnly Google session and returns only the current user's data.
         return await call_next(request)
 
     # OAuth endpoints enforce their own state/session checks. Google sessions
     # never unlock the administrator workspace or administrator management APIs.
     if path in {
         "/auth/google/config", "/auth/google/start", "/auth/google/callback",
-        "/auth/google/status", "/auth/google/logout",
+        "/auth/google/status", "/auth/google/workspace", "/auth/google/logout",
     }:
         return await call_next(request)
 
@@ -194,7 +196,8 @@ async def security_middleware(request: Request, call_next):
             current_actor.reset(actor_token)
 
     if path == "/app" or path == "/":
-        return RedirectResponse(url="/login", status_code=303)
+        destination = "/employee" if google_token else "/login"
+        return RedirectResponse(url=destination, status_code=303)
 
     return JSONResponse(
         status_code=401,
@@ -211,6 +214,12 @@ def login_page() -> FileResponse:
 @app.get("/", tags=["system"])
 def root() -> dict[str, str]:
     return {"name": settings.app_name, "status": "ok", "docs": "/docs"}
+
+
+@app.get("/employee", tags=["workspace"], include_in_schema=False)
+def employee_workspace() -> FileResponse:
+    """Serve the Google-member onboarding and permission overview page."""
+    return FileResponse(Path(__file__).parent / "static" / "employee.html")
 
 
 @app.get("/app", tags=["workspace"], include_in_schema=False)
