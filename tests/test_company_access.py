@@ -315,3 +315,33 @@ def test_security_middleware_preserves_owner_admin_session(db, monkeypatch):
     response = asyncio.run(main_module.security_middleware(request, downstream))
     assert response.status_code == 200
     assert json.loads(response.body)["admin"] == "owner"
+
+
+def test_every_company_scoped_api_route_has_a_permission_mapping():
+    from app.main import app
+
+    unmapped = []
+    checked = 0
+    for route in app.routes:
+        route_path = getattr(route, "path", "")
+        if not route_path.startswith("/companies/{company_id}/"):
+            continue
+        methods = getattr(route, "methods", set()) or set()
+        for method in sorted(methods):
+            try:
+                permission_for_request(route_path, method)
+                checked += 1
+            except HTTPException as exc:
+                unmapped.append(f"{method} {route_path}: {exc.detail}")
+
+    assert checked > 0, "No company-scoped API routes were discovered."
+    assert not unmapped, "Company routes missing explicit permission mappings:\\n" + "\\n".join(unmapped)
+
+
+def test_company_management_root_routes_are_not_granted_to_google_members():
+    # Creating a company or changing company-wide identity/settings is an
+    # administrator operation, not a member operation on an existing company.
+    for method in ("GET", "POST", "PATCH", "DELETE"):
+        with pytest.raises(HTTPException) as exc:
+            permission_for_request("/companies/{company_id}", method)
+        assert exc.value.status_code == 403
