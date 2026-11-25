@@ -94,7 +94,7 @@ async def security_middleware(request: Request, call_next):
     if path in health_paths:
         return await call_next(request)
 
-    if path in {"/login", "/employee", "/employee/catalog", "/employee/sales", "/employee/purchases", "/employee/payables"}:
+    if path in {"/login", "/employee", "/employee/catalog", "/employee/sales", "/employee/purchases", "/employee/payables", "/employee/customer-orders"}:
         # /employee serves only a static onboarding shell; its API independently
         # validates the HttpOnly Google session and returns only the current user's data.
         return await call_next(request)
@@ -241,6 +241,11 @@ def employee_purchases_workspace() -> FileResponse:
 def employee_payables_workspace() -> FileResponse:
     """Serve a read-only employee supplier bills and payments history shell."""
     return FileResponse(Path(__file__).parent / "static" / "employee_payables.html")
+
+@app.get("/employee/customer-orders", tags=["workspace"], include_in_schema=False)
+def employee_customer_orders_workspace() -> FileResponse:
+    """Serve a read-only employee customer order and payment history shell."""
+    return FileResponse(Path(__file__).parent / "static" / "employee_customer_orders.html")
 
 
 @app.get("/app", tags=["workspace"], include_in_schema=False)
