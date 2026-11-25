@@ -72,6 +72,7 @@ def _opening_stock(client, company_id, site_id, location_id, product_id, quantit
             "weight": str(weight),
             "weight_unit_code": "QIAN",
             "note": "盤點測試期初庫存",
+            "idempotency_key": str(uuid4()),
         },
     )
     assert response.status_code == 201, response.text
@@ -179,6 +180,7 @@ def test_stocktake_stale_snapshot_rejects_entire_batch_without_partial_writes():
             "weight": "0.8000",
             "weight_unit_code": "QIAN",
             "note": "盤點期間完成銷售",
+            "idempotency_key": str(uuid4()),
         })
         assert changed_by_sale.status_code == 201, changed_by_sale.text
 
