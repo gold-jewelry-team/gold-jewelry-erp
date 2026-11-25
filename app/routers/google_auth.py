@@ -22,7 +22,7 @@ from app.db.session import SessionLocal
 from app.services.access_control import replace_membership_roles
 from app.models import (
     AuthIdentity, Company, CompanyMembership, CompanyMembershipRole,
-    Permission, RecordActor, User, UserSession,
+    CompanyRole, CompanyRolePermission, Permission, RecordActor, User, UserSession,
 )
 
 router = APIRouter(prefix="/auth/google", tags=["Google authentication"])
@@ -40,6 +40,8 @@ def _oauth_ready() -> None:
         with SessionLocal() as db:
             db.scalar(select(UserSession.id).limit(1))
             db.scalar(select(CompanyMembershipRole.id).limit(1))
+            db.scalar(select(CompanyRole.id).limit(1))
+            db.scalar(select(CompanyRolePermission.id).limit(1))
             db.scalar(select(Permission.id).limit(1))
             db.scalar(select(RecordActor.id).limit(1))
     except SQLAlchemyError:
