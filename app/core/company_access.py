@@ -214,12 +214,25 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
             required.add("supplier_payables.view")
 
     if "daily-closings" in tail:
-        # DailyClosingRead contains customer, supplier and expense payment summaries.
+        # DailyClosingRead includes sales/return totals, payments, supplier
+        # disbursements, expense payments and cash-drawer movement totals.
         required.update({
+            "sales.view",
+            "sales_returns.view",
             "payments.view",
             "supplier_payables.view",
             "expenses.view",
+            "cash_drawer.view",
         })
+
+    if root == "bank-accounts" and any(
+        part in {"statement-imports", "reconciliation-snapshots", "reconciliation-report"}
+        for part in tail
+    ):
+        required.add("bank_accounts.view")
+        if verb == "POST" and endpoint == "adjustment":
+            # A statement adjustment creates a new bank-ledger transaction.
+            required.add("bank_accounts.create")
 
     if root == "sites" and "operational-report" in tail:
         # Period reports combine sales, collections, refunds, supplier payments,
