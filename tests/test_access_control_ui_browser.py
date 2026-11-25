@@ -216,3 +216,93 @@ def test_member_editor_assigns_multiple_company_roles(static_server):
         assert set(assigned_role_ids) == {"role-staff", "role-stock-viewer"}
         assert not page_errors, page_errors
         browser.close()
+
+
+def test_employee_workspace_shows_company_roles_permissions_and_logout(static_server):
+    workspace = {
+        "authenticated": True,
+        "user": {"id": "user-1", "display_name": "測試店員", "email": "employee@example.com"},
+        "status": "ACTIVE",
+        "memberships": [{
+            "id": "membership-1",
+            "company_id": "company-1",
+            "company_name": "測試銀樓",
+            "company_code": "MAIN",
+            "company_is_active": True,
+            "status": "ACTIVE",
+            "roles": [
+                {"code": "STAFF", "name": "一般成員"},
+                {"code": "STOCK_VIEWER", "name": "庫存檢視"},
+            ],
+            "permissions": [
+                permission("products.view", "商品－查看", "products", "view", True, "ALL"),
+                permission("inventory.view", "庫存－查看", "inventory", "view", True, "OWN"),
+                permission("products.create", "商品－新增", "products", "create", True, "OWN"),
+            ],
+        }],
+    }
+    logout_requests = []
+
+    def handle_logout(route):
+        logout_requests.append(route.request.method)
+        json_response(route, {"authenticated": False})
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/auth/google/logout", handle_logout)
+        page.route("**/login", lambda route: route.fulfill(
+            status=200, content_type="text/html", body="<h1>登入</h1>"
+        ))
+        page.goto(f"{static_server}/employee.html", wait_until="domcontentloaded")
+
+        page.get_by_text("測試店員").wait_for()
+        page.get_by_text("測試銀樓").wait_for()
+        page.get_by_text("一般成員").wait_for()
+        page.get_by_text("庫存檢視").wait_for()
+        page.get_by_text("查看（全公司資料）").wait_for()
+        page.get_by_text("新增（僅本人建立的資料）").wait_for()
+        page.get_by_text("查看（僅本人建立的資料）").wait_for()
+
+        page.get_by_role("button", name="登出").click()
+        page.wait_for_url("**/login")
+        assert logout_requests == ["POST"]
+        assert not page_errors, page_errors
+        browser.close()
+
+
+def test_employee_workspace_explains_pending_approval_without_showing_permissions(static_server):
+    workspace = {
+        "authenticated": True,
+        "user": {"id": "user-2", "display_name": "待核准店員", "email": "pending@example.com"},
+        "status": "PENDING_APPROVAL",
+        "memberships": [{
+            "id": "membership-2",
+            "company_id": "company-2",
+            "company_name": "待核准銀樓",
+            "company_code": "PENDING",
+            "company_is_active": True,
+            "status": "PENDING",
+            "roles": [{"code": "STAFF", "name": "一般成員"}],
+            "permissions": [],
+        }],
+    }
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.goto(f"{static_server}/employee.html", wait_until="domcontentloaded")
+
+        page.get_by_text("待核准店員").wait_for()
+        page.get_by_text("等待核准").wait_for()
+        page.get_by_text("正在等待公司管理者核准").wait_for()
+        page.get_by_text("核准前無法查看或修改公司營運資料").wait_for()
+        assert page.locator(".permission").count() == 0
+        assert not page_errors, page_errors
+        browser.close()
