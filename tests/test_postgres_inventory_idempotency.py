@@ -15,6 +15,7 @@ from app.db.base import Base
 from app.main import app
 from app.models.company import Company
 from app.models.inventory import InventoryMovement
+from app.models.inventory_operation_request import InventoryOperationRequest
 from app.models.product import Product
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
@@ -130,6 +131,7 @@ def test_concurrent_same_inventory_adjustment_key_creates_one_movement():
         app.dependency_overrides.clear()
         if company_id is not None:
             cleanup = TestSession()
+            cleanup.execute(delete(InventoryOperationRequest).where(InventoryOperationRequest.company_id == company_id))
             cleanup.execute(delete(InventoryMovement).where(InventoryMovement.company_id == company_id))
             cleanup.execute(delete(Product).where(Product.company_id == company_id))
             if location_id is not None:

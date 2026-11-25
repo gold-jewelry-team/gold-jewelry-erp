@@ -85,3 +85,21 @@ class StocktakeAdjustmentBatchRead(BaseModel):
     no_change_count: int
     replayed: bool
     movements: list[InventoryMovementRead]
+
+
+class InventoryOperationRequestRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    company_id: UUID
+    site_id: UUID
+    idempotency_key: UUID
+    operation_type: str
+    payload: dict
+    payload_fingerprint: str
+    status: str
+    movement_id: UUID | None
+    failure_code: str | None
+    failure_message: str | None
+    created_at: datetime
+    updated_at: datetime
+    completed_at: datetime | None

@@ -794,6 +794,11 @@ button.secondary:disabled{opacity:.42}
 </div>
 <div class="actions"><button class="secondary" id="refreshMovements" type="button">重新載入異動紀錄</button></div>
 <div id="movementList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
+<hr>
+<h3>庫存操作恢復清單</h3>
+<p class="sub">只列出伺服器已保存的庫存操作。若操作結果不明或曾驗證失敗，請先核對商品、位置、數量及原因；按下恢復後，系統只會使用原始保存內容，不接受修改後的新內容。</p>
+<div class="actions"><button class="secondary" id="refreshInventoryOperationRequests" type="button">重新載入操作清單</button></div>
+<div id="inventoryOperationRequestList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 </section>
 <section class="panel span2" id="goldPricePanel">
 <h2>每日金價設定</h2>
@@ -1956,6 +1961,7 @@ async function loadInventoryOptions(){
  if(stocktakeLocationId)await loadStocktakeBaseline();
  await loadInventoryStock();
  await loadInventoryMovements();
+ await loadInventoryOperationRequests();
  restorePendingInventoryAdjustment();
  restorePendingInventoryTransfer();
 }
@@ -1983,6 +1989,25 @@ async function loadInventoryMovements(){
  const locationNames=new Map(inventoryLocations.map(x=>[x.id,x.name+"（"+x.code+"）"]));
  const productNames=new Map(inventoryProducts.map(x=>[x.id,x.product_code+" · "+x.name]));
  box.innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(productNames.get(x.product_id)||"商品資料不存在")+'</strong><span class="pill">'+escapeHtml(movementTypeLabels[x.movement_type]||x.movement_type)+'</span><span class="muted">來源：'+escapeHtml(x.from_location_id?(locationNames.get(x.from_location_id)||"位置資料不存在"):"—")+' → 目的：'+escapeHtml(x.to_location_id?(locationNames.get(x.to_location_id)||"位置資料不存在"):"—")+'</span><span class="muted">數量：'+escapeHtml(x.quantity)+(x.weight!==null&&x.weight!==undefined?' · 異動重量：'+escapeHtml(x.weight)+' '+escapeHtml(goldUnitLabel(x.weight_unit_code||"QIAN")):'')+' · 時間：'+escapeHtml(x.occurred_at?new Date(x.occurred_at).toLocaleString("zh-TW"):"—")+'</span><span class="muted">異動紀錄 ID：'+escapeHtml(x.id||"—")+' · 冪等識別碼：'+escapeHtml(x.reference_id||"—")+'</span>'+(x.note?'<span class="muted">備註：'+escapeHtml(x.note)+'</span>':'')+'</article>').join(""):'<div class="empty">目前沒有符合條件的異動紀錄</div>';
+}
+async function loadInventoryOperationRequests(){
+ const box=$("inventoryOperationRequestList");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
+ box.innerHTML='<div class="empty">操作清單載入中…</div>';
+ const params=new URLSearchParams({site_id:selectedSiteId,limit:"50"});
+ const rows=await api("/companies/"+companyId+"/inventory/operation-requests?"+params.toString());
+ const statusLabels={PENDING:"待核對",FAILED:"曾失敗",COMPLETED:"已完成"};
+ const operationLabels={MANUAL_ADJUSTMENT:"庫存調整",MANUAL_TRANSFER:"櫃位調撥"};
+ box.innerHTML=rows.length?rows.map(row=>{
+  const p=row.payload&&row.payload.payload?row.payload.payload:{};
+  const product=inventoryProducts.find(x=>x.id===p.product_id);
+  const locationLabel=id=>{const x=inventoryLocations.find(item=>item.id===id);return x?x.name+"（"+x.code+"）":"位置："+(id||"—");};
+  const movementPath=row.operation_type==="MANUAL_TRANSFER"
+   ?locationLabel(p.from_location_id)+" → "+locationLabel(p.to_location_id)
+   :locationLabel(p.location_id)+" · "+(p.direction==="IN"?"增加":"減少");
+  const canRetry=row.status==="PENDING"||row.status==="FAILED";
+  return '<article class="item"><strong>'+escapeHtml(operationLabels[row.operation_type]||row.operation_type)+' · '+escapeHtml(product?product.product_code+" · "+product.name:(p.product_id||"商品資料未載入"))+'</strong><span class="pill">'+escapeHtml(statusLabels[row.status]||row.status)+'</span><span class="muted">'+escapeHtml(movementPath)+' · 數量：'+escapeHtml(p.quantity||"—")+'</span><span class="muted">操作時間：'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"—")+' · 請求 ID：'+escapeHtml(row.id)+'</span><span class="muted">冪等識別碼：'+escapeHtml(row.idempotency_key)+'</span>'+(row.failure_message?'<span class="muted">上次失敗原因：'+escapeHtml(row.failure_message)+'</span>':'')+(canRetry?'<div class="actions"><button type="button" class="secondary" data-operation-retry="'+escapeHtml(row.id)+'">核對後恢復原操作</button></div>':'')+'</article>';
+ }).join(""):'<div class="empty">目前沒有庫存操作紀錄</div>';
 }
 function taipeiDateTimeLocalValue(){
  return new Date(Date.now()+8*60*60*1000).toISOString().slice(0,16);
@@ -3993,6 +4018,22 @@ $("inventorySearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadInven
 $("stockLocationFilter").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
 $("includeZeroStock").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
 $("refreshMovements").addEventListener("click",()=>loadInventoryMovements().catch(e=>message("globalStatus",e.message,true)));
+$("refreshInventoryOperationRequests").addEventListener("click",()=>loadInventoryOperationRequests().catch(e=>message("globalStatus",e.message,true)));
+$("inventoryOperationRequestList").addEventListener("click",async event=>{
+ const button=event.target.closest("[data-operation-retry]");
+ if(!button||!companyId)return;
+ const requestId=button.dataset.operationRetry;
+ if(!confirm("請先確認這筆原操作的商品、位置與數量。系統將只使用伺服器保存的原始內容恢復，不會使用你另外輸入的資料。確定要恢復嗎？"))return;
+ button.disabled=true;
+ try{
+  await api("/companies/"+companyId+"/inventory/operation-requests/"+requestId+"/retry",{method:"POST"});
+  message("globalStatus","原庫存操作已恢復並完成。");
+  await loadInventoryStock();await loadInventoryMovements();await loadInventoryOperationRequests();
+ }catch(error){
+  message("globalStatus",error.message,true);
+  await loadInventoryOperationRequests().catch(()=>{});
+ }finally{button.disabled=false;}
+});
 ["movementTypeFilter","movementProductFilter","movementLocationFilter"].forEach(id=>$(id).addEventListener("change",()=>loadInventoryMovements().catch(e=>message("globalStatus",e.message,true))));
 $("inventoryAdjustmentForm").addEventListener("submit",async event=>{
  event.preventDefault();

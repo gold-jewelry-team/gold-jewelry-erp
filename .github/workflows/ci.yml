@@ -142,6 +142,8 @@ jobs:
         run: node --test tests/inventory_adjustment_retry_runtime.test.js
       - name: Run inventory movement reconciliation runtime tests
         run: node --test tests/inventory_movement_reconciliation_runtime.test.js
+      - name: Run inventory operation recovery runtime tests
+        run: node --test tests/inventory_operation_recovery_runtime.test.js
       - name: Run customer order management runtime tests
         run: node --test tests/customer_order_management_runtime.test.js
       - name: Run sale draft edit runtime tests
@@ -155,7 +157,7 @@ jobs:
       - name: Run inventory idempotency concurrency tests on PostgreSQL
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
-        run: pytest -q tests/test_postgres_inventory_idempotency.py
+        run: pytest -q tests/test_postgres_inventory_idempotency.py tests/test_postgres_inventory_operation_recovery.py
       - name: Run bank reconciliation scope tests on PostgreSQL
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
