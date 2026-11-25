@@ -236,6 +236,13 @@ def gold_material_workspace() -> FileResponse:
     return FileResponse(Path(__file__).parent / "static" / "gold_material.html")
 
 
+
+@app.get("/role-management", tags=["workspace"], include_in_schema=False)
+def role_management_workspace() -> FileResponse:
+    """Serve administrator role and permission management workspace."""
+    return FileResponse(Path(__file__).parent / "static" / "role_management.html")
+
+
 @app.get("/member-management", tags=["workspace"], include_in_schema=False)
 def member_management_workspace() -> FileResponse:
     """Serve the administrator-only Google member management workspace."""
