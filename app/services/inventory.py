@@ -68,7 +68,7 @@ def get_idempotent_adjustment(
     )
     if not matches:
         raise InventoryIdempotencyConflict(
-            "此冪等識別碼已用於不同的庫存調整內容，請重新讀取盤點資料後再操作。"
+            "此冪等識別碼已用於不同的庫存調整內容，請先核對原庫存異動紀錄後再操作。"
         )
     return existing
 
