@@ -151,6 +151,9 @@
         if(purchaseGrant && ["ALL","OWN"].includes(purchaseGrant.data_scope)){
           features.push({label:"採購／進貨紀錄",view:"purchases"});
         }
+        if(hasAllView("supplier_payables.view")){
+          features.push({label:"供應商帳款",view:"payables"});
+        }
         if(features.length){
           card.append(node("div","feature-title","可使用功能"));
           const featureList=node("div","feature-list");
@@ -160,6 +163,8 @@
               link.href="/employee/sales?company_id="+encodeURIComponent(item.company_id);
             }else if(feature.view==="purchases"){
               link.href="/employee/purchases?company_id="+encodeURIComponent(item.company_id);
+            }else if(feature.view==="payables"){
+              link.href="/employee/payables?company_id="+encodeURIComponent(item.company_id);
             }else{
               link.href="/employee/catalog?company_id="+encodeURIComponent(item.company_id)+"&view="+feature.view;
             }
