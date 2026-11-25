@@ -2,17 +2,26 @@
 
 ## Implemented in the current draft
 
-- Google sessions are checked on every company-scoped API request. A request must have an unexpired, unrevoked session, active user, active company, and an ACTIVE membership for the exact company in the URL.
+- Every company-scoped Google API request checks an unexpired, unrevoked session, active user, active company, and ACTIVE membership for the exact company in the URL.
 - The owner username/password session remains the administrator path and keeps access to the existing workspace and administration pages.
-- Permission catalogue: each resource supports the four requested actions — view, create, update, void.
-- Company-specific roles are stored separately per company; one membership can hold multiple roles.
-- Permission grants carry both allow/deny and a data scope (ALL or OWN).
-- Existing companies are provisioned with OWNER, MANAGER, and STAFF roles by migration. New companies receive the same baseline lazily when the owner first opens the role editor or a member is assigned.
+- The permission catalogue supports four actions per resource: view, create, update, and void.
+- Roles are company-scoped. A member can hold multiple built-in or custom roles; allowed grants combine additively, with ALL scope taking precedence over OWN.
+- Permission grants support allow/deny and data scope (ALL or OWN).
+- Existing companies receive OWNER, MANAGER, and STAFF roles through Migration 0035. New companies initialize those roles lazily when the owner first opens the role editor or assigns a member.
 - New Google members in a one-company setup are assigned the default STAFF role while pending approval.
-- An administrator API and mobile-friendly role editor support custom roles and permission configuration.
-- The request middleware resolves a company API path to a permission code and authorizes it from the member's assigned roles. Unknown company API routes fail closed.
-- A record-actor registry records the creator and last modifier for supported business records. It distinguishes Google user IDs from the legacy owner username/password account.
-- ORM reads for supported resources apply a creator filter when the effective data scope is OWN.
+- Administrator APIs and a mobile-friendly role editor support custom roles, permission configuration, and multi-role membership assignment.
+- The request middleware maps every published company API route to a permission code. Unknown routes fail closed.
+- Cross-module operations require their dependent module grants as well. Examples include:
+  - Catalog-backed sales require product, inventory-location, gold-price, and tender permissions.
+  - Purchase drafts require supplier and product visibility; receiving also requires inventory-create permission.
+  - Customer-order APIs require payment visibility because responses embed payment transactions; creating orders or recording deposits/refunds also requires the related payment/order permissions.
+  - Supplier payments require both supplier-payables and payment permissions; payable bills linked to purchases require purchase visibility.
+  - Gold-material settlement into supplier bills requires supplier-payables view/update, and referenced supplier/purchase visibility.
+  - Daily closing and operational reports require the underlying sales, payments, supplier-payables, expenses, cash-drawer, and customer-order view grants represented in their summaries.
+  - Bank reconciliation reports require bank-account visibility; statement-line adjustments also require permission to create bank ledger entries.
+- Cross-module dependent grants must have ALL data scope; OWN scope cannot be used to bypass another module's row visibility.
+- A record-actor registry records creator and last modifier for supported business records, distinguishing Google user IDs from the legacy owner username/password account.
+- ORM reads on supported resources apply a creator filter when the effective primary data scope is OWN.
 
 ## Conservative defaults
 
@@ -22,16 +31,27 @@
 | MANAGER | View only, all company data |
 | STAFF | No permissions until the owner configures them |
 
-A custom role can grant only selected resources and actions. For OWN scope, only view and create are currently allowed. Update and void remain denied until write operations can be consistently constrained to records created by the member.
+OWN scope currently supports read/create only for independent transaction records in purchases, sales, customer orders, and operating expenses. Shared master data, inventory balances, bank/gold balances, reconciliation, supplier payables, cash drawer, and aggregate reports require ALL scope. Update and void under OWN are denied. Operations that touch dependent modules also require the appropriate dependent permission with ALL scope.
 
-Historical rows are not assigned to a person by inference. They have no actor registry row and therefore are not visible under an OWN-scoped permission. Existing owner access is unchanged.
+Historical rows are not assigned to a person by inference. Rows without a record-actor registry entry are not visible under an OWN-scoped permission. Existing owner access is unchanged.
+
+## Validation completed
+
+- CI passes on PostgreSQL 16 with a clean schema upgrade, full downgrade, clean re-upgrade, and final Alembic revision check.
+- CI rolls the disposable database back to 0034, seeds two synthetic companies and three existing memberships, then upgrades to 0035 and verifies the 24-resource × 4-action catalogue, six company roles, 576 role grants, default-role baselines, and three membership-role backfills.
+- CI checks every published `/companies/{company_id}/...` route in OpenAPI for an explicit permission mapping.
+- CI covers cross-module permission dependencies, data-scope requirements, own-record filtering, member/role management, session lifecycle, and PostgreSQL inventory/reconciliation behavior.
+- Latest CI run: 63 steps, all successful. See the [GitHub Actions run](https://github.com/gold-jewelry-team/gold-jewelry-erp/actions/runs/45564712890).
 
 ## Remaining before employee rollout
 
-- CI validates Migration 0035 on PostgreSQL 16 using both a clean schema upgrade/downgrade/re-upgrade and synthetic 0034 data (two companies and three memberships), then verifies the 24-resource permission catalogue, default grants, and membership-role backfill. A separate Neon production-data clone has not been created; the available Neon branch connector does not expose schema-only branching, and copying live business data needs explicit approval.
-- Complete the remaining own-scope write and void checks.
 - Exercise the role editor and member multi-role assignment through an authenticated browser session.
-- Verify every company-scoped route is mapped to a permission resource.
-- Complete the Google OAuth end-to-end test with the new schema, then enable the feature flag only after explicit owner approval.
+- Complete the Google OAuth end-to-end test with the new schema, while keeping the feature flag disabled until the owner explicitly approves activation.
+- Complete employee-facing workspace and onboarding UX; do not invite employees until access tests and production migration have been approved.
+- OWN-scope update and void remain intentionally unavailable until write paths can be consistently constrained to records created by the member.
 
-Google OAuth remains disabled. The migration has not been applied to the production Neon database. Do not enable Google OAuth or invite staff until the remaining security checks and production migration have been explicitly approved.
+## Production safety
+
+Google OAuth remains disabled. Alembic Migration 0035 has not been applied to production Neon, and no production records were changed by this PR. A separate Neon production-data clone has not been created because the available Neon branch connector does not expose schema-only branching; copying live business data would need explicit approval.
+
+Do not merge/deploy this PR, apply production Migration 0035, or enable Google OAuth until the owner has explicitly approved each respective step.
