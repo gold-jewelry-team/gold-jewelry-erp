@@ -54,6 +54,8 @@ def seed_member(db, role="OWNER", status="ACTIVE", *, company=None, active=True,
     membership = CompanyMembership(
         company_id=company.id, user_id=user.id, status=status, role=role,
     )
+    db.add(membership)
+    db.flush()
     company_role = CompanyRole(
         company_id=company.id, code=role, name=role, is_system=True, is_active=True,
     )
@@ -70,7 +72,7 @@ def seed_member(db, role="OWNER", status="ACTIVE", *, company=None, active=True,
         expires_at=now - timedelta(minutes=1) if expired else now + timedelta(hours=1),
         revoked_at=now if revoked else None,
     ))
-    db.add_all([membership, membership_role])
+    db.add(membership_role)
     actions = ("view", "create", "update", "void")
     for action in actions:
         permission = Permission(
