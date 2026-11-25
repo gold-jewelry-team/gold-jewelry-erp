@@ -111,7 +111,7 @@ def test_role_editor_toggles_scope_and_saves_permission_grants(static_server):
         page.route("**/admin/api/**", handle_api)
         page.goto(f"{static_server}/role_management.html", wait_until="domcontentloaded")
 
-        page.locator("#company option[value='company-1']").wait_for()
+        page.locator("#company option[value='company-1']").wait_for(state="attached")
         page.locator("#role").select_option("role-stock-viewer")
         view_checkbox = page.get_by_role("checkbox", name="商品－查看授權")
         scope_select = page.locator('select[aria-label="商品－查看資料範圍"]')
