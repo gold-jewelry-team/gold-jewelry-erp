@@ -282,6 +282,12 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0033_inventory_op_requests"
+          current_revision="$(alembic current)"
+          head_revision="$(alembic heads)"
+          echo "Current revision: $current_revision"
+          echo "Head revision: $head_revision"
+          current_id="$(printf "%s\n" "$current_revision" | awk '{print $1}')"
+          head_id="$(printf "%s\n" "$head_revision" | awk '{print $1}')"
+          test "$current_id" = "$head_id"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
