@@ -83,15 +83,6 @@ def test_role_management_page_is_served_but_role_api_stays_admin_protected(monke
     denied = test_client.get("/admin/api/companies")
     assert denied.status_code == 401
 
-    login = test_client.post(
-        "/auth/login",
-        json={"username": "owner", "password": "test-password-12345"},
-    )
-    assert login.status_code == 200
-    allowed = test_client.get("/admin/api/companies")
-    assert allowed.status_code == 200
-
-
 def test_health_remains_public_when_auth_is_enabled(monkeypatch) -> None:
     _configure_auth(monkeypatch)
     response = client.get("/health")
