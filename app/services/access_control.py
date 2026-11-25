@@ -106,13 +106,15 @@ def replace_membership_role_ids(
     unique_ids = list(dict.fromkeys(role_ids))
     if not unique_ids:
         raise ValueError("至少要指定一個角色。")
-    roles = list(db.scalars(select(CompanyRole).where(
+    queried_roles = list(db.scalars(select(CompanyRole).where(
         CompanyRole.id.in_(unique_ids),
         CompanyRole.company_id == membership.company_id,
         CompanyRole.is_active.is_(True),
     )).all())
-    if len(roles) != len(unique_ids):
+    role_by_id = {role.id: role for role in queried_roles}
+    if len(role_by_id) != len(unique_ids):
         raise ValueError("角色不存在、已停用，或不屬於此公司。")
+    roles = [role_by_id[role_id] for role_id in unique_ids]
     db.execute(delete(CompanyMembershipRole).where(
         CompanyMembershipRole.membership_id == membership.id
     ))
