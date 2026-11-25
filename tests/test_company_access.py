@@ -129,6 +129,8 @@ def test_company_id_is_extracted_only_from_scoped_paths():
         ("/companies/{company_id}/bank-accounts/{account_id}/statement-imports", "GET", ["bank_accounts.view"]),
         ("/companies/{company_id}/bank-accounts/{account_id}/statement-imports/{import_id}/lines/{line_id}/adjustment", "POST", ["bank_accounts.create", "bank_accounts.view"]),
         ("/companies/{company_id}/bank-accounts/{account_id}/reconciliation-report", "GET", ["bank_accounts.view"]),
+        ("/companies/{company_id}/bank-accounts/{account_id}/cash-deposits", "POST", ["cash_drawer.create"]),
+        ("/companies/{company_id}/bank-accounts/{account_id}/cash-withdrawals", "POST", ["cash_drawer.create"]),
         ("/companies/{company_id}/gold-material/movements", "GET", ["supplier_payables.view"]),
                 ("/companies/{company_id}/supplier-category-offerings", "GET", ["product_categories.view", "suppliers.view"]),
         ("/companies/{company_id}/suppliers/{supplier_id}/category-offerings", "POST", ["product_categories.view", "suppliers.view"]),
@@ -222,6 +224,56 @@ def test_authorization_requires_all_scope_grants_for_cross_module_side_effects(d
     # while the dependent payment write must be explicitly ALL-scoped.
     assert grant["permission_code"] == "customer_orders.create"
     assert grant["data_scope"] == "OWN"
+
+
+
+@pytest.mark.parametrize("endpoint", ["cash-deposits", "cash-withdrawals"])
+def test_bank_cash_operations_require_cash_drawer_create_all_scope(db, endpoint):
+    company, _user, _membership, token = seed_member(db, role="STAFF")
+    role = db.query(CompanyRole).filter_by(company_id=company.id, code="STAFF").one()
+    bank_create = Permission(
+        code="bank_accounts.create",
+        resource_code="bank_accounts",
+        action_code="create",
+        name="銀行帳戶－新增",
+        is_active=True,
+    )
+    cash_drawer_create = Permission(
+        code="cash_drawer.create",
+        resource_code="cash_drawer",
+        action_code="create",
+        name="現金櫃－新增",
+        is_active=True,
+    )
+    db.add_all([bank_create, cash_drawer_create])
+    db.flush()
+    db.add_all([
+        CompanyRolePermission(
+            role_id=role.id, permission_id=bank_create.id,
+            is_allowed=True, data_scope="ALL",
+        ),
+        CompanyRolePermission(
+            role_id=role.id, permission_id=cash_drawer_create.id,
+            is_allowed=False, data_scope="ALL",
+        ),
+    ])
+    db.commit()
+
+    path = f"/companies/{company.id}/bank-accounts/{uuid4()}/{endpoint}"
+    with pytest.raises(HTTPException) as exc:
+        authorize_google_company_request(db, token, company.id, "POST", path=path)
+    assert exc.value.status_code == 403
+    assert "cash_drawer.create" in exc.value.detail
+
+    cash_drawer_grant = db.query(CompanyRolePermission).filter_by(
+        role_id=role.id, permission_id=cash_drawer_create.id,
+    ).one()
+    cash_drawer_grant.is_allowed = True
+    db.commit()
+
+    grant = authorize_google_company_request(db, token, company.id, "POST", path=path)
+    assert grant["permission_code"] == "bank_accounts.create"
+
 
 
 def test_payload_dependent_expense_payment_requires_all_scope_payment_permission(db):

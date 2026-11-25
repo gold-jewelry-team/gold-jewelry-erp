@@ -234,6 +234,12 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
             # A statement adjustment creates a new bank-ledger transaction.
             required.add("bank_accounts.create")
 
+    if root == "bank-accounts" and verb == "POST" and any(
+        part in {"cash-deposits", "cash-withdrawals"} for part in tail
+    ):
+        # Bank cash deposits/withdrawals also create cash-drawer ledger rows.
+        required.add("cash_drawer.create")
+
     if root == "sites" and "operational-report" in tail:
         # Period reports combine sales, collections, refunds, supplier payments,
         # expenses, cash drawer movements and payable/outstanding balances.
