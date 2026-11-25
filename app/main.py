@@ -8,6 +8,7 @@ from app.core.auth import verify_session_token
 from app.core.config import settings
 from app.routers.auth import router as auth_router
 from app.routers.google_auth import router as google_auth_router
+from app.routers.member_admin import router as member_admin_router
 from app.routers.health import router as health_router
 from app.routers.company_setup import router as company_setup_router
 from app.routers.product_master import router as product_master_router
@@ -42,6 +43,7 @@ app = FastAPI(
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(google_auth_router)
+app.include_router(member_admin_router)
 app.include_router(company_setup_router)
 app.include_router(product_master_router)
 app.include_router(labor_code_settings_router)
@@ -178,3 +180,9 @@ def operational_reports_workspace() -> FileResponse:
 def gold_material_workspace() -> FileResponse:
     """Serve the fine-gold material ledger workspace."""
     return FileResponse(Path(__file__).parent / "static" / "gold_material.html")
+
+
+@app.get("/member-management", tags=["workspace"], include_in_schema=False)
+def member_management_workspace() -> FileResponse:
+    """Serve the administrator-only Google member management workspace."""
+    return FileResponse(Path(__file__).parent / "static" / "member_management.html")
