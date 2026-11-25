@@ -27,6 +27,7 @@ from app.services.inventory import (
     StocktakeSnapshotConflict,
     apply_stocktake_adjustment_batch,
 )
+from app.services.inventory_operation_requests import fingerprint_inventory_operation
 from app.services.inventory_operation_registry import (
     InventoryOperationRequestConflict,
     prepare_inventory_operation_request,
@@ -219,6 +220,146 @@ def list_inventory_operation_requests(
         InventoryOperationRequest.created_at.desc(),
         InventoryOperationRequest.id.desc(),
     ).offset(offset).limit(limit)).all())
+
+
+@router.post(
+    "/operation-requests/{request_id}/retry",
+    response_model=InventoryMovementRead,
+)
+def retry_inventory_operation_request(
+    company_id: UUID,
+    request_id: UUID,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    """Explicitly resume a stored operation; clients cannot replace its payload."""
+    row = db.scalar(select(InventoryOperationRequest).where(
+        InventoryOperationRequest.id == request_id,
+        InventoryOperationRequest.company_id == company_id,
+    ).with_for_update())
+    if row is None:
+        raise HTTPException(status_code=404, detail="找不到指定的庫存操作紀錄。")
+
+    if row.status == "COMPLETED":
+        movement = db.get(InventoryMovement, row.movement_id)
+        if movement is None:
+            raise HTTPException(status_code=409, detail="已完成操作缺少庫存流水，請人工檢查。")
+        response.status_code = 200
+        return movement
+    if row.status not in {"PENDING", "FAILED"}:
+        raise HTTPException(status_code=409, detail="此操作目前不可恢復。")
+
+    try:
+        stored_payload = row.payload.get("payload")
+        if not isinstance(stored_payload, dict):
+            raise InventoryOperationRequestConflict("保存的操作內容格式不正確，請人工檢查。")
+
+        if row.operation_type == "MANUAL_ADJUSTMENT":
+            payload = InventoryAdjustmentCreate.model_validate(stored_payload)
+            legacy_lookup = lambda: get_idempotent_adjustment(
+                db, company_id=company_id, site_id=payload.site_id,
+                product_id=payload.product_id, location_id=payload.location_id,
+                direction=payload.direction, quantity=payload.quantity,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                note=payload.note, idempotency_key=payload.idempotency_key,
+                occurred_at=payload.occurred_at, reference_type="MANUAL_ADJUSTMENT",
+            )
+        elif row.operation_type == "MANUAL_TRANSFER":
+            payload = InventoryTransferCreate.model_validate(stored_payload)
+            legacy_lookup = lambda: get_idempotent_transfer(
+                db, company_id=company_id, site_id=payload.site_id,
+                product_id=payload.product_id, from_location_id=payload.from_location_id,
+                to_location_id=payload.to_location_id, quantity=payload.quantity,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                note=payload.note, idempotency_key=payload.idempotency_key,
+                occurred_at=payload.occurred_at,
+            )
+        else:
+            raise InventoryOperationRequestConflict("不支援恢復此類庫存操作。")
+
+        canonical, fingerprint = fingerprint_inventory_operation(
+            operation_type=row.operation_type,
+            company_id=company_id,
+            site_id=row.site_id,
+            payload=payload.model_dump(mode="python"),
+        )
+        if (
+            payload.site_id != row.site_id
+            or payload.idempotency_key != row.idempotency_key
+            or canonical != row.payload
+            or fingerprint != row.payload_fingerprint
+        ):
+            raise InventoryOperationRequestConflict("保存的操作內容驗證失敗，請人工檢查。")
+
+        existing = legacy_lookup()
+        if existing is not None:
+            row.status = "COMPLETED"
+            row.movement_id = existing.id
+            row.failure_code = None
+            row.failure_message = None
+            row.completed_at = datetime.now(timezone.utc)
+            row.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            response.status_code = 200
+            return existing
+
+        # This is an explicit admin action. Reuse only the immutable stored payload.
+        row.status = "PENDING"
+        row.failure_code = None
+        row.failure_message = None
+        if row.operation_type == "MANUAL_ADJUSTMENT":
+            movement = create_inventory_movement(
+                db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
+                movement_type="ADJUSTMENT", quantity=payload.quantity,
+                from_location_id=payload.location_id if payload.direction == "OUT" else None,
+                to_location_id=payload.location_id if payload.direction == "IN" else None,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                occurred_at=payload.occurred_at, note=payload.note,
+                idempotency_key=payload.idempotency_key,
+                idempotency_reference_type="MANUAL_ADJUSTMENT",
+            )
+        else:
+            movement = create_inventory_movement(
+                db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
+                movement_type="TRANSFER", quantity=payload.quantity,
+                from_location_id=payload.from_location_id, to_location_id=payload.to_location_id,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                occurred_at=payload.occurred_at, note=payload.note,
+                idempotency_key=payload.idempotency_key,
+            )
+
+        row.status = "COMPLETED"
+        row.movement_id = movement.id
+        row.failure_code = None
+        row.failure_message = None
+        row.completed_at = datetime.now(timezone.utc)
+        row.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(movement)
+        response.status_code = 200
+        return movement
+    except InventoryOperationRequestConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except InventoryIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        failed = db.get(InventoryOperationRequest, request_id)
+        if failed is not None and failed.status in {"PENDING", "FAILED"}:
+            failed.status = "FAILED"
+            failed.failure_code = "RETRY_VALIDATION_FAILED"
+            failed.failure_message = str(exc)[:300]
+            failed.updated_at = datetime.now(timezone.utc)
+            db.commit()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="恢復操作結果尚待核對；請重新查看操作恢復清單。",
+        ) from exc
 
 
 @router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
