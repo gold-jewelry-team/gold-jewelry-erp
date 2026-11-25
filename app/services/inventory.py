@@ -1,5 +1,5 @@
 """Validated inventory ledger operations and derived stock balances."""
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -26,6 +26,21 @@ class StocktakeSnapshotConflict(ValueError):
     """Raised when stock changed after the stocktake baseline was captured."""
 
 
+def _same_occurred_at(existing: datetime | None, requested: datetime | None) -> bool:
+    """Compare explicit request timestamps consistently across SQLite and PostgreSQL."""
+    if requested is None:
+        return True  # Omitted timestamps are assigned by the database on first insert.
+    if existing is None:
+        return False
+
+    def as_utc(value: datetime) -> datetime:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    return as_utc(existing) == as_utc(requested)
+
+
 def get_idempotent_adjustment(
     session: Session,
     *,
@@ -39,6 +54,7 @@ def get_idempotent_adjustment(
     weight_unit_code: str | None,
     note: str | None,
     idempotency_key: UUID | None,
+    occurred_at: datetime | None = None,
     reference_type: str = "STOCKTAKE",
 ) -> InventoryMovement | None:
     """Return a matching prior adjustment, or reject a key reused for other data."""
@@ -65,6 +81,7 @@ def get_idempotent_adjustment(
         and existing.weight == weight
         and existing.weight_unit_code == weight_unit_code
         and existing.note == note
+        and _same_occurred_at(existing.occurred_at, occurred_at)
     )
     if not matches:
         raise InventoryIdempotencyConflict(
@@ -86,6 +103,7 @@ def get_idempotent_transfer(
     weight_unit_code: str | None,
     note: str | None,
     idempotency_key: UUID | None,
+    occurred_at: datetime | None = None,
 ) -> InventoryMovement | None:
     """Return the original manual transfer for an exact retry."""
     if idempotency_key is None:
@@ -108,6 +126,7 @@ def get_idempotent_transfer(
         and existing.weight == weight
         and existing.weight_unit_code == weight_unit_code
         and existing.note == note
+        and _same_occurred_at(existing.occurred_at, occurred_at)
     )
     if not matches:
         raise InventoryIdempotencyConflict(
@@ -369,6 +388,7 @@ def create_inventory_movement(
                 weight_unit_code=weight_unit_code,
                 note=note,
                 idempotency_key=idempotency_key,
+                occurred_at=occurred_at,
                 reference_type=idempotency_reference_type,
             )
         elif movement_type == "TRANSFER":
@@ -384,6 +404,7 @@ def create_inventory_movement(
                 weight_unit_code=weight_unit_code,
                 note=note,
                 idempotency_key=idempotency_key,
+                occurred_at=occurred_at,
             )
         else:
             raise InventoryIdempotencyConflict(
