@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#202522">
+  <meta name="robots" content="noindex,nofollow">
+  <title>銀樓 ERP｜員工工作區</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202522;background:#f4f5f2;font-synthesis:none}
+    *{box-sizing:border-box}
+    body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+    header{background:#202522;color:#fff;padding:26px 18px 22px}
+    header .eyebrow{font-size:11px;letter-spacing:.12em;color:#c5d0c8;font-weight:700}
+    header h1{font-size:23px;margin:8px 0 5px}
+    header p{font-size:13px;color:#d2dad4;margin:0;line-height:1.6}
+    main{width:min(100%,760px);margin:0 auto;padding:16px;display:grid;gap:14px}
+    .panel{background:#fff;border:1px solid #e2e7e1;border-radius:16px;padding:16px;box-shadow:0 2px 10px #17231a0a}
+    h2{font-size:17px;margin:0 0 12px}
+    p{line-height:1.65}
+    .identity{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .identity strong{display:block;font-size:16px}
+    .muted{font-size:12px;color:#6b756e;overflow-wrap:anywhere}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    button{min-height:42px;border:0;border-radius:10px;padding:9px 14px;background:#263b30;color:#fff;font:inherit;font-weight:650;cursor:pointer}
+    button.secondary{background:#edf1ed;color:#263b30}
+    button:disabled{opacity:.6;cursor:wait}
+    .notice{border:1px solid #dce5dc;background:#f6faf6;border-radius:13px;padding:13px;margin-top:12px;color:#34463a;font-size:13px;line-height:1.65}
+    .notice.warning{background:#fff9ec;border-color:#f0dfb8;color:#74501b}
+    .notice.error{background:#fff4f2;border-color:#f0d1cb;color:#9a3327}
+    .company-list{display:grid;gap:12px}
+    .company{border:1px solid #e1e6e0;border-radius:13px;padding:14px;min-width:0}
+    .company-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .company h3{font-size:16px;margin:0 0 4px;overflow-wrap:anywhere}
+    .pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;background:#edf2ed;color:#344d3d;font-size:11px;font-weight:700;white-space:nowrap}
+    .pill.warning{background:#fff2d8;color:#76531d}
+    .pill.danger{background:#fde9e6;color:#9a3327}
+    .role-list{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+    .role{font-size:12px;border:1px solid #e1e6e0;border-radius:8px;padding:5px 8px;background:#fafbf9}
+    .permission-title{font-size:13px;font-weight:750;margin:14px 0 8px}
+    .permission-list{display:grid;gap:8px}
+    .permission{border:1px solid #edf0ec;border-radius:10px;padding:9px 10px}
+    .permission strong{display:block;font-size:13px}
+    .permission small{display:block;color:#69756c;font-size:11px;margin-top:4px;line-height:1.5}
+    .empty{color:#707b73;font-size:13px;padding:14px 2px;line-height:1.7}
+    .footer-note{font-size:12px;color:#6c756f;line-height:1.7}
+    .loading{padding:24px;text-align:center;color:#657168}
+    [hidden]{display:none!important}
+    @media(min-width:600px){header{padding-left:max(18px,calc((100% - 724px)/2));padding-right:max(18px,calc((100% - 724px)/2))}main{padding-top:20px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">EMPLOYEE SPACE</div>
+    <h1>員工工作區</h1>
+    <p>查看您所屬的公司、角色與功能授權</p>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="identity">
+        <div>
+          <strong id="displayName">載入中…</strong>
+          <div class="muted" id="email"></div>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="refresh" type="button">重新整理</button>
+          <button id="logout" type="button">登出</button>
+        </div>
+      </div>
+      <div id="overallNotice" class="notice" role="status" aria-live="polite">正在確認登入與公司資格…</div>
+    </section>
+    <section class="panel">
+      <h2>我的公司與權限</h2>
+      <div id="companyList" class="company-list"><div class="loading">正在載入公司資料…</div></div>
+    </section>
+    <section class="panel">
+      <h2>使用說明</h2>
+      <p class="footer-note">此頁只顯示您自己的公司指派、角色及已授權功能。公司營運資料仍會依每一項功能權限在伺服器端再次檢查。尚未顯示的作業入口不代表系統故障，請聯絡公司管理者確認授權與開放進度。</p>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const statusLabels={
+      ACTIVE:"已核准",
+      PENDING:"等待核准",
+      REJECTED:"未核准",
+      SUSPENDED:"已暫停",
+      COMPANY_INACTIVE:"公司已停用"
+    };
+    const statusMessages={
+      ACTIVE:"您的公司成員資格已核准。下方列出管理者授予您的角色與功能權限。",
+      PENDING_APPROVAL:"已收到您的加入申請，正在等待公司管理者核准。核准前無法查看或修改公司營運資料。",
+      NEEDS_COMPANY_ASSIGNMENT:"您的 Google 帳號已登入，但尚未指派所屬公司。請聯絡公司管理者協助設定。",
+      SUSPENDED:"您的公司成員資格目前已暫停。請聯絡公司管理者確認。",
+      REJECTED:"目前沒有核准中的公司成員資格。若需要重新申請，請聯絡公司管理者。",
+      COMPANY_INACTIVE:"您的帳號所屬公司目前已停用，請聯絡公司管理者。"
+    };
+    const actionLabels={view:"查看",create:"新增",update:"修改",void:"作廢"};
+    const scopeLabels={ALL:"全公司資料",OWN:"僅本人建立的資料"};
+    function node(tag,cls,text){
+      const item=document.createElement(tag);
+      if(cls)item.className=cls;
+      if(text!==undefined)item.textContent=text;
+      return item;
+    }
+    function statusClass(status){
+      if(status==="ACTIVE")return "pill";
+      if(status==="PENDING")return "pill warning";
+      return "pill danger";
+    }
+    function renderCompany(item){
+      const card=node("article","company");
+      const head=node("div","company-head");
+      const titleWrap=node("div","");
+      titleWrap.append(node("h3","",item.company_name||"未命名公司"));
+      titleWrap.append(node("div","muted","公司代碼："+(item.company_code||"—")));
+      head.append(titleWrap);
+      head.append(node("span",statusClass(item.status),statusLabels[item.status]||item.status));
+      card.append(head);
+
+      const roleList=node("div","role-list");
+      if(item.roles?.length){
+        item.roles.forEach(role=>roleList.append(node("span","role",role.name)));
+      }else{
+        roleList.append(node("span","muted","尚未設定角色"));
+      }
+      card.append(roleList);
+
+      if(item.status==="ACTIVE"){
+        card.append(node("div","permission-title","已授權功能"));
+        const grants=item.permissions||[];
+        if(!grants.length){
+          card.append(node("div","empty","目前尚未授予任何功能權限。請聯絡管理者設定可使用的功能。"));
+        }else{
+          const groups=new Map();
+          grants.forEach(grant=>{
+            const resourceName=(grant.name||"").split("－")[0]||grant.resource_code;
+            if(!groups.has(grant.resource_code))groups.set(grant.resource_code,{name:resourceName,items:[]});
+            groups.get(grant.resource_code).items.push(grant);
+          });
+          const list=node("div","permission-list");
+          [...groups.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,"zh-Hant")).forEach(([,group])=>{
+            const permission=node("div","permission");
+            permission.append(node("strong","",group.name));
+            const actions=group.items.map(grant=>
+              (actionLabels[grant.action_code]||grant.action_code)+"（"+(scopeLabels[grant.data_scope]||grant.data_scope)+"）"
+            );
+            permission.append(node("small","",actions.join("、")));
+            list.append(permission);
+          });
+          card.append(list);
+        }
+      }else{
+        card.append(node("div","notice warning",statusMessages[item.status]||"目前無法使用此公司資料。"));
+      }
+      return card;
+    }
+    function render(data){
+      $("displayName").textContent=data.user?.display_name||"Google 使用者";
+      $("email").textContent=data.user?.email||"";
+      const notice=$("overallNotice");
+      notice.className="notice"+(data.status==="ACTIVE"?"": " warning");
+      notice.textContent=statusMessages[data.status]||"登入狀態已確認。";
+      const list=$("companyList");
+      list.replaceChildren();
+      if(!data.memberships?.length){
+        list.append(node("div","empty","目前尚未指派任何公司。管理者完成指派後，這裡就會顯示所屬公司與角色。"));
+      }else{
+        data.memberships.forEach(item=>list.append(renderCompany(item)));
+      }
+    }
+    async function loadWorkspace(){
+      $("refresh").disabled=true;
+      $("companyList").replaceChildren(node("div","loading","正在載入公司資料…"));
+      try{
+        const response=await fetch("/auth/google/workspace",{credentials:"same-origin",cache:"no-store"});
+        const data=await response.json().catch(()=>({}));
+        if(response.status===401){
+          window.location.replace("/login");
+          return;
+        }
+        if(!response.ok)throw new Error(data.detail||"無法載入員工工作區。");
+        render(data);
+      }catch(error){
+        $("companyList").replaceChildren(node("div","empty",error.message||"載入失敗，請重新整理。"));
+        $("overallNotice").className="notice error";
+        $("overallNotice").textContent="目前無法取得您的公司權限資料。";
+      }finally{
+        $("refresh").disabled=false;
+      }
+    }
+    $("refresh").addEventListener("click",loadWorkspace);
+    $("logout").addEventListener("click",async()=>{
+      $("logout").disabled=true;
+      try{
+        await fetch("/auth/google/logout",{method:"POST",credentials:"same-origin"});
+      }finally{
+        window.location.replace("/login");
+      }
+    });
+    loadWorkspace();
+  </script>
+</body>
+</html>
