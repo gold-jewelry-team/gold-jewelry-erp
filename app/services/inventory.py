@@ -39,13 +39,14 @@ def get_idempotent_adjustment(
     weight_unit_code: str | None,
     note: str | None,
     idempotency_key: UUID | None,
+    reference_type: str = "STOCKTAKE",
 ) -> InventoryMovement | None:
     """Return a matching prior adjustment, or reject a key reused for other data."""
     if idempotency_key is None:
         return None
     existing = session.scalar(select(InventoryMovement).where(
         InventoryMovement.company_id == company_id,
-        InventoryMovement.reference_type.in_({"STOCKTAKE", "MANUAL_TRANSFER"}),
+        InventoryMovement.reference_type.in_({"STOCKTAKE", "MANUAL_TRANSFER", "MANUAL_ADJUSTMENT"}),
         InventoryMovement.reference_id == idempotency_key,
     ))
     if existing is None:
@@ -54,7 +55,8 @@ def get_idempotent_adjustment(
     expected_from = location_id if direction == "OUT" else None
     expected_to = location_id if direction == "IN" else None
     matches = (
-        existing.movement_type == "ADJUSTMENT"
+        existing.reference_type == reference_type
+        and existing.movement_type == "ADJUSTMENT"
         and existing.site_id == site_id
         and existing.product_id == product_id
         and existing.from_location_id == expected_from
@@ -66,7 +68,7 @@ def get_idempotent_adjustment(
     )
     if not matches:
         raise InventoryIdempotencyConflict(
-            "此冪等識別碼已用於不同的庫存調整內容，請重新讀取盤點資料後再操作。"
+            "此冪等識別碼已用於不同的庫存調整內容，請先核對原庫存異動紀錄後再操作。"
         )
     return existing
 
@@ -90,7 +92,7 @@ def get_idempotent_transfer(
         return None
     existing = session.scalar(select(InventoryMovement).where(
         InventoryMovement.company_id == company_id,
-        InventoryMovement.reference_type.in_({"STOCKTAKE", "MANUAL_TRANSFER"}),
+        InventoryMovement.reference_type.in_({"STOCKTAKE", "MANUAL_TRANSFER", "MANUAL_ADJUSTMENT"}),
         InventoryMovement.reference_id == idempotency_key,
     ))
     if existing is None:
@@ -316,6 +318,7 @@ def create_inventory_movement(
     reference_id: UUID | None = None,
     note: str | None = None,
     idempotency_key: UUID | None = None,
+    idempotency_reference_type: str = "STOCKTAKE",
 ) -> InventoryMovement:
     """Validate ownership and movement direction before appending a ledger row."""
     if movement_type not in _ALLOWED_TYPES:
@@ -327,7 +330,7 @@ def create_inventory_movement(
 
     company_query = select(Company).where(Company.id == company_id)
     if idempotency_key is not None:
-        # Serialize keyed stocktake writes before the idempotency lookup.
+        # Serialize keyed inventory writes before the idempotency lookup.
         company_query = company_query.with_for_update()
     company = session.scalar(company_query)
     site = session.get(Site, site_id)
@@ -366,6 +369,7 @@ def create_inventory_movement(
                 weight_unit_code=weight_unit_code,
                 note=note,
                 idempotency_key=idempotency_key,
+                reference_type=idempotency_reference_type,
             )
         elif movement_type == "TRANSFER":
             existing = get_idempotent_transfer(
@@ -416,7 +420,7 @@ def create_inventory_movement(
         weight_unit_code=weight_unit_code,
         occurred_at=occurred_at,
         reference_type=(
-            "STOCKTAKE" if idempotency_key is not None and movement_type == "ADJUSTMENT"
+            idempotency_reference_type if idempotency_key is not None and movement_type == "ADJUSTMENT"
             else "MANUAL_TRANSFER" if idempotency_key is not None and movement_type == "TRANSFER"
             else reference_type
         ),

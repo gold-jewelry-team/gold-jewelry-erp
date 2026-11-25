@@ -50,6 +50,7 @@ def test_inventory_adjustment_transfer_balance_and_negative_stock_guard():
         incoming = client.post(f"{base}/adjustments", json={
             "site_id": str(site_id), "product_id": str(product_id),
             "location_id": str(a_id), "direction": "IN", "quantity": "2",
+            "idempotency_key": str(uuid4()),
         })
         assert incoming.status_code == 201, incoming.text
 
@@ -126,11 +127,13 @@ def test_stock_endpoint_can_include_zero_balances_and_scopes_site_and_location()
         incoming = client.post(f"{base_url}/adjustments", json={
             "site_id": str(site_id), "product_id": str(product_id),
             "location_id": str(location_id), "direction": "IN", "quantity": "2",
+            "idempotency_key": str(uuid4()),
         })
         assert incoming.status_code == 201, incoming.text
         outgoing = client.post(f"{base_url}/adjustments", json={
             "site_id": str(site_id), "product_id": str(product_id),
             "location_id": str(location_id), "direction": "OUT", "quantity": "2",
+            "idempotency_key": str(uuid4()),
         })
         assert outgoing.status_code == 201, outgoing.text
 
