@@ -13,7 +13,9 @@
 - Google login now redirects to a separate mobile-friendly `/employee` entry page instead of the administrator login/workspace.
 - `GET /auth/google/workspace` returns only the signed-in user's own companies, membership states, assigned roles, and effective allowed permissions. Duplicate role grants combine additively and ALL data scope takes precedence over OWN.
 - ACTIVE members can review their granted feature permissions and data scope. PENDING, REJECTED, SUSPENDED, and company-inactive members can see their own onboarding state but receive no business permissions. Rejected/suspended users may sign in for this self-service status view; company-scoped business APIs still require an ACTIVE membership and explicit permission on every request.
-- The employee page is a self-service onboarding and permission overview only. It does not expose the owner administration interface or claim that all operational screens are employee-ready.
+- The employee workspace is separate from the owner administration interface. The /employee page is the member's onboarding and permission overview; /employee/catalog is a separate read-only workspace for the first employee business features.
+- The employee home page shows a feature link only when its effective view grant can pass the server's scope rules. Product lookup requires products.view with ALL scope. Inventory lookup requires both inventory.view and products.view with ALL scope because the stock API embeds product information. OWN-scoped grants for shared master data or stock balances are not presented as usable feature links.
+- The catalog page supports company-scoped product search and stock-by-location lookup on mobile, tablet, and desktop. It sends read-only GET requests only; each API request still revalidates the Google session, exact active company membership, permission grants, data scope, and cross-module dependencies in middleware. The public page route serves only a static shell and does not itself grant access.
 - The request middleware maps every published company API route to a permission code. Unknown routes fail closed.
 - Cross-module operations require their dependent module grants as well. Examples include:
   - Catalog-backed sales require product, inventory-location, gold-price, and tender permissions.
@@ -55,7 +57,7 @@ Historical rows are not assigned to a person by inference. Rows without a record
 
 - Perform a final owner-session smoke test against the intended staging deployment with Migration 0035 applied. CI E2E uses an isolated database and temporary owner credentials; it does not change or verify the production Render/Neon environment.
 - Complete the Google OAuth end-to-end test with the new schema, while keeping the feature flag disabled until the owner explicitly approves activation.
-- Connect company-scoped operational screens with permission-based navigation and action controls. The current employee page is the identity, company-assignment, and permission-overview entry point; do not invite employees for daily operations until those screens, staging tests, and production migration are approved.
+- Extend the employee workspace beyond the initial read-only product and inventory lookups. Sales, purchases, customer orders, receiving, stocktake, cash drawer, and other operational workflows still need dedicated employee-safe screens and action controls. Do not invite employees for daily operations until each workflow, staging tests, and production migration are approved.
 - OWN-scope update and void remain intentionally unavailable until write paths can be consistently constrained to records created by the member.
 
 ## Production safety
