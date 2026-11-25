@@ -6,6 +6,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from app.core.auth import verify_session_token
+from app.core.actor_context import ActorContext, current_actor
+from app.core import actor_attribution as _actor_attribution  # noqa: F401 - registers ORM audit and row-scope events
 from app.core.company_access import authorize_google_company_request, company_id_from_path
 from app.db.session import SessionLocal
 from app.core.config import settings
@@ -140,7 +142,13 @@ async def security_middleware(request: Request, call_next):
     username = verify_session_token(token) if token else None
     if username:
         request.state.admin_username = username
-        return await call_next(request)
+        actor_token = current_actor.set(
+            ActorContext(actor_type="ADMIN", admin_username=username)
+        )
+        try:
+            return await call_next(request)
+        finally:
+            current_actor.reset(actor_token)
 
     # Google members may only enter an explicitly company-scoped API path.
     # The server validates the session and the exact company membership on every
@@ -170,7 +178,20 @@ async def security_middleware(request: Request, call_next):
         request.state.company_id = grant["company_id"]
         request.state.company_role = grant["role"]
         request.state.membership_id = grant["membership_id"]
-        return await call_next(request)
+        actor_token = current_actor.set(
+            ActorContext(
+                actor_type="GOOGLE",
+                user_id=grant["user_id"],
+                company_id=grant["company_id"],
+                membership_id=grant["membership_id"],
+                data_scope=grant["data_scope"],
+                permission_code=grant["permission_code"],
+            )
+        )
+        try:
+            return await call_next(request)
+        finally:
+            current_actor.reset(actor_token)
 
     if path == "/app" or path == "/":
         return RedirectResponse(url="/login", status_code=303)
