@@ -1059,3 +1059,159 @@ def test_employee_payables_hides_payment_tab_and_supplier_lookup_without_grants(
         assert all(method == "GET" for method, _url in requests)
         assert not page_errors, page_errors
         browser.close()
+
+
+
+def employee_customer_orders_payload(*, order_scope="ALL", payment_scope="ALL"):
+    return {
+        "authenticated": True,
+        "user": {"id": "orders-user", "display_name": "客訂查詢員工", "email": "orders@example.com"},
+        "status": "ACTIVE",
+        "memberships": [{
+            "id": "orders-membership",
+            "company_id": "company-orders",
+            "company_name": "客訂測試銀樓",
+            "company_code": "ORDERS",
+            "company_is_active": True,
+            "status": "ACTIVE",
+            "roles": [{"code": "STAFF", "name": "一般成員"}],
+            "permissions": [
+                permission("customer_orders.view", "客訂－查看", "customer_orders", "view", True, order_scope),
+                permission("payments.view", "收付款－查看", "payments", "view", True, payment_scope),
+            ],
+        }],
+    }
+
+
+def employee_customer_order_record():
+    return {
+        "id": "customer-order-001",
+        "company_id": "company-orders",
+        "site_id": "site-main",
+        "order_no": "CO-20261125-001",
+        "status": "IN_PROGRESS",
+        "customer_name": "王小美",
+        "customer_phone": "0912345678",
+        "expected_delivery_date": "2026-12-05T12:00:00+08:00",
+        "currency_code": "TWD",
+        "items": [
+            {"product_code": "G00E-22618", "product_name": "黃金耳環", "quantity": 1, "net_weight": "2.5000", "weight_unit_code": "QIAN", "labor_fee": "300.00"},
+            {"product_code": "G00R-21663", "product_name": "黃金戒指", "quantity": 1, "net_weight": "3.0000", "weight_unit_code": "QIAN", "labor_fee": "500.00"},
+        ],
+        "total_amount": "32000.00",
+        "deposit_amount": "12000.00",
+        "balance_amount": "20000.00",
+        "note": "尺寸需修改，預計月底交貨",
+        "created_at": "2026-11-25T02:00:00+00:00",
+        "updated_at": "2026-11-25T03:00:00+00:00",
+        "payments": [
+            {
+                "id": "order-payment-in",
+                "customer_order_id": "customer-order-001",
+                "direction": "IN",
+                "amount": "15000.00",
+                "payment_method": "CASH",
+                "note": "初次訂金",
+                "paid_at": "2026-11-25T02:10:00+00:00",
+            },
+            {
+                "id": "order-payment-out",
+                "customer_order_id": "customer-order-001",
+                "direction": "OUT",
+                "amount": "3000.00",
+                "payment_method": "TRANSFER",
+                "note": "部分退款",
+                "paid_at": "2026-11-25T03:10:00+00:00",
+            },
+        ],
+    }
+
+
+def test_employee_home_shows_customer_orders_only_with_payment_all_scope(static_server):
+    for payment_scope, expected_count in [("ALL", 1), ("OWN", 0)]:
+        workspace = employee_customer_orders_payload(order_scope="OWN", payment_scope=payment_scope)
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            page = browser.new_page(viewport={"width": 390, "height": 844})
+            page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+            page.goto(f"{static_server}/employee.html", wait_until="domcontentloaded")
+            page.get_by_text("客訂測試銀樓").wait_for()
+            link = page.get_by_role("link", name="客戶訂單")
+            assert link.count() == expected_count
+            if expected_count:
+                assert "/employee/customer-orders?company_id=company-orders" in link.get_attribute("href")
+            browser.close()
+
+
+def test_employee_customer_order_history_shows_deposits_refunds_and_search(static_server):
+    workspace = employee_customer_orders_payload()
+    requests = []
+    order = employee_customer_order_record()
+
+    def handle_company_api(route):
+        request = route.request
+        requests.append((request.method, request.url))
+        if request.url.split("?", 1)[0].endswith("/customer-orders"):
+            json_response(route, [order])
+        else:
+            raise AssertionError(f"Unexpected employee customer order API path: {request.url}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-orders/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_customer_orders.html?company_id=company-orders",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("客訂測試銀樓").wait_for()
+        page.get_by_role("heading", name="CO-20261125-001").wait_for()
+        page.get_by_text("王小美").wait_for()
+        page.get_by_text("黃金耳環").wait_for()
+        page.get_by_text("黃金戒指").wait_for()
+        page.get_by_text("訂金／收款／退款流水").wait_for()
+        page.get_by_text("收款 · 現金").wait_for()
+        page.get_by_text("退款 · 轉帳").wait_for()
+        page.get_by_text("部分退款").wait_for()
+        assert page.locator(".payment-amount.refund").count() == 1
+
+        page.get_by_role("searchbox", name="搜尋客戶訂單").fill("王小美")
+        with page.expect_response(lambda response: "/customer-orders?" in response.url and "q=" in response.url):
+            page.get_by_role("button", name="搜尋").click()
+        page.get_by_role("combobox", name="訂單狀態").select_option("READY")
+        assert any("/customer-orders?" in url and "status=READY" in url for method, url in requests)
+        assert requests and all(method == "GET" for method, _url in requests)
+        assert not page_errors, page_errors
+        browser.close()
+
+
+def test_employee_customer_order_page_hides_when_payments_all_scope_is_missing(static_server):
+    workspace = employee_customer_orders_payload(order_scope="ALL", payment_scope="OWN")
+    requests = []
+
+    def unexpected_company_api(route):
+        requests.append(route.request.url)
+        raise AssertionError("Customer order API embeds payment information and must not be requested without payments.view ALL.")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-orders/**", unexpected_company_api)
+        page.goto(
+            f"{static_server}/employee_customer_orders.html?company_id=company-orders",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("客訂測試銀樓").wait_for()
+        page.get_by_text("全公司收付款查看權限").wait_for()
+        assert page.locator("#workspace").is_hidden()
+        assert requests == []
+        assert not page_errors, page_errors
+        browser.close()
