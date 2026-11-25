@@ -688,3 +688,188 @@ def test_employee_sales_does_not_call_sales_api_without_payment_all_scope(static
         assert requests == []
         assert not page_errors, page_errors
         browser.close()
+
+
+
+def employee_purchase_payload(*, supplier_scope="ALL", product_scope="ALL"):
+    grants = [
+        permission("purchases.view", "採購－查看", "purchases", "view", True, "OWN"),
+    ]
+    if supplier_scope:
+        grants.append(permission("suppliers.view", "供應商－查看", "suppliers", "view", True, supplier_scope))
+    if product_scope:
+        grants.append(permission("products.view", "商品－查看", "products", "view", True, product_scope))
+    return {
+        "authenticated": True,
+        "user": {"id": "purchase-user", "display_name": "採購查詢員工", "email": "purchase@example.com"},
+        "status": "ACTIVE",
+        "memberships": [{
+            "id": "purchase-membership",
+            "company_id": "company-purchase",
+            "company_name": "採購測試銀樓",
+            "company_code": "PURCHASE",
+            "company_is_active": True,
+            "status": "ACTIVE",
+            "roles": [{"code": "STAFF", "name": "一般成員"}],
+            "permissions": grants,
+        }],
+    }
+
+
+def employee_purchase_record():
+    return {
+        "id": "purchase-001",
+        "company_id": "company-purchase",
+        "site_id": "site-main",
+        "supplier_id": "supplier-001",
+        "purchase_no": "PO20261125-001",
+        "order_date": "2026-11-24",
+        "expected_date": "2026-11-28",
+        "status": "PARTIALLY_RECEIVED",
+        "currency_code": "TWD",
+        "note": "採購測試備註",
+        "created_at": "2026-11-24T04:20:00+00:00",
+        "updated_at": "2026-11-25T04:30:00+00:00",
+        "lines": [{
+            "id": "purchase-line-001",
+            "purchase_id": "purchase-001",
+            "product_id": "product-purchase-001",
+            "quantity": "3.000",
+            "received_quantity": "1.000",
+            "weight": "2.5000",
+            "weight_unit_code": "QIAN",
+            "unit_cost": "11800.00",
+            "cost_labor_fee": "200.00",
+            "note": "分批到貨",
+            "created_at": "2026-11-24T04:20:00+00:00",
+        }],
+    }
+
+
+def test_employee_home_shows_purchase_history_for_own_purchase_grant(static_server):
+    workspace = employee_purchase_payload()
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.goto(f"{static_server}/employee.html", wait_until="domcontentloaded")
+        page.get_by_text("採購測試銀樓").wait_for()
+        link = page.get_by_role("link", name="採購／進貨紀錄")
+        link.wait_for()
+        assert "/employee/purchases?company_id=company-purchase" in link.get_attribute("href")
+        browser.close()
+
+
+def test_employee_purchase_history_loads_supplier_product_and_receiving_status(static_server):
+    workspace = employee_purchase_payload()
+    requests = []
+    purchase = employee_purchase_record()
+
+    def handle_company_api(route):
+        request = route.request
+        requests.append((request.method, request.url))
+        path = request.url.split("?", 1)[0]
+        if path.endswith("/purchases"):
+            json_response(route, [purchase])
+        elif path.endswith("/suppliers"):
+            json_response(route, [{
+                "id": "supplier-001",
+                "company_id": "company-purchase",
+                "code": "SUP-01",
+                "name": "大展金料行",
+                "tax_id": None,
+                "contact_name": None,
+                "phone": None,
+                "address": None,
+                "note": None,
+                "is_active": True,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+            }])
+        elif path.endswith("/products"):
+            json_response(route, [{
+                "id": "product-purchase-001",
+                "company_id": "company-purchase",
+                "category_id": None,
+                "product_code": "G00E-22618",
+                "barcode": "150702001",
+                "name": "黃金耳環",
+                "material_code": "GOLD",
+                "gross_weight": "2.6000",
+                "net_weight": "2.5000",
+                "weight_unit_code": "QIAN",
+                "labor_fee": "300.00",
+                "chain_length": None,
+                "style_code": "E",
+                "note": None,
+                "is_active": True,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+            }])
+        else:
+            raise AssertionError(f"Unexpected employee purchase API path: {path}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-purchase/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_purchases.html?company_id=company-purchase",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("採購測試銀樓").wait_for()
+        page.get_by_role("heading", name="PO20261125-001").wait_for()
+        page.get_by_text("大展金料行").wait_for()
+        page.get_by_text("黃金耳環").wait_for()
+        page.get_by_text("部分入庫").wait_for()
+        page.get_by_text("已入庫 1／3").wait_for()
+        page.get_by_text("採購測試備註").wait_for()
+        page.locator("#purchaseStatus").select_option("ORDERED")
+        assert any("/purchases?" in url and "status=ORDERED" in url for method, url in requests)
+        page.get_by_role("searchbox", name="搜尋採購紀錄").fill("G00E-22618")
+        page.get_by_role("button", name="搜尋").click()
+        page.get_by_text("黃金耳環").wait_for()
+        assert requests and all(method == "GET" for method, _url in requests)
+        assert not page_errors, page_errors
+        browser.close()
+
+
+def test_employee_purchase_history_does_not_fetch_supplier_or_product_without_all_scope(static_server):
+    workspace = employee_purchase_payload(supplier_scope="OWN", product_scope="OWN")
+    requests = []
+
+    def handle_company_api(route):
+        request = route.request
+        requests.append((request.method, request.url))
+        path = request.url.split("?", 1)[0]
+        if path.endswith("/purchases"):
+            json_response(route, [employee_purchase_record()])
+        else:
+            raise AssertionError(f"Unauthorized linked master data requested: {path}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-purchase/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_purchases.html?company_id=company-purchase",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("採購測試銀樓").wait_for()
+        page.get_by_role("heading", name="PO20261125-001").wait_for()
+        page.get_by_text("供應商名稱尚未授權顯示").wait_for()
+        page.get_by_text("商品名稱尚未授權顯示").wait_for()
+        assert len(requests) == 1 and "/purchases?" in requests[0][1]
+        assert "supplier-001" not in page.locator("body").inner_text()
+        assert "product-purchase-001" not in page.locator("body").inner_text()
+        assert all(method == "GET" for method, _url in requests)
+        assert not page_errors, page_errors
+        browser.close()
