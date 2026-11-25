@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -55,6 +56,7 @@ def test_inventory_adjustment_transfer_balance_and_negative_stock_guard():
         transfer = client.post(f"{base}/transfers", json={
             "site_id": str(site_id), "product_id": str(product_id),
             "from_location_id": str(a_id), "to_location_id": str(b_id), "quantity": "1",
+            "idempotency_key": str(uuid4()),
         })
         assert transfer.status_code == 201, transfer.text
 
@@ -67,6 +69,7 @@ def test_inventory_adjustment_transfer_balance_and_negative_stock_guard():
         insufficient = client.post(f"{base}/transfers", json={
             "site_id": str(site_id), "product_id": str(product_id),
             "from_location_id": str(a_id), "to_location_id": str(b_id), "quantity": "2",
+            "idempotency_key": str(uuid4()),
         })
         assert insufficient.status_code == 422
         history = client.get(f"{base}/movements", params={"product_id": str(product_id)})

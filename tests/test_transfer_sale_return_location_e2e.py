@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -127,6 +128,7 @@ def test_purchase_stock_transfer_sale_and_return_preserve_actual_location_and_le
             "weight": "1.0000",
             "weight_unit_code": "QIAN",
             "note": "上架展示櫃",
+            "idempotency_key": str(uuid4()),
         })
         assert transfer.status_code == 201, transfer.text
         assert transfer.json()["movement_type"] == "TRANSFER"

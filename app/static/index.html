@@ -1771,7 +1771,73 @@ async function addStocktakeProduct(product){
  persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
  message("stocktakeStatus","已確認商品："+product.product_code+" · "+product.name+"；請繼續掃描下一件。");
 }
+function inventoryTransferPendingStorageKey(company,site){
+ return "gold-erp:inventory-transfer:"+company+":"+site;
+}
+function readPendingInventoryTransfer(company,site){
+ const key=inventoryTransferPendingStorageKey(company,site);
+ const raw=localStorage.getItem(key);
+ if(!raw)return null;
+ try{
+  const pending=JSON.parse(raw);
+  if(pending&&pending.key&&pending.fingerprint&&pending.payload)return pending;
+ }catch(_error){}
+ return {invalid:true};
+}
+function savePendingInventoryTransfer(company,site,payload){
+ const storageKey=inventoryTransferPendingStorageKey(company,site);
+ const fingerprint=JSON.stringify(payload);
+ const existing=readPendingInventoryTransfer(company,site);
+ if(existing){
+  if(existing.invalid)throw new Error("找到無法讀取的待確認調撥資料。請先查詢庫存異動紀錄，再處理瀏覽器中的待確認資料。");
+  if(existing.fingerprint!==fingerprint)
+   throw new Error("上一筆櫃位調撥尚未確認結果，請使用原商品、櫃位與數量重試；不可修改內容另送。");
+  return existing;
+ }
+ if(!globalThis.crypto||typeof globalThis.crypto.randomUUID!=="function")
+  throw new Error("瀏覽器無法產生安全的調撥識別碼，請更新瀏覽器後再操作。");
+ const pending={key:globalThis.crypto.randomUUID(),fingerprint,payload};
+ try{localStorage.setItem(storageKey,JSON.stringify(pending));}
+ catch(_error){throw new Error("瀏覽器無法保存調撥重送資料，請確認儲存空間後再試。");}
+ return pending;
+}
+function clearPendingInventoryTransfer(company,site){
+ try{localStorage.removeItem(inventoryTransferPendingStorageKey(company,site));}catch(_error){}
+}
+function setInventoryTransferFormLocked(locked){
+ const form=$("inventoryTransferForm");
+ form.querySelectorAll("input,select,textarea,button[type=button]").forEach(el=>{el.disabled=locked;});
+ const submit=form.querySelector('button[type="submit"]');
+ submit.textContent=locked?"重試尚未確認的調撥":"確認櫃位調撥";
+}
+function restorePendingInventoryTransfer(){
+ setInventoryTransferFormLocked(false);
+ if(!companyId||!selectedSiteId)return;
+ const pending=readPendingInventoryTransfer(companyId,selectedSiteId);
+ if(!pending)return;
+ if(pending.invalid){
+  setInventoryTransferFormLocked(true);
+  message("transferStatus","偵測到無法讀取的待確認調撥資料。請先查詢原庫存異動紀錄，不要另建立調撥。",true);
+  return;
+ }
+ const payload=pending.payload;
+ if(!payload||payload.site_id!==selectedSiteId){
+  setInventoryTransferFormLocked(true);
+  message("transferStatus","待確認調撥與目前據點不符。請切回原據點核對後再操作。",true);
+  return;
+ }
+ $("transferProduct").value=payload.product_id;
+ $("transferFromLocation").value=payload.from_location_id;
+ $("transferToLocation").value=payload.to_location_id;
+ $("transferQuantity").value=payload.quantity;
+ $("transferNote").value=payload.note||"";
+ setInventoryTransferFormLocked(true);
+ message("transferStatus","已恢復一筆尚未確認結果的櫃位調撥。請按「重試尚未確認的調撥」沿用原識別碼；確認前不要修改內容。",true);
+}
 async function loadInventoryOptions(){
+ setInventoryTransferFormLocked(false);
+ if(companyId&&selectedSiteId&&readPendingInventoryTransfer(companyId,selectedSiteId))
+  setInventoryTransferFormLocked(true);
  const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct","quoteProduct","purchaseProduct"];
  const locationIds=["stockLocationFilter","stocktakeLocation","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter","saleLocation","purchaseReceiveLocation"];
  if(!companyId||!selectedSiteId){
@@ -1823,6 +1889,7 @@ async function loadInventoryOptions(){
  if(stocktakeLocationId)await loadStocktakeBaseline();
  await loadInventoryStock();
  await loadInventoryMovements();
+ restorePendingInventoryTransfer();
 }
 async function loadInventoryStock(){
  const box=$("stockList");
@@ -3878,16 +3945,38 @@ $("inventoryTransferForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("transferStatus","請先選擇公司與據點。",true);return;}
  const selectedProduct=inventoryProducts.find(x=>x.id===$("transferProduct").value);
- const payload={site_id:selectedSiteId,product_id:$("transferProduct").value,from_location_id:$("transferFromLocation").value,to_location_id:$("transferToLocation").value,quantity:$("transferQuantity").value,weight:selectedProduct?selectedProduct.net_weight:null,weight_unit_code:selectedProduct?selectedProduct.weight_unit_code:null,note:$("transferNote").value.trim()||null};
+ const currentPayload={
+  site_id:selectedSiteId,product_id:$("transferProduct").value,
+  from_location_id:$("transferFromLocation").value,to_location_id:$("transferToLocation").value,
+  quantity:$("transferQuantity").value,weight:selectedProduct?selectedProduct.net_weight:null,
+  weight_unit_code:selectedProduct?selectedProduct.weight_unit_code:null,
+  note:$("transferNote").value.trim()||null
+ };
+ const existingPending=readPendingInventoryTransfer(companyId,selectedSiteId);
+ const payload=existingPending&&!existingPending.invalid?existingPending.payload:currentPayload;
  const button=$("inventoryTransferForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
-  await api("/companies/"+companyId+"/inventory/transfers",{method:"POST",body:JSON.stringify(payload)});
+  const pending=savePendingInventoryTransfer(companyId,selectedSiteId,payload);
+  setInventoryTransferFormLocked(true);
+  message("transferStatus","正在確認櫃位調撥…");
+  const movement=await api("/companies/"+companyId+"/inventory/transfers",{
+   method:"POST",body:JSON.stringify({...payload,idempotency_key:pending.key})
+  });
+  clearPendingInventoryTransfer(companyId,selectedSiteId);
+  setInventoryTransferFormLocked(false);
   $("transferQuantity").value="1";$("transferNote").value="";
-  message("transferStatus","櫃位調撥已完成。");
+  message("transferStatus","櫃位調撥已完成。異動流水："+movement.id);
   try{await loadInventoryStock();await loadInventoryMovements();}
-  catch(refreshError){message("globalStatus","櫃位調撥已完成，但畫面重新載入失敗："+refreshError.message,true);}
- }catch(error){message("transferStatus",error.message,true);}
- finally{button.disabled=false;}
+  catch(refreshError){message("transferStatus","櫃位調撥已成功入帳，但清單更新失敗。請重新整理庫存及異動紀錄；不要再次建立新調撥。",true);}
+ }catch(error){
+  if(error.status===422){
+   clearPendingInventoryTransfer(companyId,selectedSiteId);
+   setInventoryTransferFormLocked(false);
+  }else if(readPendingInventoryTransfer(companyId,selectedSiteId)){
+   setInventoryTransferFormLocked(true);
+  }
+  message("transferStatus",error.message,true);
+ }finally{button.disabled=false;}
 });
 $("searchButton").addEventListener("click",()=>loadProducts().catch(e=>message("globalStatus",e.message,true)));
 $("search").addEventListener("keydown",e=>{if(e.key==="Enter")loadProducts().catch(err=>message("globalStatus",err.message,true));});
