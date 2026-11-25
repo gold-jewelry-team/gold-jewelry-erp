@@ -215,3 +215,32 @@ def test_keyed_receipt_weight_allocation_includes_legacy_unkeyed_receipts():
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)
         engine.dispose()
+
+def test_purchase_receipt_api_requires_an_idempotency_key():
+    engine, test_session, client, ids = _setup_receipt_client()
+    try:
+        url = f"/companies/{ids['company_id']}/purchases/{ids['purchase_id']}/receive"
+        response = client.post(url, json={
+            "purchase_line_id": str(ids["line_id"]),
+            "location_id": str(ids["safe_id"]),
+            "received_quantity": "1.000",
+        })
+        assert response.status_code == 422, response.text
+        detail = response.json()["detail"]
+        assert any(
+            item.get("loc", [])[-1:] == ["idempotency_key"]
+            and item.get("type") == "missing"
+            for item in detail
+        )
+
+        verify = test_session()
+        line = verify.get(PurchaseLine, ids["line_id"])
+        assert line.received_quantity == Decimal("0.000")
+        assert verify.query(InventoryMovement).filter(
+            InventoryMovement.movement_type == "RECEIPT"
+        ).count() == 0
+        verify.close()
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
