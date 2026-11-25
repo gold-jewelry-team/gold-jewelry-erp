@@ -207,13 +207,17 @@ def test_non_active_member_can_see_own_onboarding_status_but_no_company_grants(
     assert expected_grants is False
 
 
-def test_google_workspace_rejects_expired_or_revoked_sessions():
+@pytest.mark.parametrize("invalid_reason", ["revoked", "expired"])
+def test_google_workspace_rejects_expired_or_revoked_sessions(invalid_reason):
     token = seed_google_member()
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     with TestingSessionLocal() as db:
         session = db.scalar(select(UserSession).where(UserSession.token_hash == token_hash))
         assert session is not None
-        session.revoked_at = datetime.now(timezone.utc)
+        if invalid_reason == "revoked":
+            session.revoked_at = datetime.now(timezone.utc)
+        else:
+            session.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         db.commit()
 
     response = client.get(
@@ -221,6 +225,66 @@ def test_google_workspace_rejects_expired_or_revoked_sessions():
         cookies={google_auth.settings.google_session_cookie_name: token},
     )
     assert response.status_code == 401
+
+
+def test_employee_workspace_lists_only_own_company_memberships_and_hides_inactive_company_grants():
+    token = seed_google_member(status="ACTIVE")
+    with TestingSessionLocal() as db:
+        primary_user = db.scalar(select(User).where(User.email == "employee@example.com"))
+        assert primary_user is not None
+
+        second_company = Company(code="SECOND", name="第二間銀樓", is_active=True)
+        inactive_company = Company(code="INACTIVE", name="停用銀樓", is_active=False)
+        foreign_company = Company(code="FOREIGN", name="其他員工的公司", is_active=True)
+        foreign_user = User(
+            display_name="其他員工",
+            email="other-employee@example.com",
+            is_active=True,
+        )
+        db.add_all([second_company, inactive_company, foreign_company, foreign_user])
+        db.flush()
+
+        second_membership = CompanyMembership(
+            company_id=second_company.id,
+            user_id=primary_user.id,
+            status="PENDING",
+            role="STAFF",
+        )
+        inactive_membership = CompanyMembership(
+            company_id=inactive_company.id,
+            user_id=primary_user.id,
+            status="ACTIVE",
+            role="STAFF",
+        )
+        foreign_membership = CompanyMembership(
+            company_id=foreign_company.id,
+            user_id=foreign_user.id,
+            status="ACTIVE",
+            role="STAFF",
+        )
+        db.add_all([second_membership, inactive_membership, foreign_membership])
+        db.commit()
+        second_company_id = str(second_company.id)
+        inactive_company_id = str(inactive_company.id)
+
+    response = client.get(
+        "/auth/google/workspace",
+        cookies={google_auth.settings.google_session_cookie_name: token},
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    memberships = {item["company_id"]: item for item in payload["memberships"]}
+
+    # The signed-in user sees both of their own companies, never another user's company.
+    assert len(memberships) == 3
+    assert second_company_id in memberships
+    assert inactive_company_id in memberships
+    assert all(item["company_name"] != "其他員工的公司" for item in memberships.values())
+
+    assert memberships[second_company_id]["status"] == "PENDING"
+    assert memberships[second_company_id]["permissions"] == []
+    assert memberships[inactive_company_id]["status"] == "COMPANY_INACTIVE"
+    assert memberships[inactive_company_id]["permissions"] == []
 
 
 @pytest.mark.parametrize("membership_status", ["SUSPENDED", "REJECTED"])
