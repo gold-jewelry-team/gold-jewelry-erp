@@ -9,10 +9,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import models  # noqa: F401
+from app.core.actor_context import ActorContext, current_actor
 from app.core.company_access import (
+    additional_permissions_for_request,
     authorize_google_company_request,
     company_id_from_path,
     permission_for_request,
+    require_current_actor_permission,
 )
 from app.db.base import Base
 from app.models import (
@@ -347,3 +350,155 @@ def test_company_management_root_routes_are_not_granted_to_google_members():
         with pytest.raises(HTTPException) as exc:
             permission_for_request("/companies/{company_id}", method)
         assert exc.value.status_code == 403
+
+
+@pytest.mark.parametrize(
+    "path,method,expected",
+    [
+        ("/companies/{company_id}/sales", "POST", ["payments.create"]),
+        ("/companies/{company_id}/sales/{sale_id}", "PATCH", ["payments.update"]),
+        ("/companies/{company_id}/sales/{sale_id}/complete", "POST", ["inventory.create"]),
+        ("/companies/{company_id}/purchases/{purchase_id}/receive", "POST", ["inventory.create"]),
+        ("/companies/{company_id}/sales/{sale_id}/returns", "POST", ["inventory.create", "sales.view"]),
+        ("/companies/{company_id}/sales/{sale_id}/returns/{return_id}", "GET", ["sales.view"]),
+        ("/companies/{company_id}/sales/{sale_id}/payments", "POST", ["sales.view"]),
+        ("/companies/{company_id}/sales/returns/{return_id}/payments", "POST", ["sales_returns.view"]),
+        ("/companies/{company_id}/customer-orders", "POST", ["payments.create", "payments.view"]),
+        ("/companies/{company_id}/customer-orders", "GET", ["payments.view"]),
+        ("/companies/{company_id}/customer-orders/{order_id}/payments", "POST", ["customer_orders.update", "payments.view"]),
+        ("/companies/{company_id}/customer-orders/{order_id}/refunds", "POST", ["customer_orders.update", "payments.view"]),
+        ("/companies/{company_id}/operating-expenses/{expense_id}/pay", "POST", ["payments.create"]),
+    ],
+)
+def test_cross_module_business_operations_require_dependent_permissions(path, method, expected):
+    assert additional_permissions_for_request(path, method) == expected
+
+
+def test_authorization_requires_all_scope_grants_for_cross_module_side_effects(db):
+    company, _user, _membership, token = seed_member(db, role="OWNER")
+    role = db.scalar(
+        __import__("sqlalchemy").select(CompanyRole).where(
+            CompanyRole.company_id == company.id,
+            CompanyRole.code == "OWNER",
+        )
+    )
+    customer_create = Permission(
+        code="customer_orders.create",
+        resource_code="customer_orders",
+        action_code="create",
+        name="客訂-新增",
+        is_active=True,
+    )
+    payment_create = Permission(
+        code="payments.create",
+        resource_code="payments",
+        action_code="create",
+        name="收付款-新增",
+        is_active=True,
+    )
+    payment_view = Permission(
+        code="payments.view",
+        resource_code="payments",
+        action_code="view",
+        name="收付款-查看",
+        is_active=True,
+    )
+    db.add_all([customer_create, payment_create, payment_view])
+    db.flush()
+    db.add_all([
+        CompanyRolePermission(
+            role_id=role.id, permission_id=customer_create.id,
+            is_allowed=True, data_scope="OWN",
+        ),
+        CompanyRolePermission(
+            role_id=role.id, permission_id=payment_create.id,
+            is_allowed=True, data_scope="OWN",
+        ),
+        CompanyRolePermission(
+            role_id=role.id, permission_id=payment_view.id,
+            is_allowed=True, data_scope="ALL",
+        ),
+    ])
+    db.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        authorize_google_company_request(
+            db, token, company.id, "POST",
+            path=f"/companies/{company.id}/customer-orders",
+        )
+    assert exc.value.status_code == 403
+    assert "全公司資料範圍" in exc.value.detail
+
+    payment_grant = db.scalar(
+        __import__("sqlalchemy").select(CompanyRolePermission).where(
+            CompanyRolePermission.role_id == role.id,
+            CompanyRolePermission.permission_id == payment_create.id,
+        )
+    )
+    payment_grant.data_scope = "ALL"
+    db.commit()
+
+    grant = authorize_google_company_request(
+        db, token, company.id, "POST",
+        path=f"/companies/{company.id}/customer-orders",
+    )
+    # The primary customer-order create permission may still be OWN-scoped,
+    # while the dependent payment write must be explicitly ALL-scoped.
+    assert grant["permission_code"] == "customer_orders.create"
+    assert grant["data_scope"] == "OWN"
+
+
+def test_payload_dependent_expense_payment_requires_all_scope_payment_permission(db):
+    company, user, membership, _token = seed_member(db, role="STAFF")
+    payment = Permission(
+        code="payments.create",
+        resource_code="payments",
+        action_code="create",
+        name="收付款-新增",
+        is_active=True,
+    )
+    role = db.scalar(
+        __import__("sqlalchemy").select(CompanyRole).where(
+            CompanyRole.company_id == company.id,
+            CompanyRole.code == "STAFF",
+        )
+    )
+    db.add(payment)
+    db.flush()
+    grant = CompanyRolePermission(
+        role_id=role.id, permission_id=payment.id,
+        is_allowed=True, data_scope="OWN",
+    )
+    db.add(grant)
+    db.commit()
+
+    token = current_actor.set(ActorContext(
+        actor_type="GOOGLE",
+        user_id=user.id,
+        company_id=company.id,
+        membership_id=membership.id,
+        data_scope="ALL",
+        permission_code="expenses.create",
+    ))
+    try:
+        with pytest.raises(HTTPException) as exc:
+            require_current_actor_permission(db, "payments.create")
+        assert exc.value.status_code == 403
+        assert "全公司資料範圍" in exc.value.detail
+
+        grant.data_scope = "ALL"
+        db.commit()
+        require_current_actor_permission(db, "payments.create")
+    finally:
+        current_actor.reset(token)
+
+
+def test_owner_admin_actor_can_perform_payload_dependent_payment_action(db):
+    token = current_actor.set(ActorContext(
+        actor_type="ADMIN",
+        admin_username="owner",
+    ))
+    try:
+        require_current_actor_permission(db, "payments.create")
+    finally:
+        current_actor.reset(token)
