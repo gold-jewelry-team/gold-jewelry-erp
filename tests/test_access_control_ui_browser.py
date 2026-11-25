@@ -1182,7 +1182,10 @@ def test_employee_customer_order_history_shows_deposits_refunds_and_search(stati
         page.get_by_role("searchbox", name="搜尋客戶訂單").fill("王小美")
         with page.expect_response(lambda response: "/customer-orders?" in response.url and "q=" in response.url):
             page.get_by_role("button", name="搜尋").click()
-        page.get_by_role("combobox", name="訂單狀態").select_option("READY")
+        with page.expect_response(
+            lambda response: "/customer-orders?" in response.url and "status=READY" in response.url
+        ):
+            page.get_by_role("combobox", name="訂單狀態").select_option("READY")
         assert any("/customer-orders?" in url and "status=READY" in url for method, url in requests)
         assert requests and all(method == "GET" for method, _url in requests)
         assert not page_errors, page_errors
