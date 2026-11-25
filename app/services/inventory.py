@@ -45,7 +45,7 @@ def get_idempotent_adjustment(
         return None
     existing = session.scalar(select(InventoryMovement).where(
         InventoryMovement.company_id == company_id,
-        InventoryMovement.reference_type == "STOCKTAKE",
+        InventoryMovement.reference_type.in_({"STOCKTAKE", "MANUAL_TRANSFER"}),
         InventoryMovement.reference_id == idempotency_key,
     ))
     if existing is None:
@@ -70,6 +70,48 @@ def get_idempotent_adjustment(
         )
     return existing
 
+
+def get_idempotent_transfer(
+    session: Session,
+    *,
+    company_id: UUID,
+    site_id: UUID,
+    product_id: UUID,
+    from_location_id: UUID,
+    to_location_id: UUID,
+    quantity: Decimal,
+    weight: Decimal | None,
+    weight_unit_code: str | None,
+    note: str | None,
+    idempotency_key: UUID | None,
+) -> InventoryMovement | None:
+    """Return the original manual transfer for an exact retry."""
+    if idempotency_key is None:
+        return None
+    existing = session.scalar(select(InventoryMovement).where(
+        InventoryMovement.company_id == company_id,
+        InventoryMovement.reference_type.in_({"STOCKTAKE", "MANUAL_TRANSFER"}),
+        InventoryMovement.reference_id == idempotency_key,
+    ))
+    if existing is None:
+        return None
+    matches = (
+        existing.reference_type == "MANUAL_TRANSFER"
+        and existing.movement_type == "TRANSFER"
+        and existing.site_id == site_id
+        and existing.product_id == product_id
+        and existing.from_location_id == from_location_id
+        and existing.to_location_id == to_location_id
+        and existing.quantity == quantity
+        and existing.weight == weight
+        and existing.weight_unit_code == weight_unit_code
+        and existing.note == note
+    )
+    if not matches:
+        raise InventoryIdempotencyConflict(
+            "此調撥識別碼已用於不同庫存異動內容，請先核對原庫存流水。"
+        )
+    return existing
 
 
 def apply_stocktake_adjustment_batch(
@@ -317,21 +359,38 @@ def create_inventory_movement(
                 raise ValueError("儲存位置不存在、未啟用或不屬於指定據點。")
 
     if idempotency_key is not None:
-        if movement_type != "ADJUSTMENT":
-            raise InventoryIdempotencyConflict("冪等識別碼目前僅支援庫存盤點調整。")
-        existing = get_idempotent_adjustment(
-            session,
-            company_id=company_id,
-            site_id=site_id,
-            product_id=product_id,
-            location_id=from_location_id or to_location_id,
-            direction="OUT" if from_location_id is not None else "IN",
-            quantity=quantity,
-            weight=weight,
-            weight_unit_code=weight_unit_code,
-            note=note,
-            idempotency_key=idempotency_key,
-        )
+        if movement_type == "ADJUSTMENT":
+            existing = get_idempotent_adjustment(
+                session,
+                company_id=company_id,
+                site_id=site_id,
+                product_id=product_id,
+                location_id=from_location_id or to_location_id,
+                direction="OUT" if from_location_id is not None else "IN",
+                quantity=quantity,
+                weight=weight,
+                weight_unit_code=weight_unit_code,
+                note=note,
+                idempotency_key=idempotency_key,
+            )
+        elif movement_type == "TRANSFER":
+            existing = get_idempotent_transfer(
+                session,
+                company_id=company_id,
+                site_id=site_id,
+                product_id=product_id,
+                from_location_id=from_location_id,
+                to_location_id=to_location_id,
+                quantity=quantity,
+                weight=weight,
+                weight_unit_code=weight_unit_code,
+                note=note,
+                idempotency_key=idempotency_key,
+            )
+        else:
+            raise InventoryIdempotencyConflict(
+                "冪等識別碼目前僅支援庫存盤點調整及櫃位調撥。"
+            )
         if existing is not None:
             return existing
 
@@ -354,7 +413,11 @@ def create_inventory_movement(
         weight=weight,
         weight_unit_code=weight_unit_code,
         occurred_at=occurred_at,
-        reference_type="STOCKTAKE" if idempotency_key is not None else reference_type,
+        reference_type=(
+            "STOCKTAKE" if idempotency_key is not None and movement_type == "ADJUSTMENT"
+            else "MANUAL_TRANSFER" if idempotency_key is not None and movement_type == "TRANSFER"
+            else reference_type
+        ),
         reference_id=idempotency_key if idempotency_key is not None else reference_id,
         note=note,
     )
