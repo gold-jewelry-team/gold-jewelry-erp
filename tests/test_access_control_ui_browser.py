@@ -266,6 +266,11 @@ def test_employee_workspace_shows_company_roles_permissions_and_logout(static_se
         page.get_by_text("查看（全公司資料）").wait_for()
         page.get_by_text("新增（僅本人建立的資料）").wait_for()
         page.get_by_text("查看（僅本人建立的資料）").wait_for()
+        product_link=page.get_by_role("link",name="商品查詢")
+        product_link.wait_for()
+        assert "/employee/catalog?company_id=company-1&view=products" in product_link.get_attribute("href")
+        # Inventory is not offered because the grant is OWN-scoped, not a usable ALL grant.
+        assert page.get_by_role("link",name="庫存查詢").count()==0
 
         page.get_by_role("button", name="登出").click()
         page.wait_for_url("**/login")
@@ -304,5 +309,150 @@ def test_employee_workspace_explains_pending_approval_without_showing_permission
         page.get_by_text("正在等待公司管理者核准").wait_for()
         page.get_by_text("核准前無法查看或修改公司營運資料").wait_for()
         assert page.locator(".permission").count() == 0
+        assert not page_errors, page_errors
+        browser.close()
+
+
+
+def test_employee_catalog_loads_authorized_product_and_inventory_views(static_server):
+    workspace = {
+        "authenticated": True,
+        "user": {"id": "user-3", "display_name": "查詢員工", "email": "catalog@example.com"},
+        "status": "ACTIVE",
+        "memberships": [{
+            "id": "membership-3",
+            "company_id": "company-3",
+            "company_name": "查詢測試銀樓",
+            "company_code": "CATALOG",
+            "company_is_active": True,
+            "status": "ACTIVE",
+            "roles": [{"code": "STAFF", "name": "一般成員"}],
+            "permissions": [
+                permission("products.view", "商品－查看", "products", "view", True, "ALL"),
+                permission("inventory.view", "庫存－查看", "inventory", "view", True, "ALL"),
+            ],
+        }],
+    }
+    requests = []
+
+    def handle_company_api(route):
+        path = route.request.url.split("?", 1)[0]
+        requests.append(path)
+        if path.endswith("/products"):
+            json_response(route, [{
+                "id": "product-1",
+                "company_id": "company-3",
+                "category_id": None,
+                "product_code": "G00E-22618",
+                "barcode": "150702001",
+                "name": "黃金耳環",
+                "material_code": "GOLD",
+                "gross_weight": "2.5000",
+                "net_weight": "2.3000",
+                "weight_unit_code": "QIAN",
+                "labor_fee": "300.00",
+                "chain_length": None,
+                "style_code": "E",
+                "note": None,
+                "is_active": True,
+                "created_at": "2026-11-25T00:00:00+00:00",
+                "updated_at": "2026-11-25T00:00:00+00:00",
+            }])
+        elif path.endswith("/inventory/stock"):
+            json_response(route, [{
+                "company_id": "company-3",
+                "site_id": "site-1",
+                "site_name": "本店",
+                "product_id": "product-1",
+                "product_code": "G00E-22618",
+                "barcode": "150702001",
+                "product_name": "黃金耳環",
+                "location_id": "location-1",
+                "location_code": "A01",
+                "location_name": "一樓展示櫃",
+                "quantity": "3.000",
+            }])
+        else:
+            raise AssertionError(f"Unexpected employee company API path: {path}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-3/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_catalog.html?company_id=company-3&view=products",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("查詢測試銀樓").wait_for()
+        page.get_by_text("G00E-22618").wait_for()
+        page.get_by_text("黃金耳環").wait_for()
+        assert page.locator("#productsTab").is_visible()
+        assert page.locator("#inventoryTab").is_visible()
+        assert len(requests) == 1 and requests[0].endswith("/products")
+
+        page.get_by_role("button", name="庫存查詢").click()
+        page.get_by_text("一樓展示櫃").wait_for()
+        page.get_by_text("庫存 3").wait_for()
+        assert any(path.endswith("/inventory/stock") for path in requests)
+
+        page.get_by_role("button", name="商品查詢").click()
+        page.get_by_role("searchbox", name="搜尋商品").fill("耳環")
+        page.get_by_role("button", name="搜尋").click()
+        page.get_by_text("黃金耳環").wait_for()
+        assert any(path.endswith("/products") and "q=" in path for path in requests)
+        assert not page_errors, page_errors
+        browser.close()
+
+
+def test_employee_catalog_hides_own_scope_shared_data_features(static_server):
+    workspace = {
+        "authenticated": True,
+        "user": {"id": "user-4", "display_name": "受限員工", "email": "limited@example.com"},
+        "status": "ACTIVE",
+        "memberships": [{
+            "id": "membership-4",
+            "company_id": "company-4",
+            "company_name": "受限測試銀樓",
+            "company_code": "LIMITED",
+            "company_is_active": True,
+            "status": "ACTIVE",
+            "roles": [{"code": "STAFF", "name": "一般成員"}],
+            "permissions": [
+                permission("products.view", "商品－查看", "products", "view", True, "OWN"),
+                permission("inventory.view", "庫存－查看", "inventory", "view", True, "ALL"),
+            ],
+        }],
+    }
+    company_requests = []
+
+    def handle_company_api(route):
+        path = route.request.url.split("?", 1)[0]
+        company_requests.append(path)
+        if path.endswith("/products"):
+            json_response(route, [])
+        else:
+            raise AssertionError(f"Unauthorized feature was requested: {path}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-4/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_catalog.html?company_id=company-4&view=inventory",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("受限測試銀樓").wait_for()
+        page.locator("#productsTab").wait_for(state="visible")
+        assert page.locator("#inventoryTab").is_hidden()
+        assert page.locator("#pageTitle").inner_text() == "商品查詢"
+        assert len(company_requests) == 1 and company_requests[0].endswith("/products")
         assert not page_errors, page_errors
         browser.close()
