@@ -45,6 +45,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install Chromium for access-control browser tests
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Run access-control UI browser tests
+        run: pytest -q tests/test_access_control_ui_browser.py
       - name: Check inline browser JavaScript syntax
         run: |
           python - <<'PY'
@@ -149,7 +155,7 @@ jobs:
       - name: Run sale draft edit runtime tests
         run: node --test tests/sale_draft_edit_runtime.test.js
       - name: Run tests
-        run: pytest -q
+        run: pytest -q --ignore=tests/test_access_control_ui_browser.py
       - name: Upgrade PostgreSQL schema to head
         run: alembic upgrade head
         env:
