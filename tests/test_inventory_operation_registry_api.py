@@ -233,3 +233,54 @@ def test_pending_operation_can_be_explicitly_resumed_from_immutable_server_paylo
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+def test_late_failure_marker_does_not_overwrite_completed_request():
+    from app.services.inventory_operation_registry import mark_inventory_operation_failed
+
+    engine, TestSession, ids = _context()
+    try:
+        key = uuid4()
+        raw_payload = _transfer_payload(ids, key)
+        validated = InventoryTransferCreate.model_validate(raw_payload)
+        canonical, fingerprint = fingerprint_inventory_operation(
+            operation_type="MANUAL_TRANSFER",
+            company_id=ids["company_id"],
+            site_id=ids["site_id"],
+            payload=validated.model_dump(mode="python"),
+        )
+        with TestSession() as session:
+            movement_id = session.scalar(select(InventoryMovement.id).where(
+                InventoryMovement.company_id == ids["company_id"],
+                InventoryMovement.movement_type == "RECEIPT",
+            ))
+            request = InventoryOperationRequest(
+                company_id=ids["company_id"],
+                site_id=ids["site_id"],
+                idempotency_key=key,
+                operation_type="MANUAL_TRANSFER",
+                payload=canonical,
+                payload_fingerprint=fingerprint,
+                status="COMPLETED",
+                movement_id=movement_id,
+            )
+            session.add(request)
+            session.commit()
+            request_id = request.id
+
+        with TestSession() as session:
+            mark_inventory_operation_failed(
+                session,
+                request_id=request_id,
+                failure_code="VALIDATION_FAILED",
+                failure_message="late validation failure",
+            )
+
+        with TestSession() as session:
+            row = session.get(InventoryOperationRequest, request_id)
+            assert row.status == "COMPLETED"
+            assert row.failure_code is None
+            assert row.failure_message is None
+    finally:
+        app.dependency_overrides.clear()
+        engine.dispose()
+
