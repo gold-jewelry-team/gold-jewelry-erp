@@ -129,3 +129,32 @@ Add a "待確認／可恢復操作" panel to the inventory movement workspace:
 - No heuristic matching or silent automatic resubmission occurs.
 - Existing stock balances and movement history are unchanged by the migration.
 - No production migration is run without explicit approval.
+## Additional implementation safeguards from code review
+
+The implementation must also preserve compatibility with requests created before this table is deployed:
+
+- Before creating or processing a new request row, check the existing movement ledger for the same company and idempotency UUID using the existing manual-adjustment/transfer idempotency rules.
+- If an exact legacy movement already exists, create or complete the request record linked to that movement and return HTTP 200. If the UUID exists with different operation content or type, return HTTP 409. This prevents a browser pending UUID created before rollout from causing a second movement after rollout.
+- Never attempt to infer a legacy request when its UUID is missing. Only exact UUID-based ledger reconciliation is allowed.
+
+Canonicalization and uniqueness rules:
+
+- Normalize UUIDs to lowercase canonical strings, Decimal values to fixed-point strings, and explicit timestamps to UTC before hashing. Apply schema defaults before fingerprinting so equivalent accepted payloads produce the same fingerprint.
+- Exclude transport-only fields from the fingerprint. Include every field that changes inventory meaning, including operation type, company/site, product, location(s), direction, quantity, weight/unit, note, and explicit occurred_at.
+- Keep the unique key (company_id, idempotency_key). If an existing key is submitted for another site, reject it with HTTP 409; never reveal or retry the other site's request. Recovery queries and retry actions must independently verify both company and site.
+- Do not rely on the hash alone for correctness: compare the stored operation type and canonical payload as well as the fingerprint.
+
+Locking and transaction order:
+
+- Use one documented lock order in every path: company row, operation-request row, then product/location rows. This is compatible with the current inventory service, which locks the company before the product, and reduces deadlock risk.
+- The first transaction durably inserts the PENDING request. The processing transaction obtains the company lock before locking the request row, then invokes the existing inventory service and updates the request to COMPLETED in the same transaction.
+- Handle the unique-key insert race by rolling back the losing insert transaction, loading the winner's row, and comparing its site, operation type, and canonical payload. Do not continue using a failed SQLAlchemy transaction.
+- A recovery endpoint must not accept a replacement payload. It may only process the immutable payload stored on the request row.
+
+Operational and privacy safeguards:
+
+- Bound recovery inbox pagination (for example, default 50 and maximum 200), filter by exact company/site, and return only the minimum product/location summary needed by the operator.
+- Store sanitized failure codes/messages; never persist stack traces, SQL text, credentials, or secrets in the request record.
+- Keep idempotency records permanently unless a separately reviewed archival policy is introduced. A retention policy must never make an old UUID reusable.
+- Old PENDING records may be highlighted as requiring review, but no background worker may silently retry inventory writes. Retry remains an explicit administrator action.
+- Mutating retry routes must use the same administrator-session and request-forgery protections as other inventory write routes.
