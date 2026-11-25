@@ -104,7 +104,7 @@ def test_suspending_last_membership_revokes_google_sessions():
             user_id=UUID(user_id), company_id=UUID(company_id), status="ACTIVE", role="STAFF"
         )
         session = UserSession(
-            user_id=__import__('uuid').UUID(user_id), token_hash=token_hash,
+            user_id=UUID(user_id), token_hash=token_hash,
             expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
         )
         db.add_all([membership, session])
