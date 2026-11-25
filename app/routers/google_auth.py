@@ -313,6 +313,7 @@ def google_employee_workspace(request: Request, response: Response) -> dict:
                     )
                     .where(
                         CompanyMembershipRole.membership_id == membership.id,
+                        CompanyRole.company_id == membership.company_id,
                         CompanyRole.is_active.is_(True),
                     )
                     .order_by(CompanyRole.name)
