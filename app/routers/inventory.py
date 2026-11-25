@@ -209,6 +209,7 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
             weight_unit_code=payload.weight_unit_code,
             note=payload.note,
             idempotency_key=payload.idempotency_key,
+            occurred_at=payload.occurred_at,
             reference_type="MANUAL_ADJUSTMENT",
         )
         if existing is not None:
@@ -224,6 +225,8 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
             idempotency_key=payload.idempotency_key,
             idempotency_reference_type="MANUAL_ADJUSTMENT",
         )
+        if getattr(movement, "_idempotent_replay", False):
+            response.status_code = 200
         db.commit()
         db.refresh(movement)
         return movement
@@ -249,6 +252,7 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
                     weight_unit_code=payload.weight_unit_code,
                     note=payload.note,
                     idempotency_key=payload.idempotency_key,
+                    occurred_at=payload.occurred_at,
                     reference_type="MANUAL_ADJUSTMENT",
                 )
             except InventoryIdempotencyConflict as conflict:
@@ -269,6 +273,7 @@ def post_inventory_transfer(company_id: UUID, payload: InventoryTransferCreate,
             to_location_id=payload.to_location_id, quantity=payload.quantity,
             weight=payload.weight, weight_unit_code=payload.weight_unit_code,
             note=payload.note, idempotency_key=payload.idempotency_key,
+            occurred_at=payload.occurred_at,
         )
         if existing is not None:
             response.status_code = 200
@@ -299,6 +304,7 @@ def post_inventory_transfer(company_id: UUID, payload: InventoryTransferCreate,
                 to_location_id=payload.to_location_id, quantity=payload.quantity,
                 weight=payload.weight, weight_unit_code=payload.weight_unit_code,
                 note=payload.note, idempotency_key=payload.idempotency_key,
+                occurred_at=payload.occurred_at,
             )
         except InventoryIdempotencyConflict as conflict:
             raise HTTPException(status_code=409, detail=str(conflict)) from conflict
