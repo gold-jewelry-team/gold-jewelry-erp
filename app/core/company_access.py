@@ -187,6 +187,10 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
     if root == "operating-expenses" and verb == "POST" and endpoint == "pay":
         required.add("payments.create")
 
+    if root == "gold-material" and verb == "GET" and endpoint == "movements":
+        # Movement rows can include supplier-bill settlement allocations.
+        required.add("supplier_payables.view")
+
     return sorted(required)
 
 
