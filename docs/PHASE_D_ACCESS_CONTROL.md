@@ -41,11 +41,12 @@ Historical rows are not assigned to a person by inference. Rows without a record
 - CI rolls the disposable database back to 0034, seeds two synthetic companies and three existing memberships, then upgrades to 0035 and verifies the 24-resource × 4-action catalogue, six company roles, 576 role grants, default-role baselines, and three membership-role backfills.
 - CI checks every published `/companies/{company_id}/...` route in OpenAPI for an explicit permission mapping.
 - CI covers cross-module permission dependencies, data-scope requirements, own-record filtering, member/role management, session lifecycle, and PostgreSQL inventory/reconciliation behavior.
-- Latest CI run: 63 steps, all successful. See the [GitHub Actions run](https://github.com/gold-jewelry-team/gold-jewelry-erp/actions/runs/45564712890).
+- Playwright runs the role editor and multi-role member assignment in Chromium at a mobile viewport with deterministic API fixtures. Backend tests separately verify that administrator-only pages and APIs reject unauthenticated and Google-only access. The browser tests exercise the actual page JavaScript and user interactions, but do not claim a live authenticated browser test against production.
+- Latest CI run: all checks successful. See the [GitHub Actions run](https://github.com/gold-jewelry-team/gold-jewelry-erp/actions).
 
 ## Remaining before employee rollout
 
-- Exercise the role editor and member multi-role assignment through an authenticated browser session.
+- Perform a final owner-session smoke test against an isolated or staging deployment with Migration 0035 before employee rollout. The automated Chromium test uses API fixtures and does not replace this live authenticated check.
 - Complete the Google OAuth end-to-end test with the new schema, while keeping the feature flag disabled until the owner explicitly approves activation.
 - Complete employee-facing workspace and onboarding UX; do not invite employees until access tests and production migration have been approved.
 - OWN-scope update and void remain intentionally unavailable until write paths can be consistently constrained to records created by the member.
