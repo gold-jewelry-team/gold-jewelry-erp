@@ -1,19 +1,17 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import inspect, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models.company import Company
-from app.models.access_control import Permission
 from app.models.inventory import InventoryMovement
 from app.models.site import Site
 from app.models.storage_location import StorageLocation
 from app.models.product_code_sequence import ProductCodeSequence
 from app.services.default_product_categories import ensure_default_product_categories
-from app.services.access_control import ensure_company_system_roles
 from app.routers.schemas.company_setup import (
     CompanyCreate, CompanyRead, CompanyUpdate, SiteCreate, SiteRead, SiteUpdate,
     StorageLocationCreate, StorageLocationRead, StorageLocationUpdate,
@@ -29,24 +27,6 @@ def get_db():
     finally:
         db.close()
 
-
-
-def _role_schema_available(db: Session) -> bool:
-    """Keep legacy company setup usable during migration-first deployments."""
-    inspector = inspect(db.get_bind())
-    required_tables = {
-        "permissions",
-        "company_roles",
-        "company_role_permissions",
-        "company_membership_roles",
-    }
-    if not all(inspector.has_table(table) for table in required_tables):
-        return False
-    # The presence of empty tables is not a completed permission migration.
-    # Only provision role rows after the global permission catalogue was seeded.
-    return db.scalar(
-        select(Permission.id).where(Permission.is_active.is_(True)).limit(1)
-    ) is not None
 
 
 @router.get("/companies", response_model=list[CompanyRead])
@@ -68,13 +48,6 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(company)
 
-        # Provision roles only after the legacy company setup transaction has
-        # committed. A separate Session keeps the existing company object and
-        # company-creation transaction independent from the new permission schema.
-        if _role_schema_available(db):
-            with Session(bind=db.get_bind()) as role_db:
-                ensure_company_system_roles(role_db, company.id)
-                role_db.commit()
         return company
     except IntegrityError as exc:
         db.rollback()
