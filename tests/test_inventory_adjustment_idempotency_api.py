@@ -180,12 +180,18 @@ def test_reusing_manual_adjustment_key_for_different_content_is_rejected():
             "direction": "IN",
             "weight_unit_code": "QIAN",
             "idempotency_key": key,
+            "occurred_at": "2026-01-01T00:00:00Z",
         }
         first = client.post(url, json={**common, "quantity": "2"})
         conflict = client.post(url, json={**common, "quantity": "3"})
+        timestamp_conflict = client.post(url, json={
+            **common,
+            "occurred_at": "2026-01-02T00:00:00Z",
+        })
 
         assert first.status_code == 201, first.text
         assert conflict.status_code == 409, conflict.text
+        assert timestamp_conflict.status_code == 409, timestamp_conflict.text
         assert "冪等識別碼" in conflict.json()["detail"]
 
         verify = TestSession()
