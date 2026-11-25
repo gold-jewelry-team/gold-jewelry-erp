@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -25,6 +25,11 @@ from app.services.inventory import (
     get_idempotent_transfer,
     StocktakeSnapshotConflict,
     apply_stocktake_adjustment_batch,
+)
+from app.services.inventory_operation_registry import (
+    InventoryOperationRequestConflict,
+    prepare_inventory_operation_request,
+    mark_inventory_operation_failed,
 )
 
 router = APIRouter(prefix="/companies/{company_id}/inventory", tags=["inventory"])
@@ -187,49 +192,61 @@ def post_stocktake_adjustment_batch(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="盤點調整重複或資料關聯衝突；整批未入帳。") from exc
-
-
-@router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
+        raise HTTPException(s@router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
 def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCreate,
                               response: Response, db: Session = Depends(get_db)):
     try:
-        existing = get_idempotent_adjustment(
-            db,
-            company_id=company_id,
-            site_id=payload.site_id,
-            product_id=payload.product_id,
-            location_id=payload.location_id,
-            direction=payload.direction,
-            quantity=payload.quantity,
-            weight=payload.weight,
-            weight_unit_code=payload.weight_unit_code,
-            note=payload.note,
-            idempotency_key=payload.idempotency_key,
-            occurred_at=payload.occurred_at,
-            reference_type="MANUAL_ADJUSTMENT",
+        request_row, existing, _ = prepare_inventory_operation_request(
+            db, company_id=company_id, site_id=payload.site_id,
+            operation_type="MANUAL_ADJUSTMENT", idempotency_key=payload.idempotency_key,
+            payload=payload.model_dump(mode="python"),
+            legacy_movement_lookup=lambda: get_idempotent_adjustment(
+                db, company_id=company_id, site_id=payload.site_id,
+                product_id=payload.product_id, location_id=payload.location_id,
+                direction=payload.direction, quantity=payload.quantity,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                note=payload.note, idempotency_key=payload.idempotency_key,
+                occurred_at=payload.occurred_at, reference_type="MANUAL_ADJUSTMENT",
+            ),
         )
         if existing is not None:
             response.status_code = 200
             return existing
-        movement = create_inventory_movement(
-            db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
-            movement_type="ADJUSTMENT", quantity=payload.quantity,
-            from_location_id=payload.location_id if payload.direction == "OUT" else None,
-            to_location_id=payload.location_id if payload.direction == "IN" else None,
-            weight=payload.weight, weight_unit_code=payload.weight_unit_code,
-            occurred_at=payload.occurred_at, note=payload.note,
-            idempotency_key=payload.idempotency_key,
-            idempotency_reference_type="MANUAL_ADJUSTMENT",
-        )
-        if getattr(movement, "_idempotent_replay", False):
-            response.status_code = 200
-        db.commit()
-        db.refresh(movement)
-        return movement
+
+        try:
+            movement = create_inventory_movement(
+                db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
+                movement_type="ADJUSTMENT", quantity=payload.quantity,
+                from_location_id=payload.location_id if payload.direction == "OUT" else None,
+                to_location_id=payload.location_id if payload.direction == "IN" else None,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                occurred_at=payload.occurred_at, note=payload.note,
+                idempotency_key=payload.idempotency_key,
+                idempotency_reference_type="MANUAL_ADJUSTMENT",
+            )
+            request_row.status = "COMPLETED"
+            request_row.movement_id = movement.id
+            request_row.completed_at = datetime.now(timezone.utc)
+            request_row.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(movement)
+            return movement
+        except ValueError as exc:
+            mark_inventory_operation_failed(
+                db, request_id=request_row.id,
+                failure_code="VALIDATION_FAILED", failure_message=str(exc),
+            )
+            status = 409 if isinstance(exc, InventoryIdempotencyConflict) else 422
+            raise HTTPException(status_code=status, detail=str(exc)) from exc
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="庫存調整結果尚待核對；請先確認原始操作，不要重新建立請求。",
+            ) from exc
+    except InventoryOperationRequestConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except InventoryIdempotencyConflict as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -238,57 +255,62 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
-        if payload.idempotency_key is not None:
-            try:
-                existing = get_idempotent_adjustment(
-                    db,
-                    company_id=company_id,
-                    site_id=payload.site_id,
-                    product_id=payload.product_id,
-                    location_id=payload.location_id,
-                    direction=payload.direction,
-                    quantity=payload.quantity,
-                    weight=payload.weight,
-                    weight_unit_code=payload.weight_unit_code,
-                    note=payload.note,
-                    idempotency_key=payload.idempotency_key,
-                    occurred_at=payload.occurred_at,
-                    reference_type="MANUAL_ADJUSTMENT",
-                )
-            except InventoryIdempotencyConflict as conflict:
-                raise HTTPException(status_code=409, detail=str(conflict)) from conflict
-            if existing is not None:
-                response.status_code = 200
-                return existing
-        raise HTTPException(status_code=409, detail="庫存調整重複或資料關聯衝突。") from exc
+        raise HTTPException(status_code=409, detail="庫存操作登記發生資料關聯衝突。") from exc
 
 
 @router.post("/transfers", response_model=InventoryMovementRead, status_code=201)
 def post_inventory_transfer(company_id: UUID, payload: InventoryTransferCreate,
                             response: Response, db: Session = Depends(get_db)):
     try:
-        existing = get_idempotent_transfer(
+        request_row, existing, _ = prepare_inventory_operation_request(
             db, company_id=company_id, site_id=payload.site_id,
-            product_id=payload.product_id, from_location_id=payload.from_location_id,
-            to_location_id=payload.to_location_id, quantity=payload.quantity,
-            weight=payload.weight, weight_unit_code=payload.weight_unit_code,
-            note=payload.note, idempotency_key=payload.idempotency_key,
-            occurred_at=payload.occurred_at,
+            operation_type="MANUAL_TRANSFER", idempotency_key=payload.idempotency_key,
+            payload=payload.model_dump(mode="python"),
+            legacy_movement_lookup=lambda: get_idempotent_transfer(
+                db, company_id=company_id, site_id=payload.site_id,
+                product_id=payload.product_id, from_location_id=payload.from_location_id,
+                to_location_id=payload.to_location_id, quantity=payload.quantity,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                note=payload.note, idempotency_key=payload.idempotency_key,
+                occurred_at=payload.occurred_at,
+            ),
         )
         if existing is not None:
             response.status_code = 200
             return existing
-        movement = create_inventory_movement(
-            db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
-            movement_type="TRANSFER", quantity=payload.quantity,
-            from_location_id=payload.from_location_id, to_location_id=payload.to_location_id,
-            weight=payload.weight, weight_unit_code=payload.weight_unit_code,
-            occurred_at=payload.occurred_at, note=payload.note,
-            idempotency_key=payload.idempotency_key,
-        )
-        db.commit()
-        db.refresh(movement)
-        return movement
+
+        try:
+            movement = create_inventory_movement(
+                db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
+                movement_type="TRANSFER", quantity=payload.quantity,
+                from_location_id=payload.from_location_id, to_location_id=payload.to_location_id,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                occurred_at=payload.occurred_at, note=payload.note,
+                idempotency_key=payload.idempotency_key,
+            )
+            request_row.status = "COMPLETED"
+            request_row.movement_id = movement.id
+            request_row.completed_at = datetime.now(timezone.utc)
+            request_row.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(movement)
+            return movement
+        except ValueError as exc:
+            mark_inventory_operation_failed(
+                db, request_id=request_row.id,
+                failure_code="VALIDATION_FAILED", failure_message=str(exc),
+            )
+            status = 409 if isinstance(exc, InventoryIdempotencyConflict) else 422
+            raise HTTPException(status_code=status, detail=str(exc)) from exc
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail="櫃位調撥結果尚待核對；請先確認原始操作，不要重新建立請求。",
+            ) from exc
+    except InventoryOperationRequestConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except InventoryIdempotencyConflict as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -297,18 +319,4 @@ def post_inventory_transfer(company_id: UUID, payload: InventoryTransferCreate,
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
-        try:
-            existing = get_idempotent_transfer(
-                db, company_id=company_id, site_id=payload.site_id,
-                product_id=payload.product_id, from_location_id=payload.from_location_id,
-                to_location_id=payload.to_location_id, quantity=payload.quantity,
-                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
-                note=payload.note, idempotency_key=payload.idempotency_key,
-                occurred_at=payload.occurred_at,
-            )
-        except InventoryIdempotencyConflict as conflict:
-            raise HTTPException(status_code=409, detail=str(conflict)) from conflict
-        if existing is not None:
-            response.status_code = 200
-            return existing
-        raise HTTPException(status_code=409, detail="櫃位調撥重複或資料關聯衝突。") from exc
+        raise HTTPException(status_code=409, detail="庫存操作登記發生資料關聯衝突。") from exc
