@@ -12,6 +12,7 @@ from app.db.base import Base
 from app.main import app
 from app.models import (
     Company,
+    AuthIdentity,
     CompanyMembership,
     CompanyMembershipRole,
     CompanyRole,
@@ -220,3 +221,81 @@ def test_google_workspace_rejects_expired_or_revoked_sessions():
         cookies={google_auth.settings.google_session_cookie_name: token},
     )
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize("membership_status", ["SUSPENDED", "REJECTED"])
+def test_rejected_or_suspended_google_user_can_sign_in_to_view_own_status(
+    monkeypatch,
+    membership_status,
+):
+    with TestingSessionLocal() as db:
+        company = Company(code="STATUS", name="狀態測試銀樓", is_active=True)
+        user = User(
+            display_name="狀態測試成員",
+            email="status-member@example.com",
+            is_active=True,
+        )
+        db.add_all([company, user])
+        db.flush()
+        db.add(AuthIdentity(
+            user_id=user.id,
+            provider="GOOGLE",
+            provider_subject="google-status-subject",
+            provider_email="status-member@example.com",
+            email_verified=True,
+        ))
+        db.add(CompanyMembership(
+            company_id=company.id,
+            user_id=user.id,
+            status=membership_status,
+            role="STAFF",
+        ))
+        db.commit()
+
+    class TokenResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"id_token": "mocked-google-id-token"}
+
+    monkeypatch.setattr(google_auth, "_oauth_ready", lambda: None)
+    monkeypatch.setattr(google_auth.requests, "post", lambda *args, **kwargs: TokenResponse())
+    monkeypatch.setattr(
+        google_auth.id_token,
+        "verify_oauth2_token",
+        lambda *_args, **_kwargs: {
+            "iss": "https://accounts.google.com",
+            "nonce": "expected-nonce",
+            "email_verified": True,
+            "sub": "google-status-subject",
+            "email": "status-member@example.com",
+            "name": "狀態測試成員",
+        },
+    )
+    monkeypatch.setattr(google_auth.settings, "google_client_id", "test-google-client")
+    monkeypatch.setattr(google_auth.settings, "google_client_secret", "test-google-secret")
+    monkeypatch.setattr(
+        google_auth.settings,
+        "google_redirect_uri",
+        "https://example.test/auth/google/callback",
+    )
+    monkeypatch.setattr(google_auth.settings, "session_cookie_secure", False)
+
+    callback = client.get(
+        "/auth/google/callback?code=mocked-code&state=expected-state",
+        cookies={
+            "google_oauth_state": "expected-state",
+            "google_oauth_nonce": "expected-nonce",
+            "google_oauth_verifier": "expected-pkce-verifier",
+        },
+        follow_redirects=False,
+    )
+    assert callback.status_code == 303, callback.text
+    assert callback.headers["location"] == "/employee"
+
+    workspace = client.get("/auth/google/workspace")
+    assert workspace.status_code == 200, workspace.text
+    payload = workspace.json()
+    assert payload["status"] == membership_status
+    assert payload["memberships"][0]["permissions"] == []
