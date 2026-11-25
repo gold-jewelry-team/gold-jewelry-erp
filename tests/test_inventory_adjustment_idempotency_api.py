@@ -17,7 +17,7 @@ from app.models.storage_location import StorageLocation
 from app.routers import inventory
 
 
-def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
+def test_replaying_same_manual_adjustment_returns_original_movement_once():
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -62,12 +62,25 @@ def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
         client = TestClient(app)
         url = f"/companies/{company_id}/inventory/adjustments"
         key = str(uuid4())
+        missing_key = client.post(url, json={
+            "site_id": str(site_id),
+            "product_id": str(product_id),
+            "location_id": str(location_id),
+            "direction": "IN",
+            "quantity": "2",
+        })
+        assert missing_key.status_code == 422, missing_key.text
+        verify_empty = TestSession()
+        assert verify_empty.query(InventoryMovement).count() == 0
+        verify_empty.close()
+
         received = client.post(url, json={
             "site_id": str(site_id),
             "product_id": str(product_id),
             "location_id": str(location_id),
             "direction": "IN",
             "quantity": "2",
+            "idempotency_key": str(uuid4()),
         })
         assert received.status_code == 201, received.text
 
@@ -93,9 +106,9 @@ def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
         verify = TestSession()
         rows = verify.query(InventoryMovement).all()
         assert len(rows) == 2
-        stocktake_rows = [row for row in rows if row.reference_type == "STOCKTAKE"]
-        assert len(stocktake_rows) == 1
-        assert stocktake_rows[0].reference_id.hex == key.replace("-", "")
+        manual_rows = [row for row in rows if row.reference_type == "MANUAL_ADJUSTMENT"]
+        assert len(manual_rows) == 1
+        assert manual_rows[0].reference_id.hex == key.replace("-", "")
         verify.close()
 
         stock = client.get(
@@ -110,7 +123,7 @@ def test_replaying_same_stocktake_adjustment_returns_original_movement_once():
         engine.dispose()
 
 
-def test_reusing_stocktake_key_for_different_adjustment_is_rejected():
+def test_reusing_manual_adjustment_key_for_different_content_is_rejected():
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         connect_args={"check_same_thread": False},
