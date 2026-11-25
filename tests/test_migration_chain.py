@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_inventory_operation_requests():
+def test_alembic_history_is_a_single_linear_chain_through_user_identity_memberships():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0033_inventory_op_requests"]
+    assert script.get_heads() == ["0034_user_identity_memberships"]
 
     expected = [
+        "0034_user_identity_memberships",
         "0033_inventory_op_requests",
         "0032_bank_operation_idempotency",
         "0031_bank_transfer_source_links",
