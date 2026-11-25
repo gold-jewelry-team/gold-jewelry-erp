@@ -27,12 +27,14 @@ COMPANY_PATH_RE = re.compile(
 
 VOID_ENDPOINTS = {"void", "cancel", "deactivate", "reject"}
 UPDATE_ENDPOINTS = {"submit", "receive", "complete", "review", "match", "ignore", "approve", "suspend", "reactivate", "status", "retry", "restore", "pay"}
+# OWN is deliberately limited to independent transaction lists. Shared master
+# data, balances, reconciliation, and aggregate reports must remain ALL-scoped.
 OWN_SCOPE_RESOURCES = {
-    "products", "product_categories", "inventory", "purchases", "sales",
-    "sales_returns", "customer_orders", "suppliers", "supplier_offerings",
-    "supplier_payables", "payments", "expenses", "daily_closing",
-    "cash_drawer", "bank_accounts", "bank_reconciliation", "gold_material",
-    "gold_prices",
+    "purchases",
+    "sales",
+    "customer_orders",
+    "expenses",
+    "cash_drawer",
 }
 
 RESOURCE_ROOTS = {
