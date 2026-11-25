@@ -222,8 +222,6 @@ def test_member_management_requires_administrator_session(monkeypatch):
 
 
 def seed_permission_catalog(company_id):
-    from app.services.access_control import ensure_company_system_roles
-
     with TestingSessionLocal() as db:
         for resource, resource_name in (
             ("products", "商品"),
@@ -240,8 +238,6 @@ def seed_permission_catalog(company_id):
                     name=f"{resource_name}-{action_name}",
                     is_active=True,
                 ))
-        db.flush()
-        ensure_company_system_roles(db, UUID(company_id))
         db.commit()
 
 
