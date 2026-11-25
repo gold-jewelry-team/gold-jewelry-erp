@@ -30,6 +30,12 @@ OAUTH_COOKIE_MAX_AGE = 600
 def _oauth_ready() -> None:
     if not settings.google_oauth_configured:
         raise HTTPException(status_code=503, detail="Google 登入尚未啟用或尚未完成部署設定。")
+    # Do not start OAuth until migration 0034 is present in this database.
+    try:
+        with SessionLocal() as db:
+            db.scalar(select(UserSession.id).limit(1))
+    except SQLAlchemyError:
+        raise HTTPException(status_code=503, detail="Google 登入資料庫尚未完成設定。")
 
 
 def _cookie_options(*, max_age: int, same_site: str = "lax") -> dict:
@@ -49,11 +55,18 @@ def _clear_flow_cookies(response: Response) -> None:
 
 @router.get("/config")
 def google_login_config() -> dict[str, bool]:
-    return {"enabled": settings.google_oauth_configured}
+    if not settings.google_oauth_configured:
+        return {"enabled": False}
+    try:
+        with SessionLocal() as db:
+            db.scalar(select(UserSession.id).limit(1))
+        return {"enabled": True}
+    except SQLAlchemyError:
+        return {"enabled": False}
 
 
 @router.get("/start")
-def start_google_login(response: Response):
+def start_google_login():
     _oauth_ready()
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
@@ -79,9 +92,7 @@ def start_google_login(response: Response):
         ("google_oauth_verifier", verifier),
     ):
         redirect.set_cookie(name, value, **_cookie_options(max_age=OAUTH_COOKIE_MAX_AGE))
-    response.status_code = redirect.status_code
-    response.headers.update(redirect.headers)
-    return response
+    return redirect
 
 
 @router.get("/callback")
