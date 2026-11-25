@@ -225,6 +225,8 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
             idempotency_key=payload.idempotency_key,
             idempotency_reference_type="MANUAL_ADJUSTMENT",
         )
+        if getattr(movement, "_idempotent_replay", False):
+            response.status_code = 200
         db.commit()
         db.refresh(movement)
         return movement
