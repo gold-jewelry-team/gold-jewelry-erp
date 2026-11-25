@@ -876,3 +876,186 @@ def test_employee_purchase_history_does_not_fetch_supplier_or_product_without_al
         assert all(method == "GET" for method, _url in requests)
         assert not page_errors, page_errors
         browser.close()
+
+
+
+def employee_payables_payload(*, payment_scope="ALL", supplier_scope="ALL"):
+    grants = [
+        permission("supplier_payables.view", "供應商帳款－查看", "supplier_payables", "view", True, "ALL"),
+    ]
+    if payment_scope:
+        grants.append(permission("payments.view", "收付款－查看", "payments", "view", True, payment_scope))
+    if supplier_scope:
+        grants.append(permission("suppliers.view", "供應商－查看", "suppliers", "view", True, supplier_scope))
+    return {
+        "authenticated": True,
+        "user": {"id": "payables-user", "display_name": "帳款查詢員工", "email": "payables@example.com"},
+        "status": "ACTIVE",
+        "memberships": [{
+            "id": "payables-membership",
+            "company_id": "company-payables",
+            "company_name": "帳款測試銀樓",
+            "company_code": "PAYABLES",
+            "company_is_active": True,
+            "status": "ACTIVE",
+            "roles": [{"code": "STAFF", "name": "一般成員"}],
+            "permissions": grants,
+        }],
+    }
+
+
+def employee_supplier_bill_record():
+    return {
+        "id": "bill-001",
+        "company_id": "company-payables",
+        "site_id": "site-main",
+        "supplier_id": "supplier-payables-001",
+        "purchase_id": "purchase-payables-001",
+        "bill_no": "B20261125-001",
+        "bill_date": "2026-11-20",
+        "due_date": "2026-12-05",
+        "currency_code": "TWD",
+        "total_amount": "50000.00",
+        "paid_amount": "15000.00",
+        "outstanding_amount": "35000.00",
+        "status": "PARTIALLY_PAID",
+        "note": "帳單測試備註",
+        "created_at": "2026-11-20T02:00:00+00:00",
+        "updated_at": "2026-11-25T02:00:00+00:00",
+    }
+
+
+def employee_supplier_payment_record():
+    return {
+        "id": "supplier-payment-001",
+        "company_id": "company-payables",
+        "site_id": "site-main",
+        "supplier_id": "supplier-payables-001",
+        "payment_no": "SP20261125-001",
+        "payment_method": "TRANSFER",
+        "total_amount": "15000.00",
+        "currency_code": "TWD",
+        "reference_no": "BANK-REF-001",
+        "paid_at": "2026-11-25T03:20:00+00:00",
+        "note": "第一筆分批付款",
+        "created_at": "2026-11-25T03:20:00+00:00",
+        "allocations": [{
+            "id": "allocation-001",
+            "payment_id": "supplier-payment-001",
+            "bill_id": "bill-001",
+            "amount": "15000.00",
+            "created_at": "2026-11-25T03:20:00+00:00",
+        }],
+    }
+
+
+def test_employee_home_shows_supplier_payables_only_with_all_scope(static_server):
+    workspace = employee_payables_payload()
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.goto(f"{static_server}/employee.html", wait_until="domcontentloaded")
+        page.get_by_text("帳款測試銀樓").wait_for()
+        link = page.get_by_role("link", name="供應商帳款")
+        link.wait_for()
+        assert "/employee/payables?company_id=company-payables" in link.get_attribute("href")
+        browser.close()
+
+
+def test_employee_payables_bills_and_payments_respect_separate_permissions(static_server):
+    workspace = employee_payables_payload()
+    requests = []
+    bill = employee_supplier_bill_record()
+    payment = employee_supplier_payment_record()
+
+    def handle_company_api(route):
+        request = route.request
+        requests.append((request.method, request.url))
+        path = request.url.split("?", 1)[0]
+        if path.endswith("/supplier-payables/bills"):
+            json_response(route, [bill])
+        elif path.endswith("/supplier-payables/payments"):
+            json_response(route, [payment])
+        elif path.endswith("/suppliers"):
+            json_response(route, [{
+                "id": "supplier-payables-001",
+                "company_id": "company-payables",
+                "code": "SUP-P01",
+                "name": "永豐金料行",
+                "tax_id": None,
+                "contact_name": None,
+                "phone": None,
+                "address": None,
+                "note": None,
+                "is_active": True,
+                "created_at": "2026-01-01T00:00:00+00:00",
+                "updated_at": "2026-01-01T00:00:00+00:00",
+            }])
+        else:
+            raise AssertionError(f"Unexpected employee payables API path: {path}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-payables/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_payables.html?company_id=company-payables",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("帳款測試銀樓").wait_for()
+        page.get_by_role("heading", name="B20261125-001").wait_for()
+        page.get_by_text("永豐金料行").wait_for()
+        page.get_by_text("部分付款").wait_for()
+        page.get_by_text("未付餘額").wait_for()
+        page.get_by_text("帳單測試備註").wait_for()
+
+        page.get_by_role("button", name="供應商付款").click()
+        page.get_by_role("heading", name="SP20261125-001").wait_for()
+        page.get_by_text("轉帳").wait_for()
+        page.get_by_text("帳單 B20261125-001").wait_for()
+        page.get_by_text("BANK-REF-001").wait_for()
+        assert any("/supplier-payables/payments" in url for method, url in requests)
+        assert requests and all(method == "GET" for method, _url in requests)
+        assert not page_errors, page_errors
+        browser.close()
+
+
+def test_employee_payables_hides_payment_tab_and_supplier_lookup_without_grants(static_server):
+    workspace = employee_payables_payload(payment_scope=None, supplier_scope="OWN")
+    requests = []
+
+    def handle_company_api(route):
+        request = route.request
+        requests.append((request.method, request.url))
+        path = request.url.split("?", 1)[0]
+        if path.endswith("/supplier-payables/bills"):
+            json_response(route, [employee_supplier_bill_record()])
+        else:
+            raise AssertionError(f"Unauthorized payables API requested: {path}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-payables/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_payables.html?company_id=company-payables",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("帳款測試銀樓").wait_for()
+        page.get_by_role("heading", name="B20261125-001").wait_for()
+        assert page.locator("#paymentsTab").is_hidden()
+        page.get_by_text("供應商名稱尚未授權顯示").wait_for()
+        assert len(requests) == 1 and "/supplier-payables/bills" in requests[0][1]
+        assert "supplier-payables-001" not in page.locator("body").inner_text()
+        assert all(method == "GET" for method, _url in requests)
+        assert not page_errors, page_errors
+        browser.close()
