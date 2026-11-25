@@ -5,6 +5,7 @@ services:
     region: singapore
     plan: free
     healthCheckPath: /health
+    autoDeployTrigger: checksPass
     envVars:
       - key: ENVIRONMENT
         value: production
