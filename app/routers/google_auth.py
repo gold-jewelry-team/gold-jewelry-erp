@@ -19,7 +19,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.models import AuthIdentity, Company, CompanyMembership, User, UserSession
+from app.models import (
+    AuthIdentity, Company, CompanyMembership, CompanyMembershipRole,
+    Permission, User, UserSession,
+)
 
 router = APIRouter(prefix="/auth/google", tags=["Google authentication"])
 
@@ -35,6 +38,8 @@ def _oauth_ready() -> None:
     try:
         with SessionLocal() as db:
             db.scalar(select(UserSession.id).limit(1))
+            db.scalar(select(CompanyMembershipRole.id).limit(1))
+            db.scalar(select(Permission.id).limit(1))
     except SQLAlchemyError:
         raise HTTPException(status_code=503, detail="Google 登入資料庫尚未完成設定。")
 
