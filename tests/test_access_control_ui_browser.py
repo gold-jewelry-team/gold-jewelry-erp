@@ -1010,7 +1010,7 @@ def test_employee_payables_bills_and_payments_respect_separate_permissions(stati
         page.get_by_text("帳款測試銀樓").wait_for()
         page.get_by_role("heading", name="B20261125-001").wait_for()
         page.get_by_text("永豐金料行").wait_for()
-        page.get_by_text("部分付款").wait_for()
+        page.locator("span.badge.partial").wait_for(state="visible")
         page.get_by_text("未付餘額").wait_for()
         page.get_by_text("帳單測試備註").wait_for()
 
