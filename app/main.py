@@ -1,10 +1,13 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from app.core.auth import verify_session_token
+from app.core.company_access import authorize_google_company_request, company_id_from_path
+from app.db.session import SessionLocal
 from app.core.config import settings
 from app.routers.auth import router as auth_router
 from app.routers.google_auth import router as google_auth_router
@@ -92,8 +95,8 @@ async def security_middleware(request: Request, call_next):
     if path == "/login":
         return await call_next(request)
 
-    # OAuth endpoints enforce their own state/session checks. In particular,
-    # Google sessions are not administrator sessions and never unlock /app or APIs.
+    # OAuth endpoints enforce their own state/session checks. Google sessions
+    # never unlock the administrator workspace or administrator management APIs.
     if path in {
         "/auth/google/config", "/auth/google/start", "/auth/google/callback",
         "/auth/google/status", "/auth/google/logout",
@@ -137,6 +140,36 @@ async def security_middleware(request: Request, call_next):
     username = verify_session_token(token) if token else None
     if username:
         request.state.admin_username = username
+        return await call_next(request)
+
+    # Google members may only enter an explicitly company-scoped API path.
+    # The server validates the session and the exact company membership on every
+    # request; a client-supplied company_id is never treated as authorization.
+    google_token = request.cookies.get(settings.google_session_cookie_name, "")
+    company_id = company_id_from_path(path)
+    if google_token and company_id is not None:
+        try:
+            with SessionLocal() as db:
+                grant = authorize_google_company_request(
+                    db, google_token, company_id, request.method
+                )
+        except HTTPException as exc:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
+                headers={"Cache-Control": "no-store"},
+            )
+        except SQLAlchemyError:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "公司權限資料暫時無法驗證，請稍後再試。"},
+                headers={"Cache-Control": "no-store"},
+            )
+        request.state.google_user_id = grant["user_id"]
+        request.state.google_display_name = grant["display_name"]
+        request.state.company_id = grant["company_id"]
+        request.state.company_role = grant["role"]
+        request.state.membership_id = grant["membership_id"]
         return await call_next(request)
 
     if path == "/app" or path == "/":
