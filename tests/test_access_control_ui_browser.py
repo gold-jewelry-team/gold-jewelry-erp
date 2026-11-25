@@ -457,3 +457,234 @@ def test_employee_catalog_hides_own_scope_shared_data_features(static_server):
         assert len(company_requests) == 1 and company_requests[0].endswith("/products")
         assert not page_errors, page_errors
         browser.close()
+
+
+
+def employee_sales_payload(*, sales_scope="ALL", returns_scope="ALL", payment_scope="ALL"):
+    return {
+        "authenticated": True,
+        "user": {"id": "sales-user", "display_name": "銷售查詢員工", "email": "sales@example.com"},
+        "status": "ACTIVE",
+        "memberships": [{
+            "id": "sales-membership",
+            "company_id": "company-sales",
+            "company_name": "銷售測試銀樓",
+            "company_code": "SALES",
+            "company_is_active": True,
+            "status": "ACTIVE",
+            "roles": [{"code": "STAFF", "name": "一般成員"}],
+            "permissions": [
+                permission("sales.view", "銷售－查看", "sales", "view", True, sales_scope),
+                permission("payments.view", "收付款－查看", "payments", "view", True, payment_scope),
+                permission("sales_returns.view", "銷售退貨－查看", "sales_returns", "view", True, returns_scope),
+            ],
+        }],
+    }
+
+
+def employee_sale_record():
+    return {
+        "id": "sale-001",
+        "company_id": "company-sales",
+        "site_id": "site-main",
+        "sale_no": "S20261125-001",
+        "status": "COMPLETED",
+        "payment_method": "MIXED",
+        "currency_code": "TWD",
+        "subtotal": "1234.00",
+        "card_amount": "500.00",
+        "card_fee": "10.00",
+        "final_amount": "1244.00",
+        "completed_at": "2026-11-25T04:30:00+00:00",
+        "voided_at": None,
+        "note": "測試銷售備註",
+        "created_at": "2026-11-25T04:20:00+00:00",
+        "updated_at": "2026-11-25T04:30:00+00:00",
+        "lines": [{
+            "id": "sale-line-001",
+            "sale_id": "sale-001",
+            "line_no": 1,
+            "product_id": "product-001",
+            "source_location_id": "location-001",
+            "product_code_snapshot": "G00R-21663",
+            "barcode_snapshot": "150702001",
+            "product_name_snapshot": "黃金戒指",
+            "gross_weight": "3.0000",
+            "net_weight": "2.8000",
+            "weight_unit_code": "QIAN",
+            "labor_fee": "300.00",
+            "sell_gold_price_id": None,
+            "sell_gold_price_value": "12000.0000",
+            "sell_gold_price_unit_code": "QIAN",
+            "buy_gold_price_id": None,
+            "buy_gold_price_value": "11800.0000",
+            "buy_gold_price_unit_code": "QIAN",
+            "price_currency_code": "TWD",
+            "price_effective_at": "2026-11-25T04:00:00+00:00",
+            "trade_in_source": None,
+            "old_gold_weight": "0.0000",
+            "trade_in_ratio": None,
+            "adjusted_old_gold_weight": "0.0000",
+            "pricing_rule_version": "v1",
+            "subtotal": "1234.00",
+            "card_fee": "10.00",
+            "final_amount": "1244.00",
+            "created_at": "2026-11-25T04:20:00+00:00",
+        }],
+    }
+
+
+def employee_return_record():
+    return {
+        "id": "return-001",
+        "company_id": "company-sales",
+        "site_id": "site-main",
+        "sale_id": "sale-001",
+        "return_no": "R20261125-001",
+        "settlement_reversal_amount": "600.00",
+        "currency_code": "TWD",
+        "reason": "商品刮痕，雙方協議退貨",
+        "note": "退貨查詢測試",
+        "created_at": "2026-11-25T05:10:00+00:00",
+        "lines": [{
+            "id": "return-line-001",
+            "return_id": "return-001",
+            "sale_line_id": "sale-line-001",
+            "product_id": "product-001",
+            "source_location_id": "location-001",
+            "product_code_snapshot": "G00R-21663",
+            "barcode_snapshot": "150702001",
+            "product_name_snapshot": "黃金戒指",
+            "net_weight": "2.8000",
+            "weight_unit_code": "QIAN",
+            "settlement_reversal_amount": "600.00",
+            "created_at": "2026-11-25T05:10:00+00:00",
+        }],
+    }
+
+
+def test_employee_home_shows_sales_link_only_with_required_payment_visibility(static_server):
+    for payment_scope, expected_visible in [("ALL", True), ("OWN", False)]:
+        workspace = employee_sales_payload(
+            sales_scope="OWN",
+            returns_scope="OWN",
+            payment_scope=payment_scope,
+        )
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            page = browser.new_page(viewport={"width": 390, "height": 844})
+            page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+            page.goto(f"{static_server}/employee.html", wait_until="domcontentloaded")
+            page.get_by_text("銷售測試銀樓").wait_for()
+            link = page.get_by_role("link", name="銷售紀錄")
+            assert link.count() == (1 if expected_visible else 0)
+            if expected_visible:
+                assert "/employee/sales?company_id=company-sales" in link.get_attribute("href")
+            browser.close()
+
+
+def test_employee_sales_history_and_returns_are_read_only_and_company_scoped(static_server):
+    workspace = employee_sales_payload()
+    requests = []
+    sale = employee_sale_record()
+    return_record = employee_return_record()
+
+    def handle_company_api(route):
+        request = route.request
+        requests.append((request.method, request.url))
+        path = request.url.split("?", 1)[0]
+        if path.endswith("/sales"):
+            json_response(route, [sale])
+        elif path.endswith("/returns"):
+            json_response(route, [return_record])
+        else:
+            raise AssertionError(f"Unexpected employee sales API path: {path}")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-sales/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_sales.html?company_id=company-sales",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("銷售測試銀樓").wait_for()
+        page.get_by_role("heading", name="S20261125-001").wait_for()
+        page.get_by_text("黃金戒指").wait_for()
+        page.get_by_text("測試銷售備註").wait_for()
+        assert page.locator("#salesTab").get_attribute("aria-pressed") == "true"
+
+        page.get_by_role("button", name="退貨紀錄").click()
+        page.get_by_role("heading", name="R20261125-001").wait_for()
+        page.get_by_text("商品刮痕，雙方協議退貨").wait_for()
+        assert any("/sales/sale-001/returns" in url for method, url in requests)
+
+        page.get_by_role("button", name="銷售紀錄").click()
+        page.get_by_role("searchbox", name="搜尋銷售紀錄").fill("S2026")
+        page.get_by_role("button", name="搜尋").click()
+        page.get_by_role("heading", name="S20261125-001").wait_for()
+        assert any("/sales?" in url and "q=S2026" in url for method, url in requests)
+        assert requests and all(method == "GET" for method, _url in requests)
+        assert not page_errors, page_errors
+        browser.close()
+
+
+def test_employee_sales_own_scope_does_not_expose_return_history(static_server):
+    workspace = employee_sales_payload(sales_scope="OWN", returns_scope="ALL", payment_scope="ALL")
+    requests = []
+
+    def handle_company_api(route):
+        requests.append((route.request.method, route.request.url))
+        json_response(route, [])
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-sales/**", handle_company_api)
+        page.goto(
+            f"{static_server}/employee_sales.html?company_id=company-sales",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("銷售測試銀樓").wait_for()
+        page.locator("#salesTab").wait_for(state="visible")
+        assert page.locator("#returnsTab").is_hidden()
+        assert len(requests) == 1 and "/sales?" in requests[0][1]
+        assert all(method == "GET" for method, _url in requests)
+        assert not page_errors, page_errors
+        browser.close()
+
+
+def test_employee_sales_does_not_call_sales_api_without_payment_all_scope(static_server):
+    workspace = employee_sales_payload(payment_scope="OWN")
+    requests = []
+
+    def unexpected_company_api(route):
+        requests.append(route.request.url)
+        raise AssertionError("Sales API must not be called without payments.view ALL.")
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch()
+        page = browser.new_page(viewport={"width": 390, "height": 844})
+        page_errors = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+        page.route("**/auth/google/workspace", lambda route: json_response(route, workspace))
+        page.route("**/companies/company-sales/**", unexpected_company_api)
+        page.goto(
+            f"{static_server}/employee_sales.html?company_id=company-sales",
+            wait_until="domcontentloaded",
+        )
+
+        page.get_by_text("銷售測試銀樓").wait_for()
+        page.get_by_text("全公司收付款查看權限").wait_for()
+        assert page.locator("#workspace").is_hidden()
+        assert requests == []
+        assert not page_errors, page_errors
+        browser.close()
