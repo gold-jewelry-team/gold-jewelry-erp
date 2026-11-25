@@ -27,6 +27,7 @@ RESOURCES = (
     ("sales_returns", "銷售退貨"),
     ("customer_orders", "客戶訂單"),
     ("suppliers", "供應商"),
+    ("supplier_offerings", "供應商商品報價"),
     ("supplier_payables", "廠商應付"),
     ("payments", "收付款"),
     ("expenses", "營運費用"),
