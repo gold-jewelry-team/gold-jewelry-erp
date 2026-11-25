@@ -42,6 +42,7 @@ RESOURCE_ROOTS = {
     "supplier-product-offerings": "supplier_offerings",
     "labor-code-config": "product_code_settings",
     "product-code-sequence": "product_code_settings",
+    "operational-report": "reports",
     "reports": "reports",
 }
 
@@ -66,7 +67,7 @@ def permission_for_request(path: str, method: str) -> str:
     root = tail[0]
 
     if root == "sales":
-        if len(tail) > 1 and tail[1] == "returns":
+        if "returns" in tail:
             resource = "sales_returns"
         elif "payments" in tail:
             resource = "payments"
@@ -75,12 +76,14 @@ def permission_for_request(path: str, method: str) -> str:
     elif root == "bank-accounts":
         resource = (
             "bank_reconciliation"
-            if "statement-imports" in tail or "reconciliation-snapshots" in tail
+            if "statement-imports" in tail or "reconciliation-snapshots" in tail or "reconciliation-report" in tail
             else "bank_accounts"
         )
     elif root == "sites":
         if "cash-drawer-movements" in tail:
             resource = "cash_drawer"
+        elif "operational-report" in tail:
+            resource = "reports"
         elif "daily-closings" in tail or "cash-count" in tail:
             resource = "daily_closing"
         else:
