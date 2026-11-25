@@ -117,6 +117,7 @@ def test_company_id_is_extracted_only_from_scoped_paths():
         ("/companies/{company_id}/purchases/{purchase_id}", "PATCH", ["products.view", "suppliers.view"]),
         ("/companies/{company_id}/purchases/{purchase_id}/receive", "POST", ["inventory.create"]),
         ("/companies/{company_id}/sales/{sale_id}/returns", "POST", ["inventory.create", "sales.view"]),
+        ("/companies/{company_id}/sales/{sale_id}/returns", "GET", ["sales.view"]),
         ("/companies/{company_id}/sales/{sale_id}/returns/{return_id}", "GET", ["sales.view"]),
         ("/companies/{company_id}/sales/{sale_id}/payments", "POST", ["sales.view"]),
         ("/companies/{company_id}/sales/returns/{return_id}/payments", "POST", ["sales_returns.view"]),
