@@ -107,8 +107,13 @@ def test_replaying_same_manual_adjustment_returns_original_movement_once():
         rows = verify.query(InventoryMovement).all()
         assert len(rows) == 2
         manual_rows = [row for row in rows if row.reference_type == "MANUAL_ADJUSTMENT"]
-        assert len(manual_rows) == 1
-        assert manual_rows[0].reference_id.hex == key.replace("-", "")
+        assert len(manual_rows) == 2  # One opening adjustment plus the keyed adjustment.
+        keyed_rows = [
+            row for row in manual_rows
+            if row.reference_id.hex == key.replace("-", "")
+        ]
+        assert len(keyed_rows) == 1
+        assert keyed_rows[0].movement_type == "ADJUSTMENT"
         verify.close()
 
         stock = client.get(
