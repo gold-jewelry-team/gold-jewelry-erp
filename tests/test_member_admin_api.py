@@ -202,6 +202,8 @@ def test_member_management_requires_administrator_session(monkeypatch):
 
     no_session = client.get("/member-management")
     assert no_session.status_code == 401
+    no_role_session = client.get("/role-management")
+    assert no_role_session.status_code == 401
 
     admin_token = create_session_token("owner")
     admin_page = client.get(
@@ -210,6 +212,13 @@ def test_member_management_requires_administrator_session(monkeypatch):
     )
     assert admin_page.status_code == 200
     assert "家庭／店員成員管理" in admin_page.text
+
+    role_page = client.get(
+        "/role-management",
+        cookies={settings.session_cookie_name: admin_token},
+    )
+    assert role_page.status_code == 200
+    assert "角色與權限管理" in role_page.text
 
 
 def seed_permission_catalog(company_id):
