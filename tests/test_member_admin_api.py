@@ -317,3 +317,18 @@ def test_membership_can_hold_multiple_company_roles_but_not_foreign_company_role
         json={"role_ids": [foreign_role_id]},
     )
     assert rejected.status_code == 422
+
+
+def test_member_list_returns_503_until_role_schema_is_migrated():
+    Base.metadata.drop_all(
+        engine,
+        tables=[
+            CompanyRolePermission.__table__,
+            CompanyMembershipRole.__table__,
+            CompanyRole.__table__,
+            Permission.__table__,
+        ],
+    )
+    response = client.get("/admin/api/members")
+    assert response.status_code == 503
+    assert "Migration" in response.json()["detail"]
