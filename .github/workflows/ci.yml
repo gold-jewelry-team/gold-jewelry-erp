@@ -157,7 +157,7 @@ jobs:
       - name: Run inventory idempotency concurrency tests on PostgreSQL
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
-        run: pytest -q tests/test_postgres_inventory_idempotency.py
+        run: pytest -q tests/test_postgres_inventory_idempotency.py tests/test_postgres_inventory_operation_recovery.py
       - name: Run bank reconciliation scope tests on PostgreSQL
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
