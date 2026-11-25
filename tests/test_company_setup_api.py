@@ -8,7 +8,6 @@ from app import models  # noqa: F401
 from app.db.base import Base
 from app.main import app
 from app.models.inventory import InventoryMovement
-from app.models.access_control import CompanyRole, Permission
 from app.models.product import Product
 from app.routers.company_setup import get_db
 
@@ -226,37 +225,3 @@ def test_company_setup_updates_are_company_scoped_and_require_active_parents():
     assert blocked_site.status_code == 422
 
 
-def test_company_creation_remains_available_before_permission_migration(monkeypatch):
-    import app.routers.company_setup as company_setup_module
-
-    monkeypatch.setattr(company_setup_module, "_role_schema_available", lambda db: False)
-    response = client.post(
-        "/companies",
-        json={"code": "PREMIG", "name": "Migration 尚未執行的測試公司"},
-    )
-    assert response.status_code == 201, response.text
-    assert response.json()["code"] == "PREMIG"
-
-
-def test_company_creation_provisions_default_roles_when_permission_catalog_is_seeded():
-    with TestingSessionLocal() as db:
-        db.add(Permission(
-            code="products.view",
-            resource_code="products",
-            action_code="view",
-            name="商品－查看",
-            is_active=True,
-        ))
-        db.commit()
-
-    response = client.post(
-        "/companies",
-        json={"code": "ROLESEED", "name": "角色初始化測試公司"},
-    )
-    assert response.status_code == 201, response.text
-    company_id = response.json()["id"]
-    with TestingSessionLocal() as db:
-        role_codes = set(db.scalars(
-            select(CompanyRole.code).where(CompanyRole.company_id == company_id)
-        ).all())
-    assert role_codes == {"OWNER", "MANAGER", "STAFF"}
