@@ -22,6 +22,7 @@ from app.services.inventory import (
     InventoryIdempotencyConflict,
     create_inventory_movement,
     get_idempotent_adjustment,
+    get_idempotent_transfer,
     StocktakeSnapshotConflict,
     apply_stocktake_adjustment_batch,
 )
@@ -257,18 +258,48 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
 
 @router.post("/transfers", response_model=InventoryMovementRead, status_code=201)
 def post_inventory_transfer(company_id: UUID, payload: InventoryTransferCreate,
-                            db: Session = Depends(get_db)):
+                            response: Response, db: Session = Depends(get_db)):
     try:
+        existing = get_idempotent_transfer(
+            db, company_id=company_id, site_id=payload.site_id,
+            product_id=payload.product_id, from_location_id=payload.from_location_id,
+            to_location_id=payload.to_location_id, quantity=payload.quantity,
+            weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+            note=payload.note, idempotency_key=payload.idempotency_key,
+        )
+        if existing is not None:
+            response.status_code = 200
+            return existing
         movement = create_inventory_movement(
             db, company_id=company_id, site_id=payload.site_id, product_id=payload.product_id,
             movement_type="TRANSFER", quantity=payload.quantity,
             from_location_id=payload.from_location_id, to_location_id=payload.to_location_id,
             weight=payload.weight, weight_unit_code=payload.weight_unit_code,
             occurred_at=payload.occurred_at, note=payload.note,
+            idempotency_key=payload.idempotency_key,
         )
         db.commit()
         db.refresh(movement)
         return movement
+    except InventoryIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        try:
+            existing = get_idempotent_transfer(
+                db, company_id=company_id, site_id=payload.site_id,
+                product_id=payload.product_id, from_location_id=payload.from_location_id,
+                to_location_id=payload.to_location_id, quantity=payload.quantity,
+                weight=payload.weight, weight_unit_code=payload.weight_unit_code,
+                note=payload.note, idempotency_key=payload.idempotency_key,
+            )
+        except InventoryIdempotencyConflict as conflict:
+            raise HTTPException(status_code=409, detail=str(conflict)) from conflict
+        if existing is not None:
+            response.status_code = 200
+            return existing
+        raise HTTPException(status_code=409, detail="櫃位調撥重複或資料關聯衝突。") from exc
