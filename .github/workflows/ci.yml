@@ -280,6 +280,6 @@ jobs:
       - name: Verify final Alembic revision
         run: |
           alembic current
-          alembic current | grep -q "0032_bank_operation_idempotency"
+          alembic current | grep -q "0033_inventory_op_requests"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
