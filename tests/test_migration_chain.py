@@ -4,10 +4,10 @@ from alembic.script import ScriptDirectory
 
 def test_alembic_history_is_a_single_linear_chain_through_inventory_operation_requests():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0033_inventory_operation_requests"]
+    assert script.get_heads() == ["0033_inventory_op_requests"]
 
     expected = [
-        "0033_inventory_operation_requests",
+        "0033_inventory_op_requests",
         "0032_bank_operation_idempotency",
         "0031_bank_transfer_source_links",
         "0030_payment_idempotency",
