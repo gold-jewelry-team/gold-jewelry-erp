@@ -3943,13 +3943,15 @@ $("inventoryTransferForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!companyId||!selectedSiteId){message("transferStatus","請先選擇公司與據點。",true);return;}
  const selectedProduct=inventoryProducts.find(x=>x.id===$("transferProduct").value);
- const payload={
+ const currentPayload={
   site_id:selectedSiteId,product_id:$("transferProduct").value,
   from_location_id:$("transferFromLocation").value,to_location_id:$("transferToLocation").value,
   quantity:$("transferQuantity").value,weight:selectedProduct?selectedProduct.net_weight:null,
   weight_unit_code:selectedProduct?selectedProduct.weight_unit_code:null,
   note:$("transferNote").value.trim()||null
  };
+ const existingPending=readPendingInventoryTransfer(companyId,selectedSiteId);
+ const payload=existingPending&&!existingPending.invalid?existingPending.payload:currentPayload;
  const button=$("inventoryTransferForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
   const pending=savePendingInventoryTransfer(companyId,selectedSiteId,payload);
