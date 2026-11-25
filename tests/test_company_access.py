@@ -322,19 +322,21 @@ def test_every_company_scoped_api_route_has_a_permission_mapping():
 
     unmapped = []
     checked = 0
-    for route in app.routes:
-        route_path = getattr(route, "path", "")
+    http_methods = {"get": "GET", "post": "POST", "put": "PUT", "patch": "PATCH", "delete": "DELETE"}
+    for route_path, path_item in app.openapi()["paths"].items():
         if not route_path.startswith("/companies/{company_id}/"):
             continue
-        methods = getattr(route, "methods", set()) or set()
-        for method in sorted(methods):
+        for method_name, method in path_item.items():
+            if method_name.lower() not in http_methods:
+                continue
+            verb = http_methods[method_name.lower()]
             try:
-                permission_for_request(route_path, method)
+                permission_for_request(route_path, verb)
                 checked += 1
             except HTTPException as exc:
-                unmapped.append(f"{method} {route_path}: {exc.detail}")
+                unmapped.append(f"{verb} {route_path}: {exc.detail}")
 
-    assert checked > 0, "No company-scoped API routes were discovered."
+    assert checked > 0, "No company-scoped API routes were discovered in OpenAPI."
     assert not unmapped, "Company routes missing explicit permission mappings:\\n" + "\\n".join(unmapped)
 
 
