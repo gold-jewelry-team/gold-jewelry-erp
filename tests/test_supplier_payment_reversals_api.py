@@ -18,7 +18,7 @@ from app.models.supplier_payable import (
 from app.models.company import Company
 from app.models.site import Site
 from app.models.supplier import Supplier
-from app.routers import bank_accounts, daily_closing, supplier_payables
+from app.routers import bank_accounts, cash_counts, daily_closing, supplier_payables
 
 
 def _context():
@@ -50,10 +50,11 @@ def _context():
     app.dependency_overrides[supplier_payables.get_db] = override_db
     app.dependency_overrides[daily_closing.get_db] = override_db
     app.dependency_overrides[bank_accounts.get_db] = override_db
+    app.dependency_overrides[cash_counts.get_db] = override_db
     return engine, Session, ids
 
 
-def _bill_and_payment(client, company_id, site_id, supplier_id):
+def _bill_and_payment(client, company_id, site_id, supplier_id, *, payment_method="TRANSFER"):
     base = f"/companies/{company_id}/supplier-payables"
     bill = client.post(f"{base}/bills", json={
         "site_id": str(site_id),
@@ -68,7 +69,7 @@ def _bill_and_payment(client, company_id, site_id, supplier_id):
         "site_id": str(site_id),
         "supplier_id": str(supplier_id),
         "payment_no": "SP-REVERSAL-001",
-        "payment_method": "TRANSFER",
+        "payment_method": payment_method,
         "allocations": [{"bill_id": bill.json()["id"], "amount": "1000.00"}],
     })
     assert payment.status_code == 201, payment.text
@@ -272,6 +273,56 @@ def test_supplier_payment_reversal_can_be_linked_as_incoming_bank_transfer():
             "IN",
             "SUPPLIER_PAYMENT_REVERSAL",
         )
+    finally:
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+
+def test_cash_supplier_payment_reversal_restores_expected_drawer_cash_count():
+    engine, _Session, (company_id, site_id, supplier_id) = _context()
+    try:
+        client = TestClient(app)
+        base, _bill, payment = _bill_and_payment(
+            client, company_id, site_id, supplier_id, payment_method="CASH"
+        )
+        reversal = client.post(f"{base}/payments/{payment['id']}/reverse", json={
+            "reversal_no": "SPR-CASH-001",
+            "reason": "供應商退回現金",
+            "allocations": [{
+                "payment_allocation_id": payment["allocations"][0]["id"],
+                "amount": "300.00",
+            }],
+        })
+        assert reversal.status_code == 201, reversal.text
+
+        business_date = datetime.now(timezone.utc).astimezone(ZoneInfo("Asia/Taipei")).date()
+        closing = client.post(
+            f"/companies/{company_id}/sites/{site_id}/daily-closings",
+            json={"business_date": business_date.isoformat()},
+        )
+        assert closing.status_code == 201, closing.text
+        summary = next(
+            item for item in closing.json()["payment_summaries"]
+            if item["payment_method"] == "CASH"
+        )
+        assert summary["supplier_paid_amount"] == "1000.00"
+        assert summary["supplier_payment_reversed_amount"] == "300.00"
+        assert summary["net_cash_flow"] == "-700.00"
+
+        count_url = (
+            f"/companies/{company_id}/sites/{site_id}"
+            f"/daily-closings/{closing.json()['id']}/cash-count"
+        )
+        count = client.post(count_url, json={
+            "opening_cash_float": "1000.00",
+            "counted_cash_amount": "300.00",
+            "counted_by_name": "店主",
+        })
+        assert count.status_code == 201, count.text
+        assert count.json()["expected_cash_amount"] == "300.00"
+        assert count.json()["cash_variance"] == "0.00"
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)
