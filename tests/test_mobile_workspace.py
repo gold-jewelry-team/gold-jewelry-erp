@@ -535,7 +535,8 @@ def test_sale_and_return_payment_forms_use_retry_safe_idempotency_keys():
     assert 'payload.idempotency_key=idempotencyKey' in html
     assert 'getPaymentIdempotencyKey("sale",currentSale.id,payload)' in html
     assert 'getPaymentIdempotencyKey("return",selectedReturn.id,payload)' in html
-    assert 'error.status>=400&&error.status<500' in html
+    assert html.count('if(idempotencyKey&&error.status===422)') == 2
+    assert 'error.status>=400&&error.status<500' not in html
 
 
 
