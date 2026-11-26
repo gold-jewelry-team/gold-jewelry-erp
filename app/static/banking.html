@@ -308,7 +308,7 @@ function renderImports(){
 function lineCandidateOptions(line){
  const targetDate=line.transaction_date;
  const candidates=state.transactions.filter(tx=>tx.direction===line.direction&&Number(tx.amount)===Number(line.amount)&&dateTaipei(tx.occurred_at)===targetDate&&(!line.reference_no||tx.reference_no===line.reference_no));
- return '<option value="">選擇相符銀行流水</option>'+candidates.map(tx=>'<option value="'+esc(tx.id)+'">'+esc(fmtDate(tx.occurred_at))+' · '+(tx.direction==="IN"?"收入":"支出")+' NT$ '+fmtMoney(tx.amount)+' · '+esc(tx.reference_no||tx.description)+'</option>').join("");
+ return '<option value="">選擇相符銀行流水</option>'+candidates.map(tx=>'<option value="'+esc(tx.id)+'">'+esc(fmtDate(tx.occurred_at))+' · '+bankDirectionLabel(tx.direction,{IN:"收入",OUT:"支出"})+' NT$ '+fmtMoney(tx.amount)+' · '+esc(tx.reference_no||tx.description)+'</option>').join("");
 }
 function statusName(s){return({UNMATCHED:"未配對",MATCHED:"已配對",DUPLICATE:"重複",IGNORED:"已忽略"})[s]||s;}
 function renderLines(){
