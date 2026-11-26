@@ -21,7 +21,7 @@ def get_db():
     finally: db.close()
 
 class CashDrawerMovementCreate(BaseModel):
-    movement_type: str = Field(pattern="^(FLOAT_INCREASE|FLOAT_DECREASE|OTHER_IN|OTHER_OUT)$")
+    movement_type: str = Field(pattern="^(BANK_DEPOSIT|BANK_WITHDRAWAL|FLOAT_INCREASE|FLOAT_DECREASE|OTHER_IN|OTHER_OUT)$")
     amount: Decimal = Field(gt=0,max_digits=18,decimal_places=2)
     description: str = Field(min_length=1,max_length=200)
     created_by_name: str = Field(min_length=1,max_length=120)
