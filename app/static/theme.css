@@ -1,0 +1,147 @@
+/* Shared warm visual theme for every Gold Jewelry ERP workspace.
+   Keep semantic success, warning and danger colors distinct. */
+:root{
+  color-scheme:light;
+  --erp-ink:#352f27;
+  --erp-muted:#786f63;
+  --erp-bg:#f5f0e7;
+  --erp-surface:#fffdf8;
+  --erp-surface-soft:#f7f1e7;
+  --erp-surface-muted:#efe7da;
+  --erp-line:#e8dece;
+  --erp-bronze:#79582f;
+  --erp-bronze-dark:#604426;
+  --erp-champagne:#c5a46b;
+  --erp-shadow:0 5px 18px rgba(65,48,29,.075);
+  --app-ink:var(--erp-ink);
+  --app-muted:var(--erp-muted);
+  --app-bg:var(--erp-bg);
+  --app-panel:var(--erp-surface);
+  --app-green:var(--erp-bronze);
+  --app-green-dark:var(--erp-bronze-dark);
+  --app-gold:var(--erp-champagne);
+  --app-line:var(--erp-line);
+  --app-shadow:var(--erp-shadow);
+  --green:var(--erp-bronze);
+  --line:var(--erp-line);
+  --muted:var(--erp-muted);
+  font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;
+}
+html,body{background:var(--erp-bg);color:var(--erp-ink)}
+body{background-color:var(--erp-bg)}
+header{
+  background:linear-gradient(115deg,#4a3a2b 0%,#3e4032 100%);
+  color:#fff;
+  box-shadow:0 4px 18px rgba(54,42,27,.13);
+}
+header p{color:#e0d8ca}
+header h1{color:#fff}
+main{color:var(--erp-ink)}
+.panel,.member,.permission,.company,.item,.mobile-bank-details,.mobile-report-details,
+.role-editor,.allocation-row,.table-wrap{
+  border-color:var(--erp-line);
+}
+.panel,.member,.permission,.company,.item{
+  background:var(--erp-surface);
+  box-shadow:var(--erp-shadow);
+}
+h1,h2,h3,h4{color:var(--erp-ink)}
+label{color:#665d51}
+.sub,.muted,.hint,.meta,.footer-note{color:var(--erp-muted)}
+input,select,textarea{
+  background:#fffefa;
+  color:var(--erp-ink);
+  border-color:#d9cebd;
+}
+input::placeholder,textarea::placeholder{color:#9a9082}
+input:focus,select:focus,textarea:focus,
+input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(197,164,107,.28);
+  outline-offset:1px;
+  border-color:#a9844b;
+}
+input[type=checkbox],input[type=radio]{accent-color:var(--erp-bronze)}
+button:not(.secondary):not(.danger){
+  background:linear-gradient(180deg,#89683a 0%,#73532d 100%);
+  color:#fff;
+  box-shadow:0 2px 6px rgba(82,59,29,.16);
+}
+button:not(.secondary):not(.danger):hover{filter:brightness(1.06)}
+button.secondary{
+  background:#efe8dc;
+  color:#604b30;
+  border:1px solid #e2d7c5;
+  box-shadow:none;
+}
+button.danger{background:#a64236;color:#fff}
+button:disabled{filter:saturate(.55);opacity:.58}
+a{color:#79582f}
+.category-nav{
+  background:var(--erp-surface);
+  border-color:var(--erp-line);
+  box-shadow:var(--erp-shadow);
+}
+.category-nav button{
+  background:#f5efe5;
+  border-color:#e3d8c7;
+  color:#5c4a34;
+}
+.category-nav button[aria-pressed="true"]{
+  background:linear-gradient(180deg,#89683a 0%,#73532d 100%);
+  border-color:#73532d;
+  color:#fff;
+}
+.category-shortcuts{
+  background:var(--erp-surface);
+  border-color:var(--erp-line);
+  box-shadow:var(--erp-shadow);
+}
+.category-shortcuts button{
+  background:#f5efe5;
+  border-color:#e4d9c8;
+  color:#604b30;
+}
+.category-shortcuts button:active{background:var(--erp-bronze);color:#fff}
+main>section.panel[data-category="inventory"]{--category-accent:#7d896d}
+main>section.panel[data-category="sales"]{--category-accent:#bd8068}
+main>section.panel[data-category="products"]{--category-accent:#c4a064}
+main>section.panel[data-category="purchasing"]{--category-accent:#998493}
+main>section.panel[data-category="finance"]{--category-accent:#77968a}
+main>section.panel[data-category="pricing"]{--category-accent:#c28d43}
+main>section.panel[data-category="settings"]{--category-accent:#8b806e}
+main>section.panel[data-category="advanced"]{--category-accent:#ad7b7b}
+.table-wrap{background:var(--erp-surface)}
+table th,th{background:#f1e9dc;color:#5c4b36}
+table td{color:#40392f;border-bottom-color:#eee5d8}
+tr:last-child td{border-bottom-color:transparent}
+.detail,.line,.scan-feedback-code,.gold-currency-rate-editor{
+  background:var(--erp-surface-soft);
+  border-color:var(--erp-line);
+}
+.notice{
+  background:#f7f0e4;
+  border-color:#ead9ba;
+  color:#6d5532;
+}
+#homeDashboard .home-action-primary,
+#homeDashboard .home-more,
+#homeDashboard .home-tips{
+  background:#fffaf1;
+  border-color:#eadfc9;
+}
+#homeDashboard .home-more>summary,
+#homeDashboard .home-tips>summary{color:#5d482d}
+.quick-nav a{border-color:#ffffff42}
+.quick-nav a:hover,.quick-nav a:focus-visible{background:#ffffff28}
+.pill,.badge{
+  background:#f1e9dc;
+  color:#66502f;
+}
+.scan-feedback{
+  background:var(--erp-surface);
+  border-color:var(--erp-line);
+}
+::selection{background:rgba(197,164,107,.28);color:var(--erp-ink)}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
