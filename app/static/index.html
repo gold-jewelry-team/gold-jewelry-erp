@@ -1208,7 +1208,7 @@ button.secondary:disabled{opacity:.42}
 <div class="field"><label for="drawerMovementType">異動類型</label><select id="drawerMovementType"><option value="FLOAT_INCREASE">增加備用金</option><option value="FLOAT_DECREASE">減少備用金</option><option value="OTHER_IN">其他收入</option><option value="OTHER_OUT">其他支出</option></select></div>
 <div class="field"><label for="drawerAmount">金額（TWD）</label><input id="drawerAmount" type="number" min="0.01" step="0.01" required></div>
 <div class="field"><label for="drawerDescription">異動說明</label><input id="drawerDescription" maxlength="200" required></div>
-<div class="field"><label for="drawerActor">經手人</label><input id="drawerActor" maxlength="120" required></div>
+<div class="field"><label for="drawerActor">經手人</label><input id="drawerActor" maxlength="120" required><small class="muted">成功新增後，僅在此瀏覽器記住本公司／據點上次的經手人。</small></div>
 <div class="field"><label for="drawerReference">交易／存款編號</label><input id="drawerReference" maxlength="100"></div>
 <div class="field"><label for="drawerNote">備註</label><input id="drawerNote" maxlength="500"></div>
 </div>
@@ -2557,7 +2557,7 @@ $("laborCodeSettingsForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 
-$("siteSelect").addEventListener("change",async()=>{resetCustomerOrderEditor();resetSupplierBillEditor();resetPurchaseEditor();resetExpenseEditor();resetLocationEditor();selectedSiteId=$("siteSelect").value;selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
+$("siteSelect").addEventListener("change",async()=>{resetCustomerOrderEditor();resetSupplierBillEditor();resetPurchaseEditor();resetExpenseEditor();resetLocationEditor();selectedSiteId=$("siteSelect").value;restoreCashDrawerOperator(true);selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");$("cashCountPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");try{await loadStorageLocations();await loadInventoryOptions();await loadGoldPrices();await loadDailyClosings();await loadSalesHistory();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("siteStatus",e.message,true);}});
 $("siteForm").addEventListener("submit",async event=>{
  event.preventDefault();if(!companyId){message("siteStatus","請先選擇公司。",true);return;}
  const button=$("siteSubmit");button.disabled=true;
@@ -2618,7 +2618,7 @@ $("locationList").addEventListener("click",async event=>{
   finally{toggle.disabled=false;}
  }
 });
-$("companySelect").addEventListener("change",async()=>{resetCustomerOrderEditor();resetSupplierBillEditor();resetPurchaseEditor();resetExpenseEditor();companyId=$("companySelect").value;renderHeaderCompanyName();resetSiteEditor();resetLocationEditor();selectedSiteId="";selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
+$("companySelect").addEventListener("change",async()=>{resetCustomerOrderEditor();resetSupplierBillEditor();resetPurchaseEditor();resetExpenseEditor();companyId=$("companySelect").value;renderHeaderCompanyName();resetSiteEditor();resetLocationEditor();selectedSiteId="";restoreCashDrawerOperator(true);selectedClosing=null;purchaseCartLines=[];renderPurchaseCart();selectedPurchase=null;selectedPurchaseLine=null;$("purchaseReceivePanel").classList.add("hidden");selectedSupplierBill=null;$("supplierPaymentPanel").classList.add("hidden");saleCartLines=[];currentSale=null;saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");renderSaleCart();$("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");$("cashCountPanel").classList.add("hidden");$("productEditPanel").classList.add("hidden");editingProduct=null;try{await loadSites();await loadCategories();await loadSequence();await loadProducts();await loadLaborCodeConfig();await loadSuppliers();await loadSupplierBills();await loadSupplierPayments();await loadPurchases();await loadExpenses();await loadCashDrawerMovements();}catch(e){message("globalStatus",e.message,true);}});
 $("reloadCompanies").addEventListener("click",()=>loadCompanies(companyId).catch(e=>message("globalStatus",e.message,true)));
 $("generateCode").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence/next",{method:"POST",body:JSON.stringify({prefix:$("productPrefix").value.trim()})});$("productCode").value=data.product_code;await loadSequence();message("sequenceStatus","已產生編號："+data.product_code+"；此號碼已保留，未使用也不會回收。");}catch(err){message("sequenceStatus",err.message,true);}});
 $("saveSequence").addEventListener("click",async()=>{if(!companyId){message("sequenceStatus","請先選擇公司",true);return;}try{const data=await api("/companies/"+companyId+"/product-code-sequence",{method:"PATCH",body:JSON.stringify({next_number:Number($("nextNumber").value),number_width:Number($("numberWidth").value)})});$("nextNumber").value=data.next_number;message("sequenceStatus","編號設定已儲存");}catch(err){message("sequenceStatus",err.message,true);}});
@@ -3557,6 +3557,10 @@ async function loadExpenses(){
  }).join(""):'<div class="empty">沒有符合條件的營業費用</div>';
 }
 
+function cashDrawerOperatorStorageKey(company,site){return "gold-erp-cash-drawer-operator:"+company+":"+site;}
+function readCashDrawerOperator(company,site){try{const value=localStorage.getItem(cashDrawerOperatorStorageKey(company,site));return typeof value==="string"?value.trim().slice(0,120):"";}catch(error){return "";}}
+function saveCashDrawerOperator(company,site,name){const value=String(name||"").trim();if(!company||!site||!value)return false;try{localStorage.setItem(cashDrawerOperatorStorageKey(company,site),value.slice(0,120));return true;}catch(error){return false;}}
+function restoreCashDrawerOperator(force=false){const field=$("drawerActor");if(!field)return;if(!companyId||!selectedSiteId){if(force)field.value="";return;}if(force||!field.value.trim())field.value=readCashDrawerOperator(companyId,selectedSiteId);}
 function cashDrawerPendingStorageKey(company,site){
  return "gold-erp-cash-drawer:"+company+":"+site;
 }
@@ -3619,6 +3623,7 @@ function restorePendingCashDrawerDraft(){
 }
 async function loadCashDrawerMovements(){
  const box=$("cashDrawerList");
+ restoreCashDrawerOperator();
  renderPendingCashDrawerRecovery();
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
  const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/cash-drawer-movements");
@@ -3932,7 +3937,12 @@ $("cashDrawerForm").addEventListener("submit",async event=>{
  try{
   await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/cash-drawer-movements",{method:"POST",body:JSON.stringify(payload)});
   clearPendingCashDrawerMovement(companyId,selectedSiteId);
-  $("cashDrawerForm").reset();message("cashDrawerStatus","現金櫃異動已新增或確認原紀錄。");
+  saveCashDrawerOperator(companyId,selectedSiteId,payload.created_by_name);
+  $("cashDrawerForm").reset();
+  restoreCashDrawerOperator(true);
+  const nextDrawerAmount=$("drawerAmount");
+  if(nextDrawerAmount&&typeof nextDrawerAmount.focus==="function")nextDrawerAmount.focus({preventScroll:true});
+  message("cashDrawerStatus","現金櫃異動已新增或確認原紀錄。");
   try{await loadCashDrawerMovements();}
   catch(refreshError){message("cashDrawerStatus","異動已完成，但清單更新失敗："+refreshError.message,true);}
  }catch(error){
