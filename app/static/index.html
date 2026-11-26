@@ -2352,7 +2352,12 @@ async function loadCashCount(){
   if(error.status===404){
    $("cashCountCreateForm").classList.remove("hidden");
    $("cashCountReviewForm").classList.add("hidden");
-   $("cashCountResult").innerHTML='<div class="empty">此結帳日尚未建立現金盤點。</div>';
+   $("cashCountResult").innerHTML='<div class="empty">此結帳日尚未建立現金盤點，請從期初備用金開始填寫。</div>';
+   const firstField=$("openingCashFloat");
+   if(firstField){
+    if(typeof firstField.scrollIntoView==="function")firstField.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+    try{firstField.focus({preventScroll:true});}catch(focusError){firstField.focus();}
+   }
   }else{message("cashCountStatus",error.message,true);}
  }
 }
