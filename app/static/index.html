@@ -903,9 +903,9 @@ button.secondary:disabled{opacity:.42}
 </div>
 <form id="saleHeaderForm">
 <div class="grid">
-<div class="field"><label for="saleNo">銷售單號</label><input id="saleNo" maxlength="40" required placeholder="輸入門市銷售單號"></div>
+<div class="field"><label for="saleNo">銷售單號（自動產生，可修改）</label><input id="saleNo" maxlength="40" required placeholder="已自動產生，可自行修改"></div>
 <div class="field"><label for="salePaymentMethod">付款方式</label><select id="salePaymentMethod"><option value="CASH">現金</option><option value="CARD">全額刷卡</option><option value="MIXED">部分刷卡＋現金</option><option value="TRANSFER">轉帳</option><option value="OTHER">其他</option></select></div>
-<div class="field"><label for="saleCardAmount">刷卡本金（TWD，整數）</label><input id="saleCardAmount" type="number" min="0" step="1" placeholder="部分刷卡時輸入顧客指定金額"></div>
+<div class="field hidden" id="saleCardAmountField"><label for="saleCardAmount">刷卡本金（TWD，整數）</label><input id="saleCardAmount" type="number" min="0" step="1" placeholder="輸入顧客指定的刷卡本金"></div>
 <div class="field"><label for="saleNote">銷售備註</label><input id="saleNote" maxlength="500"></div>
 </div>
 </form>
@@ -3891,7 +3891,7 @@ async function loadSalesHistory(){
 $("searchSalesHistory").addEventListener("click",()=>loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true)));
 $("salesHistoryQuery").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true));}});
 function resetSaleEditor(){
- editingSaleId="";currentSaleCustomerOrderId=null;saleCartLines=[];renderSaleCart();$("saleHeaderForm").reset();$("saleCardAmount").disabled=true;
+ editingSaleId="";currentSaleCustomerOrderId=null;saleCartLines=[];renderSaleCart();$("saleHeaderForm").reset();syncSalePaymentFields();$("saleNo").value=createDocumentNumber("SO");
  $("createSaleDraft").textContent="建立銷售草稿";$("cancelSaleEdit").classList.add("hidden");
 }
 $("cancelSaleEdit").addEventListener("click",resetSaleEditor);
@@ -3911,7 +3911,7 @@ $("salesHistoryList").addEventListener("click",async event=>{
    }
    editingSaleId=sale.id;currentSale=null;currentSaleCustomerOrderId=sale.customer_order_id||null;
    $("saleNo").value=sale.sale_no;$("salePaymentMethod").value=sale.payment_method;
-   $("saleCardAmount").value=sale.card_amount;$("saleCardAmount").disabled=sale.payment_method!=="MIXED";
+   $("saleCardAmount").value=sale.card_amount;syncSalePaymentFields();
    $("saleNote").value=sale.note||"";
    saleCartLines=(sale.lines||[]).map(line=>{
     const product=line.product_id?(inventoryProducts.find(item=>item.id===line.product_id)||{
@@ -4014,6 +4014,12 @@ $("salePaymentForm").addEventListener("submit",async event=>{
  }
  finally{button.disabled=false;}
 });
+function syncSalePaymentFields(){
+ const mixed=$("salePaymentMethod").value==="MIXED";
+ $("saleCardAmount").disabled=!mixed;
+ $("saleCardAmountField").classList.toggle("hidden",!mixed);
+ if(!mixed)$("saleCardAmount").value="";
+}
 function transferQuoteToSale(){
  currentSaleCustomerOrderId=null;
  if(!companyId||!selectedSiteId){quoteSetStatus("請先選擇公司與據點。",true);return;}
@@ -4037,9 +4043,9 @@ function transferQuoteToSale(){
  renderSaleCart();
  const quoteMethod=Number(quoteCurrentTotal||0)>0?$("quotePaymentMethod").value:"CASH";
  $("salePaymentMethod").value=quoteMethod==="CARD"?"CARD":quoteMethod==="MIXED"?"MIXED":"CASH";
- $("saleCardAmount").disabled=quoteMethod!=="MIXED";
  $("saleCardAmount").value=quoteMethod==="MIXED"?$("quoteCardAmount").value:"";
- if(!$("saleNo").value.trim())$("saleNo").value="SO-"+Date.now().toString();
+ syncSalePaymentFields();
+ if(!$("saleNo").value.trim())$("saleNo").value=createDocumentNumber("SO");
  const panel=$("salesPanel");
  const categoryButton=document.querySelector('.category-nav button[data-category="sales"]');if(categoryButton)categoryButton.click();
  panel.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
@@ -4088,11 +4094,7 @@ $("saleBarcodeScan").addEventListener("keydown",event=>{
   addSaleProduct();
  });
 });
-$("salePaymentMethod").addEventListener("change",()=>{
- const method=$("salePaymentMethod").value;
- $("saleCardAmount").disabled=method!=="MIXED";
- if(method!=="MIXED")$("saleCardAmount").value="";
-});
+$("salePaymentMethod").addEventListener("change",syncSalePaymentFields);
 $("createSaleDraft").addEventListener("click",async()=>{
  if(!companyId||!selectedSiteId||!saleCartLines.length||currentSale)return;
  const method=$("salePaymentMethod").value;
@@ -4157,10 +4159,11 @@ $("newSale").addEventListener("click",()=>{
  currentSale=null;saleCartLines=[];saleReturns=[];selectedReturn=null;$("salePaymentPanel").classList.add("hidden");$("saleReturnPanel").classList.add("hidden");$("returnPaymentPanel").classList.add("hidden");
  renderSaleCart();$("saleDraftResult").innerHTML="";
  $("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
- $("saleHeaderForm").reset();$("saleCardAmount").disabled=true;$("saleBarcodeScan").value="";
+ $("saleHeaderForm").reset();syncSalePaymentFields();$("saleNo").value=createDocumentNumber("SO");$("saleBarcodeScan").value="";
  message("saleStatus","可開始下一筆銷售。");
 });
-$("saleCardAmount").disabled=true;
+$("saleNo").value=createDocumentNumber("SO");
+syncSalePaymentFields();
 $("billDate").value=taipeiDateValue();
 $("billNo").value=createDocumentNumber("BILL");
 $("purchaseOrderDate").value=taipeiDateValue();
