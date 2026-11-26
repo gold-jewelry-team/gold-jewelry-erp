@@ -171,7 +171,7 @@ def test_sales_number_is_prefilled_and_card_amount_only_appears_for_mixed_tender
     html = TestClient(app).get("/app").text
     assert "銷售單號（自動產生，可修改）" in html
     assert 'id="saleNo" maxlength="40" required placeholder="已自動產生，可自行修改"' in html
-    assert 'id="saleCardAmountField" class="field hidden"' in html
+    assert '<div class="field hidden" id="saleCardAmountField">' in html
 
     helper_start = html.index("function syncSalePaymentFields(){")
     helper_end = html.index("function transferQuoteToSale(){", helper_start)
