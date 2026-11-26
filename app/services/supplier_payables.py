@@ -1,9 +1,10 @@
 """Supplier bill creation and allocated payable settlement."""
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.purchase import Purchase
@@ -442,3 +443,126 @@ def record_supplier_payment_reversal(
 
     session.flush()
     return (reversal, True) if return_created else reversal
+
+
+def get_supplier_payable_aging(
+    session: Session,
+    *,
+    company_id: UUID,
+    site_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    as_of_date: date | None = None,
+) -> dict:
+    """Group open supplier balances by supplier/currency and due-date age."""
+    effective_date = as_of_date or datetime.now(ZoneInfo("Asia/Taipei")).date()
+
+    cash_paid = (
+        select(
+            SupplierPaymentAllocation.bill_id.label("bill_id"),
+            func.sum(SupplierPaymentAllocation.amount).label("cash_paid"),
+        )
+        .group_by(SupplierPaymentAllocation.bill_id)
+        .subquery()
+    )
+    cash_reversed = (
+        select(
+            SupplierPaymentAllocation.bill_id.label("bill_id"),
+            func.sum(SupplierPaymentReversalAllocation.amount).label("cash_reversed"),
+        )
+        .join(
+            SupplierPaymentAllocation,
+            SupplierPaymentAllocation.id
+            == SupplierPaymentReversalAllocation.payment_allocation_id,
+        )
+        .group_by(SupplierPaymentAllocation.bill_id)
+        .subquery()
+    )
+    gold_paid = (
+        select(
+            GoldMaterialSettlementAllocation.bill_id.label("bill_id"),
+            func.sum(GoldMaterialSettlementAllocation.amount).label("gold_paid"),
+        )
+        .group_by(GoldMaterialSettlementAllocation.bill_id)
+        .subquery()
+    )
+
+    net_paid = (
+        func.coalesce(cash_paid.c.cash_paid, 0)
+        - func.coalesce(cash_reversed.c.cash_reversed, 0)
+        + func.coalesce(gold_paid.c.gold_paid, 0)
+    )
+    outstanding = SupplierBill.total_amount - net_paid
+    aging_bucket = case(
+        (SupplierBill.due_date.is_(None), "NO_DUE_DATE"),
+        (SupplierBill.due_date >= effective_date, "NOT_DUE"),
+        (SupplierBill.due_date >= effective_date - timedelta(days=30), "OVERDUE_1_30"),
+        (SupplierBill.due_date >= effective_date - timedelta(days=60), "OVERDUE_31_60"),
+        (SupplierBill.due_date >= effective_date - timedelta(days=90), "OVERDUE_61_90"),
+        else_="OVERDUE_91_PLUS",
+    )
+    statement = (
+        select(
+            SupplierBill.supplier_id,
+            SupplierBill.currency_code,
+            aging_bucket.label("aging_bucket"),
+            func.count(SupplierBill.id).label("bill_count"),
+            func.sum(outstanding).label("outstanding_amount"),
+        )
+        .select_from(SupplierBill)
+        .outerjoin(cash_paid, cash_paid.c.bill_id == SupplierBill.id)
+        .outerjoin(cash_reversed, cash_reversed.c.bill_id == SupplierBill.id)
+        .outerjoin(gold_paid, gold_paid.c.bill_id == SupplierBill.id)
+        .where(
+            SupplierBill.company_id == company_id,
+            SupplierBill.status != "VOID",
+            outstanding > 0,
+        )
+        .group_by(SupplierBill.supplier_id, SupplierBill.currency_code, aging_bucket)
+        .order_by(SupplierBill.currency_code, SupplierBill.supplier_id, aging_bucket)
+    )
+    if site_id is not None:
+        statement = statement.where(SupplierBill.site_id == site_id)
+    if supplier_id is not None:
+        statement = statement.where(SupplierBill.supplier_id == supplier_id)
+
+    summary_by_supplier_currency: dict[tuple[UUID, str], dict] = {}
+    for row in session.execute(statement):
+        key = (row.supplier_id, row.currency_code)
+        summary = summary_by_supplier_currency.setdefault(key, {
+            "supplier_id": row.supplier_id,
+            "currency_code": row.currency_code,
+            "outstanding_bill_count": 0,
+            "overdue_bill_count": 0,
+            "total_outstanding": Decimal("0.00"),
+            "not_due_amount": Decimal("0.00"),
+            "no_due_date_amount": Decimal("0.00"),
+            "overdue_1_30_amount": Decimal("0.00"),
+            "overdue_31_60_amount": Decimal("0.00"),
+            "overdue_61_90_amount": Decimal("0.00"),
+            "overdue_91_plus_amount": Decimal("0.00"),
+        })
+        count = int(row.bill_count or 0)
+        amount = Decimal(row.outstanding_amount or 0)
+        summary["outstanding_bill_count"] += count
+        summary["total_outstanding"] += amount
+        if row.aging_bucket == "NOT_DUE":
+            summary["not_due_amount"] += amount
+        elif row.aging_bucket == "NO_DUE_DATE":
+            summary["no_due_date_amount"] += amount
+        else:
+            bucket_field = {
+                "OVERDUE_1_30": "overdue_1_30_amount",
+                "OVERDUE_31_60": "overdue_31_60_amount",
+                "OVERDUE_61_90": "overdue_61_90_amount",
+                "OVERDUE_91_PLUS": "overdue_91_plus_amount",
+            }[row.aging_bucket]
+            summary[bucket_field] += amount
+            summary["overdue_bill_count"] += count
+
+    return {
+        "as_of_date": effective_date,
+        "rows": sorted(
+            summary_by_supplier_currency.values(),
+            key=lambda item: (item["currency_code"], str(item["supplier_id"])),
+        ),
+    }

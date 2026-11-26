@@ -126,3 +126,22 @@ class SupplierPaymentReversalRead(BaseModel):
     reason: str
     created_at: datetime
     allocations: list[SupplierPaymentReversalAllocationRead]
+
+
+class SupplierPayableAgingRow(BaseModel):
+    supplier_id: UUID
+    currency_code: str
+    outstanding_bill_count: int
+    overdue_bill_count: int
+    total_outstanding: Decimal
+    not_due_amount: Decimal
+    no_due_date_amount: Decimal
+    overdue_1_30_amount: Decimal
+    overdue_31_60_amount: Decimal
+    overdue_61_90_amount: Decimal
+    overdue_91_plus_amount: Decimal
+
+
+class SupplierPayableAgingRead(BaseModel):
+    as_of_date: date
+    rows: list[SupplierPayableAgingRow]

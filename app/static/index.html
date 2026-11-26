@@ -1016,6 +1016,8 @@ button.secondary:disabled{opacity:.42}
 <div class="actions"><button id="billSubmit" type="submit">建立供應商帳單</button><button id="billCancelEdit" class="secondary hidden" type="button">取消編輯</button></div>
 </form>
 <div id="supplierBillStatus" class="status" role="status"></div>
+<h3>應付帳款帳齡摘要</h3>
+<div id="supplierPayableAging" aria-live="polite"><div class="empty">請先選擇公司</div></div>
 <h3>應付帳款清單</h3>
 <div class="grid">
 <div class="field"><label for="billFilterSupplier">供應商篩選</label><select id="billFilterSupplier"><option value="">全部供應商</option></select></div>
@@ -2782,6 +2784,41 @@ async function loadSuppliers(){
  await loadSupplierProductOfferings().catch(error=>message("supplierProductOfferingStatus",error.message,true));
  $("supplierList").innerHTML=rows.length?rows.map(x=>'<article class="item"><strong>'+escapeHtml(x.name)+'</strong><span class="pill">'+escapeHtml(x.code)+'</span>'+(!x.is_active?'<span class="pill">已停用</span>':'')+'<span class="muted">統編：'+escapeHtml(x.tax_id||"未填")+' · 聯絡人：'+escapeHtml(x.contact_name||"未填")+' · 電話：'+escapeHtml(x.phone||"未填")+'</span>'+(x.address?'<span class="muted">'+escapeHtml(x.address)+'</span>':'')+'<div class="actions"><button class="secondary" type="button" data-edit-supplier="'+escapeHtml(x.id)+'">編輯</button><button class="secondary" type="button" data-toggle-supplier="'+escapeHtml(x.id)+'" data-active="'+String(x.is_active)+'">'+(x.is_active?"停用":"重新啟用")+'</button></div></article>').join(""):'<div class="empty">尚未建立供應商</div>';
 }
+async function loadSupplierPayableAging(){
+ const box=$("supplierPayableAging");
+ if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ const params=new URLSearchParams();
+ if(selectedSiteId)params.set("site_id",selectedSiteId);
+ if($("billFilterSupplier").value)params.set("supplier_id",$("billFilterSupplier").value);
+ const report=await api("/companies/"+companyId+"/supplier-payables/aging"+(params.toString()?"?"+params.toString():""));
+ const rows=report.rows||[];
+ if(!rows.length){box.innerHTML='<div class="empty">目前沒有未結清的供應商帳款</div>';return;}
+ const totalsByCurrency=new Map();
+ rows.forEach(row=>{
+  const total=totalsByCurrency.get(row.currency_code)||{
+   outstanding:0,notDue:0,noDue:0,overdue:0,due30:0,due60:0,due90:0,dueMore:0
+  };
+  total.outstanding+=Number(row.total_outstanding||0);
+  total.notDue+=Number(row.not_due_amount||0);
+  total.noDue+=Number(row.no_due_date_amount||0);
+  total.due30+=Number(row.overdue_1_30_amount||0);
+  total.due60+=Number(row.overdue_31_60_amount||0);
+  total.due90+=Number(row.overdue_61_90_amount||0);
+  total.dueMore+=Number(row.overdue_91_plus_amount||0);
+  total.overdue+=Number(row.overdue_1_30_amount||0)+Number(row.overdue_31_60_amount||0)+Number(row.overdue_61_90_amount||0)+Number(row.overdue_91_plus_amount||0);
+  totalsByCurrency.set(row.currency_code,total);
+ });
+ const money=value=>Number(value||0).toLocaleString("zh-TW",{minimumFractionDigits:2,maximumFractionDigits:2});
+ const currencyCards=[...totalsByCurrency.entries()].map(([currency,total])=>
+  '<article class="item"><strong>'+escapeHtml(currency)+' 未結清 '+money(total.outstanding)+'</strong><span class="muted">尚未到期：'+money(total.notDue)+' · 逾期：'+money(total.overdue)+' · 未設定到期日：'+money(total.noDue)+'</span><span class="muted">逾期 1–30 天：'+money(total.due30)+' · 31–60 天：'+money(total.due60)+' · 61–90 天：'+money(total.due90)+' · 91 天以上：'+money(total.dueMore)+'</span></article>'
+ ).join("");
+ const supplierRows=rows.map(row=>{
+  const name=suppliersById.get(row.supplier_id)?.name||"供應商";
+  const overdue=Number(row.overdue_1_30_amount||0)+Number(row.overdue_31_60_amount||0)+Number(row.overdue_61_90_amount||0)+Number(row.overdue_91_plus_amount||0);
+  return '<article class="item"><strong>'+escapeHtml(name)+' · '+escapeHtml(row.currency_code)+' '+money(row.total_outstanding)+'</strong><span class="muted">未結清帳單 '+escapeHtml(row.outstanding_bill_count)+' 張 · 逾期 '+escapeHtml(row.overdue_bill_count)+' 張</span><span class="muted">尚未到期 '+money(row.not_due_amount)+' · 逾期 '+money(overdue)+' · 未設定到期日 '+money(row.no_due_date_amount)+'</span></article>';
+ }).join("");
+ box.innerHTML='<div class="muted">統計基準日：'+escapeHtml(report.as_of_date)+'</div>'+currencyCards+supplierRows;
+}
 async function loadSupplierBills(){
  if(!companyId){$("supplierBillList").innerHTML='<div class="empty">請先選擇公司</div>';return;}
  const params=new URLSearchParams();
@@ -2797,6 +2834,8 @@ async function loadSupplierBills(){
   const pay=pending?'<button class="secondary" type="button" data-pay-supplier-bill="'+escapeHtml(row.id)+'">恢復待確認付款</button>':(row.status!=="PAID"&&row.status!=="VOID"&&row.currency_code==="TWD"?'<button class="secondary" type="button" data-pay-supplier-bill="'+escapeHtml(row.id)+'">登錄付款</button>':'');
   return '<article class="item"><strong>'+escapeHtml(row.bill_no)+'</strong><span class="pill">'+({OPEN:"未付款",PARTIALLY_PAID:"部分付款",PAID:"已付清",VOID:"已作廢"}[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 帳單日：'+escapeHtml(row.bill_date)+' · 到期日：'+escapeHtml(row.due_date||"未設定")+'</span><span class="muted">總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+' · 已付：'+escapeHtml(row.paid_amount)+' · 未付：'+escapeHtml(row.outstanding_amount)+'</span><div class="actions">'+actions+pay+'</div></article>';
  }).join(""):'<div class="empty">沒有符合條件的供應商帳單</div>';
+ try{await loadSupplierPayableAging();}
+ catch(error){$("supplierPayableAging").innerHTML='<div class="empty">帳齡摘要載入失敗：'+escapeHtml(error.message)+'</div>';}
 }
 async function loadSupplierPayments(){
  if(!companyId){supplierPaymentsById=new Map();$("supplierPaymentHistory").innerHTML='<div class="empty">請先選擇公司</div>';return;}

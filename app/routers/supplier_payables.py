@@ -20,6 +20,7 @@ from app.routers.schemas.supplier_payables import (
     SupplierPaymentRead,
     SupplierPaymentReversalCreate,
     SupplierPaymentReversalRead,
+    SupplierPayableAgingRead,
 )
 from app.services.supplier_payables import (
     SupplierBillIdempotencyConflict,
@@ -28,6 +29,7 @@ from app.services.supplier_payables import (
     create_supplier_bill,
     record_supplier_payment,
     record_supplier_payment_reversal,
+    get_supplier_payable_aging,
 )
 
 router = APIRouter(prefix="/companies/{company_id}/supplier-payables", tags=["supplier payables"])
@@ -59,6 +61,24 @@ def _load_payment(db: Session, company_id: UUID, payment_id: UUID) -> SupplierPa
             selectinload(SupplierPayment.reversals),
         )
         .where(SupplierPayment.company_id == company_id, SupplierPayment.id == payment_id)
+    )
+
+
+
+@router.get("/aging", response_model=SupplierPayableAgingRead)
+def get_supplier_payable_aging_report(
+    company_id: UUID,
+    site_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    as_of_date: date | None = None,
+    db: Session = Depends(get_db),
+):
+    return get_supplier_payable_aging(
+        db,
+        company_id=company_id,
+        site_id=site_id,
+        supplier_id=supplier_id,
+        as_of_date=as_of_date,
     )
 
 
