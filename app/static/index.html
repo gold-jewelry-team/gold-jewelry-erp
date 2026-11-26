@@ -1467,6 +1467,7 @@ const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"部分刷卡",TRAN
 function statusDisplayLabel(value,labels){return labels[value]||(value?"其他狀態":"狀態未設定");}
 function paymentMethodDisplayLabel(value,labels=paymentMethodLabels){return labels[value]||(value?"其他付款方式":"付款方式未設定");}
 function directionDisplayLabel(value,labels){return labels[value]||(value?"其他收付方向":"收付方向未設定");}
+const saleStatusLabelsForDisplay={DRAFT:"草稿",COMPLETED:"已完成",VOID:"已作廢"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -2404,7 +2405,7 @@ function renderSaleResult(sale){
  const settlementLabel=Number(sale.final_amount)<0?"本店應付客人":"顧客應付總額";
  const nonCardLabel=sale.customer_order_id?"非刷卡本金":"現金本金";
  const lines=(sale.lines||[]).map(x=>'<article class="item"><strong>'+escapeHtml(x.product_code_snapshot||"商品")+' · '+escapeHtml(x.product_name_snapshot)+'</strong><span class="muted">商品金額：'+escapeHtml(x.subtotal)+' 元 · 刷卡手續費分攤：'+escapeHtml(x.card_fee)+' 元 · 本項結算：'+escapeHtml(x.final_amount)+' 元</span></article>').join("");
- $("saleDraftResult").innerHTML='<article class="item"><strong>銷售單 '+escapeHtml(sale.sale_no)+' · '+escapeHtml(sale.status)+'</strong><span class="muted">商品總額：'+escapeHtml(sale.subtotal)+' 元</span><span class="muted">刷卡本金：'+escapeHtml(sale.card_amount)+' 元 · 刷卡手續費（5%）：'+escapeHtml(sale.card_fee)+' 元</span><span class="muted">'+nonCardLabel+'：'+escapeHtml(sale.cash_amount)+' 元</span><span class="pill">'+settlementLabel+'：'+escapeHtml(settlementAmount.toFixed(2))+' 元</span></article>'+lines;
+ $("saleDraftResult").innerHTML='<article class="item"><strong>銷售單 '+escapeHtml(sale.sale_no)+' · '+escapeHtml(statusDisplayLabel(sale.status,saleStatusLabelsForDisplay))+'</strong><span class="muted">商品總額：'+escapeHtml(sale.subtotal)+' 元</span><span class="muted">刷卡本金：'+escapeHtml(sale.card_amount)+' 元 · 刷卡手續費（5%）：'+escapeHtml(sale.card_fee)+' 元</span><span class="muted">'+nonCardLabel+'：'+escapeHtml(sale.cash_amount)+' 元</span><span class="pill">'+settlementLabel+'：'+escapeHtml(settlementAmount.toFixed(2))+' 元</span></article>'+lines;
  const isDraft=sale.status==="DRAFT";
  if(isDraft){selectedReturn=null;$("returnPaymentPanel").classList.add("hidden");}
  $("newSaleActions").classList.toggle("hidden",isDraft);
@@ -3339,7 +3340,7 @@ $("supplierPaymentHistory").addEventListener("click",event=>{
  const options=(payment.allocations||[]).filter(a=>Number(a.reversible_amount||0)>0||a.id===pendingItem?.payment_allocation_id);
  if(!options.length){message("supplierPaymentReversalStatus","這筆付款已無可沖銷金額。",true);return;}
  selectedSupplierPayment=payment;
- $("selectedSupplierPaymentReversal").innerHTML='<article class="item"><strong>'+escapeHtml(payment.payment_no)+' · '+escapeHtml(payment.payment_method)+'</strong><span class="muted">原付款總額 '+escapeHtml(payment.total_amount)+' TWD · 已沖銷 '+escapeHtml(payment.reversed_amount||"0.00")+' · 尚可沖銷 '+escapeHtml(payment.reversible_amount||"0.00")+'</span></article>';
+ $("selectedSupplierPaymentReversal").innerHTML='<article class="item"><strong>'+escapeHtml(payment.payment_no)+' · '+escapeHtml(paymentMethodDisplayLabel(payment.payment_method))+'</strong><span class="muted">原付款總額 '+escapeHtml(payment.total_amount)+' TWD · 已沖銷 '+escapeHtml(payment.reversed_amount||"0.00")+' · 尚可沖銷 '+escapeHtml(payment.reversible_amount||"0.00")+'</span></article>';
  $("supplierPaymentReversalAllocation").innerHTML=options.map(a=>{
   const billNo=supplierBillsById.get(a.bill_id)?.bill_no||"帳單";
   return '<option value="'+escapeHtml(a.id)+'">'+escapeHtml(billNo)+' · 原分攤 '+escapeHtml(a.amount)+' · 尚可沖 '+escapeHtml(a.reversible_amount||"0.00")+'</option>';
@@ -3963,7 +3964,7 @@ async function loadSalesHistory(){
  if($("salesHistoryFrom").value)params.set("from_date",$("salesHistoryFrom").value);
  if($("salesHistoryTo").value)params.set("to_date",$("salesHistoryTo").value);
  const rows=await api("/companies/"+companyId+"/sales"+(params.toString()?"?"+params.toString():""));
- box.innerHTML=rows.length?rows.map(row=>'<article class="item transaction-item sales-history-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(row.sale_no)+'</strong><span class="pill">'+escapeHtml(row.status)+'</span></div><div class="transaction-item-primary"><small>'+(Number(row.final_amount)<0?"本店應付":"應收金額")+'</small><strong>'+escapeHtml(Math.abs(Number(row.final_amount||0)).toFixed(2))+' 元</strong></div></div><div class="transaction-item-meta"><span><small>商品件數</small><strong>'+escapeHtml(row.lines.length)+' 件</strong></span><span><small>建立時間</small><strong>'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</strong></span></div><div class="actions transaction-item-actions">'+(row.status==="DRAFT"?'<button class="secondary" type="button" data-edit-sale="'+escapeHtml(row.id)+'">編輯草稿</button>':'')+'<button class="secondary" type="button" data-open-sale="'+escapeHtml(row.id)+'">開啟銷售紀錄</button></div></article>').join(""):'<div class="empty">查無符合條件的銷售紀錄</div>';
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item transaction-item sales-history-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(row.sale_no)+'</strong><span class="pill">'+escapeHtml(statusDisplayLabel(row.status,saleStatusLabelsForDisplay))+'</span></div><div class="transaction-item-primary"><small>'+(Number(row.final_amount)<0?"本店應付":"應收金額")+'</small><strong>'+escapeHtml(Math.abs(Number(row.final_amount||0)).toFixed(2))+' 元</strong></div></div><div class="transaction-item-meta"><span><small>商品件數</small><strong>'+escapeHtml(row.lines.length)+' 件</strong></span><span><small>建立時間</small><strong>'+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</strong></span></div><div class="actions transaction-item-actions">'+(row.status==="DRAFT"?'<button class="secondary" type="button" data-edit-sale="'+escapeHtml(row.id)+'">編輯草稿</button>':'')+'<button class="secondary" type="button" data-open-sale="'+escapeHtml(row.id)+'">開啟銷售紀錄</button></div></article>').join(""):'<div class="empty">查無符合條件的銷售紀錄</div>';
 }
 $("searchSalesHistory").addEventListener("click",()=>loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true)));
 $("salesHistoryQuery").addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();loadSalesHistory().catch(error=>message("salesHistoryStatus",error.message,true));}});
