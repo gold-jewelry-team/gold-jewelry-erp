@@ -26,12 +26,16 @@ __all__ = [
     "BankReconciliationSnapshot", "LaborCodeSetting", "LaborCodeMapping",
     "GoldMaterialMovement", "GoldMaterialSettlementAllocation",
     "SupplierCategoryOffering", "SupplierProductOffering", "CustomerOrder",
+    "SupplierPaymentReversal", "SupplierPaymentReversalAllocation",
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
 from app.models.payment_transaction import PaymentTransaction
-from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
+from app.models.supplier_payable import (
+    SupplierBill, SupplierPayment, SupplierPaymentAllocation,
+    SupplierPaymentReversal, SupplierPaymentReversalAllocation,
+)
 from app.models.operating_expense import OperatingExpense
 from app.models.cash_count import DailyCashCount
 from app.models.cash_drawer_movement import CashDrawerMovement

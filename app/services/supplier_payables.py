@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 from app.models.purchase import Purchase
 from app.models.site import Site
 from app.models.supplier import Supplier
-from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
+from app.models.supplier_payable import (
+    SupplierBill, SupplierPayment, SupplierPaymentAllocation,
+    SupplierPaymentReversal, SupplierPaymentReversalAllocation,
+)
 from app.models.gold_material import GoldMaterialSettlementAllocation
 from app.services.daily_closing import assert_business_day_open
 
@@ -223,11 +226,20 @@ def record_supplier_payment(
             select(func.coalesce(func.sum(SupplierPaymentAllocation.amount), 0))
             .where(SupplierPaymentAllocation.bill_id == bill.id)
         ) or 0)
+        cash_reversed = Decimal(session.scalar(
+            select(func.coalesce(func.sum(SupplierPaymentReversalAllocation.amount), 0))
+            .join(
+                SupplierPaymentAllocation,
+                SupplierPaymentAllocation.id
+                == SupplierPaymentReversalAllocation.payment_allocation_id,
+            )
+            .where(SupplierPaymentAllocation.bill_id == bill.id)
+        ) or 0)
         gold_paid = Decimal(session.scalar(
             select(func.coalesce(func.sum(GoldMaterialSettlementAllocation.amount), 0))
             .where(GoldMaterialSettlementAllocation.bill_id == bill.id)
         ) or 0)
-        already_paid = cash_paid + gold_paid
+        already_paid = cash_paid - cash_reversed + gold_paid
         remaining = bill.total_amount - already_paid
         requested = allocation_amounts[bill.id]
         if requested > remaining:
@@ -260,3 +272,171 @@ def record_supplier_payment(
 
     session.flush()
     return (payment, True) if return_created else payment
+
+
+
+class SupplierPaymentReversalIdempotencyConflict(ValueError):
+    """Raised when a reversal number is reused for a different reversal."""
+
+
+def record_supplier_payment_reversal(
+    session: Session,
+    *,
+    company_id: UUID,
+    payment_id: UUID,
+    reversal_no: str,
+    allocations: list[dict],
+    reason: str,
+    return_created: bool = False,
+) -> SupplierPaymentReversal | tuple[SupplierPaymentReversal, bool]:
+    """Append a partial/full reversal against exact original payment allocations."""
+    memo = (reason or "").strip()
+    number = (reversal_no or "").strip()
+    if not memo:
+        raise ValueError("沖銷原因不可空白。")
+    if not number:
+        raise ValueError("沖銷單號不可空白。")
+    if not allocations:
+        raise ValueError("供應商付款沖銷至少需要一筆原付款分攤。")
+
+    requested: dict[UUID, Decimal] = {}
+    for item in allocations:
+        allocation_id = item["payment_allocation_id"]
+        amount = item["amount"]
+        _validate_money(amount, "沖銷金額")
+        if allocation_id in requested:
+            raise ValueError("同一張原付款分攤不可在同一沖銷單中重複指定。")
+        requested[allocation_id] = amount
+    reversal_total = sum(requested.values(), Decimal("0"))
+
+    preliminary = session.scalar(select(SupplierPayment).where(
+        SupplierPayment.id == payment_id,
+        SupplierPayment.company_id == company_id,
+    ))
+    if preliminary is None:
+        raise ValueError("找不到指定供應商付款紀錄。")
+
+    # Lock the site first, matching supplier payment creation. This serializes
+    # duplicate reversal requests and competing balance adjustments.
+    site = session.execute(select(Site).where(
+        Site.id == preliminary.site_id,
+        Site.company_id == company_id,
+    ).with_for_update()).scalar_one_or_none()
+    if site is None:
+        raise ValueError("供應商付款據點不存在或不屬於指定公司。")
+
+    existing = session.scalar(select(SupplierPaymentReversal).where(
+        SupplierPaymentReversal.site_id == site.id,
+        SupplierPaymentReversal.reversal_no == number,
+    ).with_for_update())
+    if existing is not None:
+        existing_allocations = {
+            row.payment_allocation_id: row.amount
+            for row in session.scalars(select(SupplierPaymentReversalAllocation).where(
+                SupplierPaymentReversalAllocation.reversal_id == existing.id
+            )).all()
+        }
+        if (
+            existing.company_id != company_id
+            or existing.payment_id != payment_id
+            or existing.total_amount != reversal_total
+            or existing.reason != memo
+            or existing_allocations != requested
+        ):
+            raise SupplierPaymentReversalIdempotencyConflict(
+                "此沖銷單號已用於不同的供應商付款沖銷內容，請先查閱原沖銷紀錄。"
+            )
+        return (existing, False) if return_created else existing
+
+    payment = session.execute(select(SupplierPayment).where(
+        SupplierPayment.id == payment_id,
+        SupplierPayment.company_id == company_id,
+    ).with_for_update()).scalar_one_or_none()
+    if payment is None:
+        raise ValueError("找不到指定供應商付款紀錄。")
+
+    now = datetime.now(timezone.utc)
+    assert_business_day_open(session, site_id=payment.site_id, at=now)
+
+    original_allocations = list(session.scalars(select(SupplierPaymentAllocation)
+        .where(SupplierPaymentAllocation.payment_id == payment.id)
+        .order_by(SupplierPaymentAllocation.id)
+        .with_for_update()).all())
+    original_by_id = {row.id: row for row in original_allocations}
+    if not set(requested).issubset(original_by_id):
+        raise ValueError("沖銷分攤只能指定這筆原付款實際存在的帳單分攤。")
+
+    previous = list(session.scalars(select(SupplierPaymentReversalAllocation)
+        .where(SupplierPaymentReversalAllocation.payment_allocation_id.in_(list(requested)))
+        .with_for_update()).all())
+    reversed_by_allocation: dict[UUID, Decimal] = {}
+    for row in previous:
+        reversed_by_allocation[row.payment_allocation_id] = (
+            reversed_by_allocation.get(row.payment_allocation_id, Decimal("0")) + row.amount
+        )
+    for allocation_id, amount in requested.items():
+        remaining = original_by_id[allocation_id].amount - reversed_by_allocation.get(
+            allocation_id, Decimal("0")
+        )
+        if amount > remaining:
+            raise ValueError(f"原付款分攤尚可沖銷金額為 {remaining}，本次不可超額沖銷。")
+
+    bill_ids = sorted({original_by_id[key].bill_id for key in requested}, key=str)
+    bills = list(session.scalars(select(SupplierBill)
+        .where(SupplierBill.id.in_(bill_ids))
+        .order_by(SupplierBill.id)
+        .with_for_update()).all())
+    if len(bills) != len(bill_ids):
+        raise ValueError("原付款分攤關聯的供應商帳單不存在。")
+    if any(
+        bill.company_id != company_id
+        or bill.site_id != payment.site_id
+        or bill.supplier_id != payment.supplier_id
+        for bill in bills
+    ):
+        raise ValueError("原付款分攤的帳單公司、據點或供應商不一致。")
+
+    reversal = SupplierPaymentReversal(
+        company_id=company_id,
+        site_id=payment.site_id,
+        supplier_id=payment.supplier_id,
+        payment_id=payment.id,
+        reversal_no=number,
+        total_amount=reversal_total,
+        currency_code=payment.currency_code,
+        reversed_at=now,
+        reason=memo,
+    )
+    session.add(reversal)
+    session.flush()
+    for allocation_id, amount in requested.items():
+        session.add(SupplierPaymentReversalAllocation(
+            reversal_id=reversal.id,
+            payment_allocation_id=allocation_id,
+            amount=amount,
+        ))
+    session.flush()
+
+    for bill in bills:
+        cash_paid = Decimal(session.scalar(select(func.coalesce(
+            func.sum(SupplierPaymentAllocation.amount), 0
+        )).where(SupplierPaymentAllocation.bill_id == bill.id)) or 0)
+        cash_reversed = Decimal(session.scalar(select(func.coalesce(
+            func.sum(SupplierPaymentReversalAllocation.amount), 0
+        )).join(
+            SupplierPaymentAllocation,
+            SupplierPaymentAllocation.id
+            == SupplierPaymentReversalAllocation.payment_allocation_id,
+        ).where(SupplierPaymentAllocation.bill_id == bill.id)) or 0)
+        gold_paid = Decimal(session.scalar(select(func.coalesce(
+            func.sum(GoldMaterialSettlementAllocation.amount), 0
+        )).where(GoldMaterialSettlementAllocation.bill_id == bill.id)) or 0)
+        net_paid = cash_paid - cash_reversed + gold_paid
+        bill.status = (
+            "PAID" if net_paid == bill.total_amount
+            else "PARTIALLY_PAID" if net_paid > 0
+            else "OPEN"
+        )
+
+    session.flush()
+    return (reversal, True) if return_created else reversal

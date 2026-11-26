@@ -9,19 +9,25 @@ from sqlalchemy.orm import Session, selectinload
 from app.db.session import SessionLocal
 from app.core.company_access import require_current_actor_permission
 from app.models.purchase import Purchase
-from app.models.supplier_payable import SupplierBill, SupplierPayment
+from app.models.supplier_payable import (
+    SupplierBill, SupplierPayment, SupplierPaymentAllocation, SupplierPaymentReversal,
+)
 from app.routers.schemas.supplier_payables import (
     SupplierBillCreate,
     SupplierBillRead,
     SupplierBillUpdate,
     SupplierPaymentCreate,
     SupplierPaymentRead,
+    SupplierPaymentReversalCreate,
+    SupplierPaymentReversalRead,
 )
 from app.services.supplier_payables import (
     SupplierBillIdempotencyConflict,
     SupplierPaymentIdempotencyConflict,
+    SupplierPaymentReversalIdempotencyConflict,
     create_supplier_bill,
     record_supplier_payment,
+    record_supplier_payment_reversal,
 )
 
 router = APIRouter(prefix="/companies/{company_id}/supplier-payables", tags=["supplier payables"])
@@ -46,7 +52,12 @@ def _load_bill(db: Session, company_id: UUID, bill_id: UUID) -> SupplierBill | N
 def _load_payment(db: Session, company_id: UUID, payment_id: UUID) -> SupplierPayment | None:
     return db.scalar(
         select(SupplierPayment)
-        .options(selectinload(SupplierPayment.allocations))
+        .options(
+            selectinload(SupplierPayment.allocations).selectinload(
+                SupplierPaymentAllocation.reversal_allocations
+            ),
+            selectinload(SupplierPayment.reversals),
+        )
         .where(SupplierPayment.company_id == company_id, SupplierPayment.id == payment_id)
     )
 
@@ -248,3 +259,80 @@ def get_supplier_payment(company_id: UUID, payment_id: UUID, db: Session = Depen
     if payment is None:
         raise HTTPException(status_code=404, detail="找不到指定供應商付款紀錄。")
     return payment
+
+
+
+def _load_reversal(
+    db: Session, company_id: UUID, reversal_id: UUID
+) -> SupplierPaymentReversal | None:
+    return db.scalar(
+        select(SupplierPaymentReversal)
+        .options(selectinload(SupplierPaymentReversal.allocations))
+        .where(
+            SupplierPaymentReversal.company_id == company_id,
+            SupplierPaymentReversal.id == reversal_id,
+        )
+    )
+
+
+@router.post(
+    "/payments/{payment_id}/reverse",
+    response_model=SupplierPaymentReversalRead,
+    status_code=201,
+)
+def post_supplier_payment_reversal(
+    company_id: UUID,
+    payment_id: UUID,
+    payload: SupplierPaymentReversalCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    require_current_actor_permission(db, "supplier_payables.void")
+    require_current_actor_permission(db, "payments.void")
+    try:
+        reversal, created = record_supplier_payment_reversal(
+            db,
+            company_id=company_id,
+            payment_id=payment_id,
+            reversal_no=payload.reversal_no,
+            allocations=[item.model_dump() for item in payload.allocations],
+            reason=payload.reason,
+            return_created=True,
+        )
+        reversal_id = reversal.id
+        if not created:
+            response.status_code = 200
+        db.commit()
+        return _load_reversal(db, company_id, reversal_id)
+    except SupplierPaymentReversalIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="供應商付款沖銷單號重複或關聯衝突。") from exc
+
+
+@router.get(
+    "/payments/{payment_id}/reversals",
+    response_model=list[SupplierPaymentReversalRead],
+)
+def list_supplier_payment_reversals(
+    company_id: UUID,
+    payment_id: UUID,
+    db: Session = Depends(get_db),
+):
+    payment = _load_payment(db, company_id, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=404, detail="找不到指定供應商付款紀錄。")
+    return list(db.scalars(
+        select(SupplierPaymentReversal)
+        .options(selectinload(SupplierPaymentReversal.allocations))
+        .where(
+            SupplierPaymentReversal.company_id == company_id,
+            SupplierPaymentReversal.payment_id == payment_id,
+        )
+        .order_by(SupplierPaymentReversal.reversed_at, SupplierPaymentReversal.id)
+    ).all())
