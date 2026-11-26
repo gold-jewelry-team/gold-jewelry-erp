@@ -2271,7 +2271,7 @@ function taipeiDateValue(offsetDays=0){
 }
 function createDocumentNumber(prefix){
  const date=taipeiDateValue().replace(/-/g,"");
- const token=window.crypto&&typeof window.crypto.randomUUID==="function"
+ const token=typeof window!=="undefined"&&window.crypto&&typeof window.crypto.randomUUID==="function"
   ?window.crypto.randomUUID().split("-")[0].toUpperCase()
   :(Date.now().toString(36)+Math.random().toString(36).slice(2,7)).toUpperCase();
  return String(prefix||"DOC").toUpperCase()+"-"+date+"-"+token;
@@ -3628,7 +3628,7 @@ $("createPurchase").addEventListener("click",async()=>{
   message("purchaseStatus",wasEditing?"採購草稿已更新。":"採購草稿已建立。請在下方採購單紀錄中送出，送出後即可辦理到貨驗收。");
   await loadPurchases();
   const list=$("purchaseList");
-  if(list&&typeof list.scrollIntoView==="function")list.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  if(list&&typeof list.scrollIntoView==="function")list.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   const submitButton=list&&typeof list.querySelector==="function"?list.querySelector("[data-submit-purchase]"):null;
   if(submitButton&&typeof submitButton.focus==="function")submitButton.focus({preventScroll:true});
  }catch(error){message("purchaseStatus",error.message,true);}
@@ -3653,7 +3653,7 @@ $("purchaseList").addEventListener("click",async event=>{
    return {product_id:line.product_id,product,quantity:String(line.quantity),weight:line.weight===null?null:String(line.weight),weight_unit_code:line.weight_unit_code||"QIAN",unit_cost:String(line.unit_cost),cost_labor_fee:String(line.cost_labor_fee||0),note:line.note||null};
   });
   renderPurchaseCart();$("createPurchase").textContent="儲存採購草稿修改";$("cancelPurchaseEdit").classList.remove("hidden");
-  $("purchaseHeaderForm").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});return;
+  $("purchaseHeaderForm").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});return;
  }
  const submit=event.target.closest("[data-submit-purchase]");
  const cancel=event.target.closest("[data-cancel-purchase]");
@@ -3911,7 +3911,7 @@ $("salesHistoryList").addEventListener("click",async event=>{
    });
    renderSaleCart();$("createSaleDraft").textContent="儲存銷售草稿修改";$("cancelSaleEdit").classList.remove("hidden");
    $("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");
-   $("saleHeaderForm").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+   $("saleHeaderForm").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
    message("saleStatus","已載入銷售草稿，可修改商品明細及付款方式。");return;
   }
   if(!button)return;
@@ -4098,7 +4098,7 @@ $("createSaleDraft").addEventListener("click",async()=>{
   message("saleStatus",wasEditing?"銷售草稿已更新，請重新核對金額與刷卡手續費。":"銷售草稿建立成功。請核對每項商品金額、刷卡本金及 5% 手續費，再完成銷售。");
   await loadSalesHistory();
   const nextStep=$("saleDraftActions");
-  if(nextStep&&typeof nextStep.scrollIntoView==="function")nextStep.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+  if(nextStep&&typeof nextStep.scrollIntoView==="function")nextStep.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
   const confirmButton=$("completeSale");
   if(confirmButton&&typeof confirmButton.focus==="function")confirmButton.focus({preventScroll:true});
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
@@ -4114,7 +4114,7 @@ $("completeSale").addEventListener("click",async()=>{
   message("saleStatus","銷售已完成；正式商品已扣除庫存，臨時估價明細不會扣除庫存。");
   try{await loadInventoryOptions();if(sale.customer_order_id)await loadCustomerOrders();}catch(refreshError){message("globalStatus","銷售已完成，但庫存／客訂畫面重新載入失敗："+refreshError.message,true);}
   const nextStep=(!sale.customer_order_id||Number(sale.final_amount)<0)?$("salePaymentPanel"):$("newSaleActions");
-  if(nextStep&&typeof nextStep.scrollIntoView==="function")nextStep.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+  if(nextStep&&typeof nextStep.scrollIntoView==="function")nextStep.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
   const nextField=nextStep===$("salePaymentPanel")?$("salePaymentAmount"):$("newSale");
   if(nextField&&typeof nextField.focus==="function")nextField.focus({preventScroll:true});
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
@@ -5390,7 +5390,7 @@ $("customerOrderList").addEventListener("click",async event=>{
   $("customerOrderEditDelivery").value=row.expected_delivery_date?new Date(row.expected_delivery_date).toISOString().slice(0,10):"";
   $("customerOrderEditNote").value=row.note||"";
   $("customerOrderEditForm").classList.remove("hidden");$("customerOrderEditNo").focus();
-  $("customerOrderEditForm").scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});return;
+  $("customerOrderEditForm").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});return;
  }
  if(next){
   const row=customerOrdersById.get(next.dataset.nextCustomerOrder);if(!row)return;
