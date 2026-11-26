@@ -106,7 +106,12 @@ def test_mobile_report_details_are_tap_to_expand_and_visible_newline_tokens_are_
     reports = TestClient(app).get("/reports").text
     assert "mobile-report-details" in reports
     assert "sections.slice(2).forEach" in reports
-    assert "銀行存提款與現金櫃連動核對" in reports
+    assert "每日結帳與現金盤點核對" in reports
+    assert "銀行存提款核對" in reports
+    assert 'id="bankCashReconciliationPanel"' in reports
+    closing_panel_end = reports.index("</section>", reports.index("id=\"closingReconciliation\""))
+    bank_panel = reports.index('<section class="panel" id="bankCashReconciliationPanel">')
+    assert bank_panel > closing_panel_end, "bank cash reconciliation must be its own expandable section"
     assert r"</section>\n<section" not in reports
 
 
