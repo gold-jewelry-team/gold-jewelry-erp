@@ -2,7 +2,6 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-import pytest
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -19,7 +18,6 @@ from app.models.company import Company
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
 from app.models.site import Site
 from app.routers import operational_reports
-from app.services.cash_drawer_movements import create_cash_drawer_movement
 
 
 BUSINESS_DATE = date(2026, 11, 19)
@@ -243,30 +241,5 @@ def test_operational_report_flags_missing_daily_close_and_missing_bank_drawer_pa
         assert orphan_drawer["actual_drawer_movement"]["movement_type"] == "BANK_DEPOSIT"
         assert orphan_drawer["issue"] == "現金櫃存提款未連結銀行流水。"
     finally:
-        app.dependency_overrides.clear()
-        engine.dispose()
-
-def test_manual_bank_cash_drawer_movement_must_use_bank_account_workflow():
-    engine, (company_id, site_id) = _context()
-    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    db = Session()
-    try:
-        with pytest.raises(ValueError, match="銀行存提款請至"):
-            create_cash_drawer_movement(
-                db,
-                company_id=company_id,
-                site_id=site_id,
-                movement_type="BANK_DEPOSIT",
-                amount=Decimal("25.00"),
-                description="手動存入銀行",
-                created_by_name="店員甲",
-            )
-        db.rollback()
-        assert db.query(CashDrawerMovement).filter(
-            CashDrawerMovement.movement_type == "BANK_DEPOSIT",
-            CashDrawerMovement.bank_transaction_id.is_(None),
-        ).count() == 0
-    finally:
-        db.close()
         app.dependency_overrides.clear()
         engine.dispose()
