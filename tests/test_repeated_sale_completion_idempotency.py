@@ -21,7 +21,7 @@ from app.routers import sales
 from app.services.inventory import create_inventory_movement, get_stock_balance
 
 
-def test_repeating_complete_action_is_rejected_without_second_stock_movement():
+def test_repeating_complete_action_returns_success_without_second_stock_movement():
     engine = create_engine("sqlite+pysqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
     TestSession = sessionmaker(bind=engine, autoflush=False, autocommit=False)
@@ -72,8 +72,10 @@ def test_repeating_complete_action_is_rejected_without_second_stock_movement():
         first = client.post(f"/companies/{company_id}/sales/{sale_id}/complete")
         assert first.status_code == 200, first.text
         second = client.post(f"/companies/{company_id}/sales/{sale_id}/complete")
-        assert second.status_code == 422
-        assert "草稿" in second.json()["detail"]
+        assert second.status_code == 200, second.text
+        assert second.json()["id"] == first.json()["id"]
+        assert second.json()["status"] == "COMPLETED"
+        assert second.json()["completed_at"] == first.json()["completed_at"]
 
         check = TestSession()
         sale = check.get(Sale, UUID(sale_id))
