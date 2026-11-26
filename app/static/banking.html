@@ -558,6 +558,8 @@ responsiveTableObserver.observe(document.querySelector("main"),{childList:true,s
  if(two){
    const panels=Array.from(two.querySelectorAll(":scope > .panel"));
    panels.forEach(panel=>{
+     /* Keep account balances visible at first glance; only the infrequent account-creation form is folded. */
+     if(panel.querySelector("#accountList"))return;
      const heading=panel.querySelector("h2"); if(!heading)return;
      const details=document.createElement("details");
      details.className="mobile-bank-details";
@@ -570,7 +572,6 @@ responsiveTableObserver.observe(document.querySelector("main"),{childList:true,s
      details.appendChild(content);
      panel.replaceWith(details);
    });
-   two.className="mobile-bank-overview";
  }
  Array.from(main.children).forEach(section=>{
    if(section===two || section.querySelector("#accountList") || section.querySelector("#companySelect"))return;
