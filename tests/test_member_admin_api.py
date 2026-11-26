@@ -194,26 +194,37 @@ def test_member_management_requires_administrator_session(monkeypatch):
     monkeypatch.setattr(settings, "session_cookie_secure", False)
     monkeypatch.setattr(settings, "session_max_age_seconds", 3600)
 
-    google_only = client.get(
+    # Use a fresh client so cookies set by earlier tests cannot leak into this
+    # unauthenticated-access check.
+    test_client = TestClient(app)
+
+    google_only = test_client.get(
         "/admin/api/members",
         cookies={settings.google_session_cookie_name: "google-session-only"},
     )
     assert google_only.status_code == 401
 
-    no_session = client.get("/member-management")
+    no_session = test_client.get("/member-management")
     assert no_session.status_code == 401
-    no_role_session = client.get("/role-management")
-    assert no_role_session.status_code == 401
+
+    # The role editor serves a static shell publicly; its administration APIs
+    # remain protected by the owner session.
+    role_shell = test_client.get("/role-management")
+    assert role_shell.status_code == 200
+    assert "角色與權限管理" in role_shell.text
+
+    denied_role_api = test_client.get("/admin/api/companies")
+    assert denied_role_api.status_code == 401
 
     admin_token = create_session_token("owner")
-    admin_page = client.get(
+    admin_page = test_client.get(
         "/member-management",
         cookies={settings.session_cookie_name: admin_token},
     )
     assert admin_page.status_code == 200
     assert "家庭／店員成員管理" in admin_page.text
 
-    role_page = client.get(
+    role_page = test_client.get(
         "/role-management",
         cookies={settings.session_cookie_name: admin_token},
     )
