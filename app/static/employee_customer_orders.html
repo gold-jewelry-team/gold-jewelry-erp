@@ -150,7 +150,10 @@
       COMPLETED:{label:"已完成",cls:"badge"},
       CANCELLED:{label:"已取消",cls:"badge cancel"}
     };
-    const paymentMethodLabels={CASH:"現金",CARD:"刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"現金＋刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    const weightUnitLabels={G:"公克",QIAN:"錢",LIANG:"兩"};
+    function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
+    function paymentMethodLabel(value){return paymentMethodLabels[value]||(value?"其他付款方式":"付款方式未設定");}
     function detail(label,value){
       const box=node("div","detail");
       box.append(node("small","",label));
@@ -160,12 +163,12 @@
     function renderPayment(payment,currency){
       const wrap=node("div","payment");
       const info=node("div","");
-      const direction=payment.direction==="OUT"?"退款":"收款";
-      info.append(node("strong","",direction+" · "+(paymentMethodLabels[payment.payment_method]||payment.payment_method||"其他")));
+      const direction=payment.direction==="OUT"?"退款":payment.direction==="IN"?"收款":"收付方向未設定";
+      info.append(node("strong","",direction+" · "+(paymentMethodLabel(payment.payment_method))));
       info.append(node("small","",dateText(payment.paid_at,true)));
       if(payment.note)info.append(node("small","","備註："+payment.note));
       wrap.append(info);
-      const amount=node("div","payment-amount"+(payment.direction==="OUT"?" refund":""), (payment.direction==="OUT"?"−":"+")+amountText(payment.amount,currency));
+      const amount=node("div","payment-amount"+(payment.direction==="OUT"?" refund":""), (payment.direction==="OUT"?"−":payment.direction==="IN"?"+":"")+amountText(payment.amount,currency));
       wrap.append(amount);
       return wrap;
     }
@@ -184,7 +187,7 @@
         title.append(node("h3","",order.order_no||"未命名客訂單"));
         title.append(node("div","record-sub","客戶："+(order.customer_name||"未填姓名")));
         head.append(title);
-        const status=statusMap[order.status]||{label:order.status||"未知",cls:"badge"};
+        const status=statusMap[order.status]||{label:order.status?"其他狀態":"狀態未設定",cls:"badge"};
         head.append(node("span",status.cls,status.label));
         card.append(head);
 
@@ -208,7 +211,7 @@
           line.append(node("div","line-title",item.product_name||item.product_code||"訂製商品"));
           const meta=[
             item.quantity!==undefined?"數量："+item.quantity:"",
-            item.net_weight!==undefined?"淨重："+item.net_weight+(item.weight_unit_code||""):"",
+            item.net_weight!==undefined?"淨重："+item.net_weight+" "+weightUnitLabel(item.weight_unit_code):"",
             item.labor_fee!==undefined?"工費："+amountText(item.labor_fee,order.currency_code):""
           ].filter(Boolean).join("　｜　");
           if(meta)line.append(node("div","line-info",meta));
