@@ -70,6 +70,7 @@ def build_daily_closing_reconciliation(
         ("collected_amount", "客戶實際收款", "customer_collected_amount"),
         ("refunded_amount", "客戶實際退款", "customer_refunded_amount"),
         ("supplier_paid_amount", "供應商付款", "supplier_paid_amount"),
+        ("supplier_payment_reversed_amount", "供應商付款沖銷", "supplier_payment_reversed_amount"),
         ("expenses_paid_amount", "已付款營業費用", "expenses_paid_amount"),
         ("cash_drawer_in_amount", "現金櫃存入", "cash_drawer_in_amount"),
         ("cash_drawer_out_amount", "現金櫃支出", "cash_drawer_out_amount"),
