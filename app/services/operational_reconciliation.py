@@ -212,6 +212,38 @@ def build_daily_closing_reconciliation(
             "status": status,
         })
 
+    # Also detect standalone bank-deposit/withdrawal movements entered through
+    # the cash-drawer workflow without a matching bank-ledger transaction.
+    unlinked_drawer_movements = list(session.scalars(
+        select(CashDrawerMovement).where(
+            CashDrawerMovement.company_id == company_id,
+            CashDrawerMovement.site_id == site_id,
+            CashDrawerMovement.movement_type.in_(("BANK_DEPOSIT", "BANK_WITHDRAWAL")),
+            CashDrawerMovement.bank_transaction_id.is_(None),
+            CashDrawerMovement.created_at >= start_at,
+            CashDrawerMovement.created_at < end_at,
+        ).order_by(CashDrawerMovement.created_at)
+    ).all())
+    for movement in unlinked_drawer_movements:
+        bank_checks.append({
+            "bank_transaction_id": None,
+            "transaction_type": "UNLINKED_DRAWER_MOVEMENT",
+            "description": movement.description,
+            "amount": _money(movement.amount),
+            "currency_code": movement.currency_code,
+            "expected_drawer_movement_type": None,
+            "expected_drawer_direction": None,
+            "actual_drawer_movement": {
+                "movement_id": str(movement.id),
+                "movement_type": movement.movement_type,
+                "direction": movement.direction,
+                "amount": _money(movement.amount),
+            },
+            "status": "ERROR",
+            "issue": "現金櫃存提款未連結銀行流水。",
+            "created_at": movement.created_at,
+        })
+
     bank_errors = sum(1 for row in bank_checks if row["status"] != "PASS")
     daily_errors = sum(1 for row in daily_checks if row["status"] == "ERROR")
     pending_counts = sum(
@@ -228,5 +260,6 @@ def build_daily_closing_reconciliation(
         "bank_cash_movement_summary": {
             "transactions_checked": len(bank_checks),
             "errors": bank_errors,
+            "unlinked_cash_drawer_movements": len(unlinked_drawer_movements),
         },
     }
