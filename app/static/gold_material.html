@@ -101,7 +101,7 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const state={companyId:"",siteId:"",suppliers:[],bills:[],purchases:[],movements:[]};
 const grams={G:1,QIAN:3.75,LIANG:37.5};
-const weightUnitLabels={G:"公克",QIAN:"錢",LIANG:"兩"};
+const weightUnitLabels={G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"};
 function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
 const typeLabels={OPENING:"期初金料",RECEIPT:"收受金料",ADJUSTMENT_IN:"盤盈／增加",ADJUSTMENT_OUT:"盤虧／減少",SUPPLIER_DELIVERY:"交付供應商折抵"};
 const api=async(path,options={})=>{
