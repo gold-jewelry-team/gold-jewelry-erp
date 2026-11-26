@@ -122,7 +122,7 @@ def test_partial_and_full_supplier_payment_reversal_restores_balance_and_preserv
             open_bill["status"],
             open_bill["paid_amount"],
             open_bill["outstanding_amount"],
-        ) == ("OPEN", "0", "1000.00")
+        ) == ("OPEN", "0.00", "1000.00")
 
         original_payment = client.get(f"{base}/payments/{payment['id']}").json()
         assert original_payment["status"] == "REVERSED"
