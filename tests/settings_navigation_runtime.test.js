@@ -17,7 +17,7 @@ test("settings category provides a labelled search field", () => {
 
 test("settings search matches section headings and field labels without changing other categories", () => {
   assert.match(controller, /\[titleFor\(panel\),\.\.\.subTitlesOf\(panel\),panel\.textContent\|\|""\]/);
-  assert.match(controller, /panel\.dataset\.category==="settings"/);
+  assert.match(controller, /panels\.filter\(p=>p\.dataset\.category==="settings"\)/);
   assert.match(controller, /panel\.style\.display=match\?"":"none"/);
   assert.match(controller, /const button=settingsButtons\.get\(panel\)/);
 });
