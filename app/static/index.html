@@ -326,7 +326,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 #homeDashboard .home-section-title{display:flex;align-items:center;gap:8px;margin:20px 0 10px;color:#34483a;font-size:14px;font-weight:900}
 #homeDashboard .home-section-title:before{content:"";width:4px;height:16px;border-radius:4px;background:#b88a43}
 #homeDashboard .home-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-#homeDashboard .home-actions a.home-action{text-decoration:none}\n#homeDashboard .home-action{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:14px;min-height:112px;padding:14px;border:1px solid #e7e7df;border-radius:16px;background:rgba(255,255,255,.92);color:#304237;text-align:left;box-shadow:0 3px 10px rgba(36,48,39,.035);transition:transform .15s,border-color .15s,box-shadow .15s}
+#homeDashboard .home-actions a.home-action{text-decoration:none}
+#homeDashboard .home-action{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:14px;min-height:112px;padding:14px;border:1px solid #e7e7df;border-radius:16px;background:rgba(255,255,255,.92);color:#304237;text-align:left;box-shadow:0 3px 10px rgba(36,48,39,.035);transition:transform .15s,border-color .15s,box-shadow .15s}
 #homeDashboard .home-action:active{transform:scale(.98)}
 #homeDashboard .home-action:hover{border-color:#c9aa72;box-shadow:0 7px 18px rgba(36,48,39,.08)}
 #homeDashboard .home-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#f5efe2;font-size:20px}
@@ -597,6 +598,34 @@ button.secondary:disabled{opacity:.42}
  #goldPriceSummary .gold-summary-actions{grid-template-columns:minmax(0,1fr)}
 }
 
+
+/* Task-first home dashboard: six clear daily actions; secondary tools stay out of the way. */
+#homeDashboard .home-intro{margin:-5px 0 12px;color:#6f796f;font-size:13px;line-height:1.55}
+#homeDashboard .home-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+#homeDashboard .home-action-primary{min-height:116px;border-color:#e5e3d8;background:#fffefa}
+#homeDashboard .home-action-primary .home-icon{width:42px;height:42px;font-size:22px}
+#homeDashboard .home-action-primary strong{font-size:15px}
+#homeDashboard .home-more,#homeDashboard .home-tips{margin-top:12px;border:1px solid #e6e0d3;border-radius:14px;background:#fffefa;overflow:hidden}
+#homeDashboard .home-more>summary,#homeDashboard .home-tips>summary{display:flex;align-items:center;gap:5px;flex-wrap:wrap;list-style:none;cursor:pointer;min-height:52px;padding:12px 14px;font-size:14px;font-weight:800;color:#34483a}
+#homeDashboard .home-more>summary::-webkit-details-marker,#homeDashboard .home-tips>summary::-webkit-details-marker{display:none}
+#homeDashboard .home-more>summary:after,#homeDashboard .home-tips>summary:after{content:"＋";margin-left:auto;font-size:20px;color:#7a6a4b}
+#homeDashboard .home-more[open]>summary:after,#homeDashboard .home-tips[open]>summary:after{content:"－"}
+#homeDashboard .home-more>summary small{flex:1 1 100%;font-size:11px;font-weight:500;color:#778078}
+#homeDashboard .home-more-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;padding:0 12px 12px}
+#homeDashboard .home-more-actions .home-action{min-height:88px;padding:11px;gap:8px;box-shadow:none;background:#fff}
+#homeDashboard .home-tips .home-lower{padding:0 12px 12px}
+@media(max-width:760px){
+ #homeDashboard .home-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ #homeDashboard .home-action-primary{min-height:112px;padding:13px}
+ #homeDashboard .home-more-actions{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #homeDashboard .home-more-actions .home-action{min-height:90px}
+ #homeDashboard .home-more>summary,#homeDashboard .home-tips>summary{min-height:54px}
+}
+@media(max-width:360px){
+ #homeDashboard .home-action-primary{min-height:104px;padding:10px}
+ #homeDashboard .home-more-actions{grid-template-columns:1fr}
+}
+
 </style>
 </head>
 <body>
@@ -606,25 +635,37 @@ button.secondary:disabled{opacity:.42}
 <section id="homeDashboard" aria-label="營運首頁">
   <div class="home-kicker">JEWELRY STORE · MANAGEMENT</div>
   <div class="home-heading"><div><h2>營運總覽</h2><p class="home-intro">掌握門市日常作業，常用功能一鍵進入。</p></div><span class="home-date">門市工作台</span></div>
-  <div class="home-section-title">常用作業</div>
+  <div class="home-section-title">今天要做什麼？</div>
+  <p class="home-intro">選一個工作開始，系統會帶你到對應的作業畫面。</p>
   <div class="home-actions">
-    <button class="home-action" type="button" data-home-target="quoteWorkbenchPanel"><span class="home-icon">🧾</span><span><strong>銷售／成交</strong><small>掃碼、臨時估價、舊金折抵與確認成交</small></span></button>
-    <button class="home-action" type="button" data-home-target="salesPanel"><span class="home-icon">🧮</span><span><strong>銷售紀錄</strong><small>查詢交易、收付款與退貨</small></span></button>
-    <button class="home-action" type="button" data-home-target="purchasingPanel"><span class="home-icon">📥</span><span><strong>進貨管理</strong><small>建立進貨單與商品入庫</small></span></button>
-    <button class="home-action" type="button" data-home-target="inventoryStockPanel"><span class="home-icon">💍</span><span><strong>商品庫存</strong><small>查詢商品、條碼與櫃位</small></span></button>
-    <button class="home-action" type="button" data-home-target="stocktakePanel"><span class="home-icon">📋</span><span><strong>每日盤點</strong><small>掃描盤點與差異確認</small></span></button>
-    <button class="home-action" type="button" data-home-target="goldPricePanel"><span class="home-icon">🪙</span><span><strong>今日金價</strong><small>設定買入價與賣出價</small></span></button>
-    <button class="home-action" type="button" data-home-target="dailyClosingPanel"><span class="home-icon">📊</span><span><strong>每日結帳</strong><small>核對現金、刷卡與營業額</small></span></button>
-    <button class="home-action" type="button" data-home-target="salesHistoryPanel"><span class="home-icon">🗂️</span><span><strong>交易紀錄</strong><small>查詢銷售、退貨與歷史資料</small></span></button>
+    <button class="home-action home-action-primary" type="button" data-home-target="quoteWorkbenchPanel"><span class="home-icon">🧾</span><span><strong>開始銷售</strong><small>掃描商品、報價、成交與收款</small></span></button>
+    <button class="home-action home-action-primary" type="button" data-home-target="inventoryStockPanel"><span class="home-icon">💍</span><span><strong>查商品／庫存</strong><small>查條碼、商品資料與櫃位</small></span></button>
+    <button class="home-action home-action-primary" type="button" data-home-target="purchasingPanel"><span class="home-icon">📥</span><span><strong>進貨／到貨</strong><small>建立採購、辦理到貨驗收</small></span></button>
+    <button class="home-action home-action-primary" type="button" data-home-target="stocktakePanel"><span class="home-icon">📋</span><span><strong>開始盤點</strong><small>掃描商品、核對實際數量</small></span></button>
+    <button class="home-action home-action-primary" type="button" data-home-target="goldPricePanel"><span class="home-icon">🪙</span><span><strong>今日金價</strong><small>查看或更新買入、賣出價格</small></span></button>
+    <button class="home-action home-action-primary" type="button" data-home-target="dailyClosingPanel"><span class="home-icon">📊</span><span><strong>打烊結帳</strong><small>核對營業額、收付款與現金</small></span></button>
   </div>
-    <a class="home-action" href="/reports" aria-label="營運報表"><span class="home-icon">📈</span><span><strong>營運報表</strong><small>今日／本月營運、每日收付款與費用分析</small></span></a>
-    <a class="home-action" href="/banking" aria-label="銀行帳戶與對帳"><span class="home-icon">🏦</span><span><strong>銀行帳戶／對帳</strong><small>帳戶餘額、存提款、CSV 匯入與對帳</small></span></a>
-    <a class="home-action" href="/gold-material" aria-label="金料往來管理"><span class="home-icon">⚖️</span><span><strong>金料往來</strong><small>足金餘額、舊金收受與供應商折抵</small></span></a>
-  <div class="home-section-title">門市管理</div>
-  <div class="home-lower">
-    <div class="home-info"><strong>🧭 作業小提醒</strong><p>每日營業前先確認買入／賣出金價；交易完成後核對收付款，打烊前執行每日結帳。</p><button type="button" data-home-target="goldPricePanel">前往金價管理　→</button></div>
-    <div class="home-info"><strong>📦 庫存與異動</strong><p>進貨、調櫃、盤點及銷售都會影響庫存，建議定期查看庫存異動紀錄。</p><button type="button" data-home-target="inventoryMovementPanel">查看庫存異動　→</button></div>
-  </div>
+  <details class="home-more">
+    <summary><strong>其他功能與查詢</strong><small>客訂、退貨、商品建檔、帳款、銀行與報表</small></summary>
+    <div class="home-more-actions">
+      <button class="home-action" type="button" data-home-target="salesHistoryPanel"><span class="home-icon">🗂️</span><span><strong>交易紀錄／退貨</strong><small>查詢銷售、收付款及辦理退貨</small></span></button>
+      <button class="home-action" type="button" data-home-target="customerOrderList"><span class="home-icon">📝</span><span><strong>客戶訂單</strong><small>查看訂單、訂金與交貨進度</small></span></button>
+      <button class="home-action" type="button" data-home-target="productForm"><span class="home-icon">🏷️</span><span><strong>新增商品</strong><small>建立商品資料與條碼</small></span></button>
+      <button class="home-action" type="button" data-home-target="supplierPayablesPanel"><span class="home-icon">🧾</span><span><strong>供應商帳款</strong><small>查帳單、付款與未結清金額</small></span></button>
+      <button class="home-action" type="button" data-home-target="operatingExpensesPanel"><span class="home-icon">🧮</span><span><strong>營業費用</strong><small>登錄費用與付款狀態</small></span></button>
+      <button class="home-action" type="button" data-home-target="cashDrawerPanel"><span class="home-icon">💵</span><span><strong>現金櫃異動</strong><small>備用金與其他現金收支</small></span></button>
+      <a class="home-action" href="/reports" aria-label="營運報表"><span class="home-icon">📈</span><span><strong>營運報表</strong><small>查看今日、本月營運與異常</small></span></a>
+      <a class="home-action" href="/banking" aria-label="銀行帳戶與對帳"><span class="home-icon">🏦</span><span><strong>銀行帳戶／對帳</strong><small>帳戶餘額、存提款及對帳單</small></span></a>
+      <a class="home-action" href="/gold-material" aria-label="金料往來管理"><span class="home-icon">⚖️</span><span><strong>金料往來</strong><small>足金餘額、舊金收受與折抵</small></span></a>
+    </div>
+  </details>
+  <details class="home-tips">
+    <summary>每日作業小提醒</summary>
+    <div class="home-lower">
+      <div class="home-info"><strong>🧭 營業前</strong><p>先確認買入價與賣出價，確認目前公司及營業據點。</p><button type="button" data-home-target="goldPricePanel">前往今日金價　→</button></div>
+      <div class="home-info"><strong>📦 打烊前</strong><p>確認交易、收付款與現金櫃異動，再執行每日結帳及現金盤點。</p><button type="button" data-home-target="dailyClosingPanel">前往打烊結帳　→</button></div>
+    </div>
+  </details>
 </section>
 
 
