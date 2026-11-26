@@ -65,6 +65,9 @@ test("main business workspace uses Traditional Chinese fallbacks for statuses, p
   assert.match(mainWorkspace, /其他區域類型/);
   assert.match(mainWorkspace, /其他庫存異動/);
   assert.match(mainWorkspace, /其他庫存操作/);
+  assert.match(mainWorkspace, /其他現金櫃異動/);
+  assert.doesNotMatch(mainWorkspace, /drawerTypeLabels\[row\.movement_type\]\|\|row\.movement_type/);
+  assert.doesNotMatch(mainWorkspace, /row\.direction===\"IN\"\?\"現金櫃流入\":\"現金櫃流出\"/);
   assert.doesNotMatch(mainWorkspace, /statusLabels\[row\.status\]\|\|row\.status/);
   assert.doesNotMatch(mainWorkspace, /stateLabels\[row\.status\]\|\|row\.status/);
   assert.doesNotMatch(mainWorkspace, /purchaseStatusLabels\[(?:row|x)\.status\]\|\|(row|x)\.status/);
