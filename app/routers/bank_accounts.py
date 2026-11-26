@@ -17,6 +17,7 @@ router=APIRouter(prefix="/companies/{company_id}/bank-accounts",tags=["bank acco
 TRANSFER_SOURCE_VIEW_PERMISSIONS = {
     "PAYMENT_TRANSACTION": "payments.view",
     "SUPPLIER_PAYMENT": "supplier_payables.view",
+    "SUPPLIER_PAYMENT_REVERSAL": "supplier_payables.view",
     "OPERATING_EXPENSE": "expenses.view",
 }
 
@@ -101,7 +102,7 @@ class CashBankOperation(BaseModel):
     idempotency_key:UUID|None=None
 
 class TransferSourceLinkCreate(BaseModel):
-    source_type:str=Field(pattern="^(PAYMENT_TRANSACTION|SUPPLIER_PAYMENT|OPERATING_EXPENSE)$")
+    source_type:str=Field(pattern="^(PAYMENT_TRANSACTION|SUPPLIER_PAYMENT|SUPPLIER_PAYMENT_REVERSAL|OPERATING_EXPENSE)$")
     source_id:UUID
     created_by_name:str=Field(min_length=1,max_length=120)
 

@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from app.models.bank_account import BankAccount, BankTransaction
 from app.models.payment_transaction import PaymentTransaction
-from app.models.supplier_payable import SupplierPayment
+from app.models.supplier_payable import SupplierPayment, SupplierPaymentReversal
 from app.models.operating_expense import OperatingExpense
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
@@ -381,6 +381,38 @@ def _transfer_source_details(
             "description": f"供應商轉帳付款：{source.payment_no}",
         }
 
+    if source_type == "SUPPLIER_PAYMENT_REVERSAL":
+        statement = select(SupplierPaymentReversal).where(
+            SupplierPaymentReversal.id == source_id,
+            SupplierPaymentReversal.company_id == company_id,
+        )
+        if lock:
+            statement = statement.with_for_update()
+        source = session.scalar(statement)
+        if source is None:
+            raise ValueError("找不到指定供應商付款沖銷紀錄。")
+        original_payment = session.scalar(select(SupplierPayment).where(
+            SupplierPayment.id == source.payment_id,
+            SupplierPayment.company_id == company_id,
+        ))
+        if original_payment is None:
+            raise ValueError("供應商付款沖銷找不到原付款紀錄。")
+        if original_payment.payment_method != "TRANSFER" or source.currency_code != "TWD":
+            raise ValueError("只有新台幣銀行轉帳付款的沖銷可以連結銀行流水。")
+        _validate_source_site(session, company_id=company_id, site_id=source.site_id)
+        return {
+            "source": source,
+            "site_id": source.site_id,
+            "direction": "IN",
+            "amount": source.total_amount,
+            "currency_code": source.currency_code,
+            "reference_no": source.reversal_no,
+            "occurred_at": source.reversed_at,
+            "note": source.reason,
+            "source_no": source.reversal_no,
+            "description": f"供應商付款沖銷入帳：{source.reversal_no}",
+        }
+
     if source_type == "OPERATING_EXPENSE":
         statement = select(OperatingExpense).where(
             OperatingExpense.id == source_id,
@@ -464,6 +496,27 @@ def list_unlinked_transfer_sources(
             (row.paid_at, "SUPPLIER_PAYMENT", row.id)
             for row in supplier_rows
             if ("SUPPLIER_PAYMENT", row.id) not in linked
+        )
+
+    if "SUPPLIER_PAYMENT_REVERSAL" in allowed_types:
+        reversal_rows = session.scalars(
+            select(SupplierPaymentReversal)
+            .join(
+                SupplierPayment,
+                SupplierPayment.id == SupplierPaymentReversal.payment_id,
+            )
+            .where(
+                SupplierPaymentReversal.company_id == company_id,
+                SupplierPaymentReversal.currency_code == "TWD",
+                SupplierPayment.payment_method == "TRANSFER",
+            )
+            .order_by(SupplierPaymentReversal.reversed_at.desc())
+            .limit(limit)
+        ).all()
+        candidates.extend(
+            (row.reversed_at, "SUPPLIER_PAYMENT_REVERSAL", row.id)
+            for row in reversal_rows
+            if ("SUPPLIER_PAYMENT_REVERSAL", row.id) not in linked
         )
 
     if "OPERATING_EXPENSE" in allowed_types:
