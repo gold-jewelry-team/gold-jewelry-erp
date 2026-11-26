@@ -118,6 +118,11 @@ def submit_purchase(session: Session, *, purchase_id: UUID) -> Purchase:
     purchase = session.execute(select(Purchase).where(Purchase.id == purchase_id).with_for_update()).scalar_one_or_none()
     if purchase is None:
         raise ValueError("找不到採購單。")
+    # A retry may arrive after the original submit committed but its HTTP
+    # response was lost. Receiving can also advance the status before that
+    # retry arrives; all post-submit states therefore confirm the same action.
+    if purchase.status in {"ORDERED", "PARTIALLY_RECEIVED", "RECEIVED"}:
+        return purchase
     if purchase.status != "DRAFT":
         raise ValueError("只有草稿採購單可以送出。")
     if not session.scalar(select(PurchaseLine.id).where(PurchaseLine.purchase_id == purchase_id).limit(1)):
@@ -131,6 +136,10 @@ def cancel_purchase(session: Session, *, purchase_id: UUID) -> Purchase:
     purchase = session.execute(select(Purchase).where(Purchase.id == purchase_id).with_for_update()).scalar_one_or_none()
     if purchase is None:
         raise ValueError("找不到採購單。")
+    # Cancellation is a terminal state transition. Treat an exact retry
+    # after a lost response as success without changing any related records.
+    if purchase.status == "CANCELLED":
+        return purchase
     if purchase.status not in {"DRAFT", "ORDERED"}:
         raise ValueError("只有草稿或尚未收貨的採購單可以取消。")
     linked_bill_id = session.scalar(
