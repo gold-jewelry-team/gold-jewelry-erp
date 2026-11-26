@@ -4453,7 +4453,8 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
    status.textContent="已收合 "+categoryPanels.length+" 個功能區";
   });
   shortcuts.appendChild(collapseAll);
-  categoryPanels.forEach(panel=>{
+  categoryPanels.forEach((panel,index)=>{
+   if(!panel.id)panel.id=category+"-panel-"+(index+1);
    if(category==="settings"&&!panel.classList.contains("panel-collapsed")){
     const toggle=panel.querySelector(":scope > h2 .panel-toggle");
     if(toggle)toggle.click();
@@ -4462,9 +4463,18 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
    button.type="button";
    button.textContent=titleFor(panel);
    button.title="定位到："+titleFor(panel);
-   button.dataset.settingsPanel=panel.id||String(categoryPanels.indexOf(panel));
+   button.dataset.settingsPanel=panel.id;
+   button.setAttribute("aria-controls",panel.id);
    settingsButtons.set(panel,button);
    button.addEventListener("click",()=>{
+    if(category==="settings"){
+     categoryPanels.forEach(otherPanel=>{
+      if(otherPanel!==panel&&!otherPanel.classList.contains("panel-collapsed")){
+       const otherToggle=otherPanel.querySelector(":scope > h2 .panel-toggle");
+       if(otherToggle)otherToggle.click();
+      }
+     });
+    }
     if(panel.classList.contains("panel-collapsed")){
      const toggle=panel.querySelector(":scope > h2 .panel-toggle");
      if(toggle)toggle.click();
