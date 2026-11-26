@@ -3622,7 +3622,7 @@ async function loadCashDrawerMovements(){
  renderPendingCashDrawerRecovery();
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
  const rows=await api("/companies/"+companyId+"/sites/"+selectedSiteId+"/cash-drawer-movements");
- box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(drawerTypeLabels[row.movement_type]||"其他現金櫃異動")+'</strong><span class="pill">'+(directionDisplayLabel(row.direction,{IN:"現金櫃流入",OUT:"現金櫃流出"})")+'</span><span class="muted">金額：'+escapeHtml(row.amount)+' 元 · '+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span><span class="muted">說明：'+escapeHtml(row.description)+' · 經手人：'+escapeHtml(row.created_by_name)+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無現金櫃異動</div>';
+ box.innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(drawerTypeLabels[row.movement_type]||"其他現金櫃異動")+'</strong><span class="pill">'+(directionDisplayLabel(row.direction,{IN:"現金櫃流入",OUT:"現金櫃流出"}))+'</span><span class="muted">金額：'+escapeHtml(row.amount)+' 元 · '+escapeHtml(row.created_at?new Date(row.created_at).toLocaleString("zh-TW"):"")+'</span><span class="muted">說明：'+escapeHtml(row.description)+' · 經手人：'+escapeHtml(row.created_by_name)+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無現金櫃異動</div>';
 }
 $("addPurchaseLine").addEventListener("click",()=>{
  if(!companyId||!selectedSiteId){message("purchaseStatus","請先選擇公司與據點。",true);return;}
