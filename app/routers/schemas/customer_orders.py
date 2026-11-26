@@ -59,6 +59,13 @@ class CustomerOrderRefundCreate(BaseModel):
     idempotency_key: UUID | None = None
 
 
+class CustomerOrderSaleRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    sale_no: str
+    status: str
+
+
 class CustomerOrderRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -78,6 +85,7 @@ class CustomerOrderRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     payments: list[CustomerOrderPaymentRead]
+    sale: CustomerOrderSaleRead | None = None
 
     @computed_field
     @property

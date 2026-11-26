@@ -14,7 +14,7 @@ class CustomerOrder(Base):
     __tablename__ = "customer_orders"
     __table_args__ = (
         CheckConstraint("status IN ('PENDING_DEPOSIT', 'IN_PROGRESS', 'ARRIVED', 'READY', 'COMPLETED', 'CANCELLED')", name="ck_customer_orders_status"),
-        CheckConstraint("total_amount > 0 AND deposit_amount >= 0 AND deposit_amount <= total_amount", name="ck_customer_orders_amounts"),
+        CheckConstraint("total_amount > 0 AND deposit_amount >= 0", name="ck_customer_orders_amounts"),
         Index("ix_customer_orders_company_site_created", "company_id", "site_id", "created_at"),
         UniqueConstraint("site_id", "order_no", name="uq_customer_orders_site_order_no"),
     )

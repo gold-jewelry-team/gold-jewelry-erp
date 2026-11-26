@@ -338,8 +338,27 @@ def refund_customer_order_payment(
     if amount > refundable_balance:
         raise ValueError(f"退款金額超過客訂可退餘額，目前最多可退：{refundable_balance}。")
     method_net = _customer_order_payment_method_net(session, order.id, payment_method)
-    if amount > method_net:
-        raise ValueError(f"退款金額不可超過此付款方式的淨收款，目前可退：{method_net}。")
+    method_refundable = method_net
+    if linked_sale is not None:
+        method_nets = {
+            method: _customer_order_payment_method_net(session, order.id, method)
+            for method in ("CASH", "CARD", "TRANSFER", "OTHER")
+        }
+        if payment_method == "CARD":
+            allowed_card = linked_sale.card_amount + linked_sale.card_fee
+            method_refundable = min(method_net, max(Decimal("0"), method_nets["CARD"] - allowed_card))
+        else:
+            allowed_noncard = max(
+                Decimal("0"),
+                round_twd_like_legacy(linked_sale.subtotal) - linked_sale.card_amount,
+            )
+            received_noncard = sum(
+                (value for method, value in method_nets.items() if method != "CARD"),
+                Decimal("0"),
+            )
+            method_refundable = min(method_net, max(Decimal("0"), received_noncard - allowed_noncard))
+    if amount > method_refundable:
+        raise ValueError(f"退款金額不可超過此付款方式的可退超收餘額，目前可退：{method_refundable}。")
     assert_business_day_open(
         session, site_id=order.site_id, at=datetime.now(timezone.utc)
     )
@@ -432,12 +451,17 @@ def record_customer_order_payment(
         }
         if payment_method == "CARD":
             method_limit = linked_sale.card_amount + linked_sale.card_fee
+            already_collected = method_nets.get("CARD", Decimal("0"))
         else:
             method_limit = max(
                 Decimal("0"),
                 round_twd_like_legacy(linked_sale.subtotal) - linked_sale.card_amount,
             )
-        method_remaining = method_limit - method_nets.get(payment_method, Decimal("0"))
+            already_collected = sum(
+                (value for method, value in method_nets.items() if method != "CARD"),
+                Decimal("0"),
+            )
+        method_remaining = method_limit - already_collected
         if amount > method_remaining:
             raise ValueError(
                 f"此付款方式超過正式銷售可收餘額，目前最多可收：{max(Decimal('0'), method_remaining)}。"

@@ -10,6 +10,10 @@ test("customer order list supports editing basic data and fulfillment status tra
   assert.match(html, /customerOrderList/);
   assert.match(html, /data-edit-customer-order=/);
   assert.match(html, /data-next-customer-order-status=/);
+  assert.match(html, /data-create-customer-order-sale=/);
+  assert.match(html, /data-open-customer-order-sale=/);
+  assert.match(html, /function startCustomerOrderSale/);
+  assert.match(html, /完成銷售後才會扣庫存/);
   assert.ok(html.includes('"/customer-orders/"+editingCustomerOrderId'));
 });
 
@@ -30,6 +34,7 @@ test("customer order refunds are append-only and cancellation requires full refu
   assert.ok(html.includes('"/customer-orders/"+row.id+"/cancel"'));
   assert.match(router, /@router\.post\("\/\{order_id\}\/refunds"/);
   assert.match(router, /@router\.post\("\/\{order_id\}\/cancel"/);
+  assert.match(router, /客訂完成交貨必須透過正式銷售單完成/);
   assert.match(paymentService, /direction="OUT"/);
   assert.match(paymentService, /CO-REFUND:/);
   assert.match(paymentService, /order\.deposit_amount -= amount/);

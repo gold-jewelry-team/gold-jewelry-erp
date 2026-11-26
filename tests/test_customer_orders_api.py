@@ -92,8 +92,8 @@ def test_customer_order_deposit_ledger_and_status_flow():
             f"/companies/{company_id}/customer-orders/{order['id']}/status",
             params={"status": "COMPLETED"},
         )
-        assert unpaid_completion.status_code == 422
-        assert "尚有尾款未收清" in unpaid_completion.json()["detail"]
+        assert unpaid_completion.status_code == 409
+        assert "必須透過正式銷售單完成" in unpaid_completion.json()["detail"]
         assert client.get(
             f"/companies/{company_id}/customer-orders/{order['id']}"
         ).json()["status"] == "READY"
@@ -112,14 +112,16 @@ def test_customer_order_deposit_ledger_and_status_flow():
             f"/companies/{company_id}/customer-orders/{order['id']}/status",
             params={"status": "COMPLETED"},
         )
-        assert completed.status_code == 200, completed.text
-        assert completed.json()["status"] == "COMPLETED"
+        assert completed.status_code == 409, completed.text
+        assert "必須透過正式銷售單完成" in completed.json()["detail"]
         completed_replay = client.patch(
             f"/companies/{company_id}/customer-orders/{order['id']}/status",
             params={"status": "COMPLETED"},
         )
-        assert completed_replay.status_code == 200, completed_replay.text
-        assert completed_replay.json()["status"] == "COMPLETED"
+        assert completed_replay.status_code == 409, completed_replay.text
+        assert client.get(
+            f"/companies/{company_id}/customer-orders/{order['id']}"
+        ).json()["status"] == "READY"
 
         ledger = TestSession()
         receipts = ledger.query(PaymentTransaction).filter(

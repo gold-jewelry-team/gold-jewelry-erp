@@ -107,7 +107,7 @@ def test_customer_order_extra_collection_partial_refund_and_tail_payment_are_ide
         assert tail.json()["balance_amount"] == "0.00"
         assert len(tail.json()["payments"]) == 4
 
-        for next_status in ("ARRIVED", "READY", "COMPLETED"):
+        for next_status in ("ARRIVED", "READY"):
             changed = client.patch(
                 f"/companies/{company_id}/customer-orders/{order_id}/status",
                 params={"status": next_status},
@@ -115,10 +115,17 @@ def test_customer_order_extra_collection_partial_refund_and_tail_payment_are_ide
             assert changed.status_code == 200, changed.text
             assert changed.json()["status"] == next_status
 
-        # A response-lost retry remains an exact replay even after fulfillment completed.
+        direct_completion = client.patch(
+            f"/companies/{company_id}/customer-orders/{order_id}/status",
+            params={"status": "COMPLETED"},
+        )
+        assert direct_completion.status_code == 409
+        assert "必須透過正式銷售單完成" in direct_completion.json()["detail"]
+
+        # A response-lost refund retry remains an exact replay without completing fulfillment.
         final_refund_replay = client.post(refund_url, json=refund_payload)
         assert final_refund_replay.status_code == 200, final_refund_replay.text
-        assert final_refund_replay.json()["status"] == "COMPLETED"
+        assert final_refund_replay.json()["status"] == "READY"
         assert final_refund_replay.json()["deposit_amount"] == "10000.00"
         assert len(final_refund_replay.json()["payments"]) == 4
 
@@ -127,6 +134,7 @@ def test_customer_order_extra_collection_partial_refund_and_tail_payment_are_ide
             payments = list(db.scalars(select(PaymentTransaction).where(
                 PaymentTransaction.customer_order_id == UUID(order_id)
             ).order_by(PaymentTransaction.paid_at, PaymentTransaction.id)).all())
+            assert order.status == "READY"
             assert order.deposit_amount == Decimal("10000.00")
             assert len(payments) == 4
             assert [item.direction for item in payments] == ["IN", "IN", "OUT", "IN"]
