@@ -626,6 +626,21 @@ button.secondary:disabled{opacity:.42}
  #homeDashboard .home-more-actions{grid-template-columns:1fr}
 }
 
+
+/* Guided sales sequence and visible next-step handoff. */
+#homeDashboard .home-start-copy{margin:-5px 0 12px;color:#6f796f;font-size:13px;line-height:1.55}
+.sale-workflow-guide{margin:0 0 14px;padding:12px;border:1px solid #e4e8df;border-radius:12px;background:#f6f8f3}
+.sale-workflow-guide>strong{display:block;font-size:14px;color:#315b46}
+.sale-workflow-guide ol{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;padding:0;margin:10px 0 8px;list-style:none;counter-reset:sale-step}
+.sale-workflow-guide li{counter-increment:sale-step;display:flex;align-items:center;gap:5px;min-width:0;font-size:11px;font-weight:750;color:#405247}
+.sale-workflow-guide li:before{content:counter(sale-step);display:grid;place-items:center;flex:0 0 22px;height:22px;border-radius:50%;background:#315b46;color:#fff;font-size:11px}
+.sale-workflow-guide p{margin:0;color:#657168;font-size:12px;line-height:1.55}
+@media(max-width:600px){
+ .sale-workflow-guide ol{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .sale-workflow-guide li{font-size:12px;min-height:30px}
+ .sale-workflow-guide li:last-child{grid-column:1/-1}
+}
+
 </style>
 </head>
 <body>
@@ -636,7 +651,7 @@ button.secondary:disabled{opacity:.42}
   <div class="home-kicker">JEWELRY STORE · MANAGEMENT</div>
   <div class="home-heading"><div><h2>營運總覽</h2><p class="home-intro">掌握門市日常作業，常用功能一鍵進入。</p></div><span class="home-date">門市工作台</span></div>
   <div class="home-section-title">今天要做什麼？</div>
-  <p class="home-intro">選一個工作開始，系統會帶你到對應的作業畫面。</p>
+  <p class="home-start-copy">選一個工作開始，系統會帶你到對應的作業畫面。</p>
   <div class="home-actions">
     <button class="home-action home-action-primary" type="button" data-home-target="quoteWorkbenchPanel"><span class="home-icon">🧾</span><span><strong>開始銷售</strong><small>掃描商品、報價、成交與收款</small></span></button>
     <button class="home-action home-action-primary" type="button" data-home-target="inventoryStockPanel"><span class="home-icon">💍</span><span><strong>查商品／庫存</strong><small>查條碼、商品資料與櫃位</small></span></button>
@@ -879,6 +894,11 @@ button.secondary:disabled{opacity:.42}
 <h2>銷售結帳</h2>
 <p class="sub">銷售明細由上方現場報價／同款查找共用工作區帶入；先建立銷售草稿，確認金額後再完成銷售並扣除正式商品庫存。</p>
 <div class="sale-gold-quote"><div class="sale-gold-quote-head"><strong>目前金價參考</strong><label for="saleGoldDisplayUnit">顯示單位</label><select id="saleGoldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select><button id="copySaleGoldQuote" class="secondary" type="button">複製報價</button></div><div id="saleGoldPriceValues" class="sale-gold-quote-values">請先選擇公司與據點</div><p class="muted">僅供詢價參考；切換單位不會改變商品重量、牌價紀錄或銷售成交金額。</p></div>
+<div class="sale-workflow-guide" aria-label="銷售作業步驟">
+ <strong>銷售作業步驟</strong>
+ <ol><li>選商品／報價</li><li>確認金額</li><li>建立草稿</li><li>確認成交</li><li>登錄實際收付款</li></ol>
+ <p>建立草稿不會扣庫存；按下「確認成交」才會扣除正式商品庫存。成交後，系統會帶你到實際收付款登錄。</p>
+</div>
 <form id="saleHeaderForm">
 <div class="grid">
 <div class="field"><label for="saleNo">銷售單號</label><input id="saleNo" maxlength="40" required placeholder="輸入門市銷售單號"></div>
@@ -3597,8 +3617,12 @@ $("createPurchase").addEventListener("click",async()=>{
   const wasEditing=Boolean(editingPurchaseId);
   await api("/companies/"+companyId+"/purchases"+(editingPurchaseId?"/"+editingPurchaseId:""),{method:editingPurchaseId?"PATCH":"POST",body:JSON.stringify(payload)});
   resetPurchaseEditor();
-  message("purchaseStatus",wasEditing?"採購草稿已更新。":"採購草稿已建立。請在採購單紀錄中送出後再辦理到貨驗收。");
+  message("purchaseStatus",wasEditing?"採購草稿已更新。":"採購草稿已建立。請在下方採購單紀錄中送出，送出後即可辦理到貨驗收。");
   await loadPurchases();
+  const list=$("purchaseList");
+  if(list&&typeof list.scrollIntoView==="function")list.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  const submitButton=list&&typeof list.querySelector==="function"?list.querySelector("[data-submit-purchase]"):null;
+  if(submitButton&&typeof submitButton.focus==="function")submitButton.focus({preventScroll:true});
  }catch(error){message("purchaseStatus",error.message,true);}
  finally{button.disabled=false;}
 });
@@ -3645,6 +3669,8 @@ $("purchaseList").addEventListener("click",async event=>{
   $("selectedPurchaseLine").innerHTML=selectedPurchase.lines.filter(line=>Number(line.received_quantity)<Number(line.quantity)).map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);const remaining=Number(line.quantity)-Number(line.received_quantity);return '<article class="item transaction-item receive-line-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(product?.product_code||"商品")+' · '+escapeHtml(product?.name||"")+'</strong><span class="muted">此商品尚未完成驗收</span></div><div class="transaction-item-primary receive-remaining"><small>尚餘待驗收</small><strong>'+escapeHtml(remaining)+'</strong></div></div><div class="transaction-item-meta"><span><small>已驗收數量</small><strong>'+escapeHtml(line.received_quantity)+'</strong></span><span><small>訂購總數量</small><strong>'+escapeHtml(line.quantity)+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-receive-line="'+escapeHtml(line.id)+'" data-remaining="'+remaining+'">選取此明細驗收</button></div></article>';}).join("")||'<div class="empty">此採購單已全部驗收完成</div>';
   $("purchaseReceiveForm").classList.add("hidden");
   $("purchaseReceivePanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+  const firstLineButton=$("selectedPurchaseLine").querySelector("[data-receive-line]");
+  if(firstLineButton&&typeof firstLineButton.focus==="function")firstLineButton.focus({preventScroll:true});
  }
 });
 function purchaseReceiveStorageKey(purchaseId,lineId){
@@ -4063,6 +4089,10 @@ $("createSaleDraft").addEventListener("click",async()=>{
   renderSaleResult(sale);
   message("saleStatus",wasEditing?"銷售草稿已更新，請重新核對金額與刷卡手續費。":"銷售草稿建立成功。請核對每項商品金額、刷卡本金及 5% 手續費，再完成銷售。");
   await loadSalesHistory();
+  const nextStep=$("saleDraftActions");
+  if(nextStep&&typeof nextStep.scrollIntoView==="function")nextStep.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+  const confirmButton=$("completeSale");
+  if(confirmButton&&typeof confirmButton.focus==="function")confirmButton.focus({preventScroll:true});
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
 $("completeSale").addEventListener("click",async()=>{
@@ -4075,6 +4105,10 @@ $("completeSale").addEventListener("click",async()=>{
   $("newSaleActions").classList.remove("hidden");
   message("saleStatus","銷售已完成；正式商品已扣除庫存，臨時估價明細不會扣除庫存。");
   try{await loadInventoryOptions();if(sale.customer_order_id)await loadCustomerOrders();}catch(refreshError){message("globalStatus","銷售已完成，但庫存／客訂畫面重新載入失敗："+refreshError.message,true);}
+  const nextStep=(!sale.customer_order_id||Number(sale.final_amount)<0)?$("salePaymentPanel"):$("newSaleActions");
+  if(nextStep&&typeof nextStep.scrollIntoView==="function")nextStep.scrollIntoView({behavior:window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+  const nextField=nextStep===$("salePaymentPanel")?$("salePaymentAmount"):$("newSale");
+  if(nextField&&typeof nextField.focus==="function")nextField.focus({preventScroll:true});
  }catch(error){message("saleStatus",error.message,true);button.disabled=false;}
 });
 $("voidSale").addEventListener("click",async()=>{
@@ -4233,7 +4267,7 @@ $("stocktakeLocation").addEventListener("change",async()=>{
  const next=$("stocktakeLocation").value;
  if(stocktakeLines.length&&!window.confirm("切換盤點位置會清空目前盤點清單，確定繼續？")){$("stocktakeLocation").value=stocktakeLocationId;return;}
  stocktakeLines=[];stocktakeLocationId=next;
- try{await loadStocktakeBaseline();persistStocktakeDraft();renderStocktake();message("stocktakeStatus",next?"已載入帳面庫存清單；實盤數量預設為 0，掃描或人工清點後逐項核對。":"請選擇盤點位置。");}catch(error){message("stocktakeStatus",error.message,true);}
+ try{await loadStocktakeBaseline();persistStocktakeDraft();renderStocktake();message("stocktakeStatus",next?"已載入帳面庫存清單；實盤數量預設為 0，掃描或人工清點後逐項核對。":"請選擇盤點位置。");if(next&&typeof $("stocktakeBarcode").focus==="function")$("stocktakeBarcode").focus();}catch(error){message("stocktakeStatus",error.message,true);}
 });
 $("stocktakeBarcode").addEventListener("keydown",event=>{handleKeyboardScannerInput(event,$("stocktakeBarcode").value,code=>handleScannedProductCode(code,"stocktake"));});
 $("refreshStocktake").addEventListener("click",async()=>{if(!window.confirm("重新讀取會更新尚未入帳商品的帳面數量與淨重快照，並清除這些商品的實盤數量及核對狀態。已入帳項目不變。確定繼續？"))return;try{await loadInventoryOptions();await loadStocktakeBaseline(true);message("stocktakeStatus","最新商品資料、帳面數量與淨重快照已更新；所有未入帳項目請重新清點及核對。");}catch(error){message("stocktakeStatus",error.message,true);}});
