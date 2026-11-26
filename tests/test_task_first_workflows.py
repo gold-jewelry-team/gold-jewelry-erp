@@ -42,7 +42,7 @@ def test_home_dashboard_prioritizes_six_daily_tasks_and_folds_secondary_tools():
 
 def test_every_home_shortcut_target_resolves_to_one_unique_element():
     html = TestClient(app).get("/app").text
-    ids = re.findall(r'\\bid="([^"]+)"', html)
+    ids = re.findall(r'\bid="([^"]+)"', html)
     targets = re.findall(r'data-home-target="([^"]+)"', html)
 
     assert targets
@@ -107,4 +107,4 @@ def test_mobile_report_details_are_tap_to_expand_and_visible_newline_tokens_are_
     assert "mobile-report-details" in reports
     assert "sections.slice(2).forEach" in reports
     assert "銀行存提款與現金櫃連動核對" in reports
-    assert r"</section>\\n<section" not in reports
+    assert r"</section>\n<section" not in reports
