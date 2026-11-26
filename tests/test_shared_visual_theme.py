@@ -20,6 +20,8 @@ def test_shared_theme_stylesheet_is_public_and_served() -> None:
     assert "prefers-reduced-motion:reduce" in response.text
     assert "#eadfc9" in response.text
     assert "header h1{color:#493b2c}" in response.text
+    assert "header .eyebrow{color:#75634b}" in response.text
+    assert "header a[style]{color:#5e4a31!important}" in response.text
 
 
 def test_every_static_workspace_page_uses_the_shared_theme() -> None:
