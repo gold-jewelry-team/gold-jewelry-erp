@@ -104,6 +104,7 @@ const grams={G:1,QIAN:3.75,LIANG:37.5};
 const weightUnitLabels={G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"};
 function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
 const typeLabels={OPENING:"期初金料",RECEIPT:"收受金料",ADJUSTMENT_IN:"盤盈／增加",ADJUSTMENT_OUT:"盤虧／減少",SUPPLIER_DELIVERY:"交付供應商折抵"};
+const purchaseStatusLabelsForDisplay={ORDERED:"已下單",PARTIALLY_RECEIVED:"部分到貨",RECEIVED:"已收貨"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -165,7 +166,7 @@ async function onSiteChange(){
   api("/companies/"+state.companyId+"/purchases?site_id="+encodeURIComponent(state.siteId)+"&limit=500")
  ]);
  renderBalance(balance);state.movements=movements;state.purchases=purchases.filter(x=>["ORDERED","PARTIALLY_RECEIVED","RECEIVED"].includes(x.status));
- $("purchaseSelect").innerHTML='<option value="">不指定</option>'+state.purchases.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.purchase_no)+' · '+esc(x.status)+'</option>').join("");
+ $("purchaseSelect").innerHTML='<option value="">不指定</option>'+state.purchases.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.purchase_no)+' · '+esc(purchaseStatusLabelsForDisplay[x.status]||"其他狀態")+'</option>').join("");
  renderMovementList();await loadBills();await restorePendingMovement();
 }
 async function loadBills(){
