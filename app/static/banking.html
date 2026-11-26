@@ -283,16 +283,19 @@ function renderAccounts(){
  $("accountList").innerHTML=state.accounts.length?state.accounts.map(x=>'<article class="item"><div class="item-head"><strong>'+esc(accountText(x))+'</strong><span class="pill">'+(x.account.is_active?"使用中":"已停用")+'</span></div><strong>目前餘額：NT$ '+fmtMoney(x.current_balance)+'</strong><div class="muted">期初餘額 NT$ '+fmtMoney(x.account.opening_balance)+' · 起算 '+esc(fmtDate(x.account.opening_balance_at))+'</div><div class="actions"><button type="button" class="secondary" data-use-account="'+esc(x.account.id)+'">查看此帳戶</button></div></article>').join(""):'<div class="empty">尚未建立銀行帳戶</div>';
  rebuildAccountSelectors();
 }
+const bankTransactionTypeLabels={CASH_DEPOSIT:"現金存入",CASH_WITHDRAWAL:"現金提款",TRANSFER_IN:"轉入",TRANSFER_OUT:"轉出",BANK_FEE:"銀行手續費",INTEREST_IN:"利息收入",OTHER_ADJUSTMENT:"其他調整"};
+function bankTransactionTypeLabel(type){return bankTransactionTypeLabels[type]||(type?"其他銀行交易":"交易類型未設定");}
+function bankDirectionLabel(value,labels){return labels[value]||(value?"其他收付方向":"收付方向未設定");}
 function renderTransactions(){
- $("transactionList").innerHTML=state.transactions.length?'<div class="table-wrap"><table><thead><tr><th>日期</th><th>類型</th><th>方向</th><th>金額</th><th>交易編號</th><th>說明／經手人</th></tr></thead><tbody>'+state.transactions.map(x=>'<tr><td>'+esc(fmtDate(x.occurred_at))+'</td><td>'+esc(x.transaction_type)+'</td><td><span class="pill">'+(x.direction==="IN"?"收入":"支出")+'</span></td><td>NT$ '+fmtMoney(x.amount)+'</td><td>'+esc(x.reference_no||"—")+'</td><td>'+esc(x.description)+'<br><span class="muted">'+esc(x.created_by_name)+'</span></td></tr>').join("")+'</tbody></table></div>':'<div class="empty">此帳戶尚無流水</div>';
+ $("transactionList").innerHTML=state.transactions.length?'<div class="table-wrap"><table><thead><tr><th>日期</th><th>類型</th><th>方向</th><th>金額</th><th>交易編號</th><th>說明／經手人</th></tr></thead><tbody>'+state.transactions.map(x=>'<tr><td>'+esc(fmtDate(x.occurred_at))+'</td><td>'+esc(bankTransactionTypeLabel(x.transaction_type))+'</td><td><span class="pill">'+bankDirectionLabel(x.direction,{IN:"收入",OUT:"支出"})+'</span></td><td>NT$ '+fmtMoney(x.amount)+'</td><td>'+esc(x.reference_no||"—")+'</td><td>'+esc(x.description)+'<br><span class="muted">'+esc(x.created_by_name)+'</span></td></tr>').join("")+'</tbody></table></div>':'<div class="empty">此帳戶尚無流水</div>';
 }
 
 function transferSourceLabel(type){
- return ({PAYMENT_TRANSACTION:"客戶收付款",SUPPLIER_PAYMENT:"供應商付款",OPERATING_EXPENSE:"營業費用"})[type]||type;
+ return ({PAYMENT_TRANSACTION:"客戶收付款",SUPPLIER_PAYMENT:"供應商付款",OPERATING_EXPENSE:"營業費用"})[type]||(type?"其他轉帳來源":"來源類型未設定");
 }
 function renderPendingTransfers(){
  $("transferLinkTarget").value=selectedAccount()?accountText(selectedAccount()):"請選擇上方銀行帳戶";
- $("pendingTransferList").innerHTML=state.pendingTransfers.length?'<div class="table-wrap"><table><thead><tr><th>付款日期</th><th>來源</th><th>單號／說明</th><th>方向</th><th>金額</th><th>參考編號</th><th>操作</th></tr></thead><tbody>'+state.pendingTransfers.map(x=>'<tr><td>'+esc(fmtDate(x.occurred_at))+'</td><td>'+esc(transferSourceLabel(x.source_type))+'</td><td>'+esc(x.source_no)+'<br><span class="muted">'+esc(x.description)+'</span></td><td><span class="pill">'+(x.direction==="IN"?"銀行收入":"銀行支出")+'</span></td><td>NT$ '+fmtMoney(x.amount)+'</td><td>'+esc(x.reference_no||"—")+'</td><td><button type="button" '+(!state.accountId?'disabled':'')+' data-link-source-type="'+esc(x.source_type)+'" data-link-source-id="'+esc(x.source_id)+'">連結至此帳戶</button></td></tr>').join("")+'</tbody></table></div>':'<div class="empty">目前沒有尚未連結的轉帳收付款</div>';
+ $("pendingTransferList").innerHTML=state.pendingTransfers.length?'<div class="table-wrap"><table><thead><tr><th>付款日期</th><th>來源</th><th>單號／說明</th><th>方向</th><th>金額</th><th>參考編號</th><th>操作</th></tr></thead><tbody>'+state.pendingTransfers.map(x=>'<tr><td>'+esc(fmtDate(x.occurred_at))+'</td><td>'+esc(transferSourceLabel(x.source_type))+'</td><td>'+esc(x.source_no)+'<br><span class="muted">'+esc(x.description)+'</span></td><td><span class="pill">'+bankDirectionLabel(x.direction,{IN:"銀行收入",OUT:"銀行支出"})+'</span></td><td>NT$ '+fmtMoney(x.amount)+'</td><td>'+esc(x.reference_no||"—")+'</td><td><button type="button" '+(!state.accountId?'disabled':'')+' data-link-source-type="'+esc(x.source_type)+'" data-link-source-id="'+esc(x.source_id)+'">連結至此帳戶</button></td></tr>').join("")+'</tbody></table></div>':'<div class="empty">目前沒有尚未連結的轉帳收付款</div>';
 }
 async function loadPendingTransfers(){
  if(!state.companyId){state.pendingTransfers=[];renderPendingTransfers();return;}
