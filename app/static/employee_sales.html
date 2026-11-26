@@ -163,9 +163,11 @@
       const date=new Date(value);
       return Number.isNaN(date.getTime())?"—":date.toLocaleString("zh-TW",{hour12:false});
     }
+    const weightUnitLabels={G:"公克",QIAN:"錢",LIANG:"兩"};
+    function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
     function formatWeight(value,unit){
       const amount=Number(value);
-      return (Number.isFinite(amount)?amount.toLocaleString("zh-TW",{maximumFractionDigits:4}):"—")+" "+(unit||"");
+      return (Number.isFinite(amount)?amount.toLocaleString("zh-TW",{maximumFractionDigits:4}):"—")+" "+weightUnitLabel(unit);
     }
     function statusInfo(status){
       const map={
@@ -173,9 +175,10 @@
         DRAFT:{label:"草稿",cls:"badge draft"},
         VOID:{label:"已作廢",cls:"badge void"}
       };
-      return map[status]||{label:status||"未知",cls:"badge"};
+      return map[status]||{label:status?"其他狀態":"狀態未設定",cls:"badge"};
     }
     const paymentLabels={CASH:"現金",CARD:"刷卡",MIXED:"現金＋刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    function paymentMethodLabel(value){return paymentLabels[value]||(value?"其他付款方式":"付款方式未設定");}
     function detail(label,value){
       const box=node("div","detail");
       box.append(node("small","",label));
@@ -212,7 +215,7 @@
         card.append(head);
         card.append(node("div","amount",formatAmount(sale.final_amount,sale.currency_code)));
         const details=node("div","details");
-        details.append(detail("付款方式",paymentLabels[sale.payment_method]||sale.payment_method));
+        details.append(detail("付款方式",paymentMethodLabel(sale.payment_method)));
         details.append(detail("刷卡金額",formatAmount(sale.card_amount,sale.currency_code)));
         details.append(detail("刷卡手續費",formatAmount(sale.card_fee,sale.currency_code)));
         details.append(detail("商品項目",String((sale.lines||[]).length)+" 項"));
