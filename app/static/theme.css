@@ -2,16 +2,16 @@
    Keep semantic success, warning and danger colors distinct. */
 :root{
   color-scheme:light;
-  --erp-ink:#352f27;
-  --erp-muted:#786f63;
-  --erp-bg:#f5f0e7;
-  --erp-surface:#fffdf8;
-  --erp-surface-soft:#f7f1e7;
-  --erp-surface-muted:#efe7da;
-  --erp-line:#e8dece;
-  --erp-bronze:#79582f;
-  --erp-bronze-dark:#604426;
-  --erp-champagne:#c5a46b;
+  --erp-ink:#40382f;
+  --erp-muted:#796f62;
+  --erp-bg:#faf7f1;
+  --erp-surface:#fffefa;
+  --erp-surface-soft:#f8f3ea;
+  --erp-surface-muted:#f1e8d9;
+  --erp-line:#e9dfd0;
+  --erp-bronze:#98713f;
+  --erp-bronze-dark:#896236;
+  --erp-champagne:#d6b779;
   --erp-shadow:0 5px 18px rgba(65,48,29,.075);
   --app-ink:var(--erp-ink);
   --app-muted:var(--erp-muted);
@@ -30,12 +30,39 @@
 html,body{background:var(--erp-bg);color:var(--erp-ink)}
 body{background-color:var(--erp-bg)}
 header{
-  background:linear-gradient(115deg,#4a3a2b 0%,#3e4032 100%);
-  color:#fff;
-  box-shadow:0 4px 18px rgba(54,42,27,.13);
+  background:linear-gradient(115deg,#eadfc9 0%,#e5d2af 58%,#eadfc9 100%);
+  color:#493b2c;
+  box-shadow:0 3px 14px rgba(91,69,39,.09);
 }
-header p{color:#e0d8ca}
-header h1{color:#fff}
+header p{color:#75634b}
+header h1{color:#493b2c}
+header a,.back,.back-link{color:#5e4a31}
+header .back,header .back-link{border-color:#bda77f}
+header .quick-nav a{
+  color:#5e4a31;
+  background:rgba(255,255,255,.52);
+  border-color:#cdbb9b;
+}
+header .quick-nav a:hover,header .quick-nav a:focus-visible{
+  background:#fffaf2;
+  outline-color:#98713f;
+}
+header .quick-nav-empty{
+  color:#70562f;
+  background:rgba(255,255,255,.55);
+  border-color:#cdbb9b;
+}
+header [data-nav-loading]{color:#79684f!important}
+header .company-bar{
+  background:rgba(255,255,255,.48);
+  border-color:#cdbb9b;
+}
+header .company-bar label{color:#655239}
+header .company-bar select{
+  color:#40382f;
+  background:#fffefa;
+  border-color:#c5b18d;
+}
 main{color:var(--erp-ink)}
 .panel,.member,.permission,.company,.item,.mobile-bank-details,.mobile-report-details,
 .role-editor,.allocation-row,.table-wrap{
@@ -62,29 +89,29 @@ input:focus-visible,select:focus-visible,textarea:focus-visible{
 }
 input[type=checkbox],input[type=radio]{accent-color:var(--erp-bronze)}
 button:not(.secondary):not(.danger){
-  background:linear-gradient(180deg,#89683a 0%,#73532d 100%);
+  background:linear-gradient(180deg,#a27e4b 0%,#8f6b3f 100%);
   color:#fff;
   box-shadow:0 2px 6px rgba(82,59,29,.16);
 }
 button:not(.secondary):not(.danger):hover{filter:brightness(1.06)}
 button.secondary{
-  background:#efe8dc;
-  color:#604b30;
-  border:1px solid #e2d7c5;
+  background:#f4ecdf;
+  color:#644e32;
+  border:1px solid #e6dac7;
   box-shadow:none;
 }
 button.danger{background:#a64236;color:#fff}
 button:disabled{filter:saturate(.55);opacity:.58}
-a{color:#79582f}
+a{color:#89643a}
 .category-nav{
   background:var(--erp-surface);
   border-color:var(--erp-line);
   box-shadow:var(--erp-shadow);
 }
 .category-nav button{
-  background:#f5efe5;
+  background:#f8f2e8;
   border-color:#e3d8c7;
-  color:#5c4a34;
+  color:#665238;
 }
 .category-nav button[aria-pressed="true"]{
   background:linear-gradient(180deg,#89683a 0%,#73532d 100%);
@@ -99,7 +126,7 @@ a{color:#79582f}
 .category-shortcuts button{
   background:#f5efe5;
   border-color:#e4d9c8;
-  color:#604b30;
+  color:#665238;
 }
 .category-shortcuts button:active{background:var(--erp-bronze);color:#fff}
 main>section.panel[data-category="inventory"]{--category-accent:#7d896d}
@@ -111,7 +138,7 @@ main>section.panel[data-category="pricing"]{--category-accent:#c28d43}
 main>section.panel[data-category="settings"]{--category-accent:#8b806e}
 main>section.panel[data-category="advanced"]{--category-accent:#ad7b7b}
 .table-wrap{background:var(--erp-surface)}
-table th,th{background:#f1e9dc;color:#5c4b36}
+table th,th{background:#f5eee2;color:#65533b}
 table td{color:#40392f;border-bottom-color:#eee5d8}
 tr:last-child td{border-bottom-color:transparent}
 .detail,.line,.scan-feedback-code,.gold-currency-rate-editor{
@@ -119,9 +146,9 @@ tr:last-child td{border-bottom-color:transparent}
   border-color:var(--erp-line);
 }
 .notice{
-  background:#f7f0e4;
-  border-color:#ead9ba;
-  color:#6d5532;
+  background:#fbf5e9;
+  border-color:#eee0c6;
+  color:#705a39;
 }
 #homeDashboard .home-action-primary,
 #homeDashboard .home-more,
@@ -130,18 +157,39 @@ tr:last-child td{border-bottom-color:transparent}
   border-color:#eadfc9;
 }
 #homeDashboard .home-more>summary,
-#homeDashboard .home-tips>summary{color:#5d482d}
+#homeDashboard .home-tips>summary{color:#6a5539}
 .quick-nav a{border-color:#ffffff42}
 .quick-nav a:hover,.quick-nav a:focus-visible{background:#ffffff28}
 .pill,.badge{
-  background:#f1e9dc;
-  color:#66502f;
+  background:#f5edde;
+  color:#6b5637;
 }
 .scan-feedback{
   background:var(--erp-surface);
   border-color:var(--erp-line);
 }
-::selection{background:rgba(197,164,107,.28);color:var(--erp-ink)}
+#goldPriceSummary{
+  background:#f7efdf;
+  border-color:#d9c49b;
+  color:#4c402f;
+}
+#goldPriceSummary .gold-summary-head strong,
+#goldPriceSummary .gold-summary-head label,
+#goldPriceSummary .gold-summary-price span,
+#goldPriceSummary .gold-summary-price small,
+#goldPriceSummary .gold-summary-foot,
+#goldPriceSummary .gold-summary-reminder{color:#69563b}
+#goldPriceSummary .gold-summary-price{
+  background:#fffaf1;
+  border:1px solid #eadfc9;
+}
+#goldPriceSummary .gold-summary-price strong{color:#493b2c}
+#goldPriceSummary .gold-summary-head select{
+  background:#fffefa;
+  color:#40382f;
+  border-color:#d9c9aa;
+}
+::selection{background:rgba(214,183,121,.32);color:var(--erp-ink)}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
