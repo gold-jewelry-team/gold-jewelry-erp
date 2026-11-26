@@ -11,6 +11,7 @@ from app.db.session import SessionLocal
 from app.models.company import Company
 from app.models.customer_order import CustomerOrder
 from app.models.payment_transaction import PaymentTransaction
+from app.models.sale import Sale
 from app.models.site import Site
 from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead, CustomerOrderRefundCreate, CustomerOrderUpdate
 from app.services.payments import (
@@ -32,7 +33,9 @@ def get_db():
 
 
 def _load(db: Session, company_id: UUID, order_id: UUID):
-    return db.scalar(select(CustomerOrder).options(selectinload(CustomerOrder.payments)).where(
+    return db.scalar(select(CustomerOrder).options(
+        selectinload(CustomerOrder.payments), selectinload(CustomerOrder.sale)
+    ).where(
         CustomerOrder.company_id == company_id, CustomerOrder.id == order_id
     ))
 
@@ -46,7 +49,9 @@ def list_customer_orders(
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    statement = select(CustomerOrder).options(selectinload(CustomerOrder.payments)).where(CustomerOrder.company_id == company_id)
+    statement = select(CustomerOrder).options(
+        selectinload(CustomerOrder.payments), selectinload(CustomerOrder.sale)
+    ).where(CustomerOrder.company_id == company_id)
     if site_id:
         statement = statement.where(CustomerOrder.site_id == site_id)
     if status:
@@ -309,6 +314,9 @@ def cancel_customer_order(company_id: UUID, order_id: UUID, db: Session = Depend
         return _load(db, company_id, order.id)
     if order.status not in {"IN_PROGRESS", "ARRIVED", "READY"}:
         raise HTTPException(status_code=409, detail="只有進行中、已到貨或待交貨的客訂單可以取消。")
+    linked_sale = db.scalar(select(Sale).where(Sale.customer_order_id == order.id))
+    if linked_sale is not None:
+        raise HTTPException(status_code=409, detail="此客訂已有正式銷售草稿，請先作廢該銷售草稿後再取消客訂。")
     if order.deposit_amount != 0:
         raise HTTPException(status_code=409, detail="取消前必須先完成訂金／款項退款，退款紀錄需與實際退款一致。")
     order.status = "CANCELLED"
@@ -337,10 +345,10 @@ def update_customer_order_status(
         "ARRIVED": {"READY"},
         "READY": {"COMPLETED"},
     }
+    if status == "COMPLETED":
+        raise HTTPException(status_code=409, detail="客訂完成交貨必須透過正式銷售單完成，系統會同步扣庫存及更新客訂狀態。")
     if status not in allowed.get(order.status, set()):
         raise HTTPException(status_code=409, detail=f"不可由 {order.status} 變更為 {status}。")
-    if status == "COMPLETED" and order.deposit_amount < order.total_amount:
-        raise HTTPException(status_code=422, detail="尚有尾款未收清，不可完成交貨。")
     order.status = status
     order_id_value = order.id
     db.commit()

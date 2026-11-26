@@ -72,6 +72,7 @@ class CustomerOrderRead(BaseModel):
     currency_code: str
     items: list[dict]
     total_amount: Decimal
+    final_sale_amount: Decimal | None
     deposit_amount: Decimal
     note: str | None
     created_at: datetime
@@ -80,7 +81,23 @@ class CustomerOrderRead(BaseModel):
 
     @computed_field
     @property
+    def sale_id(self) -> UUID | None:
+        return self.sale.id if self.sale is not None else None
+
+    @computed_field
+    @property
+    def sale_no(self) -> str | None:
+        return self.sale.sale_no if self.sale is not None else None
+
+    @computed_field
+    @property
+    def sale_status(self) -> str | None:
+        return self.sale.status if self.sale is not None else None
+
+    @computed_field
+    @property
     def balance_amount(self) -> Decimal:
         if self.status == "CANCELLED":
             return Decimal("0.00")
-        return self.total_amount - self.deposit_amount
+        payable = self.final_sale_amount if self.final_sale_amount is not None else self.total_amount
+        return payable - self.deposit_amount
