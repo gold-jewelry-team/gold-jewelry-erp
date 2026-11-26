@@ -303,6 +303,10 @@ def cancel_customer_order(company_id: UUID, order_id: UUID, db: Session = Depend
     ).with_for_update())
     if order is None:
         raise HTTPException(status_code=404, detail="找不到指定客訂單。")
+    # If the response to the first cancellation was lost, return the same
+    # final order rather than treating the exact retry as a second mutation.
+    if order.status == "CANCELLED":
+        return _load(db, company_id, order.id)
     if order.status not in {"IN_PROGRESS", "ARRIVED", "READY"}:
         raise HTTPException(status_code=409, detail="只有進行中、已到貨或待交貨的客訂單可以取消。")
     if order.deposit_amount != 0:
@@ -324,6 +328,9 @@ def update_customer_order_status(
     ).with_for_update())
     if order is None:
         raise HTTPException(status_code=404, detail="找不到指定客訂單。")
+    # A lost response followed by an exact same-status retry is a no-op.
+    if order.status == status:
+        return _load(db, company_id, order.id)
     allowed = {
         "PENDING_DEPOSIT": {"IN_PROGRESS"},
         "IN_PROGRESS": {"ARRIVED"},

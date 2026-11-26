@@ -70,11 +70,23 @@ def test_customer_order_deposit_ledger_and_status_flow():
             params={"status": "ARRIVED"},
         )
         assert arrived.status_code == 200, arrived.text
+        arrived_replay = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "ARRIVED"},
+        )
+        assert arrived_replay.status_code == 200, arrived_replay.text
+        assert arrived_replay.json()["status"] == "ARRIVED"
         ready = client.patch(
             f"/companies/{company_id}/customer-orders/{order['id']}/status",
             params={"status": "READY"},
         )
         assert ready.status_code == 200, ready.text
+        ready_replay = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "READY"},
+        )
+        assert ready_replay.status_code == 200, ready_replay.text
+        assert ready_replay.json()["status"] == "READY"
 
         unpaid_completion = client.patch(
             f"/companies/{company_id}/customer-orders/{order['id']}/status",
@@ -102,6 +114,12 @@ def test_customer_order_deposit_ledger_and_status_flow():
         )
         assert completed.status_code == 200, completed.text
         assert completed.json()["status"] == "COMPLETED"
+        completed_replay = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "COMPLETED"},
+        )
+        assert completed_replay.status_code == 200, completed_replay.text
+        assert completed_replay.json()["status"] == "COMPLETED"
 
         ledger = TestSession()
         receipts = ledger.query(PaymentTransaction).filter(
@@ -296,6 +314,13 @@ def test_customer_order_refund_is_append_only_and_required_before_cancellation()
         assert cancelled.status_code == 200, cancelled.text
         assert cancelled.json()["status"] == "CANCELLED"
         assert len(cancelled.json()["payments"]) == 2
+
+        cancelled_replay = client.post(
+            f"/companies/{company_id}/customer-orders/{order_id}/cancel"
+        )
+        assert cancelled_replay.status_code == 200, cancelled_replay.text
+        assert cancelled_replay.json()["status"] == "CANCELLED"
+        assert len(cancelled_replay.json()["payments"]) == 2
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
