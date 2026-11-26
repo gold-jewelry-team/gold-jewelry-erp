@@ -153,13 +153,24 @@ def test_owner_login_can_manage_real_roles_and_member_assignments():
             page_errors = []
             page.on("pageerror", lambda error: page_errors.append(str(error)))
 
-            # These pages must not be accessible before a real administrator login.
+            # The role editor may serve its static shell to guests, but no
+            # administrator data is available until the owner session is valid.
             guest = browser.new_page()
             guest_response = guest.goto(
                 f"{base_url}/role-management",
                 wait_until="domcontentloaded",
             )
-            assert guest_response is not None and guest_response.status == 401
+            assert guest_response is not None and guest_response.status == 200
+            assert "角色與權限管理" in guest.locator("body").inner_text()
+            denied_role_api = guest.request.get(f"{base_url}/admin/api/companies")
+            assert denied_role_api.status == 401
+
+            # The separate member-management page remains administrator-only.
+            denied_member_page = guest.goto(
+                f"{base_url}/member-management",
+                wait_until="domcontentloaded",
+            )
+            assert denied_member_page is not None and denied_member_page.status == 401
             guest.close()
 
             page.goto(f"{base_url}/login", wait_until="domcontentloaded")
