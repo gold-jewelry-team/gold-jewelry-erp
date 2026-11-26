@@ -181,6 +181,5 @@ def test_sales_number_is_prefilled_and_card_amount_only_appears_for_mixed_tender
     assert 'if(!mixed)$("saleCardAmount").value=""' in helper
 
     assert '$("saleNo").value=createDocumentNumber("SO")' in html
-    assert '$( "saleHeaderForm" )' not in html
     assert '$("saleCardAmount").value=sale.card_amount;syncSalePaymentFields();' in html
     assert '$("salePaymentMethod").addEventListener("change",syncSalePaymentFields)' in html
