@@ -139,3 +139,30 @@ def test_home_landing_screen_keeps_the_long_sales_workspace_closed_until_selecte
     assert 'toggle.className="panel-toggle secondary"' in html
     assert 'target.classList.contains("panel-collapsed")' in html
     assert "const panelsToExpand=[owningPanel,target]" in html
+
+def test_inventory_search_filters_cached_stock_as_the_user_types():
+    html = TestClient(app).get("/app").text
+    assert 'id="inventorySearch" type="search"' in html
+    assert 'id="stockResultsSummary"' in html
+    assert '$("inventorySearch").addEventListener("input",renderInventoryStock)' in html
+
+    render_start = html.index("function renderInventoryStock(){")
+    render_end = html.index("async function loadInventoryStock(){", render_start)
+    render_function = html[render_start:render_end]
+    assert "inventoryStockRows.filter" in render_function
+    assert "quantityTotal" in render_function
+    assert "api(" not in render_function, "typing a search must filter the already loaded stock locally"
+
+    load_start = render_end
+    load_end = html.index("async function loadInventoryMovements(){", load_start)
+    assert "inventoryStockRows=await api(" in html[load_start:load_end]
+
+
+def test_stocktake_shows_clear_progress_and_keeps_scanner_ready():
+    html = TestClient(app).get("/app").text
+    assert 'id="stocktakeSummary"' in html
+    assert "已核對 " in html
+    assert "尚待核對" in html
+    assert "有差異" in html
+    assert 'if(typeof scanInput.focus==="function")scanInput.focus();' in html
+    assert 'scanInput.value="";message("stocktakeStatus","此商品已掃描或已核對' in html
