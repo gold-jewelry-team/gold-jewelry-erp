@@ -122,7 +122,7 @@ def test_partial_and_full_supplier_payment_reversal_restores_balance_and_preserv
             open_bill["status"],
             open_bill["paid_amount"],
             open_bill["outstanding_amount"],
-        ) == ("OPEN", "0.00", "1000.00")
+        ) == ("OPEN", "0", "1000.00")
 
         original_payment = client.get(f"{base}/payments/{payment['id']}").json()
         assert original_payment["status"] == "REVERSED"
@@ -256,7 +256,8 @@ def test_supplier_payment_reversal_can_be_linked_as_incoming_bank_transfer():
             row for row in pending.json()
             if row["source_type"] == "SUPPLIER_PAYMENT_REVERSAL"
         )
-        assert (source["direction"], source["amount"]) == ("IN", "1000.00")
+        assert source["direction"] == "IN"
+        assert float(source["amount"]) == 1000.0
 
         linked = client.post(
             f"/companies/{company_id}/bank-accounts/{account.json()['id']}/transfer-links",

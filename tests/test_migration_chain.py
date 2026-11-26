@@ -2,11 +2,12 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_company_role_permissions():
+def test_alembic_history_is_a_single_linear_chain_through_supplier_payment_reversals():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0035_company_role_permissions"]
+    assert script.get_heads() == ["0036_supplier_payment_reversals"]
 
     expected = [
+        "0036_supplier_payment_reversals",
         "0035_company_role_permissions",
         "0034_user_identity_memberships",
         "0033_inventory_op_requests",
