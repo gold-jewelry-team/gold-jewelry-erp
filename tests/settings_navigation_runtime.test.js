@@ -26,6 +26,8 @@ test("settings panels start collapsed and are expanded only when selected", () =
   assert.match(controller, /shortcuts\.classList\.toggle\("settings-mode",category==="settings"\)/);
   assert.match(controller, /if\(category==="settings"&&!panel\.classList\.contains\("panel-collapsed"\)\)/);
   assert.match(controller, /if\(panel\.classList\.contains\("panel-collapsed"\)\)[\s\S]*?toggle\.click\(\)/);
+  assert.match(controller, /if\(category==="settings"\)[\s\S]*?otherPanel!==panel[\s\S]*?otherToggle\.click\(\)/);
+  assert.match(controller, /button\.setAttribute\("aria-controls",panel\.id\)/);
 });
 
 test("mobile settings search wraps into a readable full-width row", () => {
