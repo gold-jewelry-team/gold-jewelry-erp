@@ -166,3 +166,21 @@ def test_stocktake_shows_clear_progress_and_keeps_scanner_ready():
     assert "有差異" in html
     assert 'if(typeof scanInput.focus==="function")scanInput.focus();' in html
     assert 'scanInput.value="";message("stocktakeStatus","此商品已掃描或已核對' in html
+
+def test_sales_number_is_prefilled_and_card_amount_only_appears_for_mixed_tender():
+    html = TestClient(app).get("/app").text
+    assert "銷售單號（自動產生，可修改）" in html
+    assert 'id="saleNo" maxlength="40" required placeholder="已自動產生，可自行修改"' in html
+    assert 'id="saleCardAmountField" class="field hidden"' in html
+
+    helper_start = html.index("function syncSalePaymentFields(){")
+    helper_end = html.index("function transferQuoteToSale(){", helper_start)
+    helper = html[helper_start:helper_end]
+    assert 'const mixed=$("salePaymentMethod").value==="MIXED"' in helper
+    assert '$("saleCardAmountField").classList.toggle("hidden",!mixed)' in helper
+    assert 'if(!mixed)$("saleCardAmount").value=""' in helper
+
+    assert '$("saleNo").value=createDocumentNumber("SO")' in html
+    assert '$( "saleHeaderForm" )' not in html
+    assert '$("saleCardAmount").value=sale.card_amount;syncSalePaymentFields();' in html
+    assert '$("salePaymentMethod").addEventListener("change",syncSalePaymentFields)' in html
