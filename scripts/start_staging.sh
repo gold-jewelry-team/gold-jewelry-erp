@@ -2,7 +2,7 @@
 set -eu
 
 log_stage() {
-  printf "[staging-start] %s %s\\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >&2
+  printf "[staging-start] %s %s\n" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >&2
 }
 
 log_stage "container start command entered"
