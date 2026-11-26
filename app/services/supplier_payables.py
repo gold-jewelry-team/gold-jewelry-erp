@@ -86,7 +86,7 @@ def create_supplier_bill(
         )
         if not same_request:
             raise SupplierBillIdempotencyConflict(
-                "此供應商帳單號碼已用於不同內容；請查閱原帳單，勿重複建立。"
+                "此供應商帳單號碼重複，但本次內容與原帳單不同；請查閱原帳單，勿重複建立。"
             )
         return (existing, False) if return_created else existing
 
