@@ -36,6 +36,8 @@ header{
 }
 header p{color:#75634b}
 header h1{color:#493b2c}
+header .eyebrow{color:#75634b}
+header a[style]{color:#5e4a31!important}
 header a,.back,.back-link{color:#5e4a31}
 header .back,header .back-link{border-color:#bda77f}
 header .quick-nav a{
