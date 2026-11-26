@@ -11,8 +11,6 @@ from app.models.site import Site
 from app.services.daily_closing import assert_business_day_open
 
 MOVEMENT_DIRECTIONS = {
-    "BANK_DEPOSIT": "OUT",
-    "BANK_WITHDRAWAL": "IN",
     "FLOAT_INCREASE": "IN",
     "FLOAT_DECREASE": "OUT",
     "OTHER_IN": "IN",
@@ -38,6 +36,10 @@ def create_cash_drawer_movement(
     idempotency_key: UUID | None = None,
     return_created: bool = False,
 ) -> CashDrawerMovement | tuple[CashDrawerMovement, bool]:
+    if movement_type in {"BANK_DEPOSIT", "BANK_WITHDRAWAL"}:
+        raise ValueError(
+            "銀行存提款請至「銀行帳戶／對帳」頁面執行，系統會同步建立銀行流水與現金櫃異動。"
+        )
     if movement_type not in MOVEMENT_DIRECTIONS:
         raise ValueError("不支援的現金櫃異動類型。")
     if not isinstance(amount, Decimal) or amount <= 0 or amount.quantize(Decimal("0.01")) != amount:
