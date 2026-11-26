@@ -42,6 +42,23 @@ main{width:100%}
  .table-wrap td:last-child{border-bottom:0}
  .table-wrap td:only-child{grid-template-columns:1fr}
 }
+
+/* Senior-friendly mobile presentation */
+@media(max-width:760px){
+ .panel h2{font-size:18px}
+ .sub{font-size:13px}
+ button{min-height:48px;font-size:15px}
+ .metric{padding:12px}
+ .metric span{font-size:12px}
+ .metric strong{font-size:19px}
+ .mobile-report-details{border:1px solid var(--line);border-radius:13px;background:#fffefa;overflow:hidden}
+ .mobile-report-details>summary{list-style:none;cursor:pointer;padding:15px 42px 15px 14px;font-size:16px;font-weight:750;position:relative}
+ .mobile-report-details>summary::-webkit-details-marker{display:none}
+ .mobile-report-details>summary:after{content:"＋";position:absolute;right:15px;top:50%;transform:translateY(-50%);font-size:20px;color:var(--green)}
+ .mobile-report-details[open]>summary:after{content:"－"}
+ .mobile-report-details>.panel{border:0;border-radius:0;box-shadow:none;border-top:1px solid var(--line)}
+}
+
 </style>
 </head>
 <body>
@@ -117,4 +134,29 @@ labelResponsiveTables();
 const responsiveTableObserver=new MutationObserver(()=>labelResponsiveTables());
 responsiveTableObserver.observe(document.querySelector("main"),{childList:true,subtree:true});
 </script>
+
+<script>
+/* Keep the report's first-glance summary visible; tuck secondary detail sections into tap-to-open groups on phones. */
+(function(){
+ if(!window.matchMedia("(max-width:760px)").matches)return;
+ const main=document.querySelector("main"); if(!main)return;
+ const sections=Array.from(main.children).filter(x=>x.tagName==="SECTION");
+ sections.slice(2).forEach(section=>{
+   const heading=section.querySelector("h2");
+   if(!heading)return;
+   const details=document.createElement("details");
+   details.className="mobile-report-details";
+   const summary=document.createElement("summary");
+   summary.textContent=heading.textContent.trim();
+   details.appendChild(summary);
+   const content=document.createElement("div");
+   content.className="mobile-report-content";
+   while(section.firstChild)content.appendChild(section.firstChild);
+   content.querySelectorAll("h2").forEach(h=>h.remove());
+   details.appendChild(content);
+   section.replaceWith(details);
+ });
+})();
+</script>
+
 </body></html>
