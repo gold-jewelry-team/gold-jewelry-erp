@@ -26,7 +26,7 @@ COMPANY_PATH_RE = re.compile(
     r"[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?:/|$)"
 )
 
-VOID_ENDPOINTS = {"void", "cancel", "deactivate", "reject"}
+VOID_ENDPOINTS = {"void", "cancel", "deactivate", "reject", "reverse"}
 UPDATE_ENDPOINTS = {
     "submit", "receive", "complete", "review", "match", "ignore",
     "approve", "suspend", "reactivate", "status", "retry", "restore", "pay",
@@ -207,7 +207,12 @@ def additional_permissions_for_request(path: str, method: str) -> list[str]:
         required.update({"suppliers.view", "products.view"})
 
     if root == "supplier-payables" and "payments" in tail:
-        required.add("payments.view" if verb in {"GET", "HEAD"} else "payments.create")
+        if verb in {"GET", "HEAD"}:
+            required.add("payments.view")
+        elif endpoint == "reverse":
+            required.add("payments.void")
+        else:
+            required.add("payments.create")
 
     if root == "operating-expenses" and verb == "POST" and endpoint == "pay":
         required.add("payments.create")

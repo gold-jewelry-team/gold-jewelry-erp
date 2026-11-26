@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
 from app.models.payment_transaction import PaymentTransaction
-from app.models.supplier_payable import SupplierPayment
+from app.models.supplier_payable import SupplierPayment, SupplierPaymentReversal
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
@@ -77,7 +77,8 @@ def create_daily_closing(
     totals = defaultdict(lambda: {
         "sales_count": 0, "returns_count": 0, "gross_sales_amount": ZERO,
         "return_reversal_amount": ZERO, "collected_amount": ZERO, "refunded_amount": ZERO,
-        "supplier_paid_amount": ZERO, "expenses_paid_amount": ZERO,
+        "supplier_paid_amount": ZERO, "supplier_payment_reversed_amount": ZERO,
+        "expenses_paid_amount": ZERO,
         "cash_drawer_in_amount": ZERO, "cash_drawer_out_amount": ZERO,
     })
     for sale in sales:
@@ -111,6 +112,18 @@ def create_daily_closing(
     for payment in supplier_payments:
         totals[payment.payment_method]["supplier_paid_amount"] += payment.total_amount
 
+    supplier_reversals = list(session.scalars(select(SupplierPaymentReversal).where(
+        SupplierPaymentReversal.company_id == company_id,
+        SupplierPaymentReversal.site_id == site_id,
+        SupplierPaymentReversal.reversed_at >= start_at,
+        SupplierPaymentReversal.reversed_at < end_at,
+    )).all())
+    for reversal in supplier_reversals:
+        original_payment = session.get(SupplierPayment, reversal.payment_id)
+        if original_payment is None:
+            raise ValueError("供應商付款沖銷紀錄找不到原付款，無法正確分類付款方式。")
+        totals[original_payment.payment_method]["supplier_payment_reversed_amount"] += reversal.total_amount
+
     expenses = list(session.scalars(select(OperatingExpense).where(
         OperatingExpense.company_id == company_id, OperatingExpense.site_id == site_id,
         OperatingExpense.status == "PAID", OperatingExpense.paid_at >= start_at,
@@ -133,6 +146,7 @@ def create_daily_closing(
     total_collected = sum((p.amount for p in payments if p.direction == "IN"), ZERO)
     total_refunded = sum((p.amount for p in payments if p.direction == "OUT"), ZERO)
     total_supplier_paid = sum((p.total_amount for p in supplier_payments), ZERO)
+    total_supplier_reversed = sum((p.total_amount for p in supplier_reversals), ZERO)
     total_expenses_paid = sum((e.amount for e in expenses), ZERO)
     total_drawer_in = sum((m.amount for m in drawer_movements if m.direction == "IN"), ZERO)
     total_drawer_out = sum((m.amount for m in drawer_movements if m.direction == "OUT"), ZERO)
@@ -147,10 +161,15 @@ def create_daily_closing(
             + sum((returned.settlement_reversal_amount for returned in returns), ZERO)
         ),
         collected_amount=total_collected, refunded_amount=total_refunded,
-        supplier_paid_amount=total_supplier_paid, expenses_paid_amount=total_expenses_paid,
+        supplier_paid_amount=total_supplier_paid,
+        supplier_payment_reversed_amount=total_supplier_reversed,
+        expenses_paid_amount=total_expenses_paid,
         cash_drawer_in_amount=total_drawer_in, cash_drawer_out_amount=total_drawer_out,
         # Drawer transfers affect physical drawer cash, not operating cash flow.
-        net_cash_flow=total_collected - total_refunded - total_supplier_paid - total_expenses_paid,
+        net_cash_flow=(
+            total_collected - total_refunded - total_supplier_paid
+            + total_supplier_reversed - total_expenses_paid
+        ),
         note=note,
     )
     session.add(closing)
@@ -169,12 +188,15 @@ def create_daily_closing(
             net_sales_amount=sales_amount + reversal_amount,
             collected_amount=bucket["collected_amount"], refunded_amount=bucket["refunded_amount"],
             supplier_paid_amount=bucket["supplier_paid_amount"],
+            supplier_payment_reversed_amount=bucket["supplier_payment_reversed_amount"],
             expenses_paid_amount=bucket["expenses_paid_amount"],
             cash_drawer_in_amount=bucket["cash_drawer_in_amount"],
             cash_drawer_out_amount=bucket["cash_drawer_out_amount"],
             net_cash_flow=(
                 bucket["collected_amount"] - bucket["refunded_amount"]
-                - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"]
+                - bucket["supplier_paid_amount"]
+                + bucket["supplier_payment_reversed_amount"]
+                - bucket["expenses_paid_amount"]
             ),
         ))
     session.flush()

@@ -23,6 +23,7 @@ class DailyClosingPaymentSummaryRead(BaseModel):
     collected_amount: Decimal
     refunded_amount: Decimal
     supplier_paid_amount: Decimal
+    supplier_payment_reversed_amount: Decimal
     expenses_paid_amount: Decimal
     cash_drawer_in_amount: Decimal
     cash_drawer_out_amount: Decimal
@@ -44,6 +45,7 @@ class DailyClosingRead(BaseModel):
     collected_amount: Decimal
     refunded_amount: Decimal
     supplier_paid_amount: Decimal
+    supplier_payment_reversed_amount: Decimal
     expenses_paid_amount: Decimal
     cash_drawer_in_amount: Decimal
     cash_drawer_out_amount: Decimal

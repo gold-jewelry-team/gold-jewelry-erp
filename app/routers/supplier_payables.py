@@ -241,7 +241,12 @@ def list_supplier_payments(
 ):
     statement = (
         select(SupplierPayment)
-        .options(selectinload(SupplierPayment.allocations))
+        .options(
+            selectinload(SupplierPayment.allocations).selectinload(
+                SupplierPaymentAllocation.reversal_allocations
+            ),
+            selectinload(SupplierPayment.reversals),
+        )
         .where(SupplierPayment.company_id == company_id)
         .order_by(SupplierPayment.paid_at.desc())
         .limit(limit)
