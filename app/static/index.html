@@ -1066,7 +1066,7 @@ button.secondary:disabled{opacity:.42}
 <form id="supplierBillForm">
 <div class="grid">
 <div class="field"><label for="billSupplier">供應商</label><select id="billSupplier" required><option value="">請選擇供應商</option></select></div>
-<div class="field"><label for="billNo">供應商帳單號碼</label><input id="billNo" maxlength="50" required></div>
+<div class="field"><label for="billNo">供應商帳單號碼（自動產生，可修改）</label><input id="billNo" maxlength="50" required></div>
 <div class="field"><label for="billPurchase">關聯採購單（選填）</label><select id="billPurchase"><option value="">不關聯採購單</option></select></div>
 <div class="field"><label for="billDate">帳單日期</label><input id="billDate" type="date" required></div>
 <div class="field"><label for="billDueDate">到期日</label><input id="billDueDate" type="date"></div>
@@ -1092,7 +1092,7 @@ button.secondary:disabled{opacity:.42}
 <div id="selectedSupplierBill"></div>
 <form id="supplierPaymentForm">
 <div class="grid">
-<div class="field"><label for="supplierPaymentNo">付款單號</label><input id="supplierPaymentNo" maxlength="50" required></div>
+<div class="field"><label for="supplierPaymentNo">付款單號（自動產生，可修改）</label><input id="supplierPaymentNo" maxlength="50" required></div>
 <div class="field"><label for="supplierPaymentMethod">付款方式</label><select id="supplierPaymentMethod"><option value="TRANSFER">轉帳</option><option value="CASH">現金</option><option value="CARD">刷卡</option><option value="OTHER">其他</option></select></div>
 <div class="field"><label for="supplierPaymentAmount">本次付款金額（TWD）</label><input id="supplierPaymentAmount" type="number" min="0.01" step="0.01" required></div>
 <div class="field"><label for="supplierPaymentReference">銀行／交易編號</label><input id="supplierPaymentReference" maxlength="100"></div>
@@ -1128,7 +1128,7 @@ button.secondary:disabled{opacity:.42}
 <form id="purchaseHeaderForm">
 <div class="grid">
 <div class="field"><label for="purchaseSupplier">供應商</label><select id="purchaseSupplier" required><option value="">請選擇供應商</option></select></div>
-<div class="field"><label for="purchaseNo">採購單號</label><input id="purchaseNo" maxlength="50" required></div>
+<div class="field"><label for="purchaseNo">採購單號（自動產生，可修改）</label><input id="purchaseNo" maxlength="50" required></div>
 <div class="field"><label for="purchaseOrderDate">下單日期</label><input id="purchaseOrderDate" type="date" required></div>
 <div class="field"><label for="purchaseExpectedDate">預計到貨日</label><input id="purchaseExpectedDate" type="date"></div>
 <div class="field"><label for="purchaseCurrency">幣別</label><select id="purchaseCurrency"><option value="TWD">TWD 新台幣</option><option value="USD">USD 美元</option><option value="JPY">JPY 日圓</option></select></div>
@@ -1174,7 +1174,7 @@ button.secondary:disabled{opacity:.42}
 <p class="sub">費用可先建未付款紀錄，實際付款時再登錄；只有實際付款才會計入每日結帳的已付費用。</p>
 <form id="expenseForm">
 <div class="grid">
-<div class="field"><label for="expenseNo">費用單號</label><input id="expenseNo" maxlength="50" required></div>
+<div class="field"><label for="expenseNo">費用單號（自動產生，可修改）</label><input id="expenseNo" maxlength="50" required></div>
 <div class="field"><label for="expenseDate">費用日期</label><input id="expenseDate" type="date" required></div>
 <div class="field"><label for="expenseCategory">費用分類</label><select id="expenseCategory"><option value="RENT">租金</option><option value="UTILITIES">水電瓦斯</option><option value="SALARIES">薪資</option><option value="SUPPLIES">耗材</option><option value="SHIPPING">運費</option><option value="REPAIR">維修</option><option value="OTHER">其他</option></select></div>
 <div class="field"><label for="expenseDescription">費用說明</label><input id="expenseDescription" maxlength="200" required></div>
@@ -2269,6 +2269,13 @@ async function loadGoldPrices(){
 function taipeiDateValue(offsetDays=0){
  return new Date(Date.now()+8*60*60*1000+offsetDays*24*60*60*1000).toISOString().slice(0,10);
 }
+function createDocumentNumber(prefix){
+ const date=taipeiDateValue().replace(/-/g,"");
+ const token=window.crypto&&typeof window.crypto.randomUUID==="function"
+  ?window.crypto.randomUUID().split("-")[0].toUpperCase()
+  :(Date.now().toString(36)+Math.random().toString(36).slice(2,7)).toUpperCase();
+ return String(prefix||"DOC").toUpperCase()+"-"+date+"-"+token;
+}
 function renderCashCount(row){
  $("cashCountCreateForm").classList.add("hidden");
  const variance=Number(row.cash_variance);
@@ -3100,7 +3107,7 @@ $("supplierList").addEventListener("click",async event=>{
  }
 });
 function resetSupplierBillEditor(){
- editingSupplierBillId="";$("supplierBillForm").reset();$("billDate").value=taipeiDateValue();
+ editingSupplierBillId="";$("supplierBillForm").reset();$("billDate").value=taipeiDateValue();$("billNo").value=createDocumentNumber("BILL");
  $("billSupplier").disabled=false;$("billPurchase").disabled=false;
  Array.from($("billSupplier").options).forEach(option=>{if(option.dataset.billTemp==="true")option.remove();});
  Array.from($("billPurchase").options).forEach(option=>{if(option.dataset.billTemp==="true")option.remove();});
@@ -3178,12 +3185,13 @@ $("supplierBillList").addEventListener("click",async event=>{
   $("supplierPaymentNote").value=pending.payload.note||"";
   message("supplierPaymentStatus","已恢復上一筆尚未確認回應的付款；請使用原付款單號與內容重試。");
  }else{
-  $("supplierPaymentNo").value="";
+  $("supplierPaymentNo").value=createDocumentNumber("PAY");
   $("supplierPaymentReference").value="";
   $("supplierPaymentNote").value="";
   $("supplierPaymentStatus").textContent="";
  }
  $("supplierPaymentPanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+ if(!pending&&typeof $("supplierPaymentAmount").focus==="function")$("supplierPaymentAmount").focus({preventScroll:true});
 });
 $("cancelSupplierPayment").addEventListener("click",()=>{$("supplierPaymentPanel").classList.add("hidden");selectedSupplierBill=null;});
 function supplierPaymentPendingStorageKey(company,site,bill){
@@ -3601,7 +3609,7 @@ $("purchaseCartList").addEventListener("click",event=>{
 });
 function resetPurchaseEditor(){
  editingPurchaseId="";purchaseCartLines=[];renderPurchaseCart();
- $("purchaseHeaderForm").reset();$("purchaseOrderDate").value=taipeiDateValue();
+ $("purchaseHeaderForm").reset();$("purchaseOrderDate").value=taipeiDateValue();$("purchaseNo").value=createDocumentNumber("PO");
  $("purchaseSupplier").disabled=false;
  Array.from($("purchaseSupplier").options).forEach(option=>{if(option.dataset.purchaseTemp==="true")option.remove();});
  $("createPurchase").textContent="建立採購草稿";$("cancelPurchaseEdit").classList.add("hidden");
@@ -3750,7 +3758,7 @@ $("purchaseReceiveForm").addEventListener("submit",async event=>{
 });
 $("restorePendingExpense").addEventListener("click",restorePendingExpenseDraft);
 function resetExpenseEditor(){
- editingExpenseId="";$("expenseForm").reset();$("expenseDate").value=taipeiDateValue();
+ editingExpenseId="";$("expenseForm").reset();$("expenseDate").value=taipeiDateValue();$("expenseNo").value=createDocumentNumber("EXP");
  $("expensePaymentMethod").disabled=false;$("expenseSubmit").textContent="新增營業費用";
  $("expenseCancelEdit").classList.add("hidden");
 }
@@ -4135,6 +4143,11 @@ $("newSale").addEventListener("click",()=>{
 });
 $("saleCardAmount").disabled=true;
 $("billDate").value=taipeiDateValue();
+$("billNo").value=createDocumentNumber("BILL");
+$("purchaseOrderDate").value=taipeiDateValue();
+$("purchaseNo").value=createDocumentNumber("PO");
+$("expenseDate").value=taipeiDateValue();
+$("expenseNo").value=createDocumentNumber("EXP");
 $("closingBusinessDate").value=taipeiDateValue();
 $("closingBusinessDate").max=taipeiDateValue();
 $("closingFromDate").value=taipeiDateValue(-30);
