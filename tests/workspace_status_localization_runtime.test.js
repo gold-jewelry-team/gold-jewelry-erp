@@ -56,6 +56,8 @@ test("employee workspaces display weight units in Traditional Chinese", () => {
 test("gold material movement history never exposes unknown movement type codes", () => {
   assert.match(goldMaterial, /typeLabels\[x\.movement_type\]\|\|"其他金料異動"/);
   assert.doesNotMatch(goldMaterial, /typeLabels\[x\.movement_type\]\|\|x\.movement_type/);
+  assert.match(goldMaterial, /purchaseStatusLabelsForDisplay=\{ORDERED:"已下單",PARTIALLY_RECEIVED:"部分到貨",RECEIVED:"已收貨"\}/);
+  assert.doesNotMatch(goldMaterial, /esc\(x\.status\)/);
 });
 
 
@@ -78,6 +80,13 @@ test("main business workspace uses Traditional Chinese fallbacks for statuses, p
   assert.doesNotMatch(mainWorkspace, /movementTypeLabels\[x\.movement_type\]\|\|x\.movement_type/);
   assert.doesNotMatch(mainWorkspace, /labels\[x\.location_type\]\|\|x\.location_type/);
   assert.doesNotMatch(mainWorkspace, /escapeHtml\(row\.payment_method\)/);
+  assert.match(mainWorkspace, /saleStatusLabelsForDisplay=\{DRAFT:"草稿",COMPLETED:"已完成",VOID:"已作廢"\}/);
+  assert.match(mainWorkspace, /statusDisplayLabel\(sale\.status,saleStatusLabelsForDisplay\)/);
+  assert.match(mainWorkspace, /statusDisplayLabel\(row\.status,saleStatusLabelsForDisplay\)/);
+  assert.match(mainWorkspace, /paymentMethodDisplayLabel\(payment\.payment_method\)/);
+  assert.doesNotMatch(mainWorkspace, /escapeHtml\(sale\.status\)/);
+  assert.doesNotMatch(mainWorkspace, /escapeHtml\(payment\.payment_method\)/);
+  assert.doesNotMatch(mainWorkspace, /escapeHtml\(row\.status\)/);
 });
 
 
