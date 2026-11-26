@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -141,10 +142,10 @@ def test_purchase_submit_retry_is_idempotent_across_receiving_states():
         assert retry_after_completion.json()["status"] == "RECEIVED"
 
         db = test_session()
-        stored_purchase = db.get(Purchase, purchase_id)
-        stored_line = db.get(PurchaseLine, line_id)
+        stored_purchase = db.get(Purchase, UUID(purchase_id))
+        stored_line = db.get(PurchaseLine, UUID(line_id))
         movements = db.query(InventoryMovement).filter(
-            InventoryMovement.reference_id == line_id,
+            InventoryMovement.reference_id == UUID(line_id),
             InventoryMovement.movement_type == "RECEIPT",
         ).all()
         assert stored_purchase.status == "RECEIVED"
