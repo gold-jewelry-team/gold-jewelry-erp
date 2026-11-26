@@ -108,3 +108,20 @@ def test_mobile_report_details_are_tap_to_expand_and_visible_newline_tokens_are_
     assert "sections.slice(2).forEach" in reports
     assert "銀行存提款與現金櫃連動核對" in reports
     assert r"</section>\n<section" not in reports
+
+
+def test_common_operational_forms_prefill_dates_and_editable_document_numbers():
+    html = TestClient(app).get("/app").text
+    assert "function createDocumentNumber(prefix)" in html
+    assert '$("purchaseOrderDate").value=taipeiDateValue()' in html
+    assert '$("expenseDate").value=taipeiDateValue()' in html
+    assert '$("purchaseNo").value=createDocumentNumber("PO")' in html
+    assert '$("expenseNo").value=createDocumentNumber("EXP")' in html
+    assert '$("billNo").value=createDocumentNumber("BILL")' in html
+    assert "採購單號（自動產生，可修改）" in html
+    assert "費用單號（自動產生，可修改）" in html
+    assert "供應商帳單號碼（自動產生，可修改）" in html
+
+    assert '$("supplierPaymentNo").value=pending.payload.payment_no' in html
+    assert '$("supplierPaymentNo").value=createDocumentNumber("PAY")' in html
+    assert 'if(!pending&&typeof $("supplierPaymentAmount").focus==="function")' in html
