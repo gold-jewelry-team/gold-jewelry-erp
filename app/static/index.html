@@ -1638,6 +1638,11 @@ $("manualLookupCode").addEventListener("click",()=>{const code=lastScannedCode;$
 $("rescanCode").addEventListener("click",()=>{const target=lastScannedTarget;$("scanFeedback").classList.add("hidden");openCameraScanner(target);});
 $("closeScanFeedback").addEventListener("click",()=>$("scanFeedback").classList.add("hidden"));
 renderScanHistory();
+function focusPurchaseField(id){
+ const field=$(id);if(!field)return;
+ try{field.focus({preventScroll:true});}catch(error){field.focus();}
+ if(typeof field.scrollIntoView==="function")field.scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"center"});
+}
 async function handleScannedProductCode(code,target){
  if(!companyId){showScanFeedback(code,target,"已讀取條碼，請先選擇公司後再查詢。",true);message("globalStatus","掃描到條碼："+code+"；請先選擇公司。",true);return;}
  try{
@@ -1653,7 +1658,7 @@ async function handleScannedProductCode(code,target){
   }else if(target==="transfer"){
    $("transferProduct").value=product.id;$("transferScanCode").value="";message("transferStatus","已選取："+product.product_code+" · "+product.name);
   }else if(target==="purchase"){
-   $("purchaseProduct").value=product.id;$("purchaseScanCode").value="";message("purchaseStatus","已選取："+product.product_code+" · "+product.name+"；請輸入訂購數量與成本。");
+   $("purchaseProduct").value=product.id;$("purchaseScanCode").value="";message("purchaseStatus","已選取："+product.product_code+" · "+product.name+"；請輸入訂購數量與成本。");focusPurchaseField("purchaseQuantity");
   }else if(target==="purchaseReceive"){
    if(!selectedPurchase){message("purchaseReceiveStatus","請先開啟要驗收的採購單。",true);return;}
    const line=(selectedPurchase.lines||[]).find(x=>x.product_id===product.id&&Number(x.received_quantity)<Number(x.quantity));
@@ -3620,6 +3625,21 @@ $("addPurchaseLine").addEventListener("click",()=>{
  purchaseCartLines.push({product_id:product.id,product,quantity:String(quantity),weight:weightText===""?null:String(weightText),weight_unit_code:$("purchaseWeightUnit").value,unit_cost:String(unitCost),cost_labor_fee:String(Number($("purchaseCostLaborFee").value||0)),note:$("purchaseLineNote").value.trim()||null});
  renderPurchaseCart();message("purchaseStatus","採購明細已加入。");
  $("purchaseProduct").value="";$("purchaseQuantity").value="1";$("purchaseWeight").value="";$("purchaseUnitCost").value="0";$("purchaseCostLaborFee").value="0";$("purchaseLineNote").value="";
+ focusPurchaseField("purchaseScanCode");
+});
+$("purchaseProduct").addEventListener("change",()=>{if($("purchaseProduct").value)focusPurchaseField("purchaseQuantity");});
+[
+ ["purchaseQuantity","purchaseWeight"],
+ ["purchaseWeight","purchaseWeightUnit"],
+ ["purchaseWeightUnit","purchaseUnitCost"],
+ ["purchaseUnitCost","purchaseCostLaborFee"],
+ ["purchaseCostLaborFee","purchaseLineNote"]
+].forEach(([source,target])=>$(source).addEventListener("keydown",event=>{
+ if(event.key!=="Enter")return;
+ event.preventDefault();focusPurchaseField(target);
+}));
+$("purchaseLineNote").addEventListener("keydown",event=>{
+ if(event.key==="Enter"){event.preventDefault();$("addPurchaseLine").click();}
 });
 $("purchaseCartList").addEventListener("click",event=>{
  const button=event.target.closest("[data-remove-purchase-line]");
@@ -3655,6 +3675,15 @@ $("createPurchase").addEventListener("click",async()=>{
 });
 $("purchaseFilterStatus").addEventListener("change",()=>loadPurchases().catch(error=>message("purchaseStatus",error.message,true)));
 $("refreshPurchases").addEventListener("click",()=>loadPurchases().catch(error=>message("purchaseStatus",error.message,true)));
+function renderPurchaseReceiveLines(){
+ const pendingLines=(selectedPurchase?.lines||[]).filter(line=>Number(line.received_quantity)<Number(line.quantity));
+ $("selectedPurchaseLine").innerHTML=pendingLines.map(line=>{
+  const product=inventoryProducts.find(p=>p.id===line.product_id);
+  const remaining=Number(line.quantity)-Number(line.received_quantity);
+  return '<article class="item transaction-item receive-line-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(product?.product_code||"商品")+' · '+escapeHtml(product?.name||"")+'</strong><span class="muted">此商品尚未完成驗收</span></div><div class="transaction-item-primary receive-remaining"><small>尚餘待驗收</small><strong>'+escapeHtml(remaining)+'</strong></div></div><div class="transaction-item-meta"><span><small>已驗收數量</small><strong>'+escapeHtml(line.received_quantity)+'</strong></span><span><small>訂購總數量</small><strong>'+escapeHtml(line.quantity)+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-receive-line="'+escapeHtml(line.id)+'" data-remaining="'+remaining+'">選取此明細驗收</button></div></article>';
+ }).join("")||'<div class="empty">此採購單已全部驗收完成</div>';
+ return pendingLines.length;
+}
 $("purchaseList").addEventListener("click",async event=>{
  const edit=event.target.closest("[data-edit-purchase]");
  if(edit){
@@ -3693,7 +3722,7 @@ $("purchaseList").addEventListener("click",async event=>{
   if(!selectedPurchase)return;
   $("purchaseReceivePanel").classList.remove("hidden");
   $("purchaseReceiveLocation").innerHTML='<option value="">請選擇位置</option>'+inventoryLocations.filter(x=>x.is_active).map(x=>'<option value="'+escapeHtml(x.id)+'">'+escapeHtml(x.name)+'（'+escapeHtml(x.code)+'）</option>').join("");
-  $("selectedPurchaseLine").innerHTML=selectedPurchase.lines.filter(line=>Number(line.received_quantity)<Number(line.quantity)).map(line=>{const product=inventoryProducts.find(p=>p.id===line.product_id);const remaining=Number(line.quantity)-Number(line.received_quantity);return '<article class="item transaction-item receive-line-item"><div class="transaction-item-head"><div class="transaction-item-identity"><strong>'+escapeHtml(product?.product_code||"商品")+' · '+escapeHtml(product?.name||"")+'</strong><span class="muted">此商品尚未完成驗收</span></div><div class="transaction-item-primary receive-remaining"><small>尚餘待驗收</small><strong>'+escapeHtml(remaining)+'</strong></div></div><div class="transaction-item-meta"><span><small>已驗收數量</small><strong>'+escapeHtml(line.received_quantity)+'</strong></span><span><small>訂購總數量</small><strong>'+escapeHtml(line.quantity)+'</strong></span></div><div class="actions transaction-item-actions"><button class="secondary" type="button" data-receive-line="'+escapeHtml(line.id)+'" data-remaining="'+remaining+'">選取此明細驗收</button></div></article>';}).join("")||'<div class="empty">此採購單已全部驗收完成</div>';
+  renderPurchaseReceiveLines();
   $("purchaseReceiveForm").classList.add("hidden");
   $("purchaseReceivePanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   const firstLineButton=$("selectedPurchaseLine").querySelector("[data-receive-line]");
@@ -3751,26 +3780,55 @@ $("selectedPurchaseLine").addEventListener("click",event=>{
   $("purchaseReceiveQuantity").value=button.dataset.remaining;
  }
  $("purchaseReceiveForm").classList.remove("hidden");
+ focusPurchaseField($("purchaseReceiveLocation").value?"purchaseReceiveQuantity":"purchaseReceiveLocation");
 });
+$("purchaseReceiveLocation").addEventListener("change",()=>focusPurchaseField("purchaseReceiveQuantity"));
 $("cancelPurchaseReceive").addEventListener("click",()=>{$("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;selectedPurchaseLine=null;});
 $("purchaseReceiveForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!selectedPurchase||!selectedPurchaseLine)return;
- const payload={purchase_line_id:selectedPurchaseLine,location_id:$("purchaseReceiveLocation").value,received_quantity:$("purchaseReceiveQuantity").value};
+ const purchaseId=selectedPurchase.id;
+ const purchaseLineId=selectedPurchaseLine;
+ const previousLocationId=$("purchaseReceiveLocation").value;
+ const payload={purchase_line_id:purchaseLineId,location_id:previousLocationId,received_quantity:$("purchaseReceiveQuantity").value};
  let pending;
  try{
-  pending=savePendingPurchaseReceive(selectedPurchase.id,selectedPurchaseLine,payload);
+  pending=savePendingPurchaseReceive(purchaseId,purchaseLineId,payload);
  }catch(error){message("purchaseReceiveStatus",error.message,true);return;}
  payload.idempotency_key=pending.idempotency_key;
  const button=$("purchaseReceiveForm").querySelector('button[type="submit"]');button.disabled=true;
  try{
-  await api("/companies/"+companyId+"/purchases/"+selectedPurchase.id+"/receive",{method:"POST",body:JSON.stringify(payload)});
-  clearPendingPurchaseReceive(selectedPurchase.id,selectedPurchaseLine);
-  message("purchaseReceiveStatus","到貨驗收成功，已新增庫存入庫流水。");
-  $("purchaseReceiveForm").classList.add("hidden");$("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;selectedPurchaseLine=null;
-  await loadPurchases();await loadInventoryOptions();
+  await api("/companies/"+companyId+"/purchases/"+purchaseId+"/receive",{method:"POST",body:JSON.stringify(payload)});
+  clearPendingPurchaseReceive(purchaseId,purchaseLineId);
+  selectedPurchaseLine=null;
+  $("purchaseReceiveForm").classList.add("hidden");
+  try{
+   await loadPurchases();
+   await loadInventoryOptions();
+   if(previousLocationId&&Array.from($("purchaseReceiveLocation").options).some(option=>option.value===previousLocationId))$("purchaseReceiveLocation").value=previousLocationId;
+   const refreshedPurchase=purchasesById.get(purchaseId);
+   if(refreshedPurchase){
+    selectedPurchase=refreshedPurchase;
+    const remainingLines=renderPurchaseReceiveLines();
+    const remainingQuantity=refreshedPurchase.lines.reduce((sum,line)=>sum+Math.max(0,Number(line.quantity)-Number(line.received_quantity)),0);
+    if(remainingLines&&remainingQuantity>0){
+     $("purchaseReceivePanel").classList.remove("hidden");
+     message("purchaseReceiveStatus","本次驗收成功，已新增庫存入庫流水；本單尚有 "+remainingQuantity+" 件待驗收，可繼續掃描或選取下一項。");
+     focusPurchaseField("purchaseReceiveScanCode");
+    }else{
+     $("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;
+     message("purchaseReceiveStatus","本次驗收成功，這張採購單已全部驗收完成。");
+    }
+   }else{
+    $("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;
+    message("purchaseReceiveStatus","本次驗收成功，已新增庫存入庫流水；請更新採購單確認最新狀態。");
+   }
+  }catch(refreshError){
+   $("purchaseReceivePanel").classList.add("hidden");selectedPurchase=null;
+   message("purchaseReceiveStatus","到貨驗收已成功入庫，但清單更新失敗："+refreshError.message+"。請按「更新採購單」確認結果，不要重複驗收。",true);
+  }
  }catch(error){
-  if(error.status===422)clearPendingPurchaseReceive(selectedPurchase.id,selectedPurchaseLine);
+  if(error.status===422)clearPendingPurchaseReceive(purchaseId,purchaseLineId);
   message("purchaseReceiveStatus",error.message,true);
  }
  finally{button.disabled=false;}
