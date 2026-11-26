@@ -2214,8 +2214,8 @@ function renderCashCount(row){
  else $("cashCountReviewForm").classList.remove("hidden");
 }
 function renderClosingSummary(closing){
- const summaries=(closing.payment_summaries||[]).map(x=>'<span class="muted">'+escapeHtml(paymentMethodLabels[x.payment_method]||x.payment_method)+'：銷售 '+escapeHtml(x.gross_sales_amount)+' 元／退貨 '+escapeHtml(x.return_reversal_amount)+' 元／收款 '+escapeHtml(x.collected_amount)+' 元／退款 '+escapeHtml(x.refunded_amount)+' 元</span>').join("");
- $("selectedClosingSummary").innerHTML='<article class="item"><strong>營業日 '+escapeHtml(closing.business_date)+' 結帳摘要</strong><span class="muted">銷售 '+escapeHtml(closing.sales_count)+' 筆 · 退貨 '+escapeHtml(closing.returns_count)+' 筆</span><span class="muted">銷售總額：'+escapeHtml(closing.gross_sales_amount)+' 元 · 退貨沖回：'+escapeHtml(closing.return_reversal_amount)+' 元 · 淨銷售：'+escapeHtml(closing.net_sales_amount)+' 元</span><span class="muted">實收：'+escapeHtml(closing.collected_amount)+' 元 · 退款：'+escapeHtml(closing.refunded_amount)+' 元</span><span class="muted">廠商付款：'+escapeHtml(closing.supplier_paid_amount)+' 元 · 營業支出：'+escapeHtml(closing.expenses_paid_amount)+' 元</span><span class="muted">現金櫃台流入：'+escapeHtml(closing.cash_drawer_in_amount)+' 元 · 流出：'+escapeHtml(closing.cash_drawer_out_amount)+' 元 · 淨現金流：'+escapeHtml(closing.net_cash_flow)+' 元</span>'+summaries+'</article>';
+ const summaries=(closing.payment_summaries||[]).map(x=>'<span class="muted">'+escapeHtml(paymentMethodLabels[x.payment_method]||x.payment_method)+'：銷售 '+escapeHtml(x.gross_sales_amount)+' 元／退貨 '+escapeHtml(x.return_reversal_amount)+' 元／收款 '+escapeHtml(x.collected_amount)+' 元／退款 '+escapeHtml(x.refunded_amount)+' 元／供應商付款沖銷 '+escapeHtml(x.supplier_payment_reversed_amount||"0.00")+' 元</span>').join("");
+ $("selectedClosingSummary").innerHTML='<article class="item"><strong>營業日 '+escapeHtml(closing.business_date)+' 結帳摘要</strong><span class="muted">銷售 '+escapeHtml(closing.sales_count)+' 筆 · 退貨 '+escapeHtml(closing.returns_count)+' 筆</span><span class="muted">銷售總額：'+escapeHtml(closing.gross_sales_amount)+' 元 · 退貨沖回：'+escapeHtml(closing.return_reversal_amount)+' 元 · 淨銷售：'+escapeHtml(closing.net_sales_amount)+' 元</span><span class="muted">實收：'+escapeHtml(closing.collected_amount)+' 元 · 退款：'+escapeHtml(closing.refunded_amount)+' 元</span><span class="muted">廠商付款：'+escapeHtml(closing.supplier_paid_amount)+' 元 · 供應商付款沖銷：'+escapeHtml(closing.supplier_payment_reversed_amount||"0.00")+' 元 · 營業支出：'+escapeHtml(closing.expenses_paid_amount)+' 元</span><span class="muted">現金櫃台流入：'+escapeHtml(closing.cash_drawer_in_amount)+' 元 · 流出：'+escapeHtml(closing.cash_drawer_out_amount)+' 元 · 淨現金流：'+escapeHtml(closing.net_cash_flow)+' 元</span>'+summaries+'</article>';
 }
 async function loadDailyClosings(){
  const box=$("dailyClosingList");
@@ -3205,18 +3205,26 @@ $("supplierPaymentReversalAllocation").addEventListener("change",()=>{
 $("supplierPaymentReversalForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!selectedSupplierPayment||!companyId)return;
- const allocationId=$("supplierPaymentReversalAllocation").value;
- const amount=String($("supplierPaymentReversalAmount").value).trim();
- const max=Number($("supplierPaymentReversalAmount").max||0);
- if(!(Number(amount)>0)||Number(amount)>max){
-  message("supplierPaymentReversalStatus","沖銷金額必須大於 0，且不可超過這筆原付款分攤尚可沖銷的金額。",true);return;
+ const pending=readPendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id);
+ let payload;
+ if(pending){
+  // Reuse the exact stored payload after page reload; number inputs can
+  // normalize "250.00" to "250" and change the request fingerprint.
+  payload=pending.payload;
+ }else{
+  const allocationId=$("supplierPaymentReversalAllocation").value;
+  const amount=String($("supplierPaymentReversalAmount").value).trim();
+  const max=Number($("supplierPaymentReversalAmount").max||0);
+  if(!(Number(amount)>0)||Number(amount)>max){
+   message("supplierPaymentReversalStatus","沖銷金額必須大於 0，且不可超過這筆原付款分攤尚可沖銷的金額。",true);return;
+  }
+  payload={
+   reversal_no:$("supplierPaymentReversalNo").value.trim(),
+   reason:$("supplierPaymentReversalReason").value.trim(),
+   allocations:[{payment_allocation_id:allocationId,amount}]
+  };
+  if(!payload.reversal_no||!payload.reason){message("supplierPaymentReversalStatus","請填寫沖銷單號及原因。",true);return;}
  }
- const payload={
-  reversal_no:$("supplierPaymentReversalNo").value.trim(),
-  reason:$("supplierPaymentReversalReason").value.trim(),
-  allocations:[{payment_allocation_id:allocationId,amount}]
- };
- if(!payload.reversal_no||!payload.reason){message("supplierPaymentReversalStatus","請填寫沖銷單號及原因。",true);return;}
  try{savePendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id,payload);}
  catch(error){message("supplierPaymentReversalStatus",error.message,true);return;}
  const button=$("supplierPaymentReversalForm").querySelector('button[type="submit"]');
@@ -3225,7 +3233,10 @@ $("supplierPaymentReversalForm").addEventListener("submit",async event=>{
   try{
    await api("/companies/"+companyId+"/supplier-payables/payments/"+selectedSupplierPayment.id+"/reverse",{method:"POST",body:JSON.stringify(payload)});
   }catch(error){
-   if(error.status===409||error.status===422)clearPendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id);
+   if(error.status===409||error.status===422){
+    clearPendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id);
+    ["supplierPaymentReversalAllocation","supplierPaymentReversalNo","supplierPaymentReversalAmount","supplierPaymentReversalReason"].forEach(id=>$(id).disabled=false);
+   }
    message("supplierPaymentReversalStatus",error.message,true);return;
   }
   clearPendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id);
