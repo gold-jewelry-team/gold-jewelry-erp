@@ -218,3 +218,14 @@ def test_partial_purchase_receipts_keep_the_receive_workspace_open():
     assert 'focusPurchaseField("purchaseReceiveScanCode")' in receive_handler
     assert "到貨驗收已成功入庫，但清單更新失敗" in receive_handler
     assert "不要重複驗收" in receive_handler
+
+def test_cash_count_empty_state_guides_operator_to_first_field():
+    html = TestClient(app).get("/app").text
+    start = html.index("async function loadCashCount()")
+    end = html.index("function renderSaleCart()", start)
+    handler = html[start:end]
+
+    assert 'cashCountCreateForm").classList.remove("hidden")' in handler
+    assert 'const firstField=$("openingCashFloat")' in handler
+    assert 'firstField.focus({preventScroll:true})' in handler
+    assert "請從期初備用金開始填寫" in handler
