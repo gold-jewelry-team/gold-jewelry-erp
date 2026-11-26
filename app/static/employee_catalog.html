@@ -110,6 +110,8 @@
       const number=Number(value);
       return Number.isFinite(number)?number.toLocaleString("zh-TW",{maximumFractionDigits:4}):"—";
     }
+    const weightUnitLabels={G:"公克",QIAN:"錢",LIANG:"兩"};
+    function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
     function detail(label,value){
       const box=node("div","detail");
       box.append(node("small","",label));
@@ -136,8 +138,8 @@
         const details=node("div","details");
         details.append(detail("條碼",product.barcode));
         details.append(detail("材質／分類代碼",product.material_code));
-        details.append(detail("總重",formatNumber(product.gross_weight)+" "+(product.weight_unit_code||"")));
-        details.append(detail("淨重",formatNumber(product.net_weight)+" "+(product.weight_unit_code||"")));
+        details.append(detail("總重",formatNumber(product.gross_weight)+" "+weightUnitLabel(product.weight_unit_code)));
+        details.append(detail("淨重",formatNumber(product.net_weight)+" "+weightUnitLabel(product.weight_unit_code)));
         if(product.chain_length)details.append(detail("鍊長",product.chain_length));
         if(product.style_code)details.append(detail("款式",product.style_code));
         card.append(details);
