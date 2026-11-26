@@ -18,7 +18,7 @@ from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.models.site import Site
 from app.models.supplier import Supplier
-from app.models.supplier_payable import SupplierPayment
+from app.models.supplier_payable import SupplierPayment, SupplierPaymentReversal
 from app.routers import operational_reports
 
 
@@ -147,12 +147,13 @@ def _operational_report_context():
         ),
     ])
 
+    supplier_payment = SupplierPayment(
+        company_id=company.id, site_id=site.id, supplier_id=supplier.id,
+        payment_no="RPT-SUP-PAY", payment_method="CASH",
+        total_amount=Decimal("40.00"), currency_code="TWD", paid_at=inside,
+    )
     db.add_all([
-        SupplierPayment(
-            company_id=company.id, site_id=site.id, supplier_id=supplier.id,
-            payment_no="RPT-SUP-PAY", payment_method="CASH",
-            total_amount=Decimal("40.00"), currency_code="TWD", paid_at=inside,
-        ),
+        supplier_payment,
         OperatingExpense(
             company_id=company.id, site_id=site.id, expense_no="RPT-EXP",
             expense_date=date(2026, 11, 19), category_code="SUPPLIES",
@@ -168,6 +169,18 @@ def _operational_report_context():
             created_at=inside,
         ),
     ])
+    db.flush()
+    db.add(SupplierPaymentReversal(
+        company_id=company.id,
+        site_id=site.id,
+        supplier_id=supplier.id,
+        payment_id=supplier_payment.id,
+        reversal_no="RPT-SUP-REV",
+        total_amount=Decimal("15.00"),
+        currency_code="TWD",
+        reversed_at=inside,
+        reason="報表測試：退回部分供應商付款",
+    ))
     db.commit()
     ids = (company.id, site.id)
     db.close()
@@ -215,14 +228,14 @@ def test_operational_period_report_keeps_sales_obligations_receipts_and_outflows
 
         assert twd["supplier_payment_count"] == 1
         assert twd["supplier_paid_amount"] == "40.00"
+        assert twd["supplier_payment_reversed_amount"] == "15.00"
         assert twd["paid_expense_count"] == 1
         assert twd["expenses_paid_amount"] == "20.00"
-        assert twd["net_operating_cash_flow"] == "270.00"
+        assert twd["net_operating_cash_flow"] == "285.00"
 
-        # The physical cash change includes only CASH tender, cash paid
-        # expenses/supplier payments and drawer transfers.
+        # Physical cash includes cash supplier-payment reversals as an inflow.
         assert twd["cash_drawer_out_amount"] == "10.00"
-        assert twd["expected_cash_change"] == "180.00"
+        assert twd["expected_cash_change"] == "195.00"
         cash_method = next(
             row for row in twd["payment_methods"]
             if row["payment_method"] == "CASH"
@@ -230,8 +243,17 @@ def test_operational_period_report_keeps_sales_obligations_receipts_and_outflows
         assert cash_method["customer_collected_amount"] == "300.00"
         assert cash_method["customer_refunded_amount"] == "50.00"
         assert cash_method["supplier_paid_amount"] == "40.00"
+        assert cash_method["supplier_payment_reversed_amount"] == "15.00"
         assert cash_method["expenses_paid_amount"] == "20.00"
-        assert cash_method["net_operating_cash_flow"] == "190.00"
+        assert cash_method["net_operating_cash_flow"] == "205.00"
+
+        twd_day = next(
+            row for row in result["daily"]
+            if row["currency_code"] == "TWD"
+        )
+        assert twd_day["supplier_payment_reversed_amount"] == "15.00"
+        assert twd_day["net_operating_cash_flow"] == "285.00"
+        assert twd_day["expected_cash_change"] == "195.00"
 
         usd = next(row for row in result["totals_by_currency"] if row["currency_code"] == "USD")
         assert usd["gross_sales_amount"] == "10.00"
