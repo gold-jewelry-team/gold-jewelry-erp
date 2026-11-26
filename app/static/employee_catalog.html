@@ -110,7 +110,7 @@
       const number=Number(value);
       return Number.isFinite(number)?number.toLocaleString("zh-TW",{maximumFractionDigits:4}):"—";
     }
-    const weightUnitLabels={G:"公克",QIAN:"錢",LIANG:"兩"};
+    const weightUnitLabels={G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"};
     function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
     function detail(label,value){
       const box=node("div","detail");
