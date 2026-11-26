@@ -1138,10 +1138,10 @@ button.secondary:disabled{opacity:.42}
 </section>
 <section class="panel span2" id="cashDrawerPanel">
 <h2>現金櫃異動</h2>
-<p class="sub">記錄存入銀行、銀行提款、備用金增減及其他現金櫃收支。銀行存提款會改變實體現金櫃餘額，但不直接改變營業現金流。</p>
+<p class="sub">記錄備用金增減及其他現金櫃收支。存入銀行／銀行提款請至「銀行帳戶／對帳」執行，系統會同步建立銀行流水與現金櫃異動，避免漏記或重複。</p>
 <form id="cashDrawerForm">
 <div class="grid">
-<div class="field"><label for="drawerMovementType">異動類型</label><select id="drawerMovementType"><option value="BANK_DEPOSIT">存入銀行（現金櫃流出）</option><option value="BANK_WITHDRAWAL">銀行提款（現金櫃流入）</option><option value="FLOAT_INCREASE">增加備用金</option><option value="FLOAT_DECREASE">減少備用金</option><option value="OTHER_IN">其他收入</option><option value="OTHER_OUT">其他支出</option></select></div>
+<div class="field"><label for="drawerMovementType">異動類型</label><select id="drawerMovementType"><option value="FLOAT_INCREASE">增加備用金</option><option value="FLOAT_DECREASE">減少備用金</option><option value="OTHER_IN">其他收入</option><option value="OTHER_OUT">其他支出</option></select></div>
 <div class="field"><label for="drawerAmount">金額（TWD）</label><input id="drawerAmount" type="number" min="0.01" step="0.01" required></div>
 <div class="field"><label for="drawerDescription">異動說明</label><input id="drawerDescription" maxlength="200" required></div>
 <div class="field"><label for="drawerActor">經手人</label><input id="drawerActor" maxlength="120" required></div>
