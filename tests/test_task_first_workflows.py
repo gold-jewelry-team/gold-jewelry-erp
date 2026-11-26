@@ -136,6 +136,6 @@ def test_home_landing_screen_keeps_the_long_sales_workspace_closed_until_selecte
     html = TestClient(app).get("/app").text
     assert 'id="quoteWorkbenchPanel"' in html
     assert 'if(!firstInCategory||panel.id==="quoteWorkbenchPanel")' in html
-    assert 'class="panel-toggle secondary"' in html
+    assert 'toggle.className="panel-toggle secondary"' in html
     assert 'target.classList.contains("panel-collapsed")' in html
     assert "const panelsToExpand=[owningPanel,target]" in html
