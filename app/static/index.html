@@ -4728,7 +4728,9 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  panels.filter(p=>p.dataset.category!=="global").forEach(panel=>{
   expandCollapse(panel);
   const toggle=panel.querySelector(":scope > h2 .panel-toggle");
-  if(panel!==panels.find(p=>p.dataset.category===panel.dataset.category)){
+  const firstInCategory=panel===panels.find(p=>p.dataset.category===panel.dataset.category);
+  /* Keep the landing screen focused on the task dashboard; open the sales workbench only after the user chooses it. */
+  if(!firstInCategory||panel.id==="quoteWorkbenchPanel"){
    panel.classList.add("panel-collapsed");
    toggle.textContent="展開";
    toggle.setAttribute("aria-expanded","false");
