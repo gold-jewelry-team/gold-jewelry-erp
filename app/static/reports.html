@@ -30,6 +30,18 @@ main{width:100%}
 .table-wrap{display:block;width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 .table-wrap table{width:100%;max-width:none}
 @media(max-width:760px){header,main{width:100%;max-width:100%}.panel{min-width:0}.metric strong{overflow-wrap:anywhere}}
+
+@media(max-width:760px){
+ .table-wrap{overflow:visible;border:0;margin-top:8px}
+ .table-wrap table{width:100%;min-width:0;border-collapse:separate;border-spacing:0}
+ .table-wrap thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+ .table-wrap tbody{display:grid;gap:9px}
+ .table-wrap tr{display:block;min-width:0;padding:5px 10px;background:#fff;border:1px solid #e8ebe7;border-radius:10px}
+ .table-wrap td{display:grid;grid-template-columns:minmax(88px,36%) minmax(0,1fr);gap:8px;padding:7px 0;white-space:normal;overflow-wrap:anywhere;text-align:left;border-bottom:1px solid #edf0ec}
+ .table-wrap td::before{content:attr(data-label);font-size:11px;font-weight:650;color:var(--muted);line-height:1.5}
+ .table-wrap td:last-child{border-bottom:0}
+ .table-wrap td:only-child{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -87,5 +99,22 @@ $("query").addEventListener("click",queryReport);
 $("today").addEventListener("click",()=>{setToday();queryReport();});
 $("month").addEventListener("click",()=>{setMonth();queryReport();});
 setMonth();loadCompanies().catch(e=>setStatus(e.message,true));
+
+function labelResponsiveTables(root=document){
+ root.querySelectorAll(".table-wrap table").forEach(table=>{
+  const labels=Array.from(table.querySelectorAll("thead th")).map(cell=>cell.textContent.replace(/\\s+/g," ").trim());
+  table.querySelectorAll("tbody tr").forEach(row=>{
+   let column=0;
+   Array.from(row.children).forEach(cell=>{
+    if(cell.tagName!=="TD")return;
+    cell.setAttribute("data-label",labels[column]||"內容");
+    column+=Number(cell.getAttribute("colspan")||1);
+   });
+  });
+ });
+}
+labelResponsiveTables();
+const responsiveTableObserver=new MutationObserver(()=>labelResponsiveTables());
+responsiveTableObserver.observe(document.querySelector("main"),{childList:true,subtree:true});
 </script>
 </body></html>
