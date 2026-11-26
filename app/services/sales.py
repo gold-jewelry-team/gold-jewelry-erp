@@ -319,6 +319,12 @@ def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
     ).scalar_one_or_none()
     if sale is None:
         raise ValueError("找不到指定銷售單。")
+    # Completing a sale is safe to retry after a lost HTTP response: the
+    # first request commits the stock ledger and status atomically, so a
+    # repeated request should return the completed sale without posting stock
+    # movements a second time.
+    if sale.status == "COMPLETED":
+        return sale
     if sale.status != "DRAFT":
         raise ValueError("只有草稿銷售單可以完成。")
     lines = list(session.scalars(
