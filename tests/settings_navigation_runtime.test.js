@@ -4,7 +4,7 @@ import test from "node:test";
 
 const html = fs.readFileSync("app/static/index.html", "utf8");
 const start = html.indexOf('/* 分類內快速定位：避免長頁面反覆捲動 */');
-const end = html.indexOf('/* 每日金價快捷入口與精簡歷史紀錄 */', start);
+const end = html.indexOf('const quickButton=document.getElementById("quickGoldPrice");', start);
 assert.ok(start >= 0 && end > start, "missing category shortcut and settings search controller");
 const controller = html.slice(start, end);
 
