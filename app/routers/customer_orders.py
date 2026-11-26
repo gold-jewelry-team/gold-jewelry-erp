@@ -318,7 +318,10 @@ def update_customer_order_status(
     status: str = Query(pattern="^(IN_PROGRESS|ARRIVED|READY|COMPLETED)$"),
     db: Session = Depends(get_db),
 ):
-    order = _load(db, company_id, order_id)
+    order = db.scalar(select(CustomerOrder).where(
+        CustomerOrder.company_id == company_id,
+        CustomerOrder.id == order_id,
+    ).with_for_update())
     if order is None:
         raise HTTPException(status_code=404, detail="找不到指定客訂單。")
     allowed = {
@@ -332,5 +335,6 @@ def update_customer_order_status(
     if status == "COMPLETED" and order.deposit_amount < order.total_amount:
         raise HTTPException(status_code=422, detail="尚有尾款未收清，不可完成交貨。")
     order.status = status
+    order_id_value = order.id
     db.commit()
-    return _load(db, company_id, order.id)
+    return _load(db, company_id, order_id_value)

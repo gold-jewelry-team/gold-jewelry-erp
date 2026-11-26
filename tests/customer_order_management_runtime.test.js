@@ -35,3 +35,28 @@ test("customer order refunds are append-only and cancellation requires full refu
   assert.match(paymentService, /order\.deposit_amount -= amount/);
   assert.match(schema, /if self\.status == "CANCELLED"/);
 });
+
+
+test("customer order owner screen supports extra collections and final balance payments", () => {
+  assert.match(html, /data-add-customer-order-payment=/);
+  assert.match(html, /登錄追加收款／尾款/);
+  assert.match(html, /balance_amount/);
+  assert.ok(html.includes('"/customer-orders/"+row.id+"/payments"'));
+  assert.match(schema, /class CustomerOrderPaymentCreate/);
+});
+
+test("customer order collections and refunds preserve the same idempotency request after reload", () => {
+  assert.match(html, /customerOrderOperationStorageKey/);
+  assert.match(html, /readPendingCustomerOrderOperation/);
+  assert.match(html, /savePendingCustomerOrderOperation/);
+  assert.match(html, /clearPendingCustomerOrderOperation/);
+  assert.match(html, /idempotency_key:newCustomerOrderIdempotencyKey\(\)/);
+  assert.match(html, /恢復待確認收款/);
+  assert.match(html, /恢復待確認退款/);
+  assert.ok(html.includes('"/customer-orders/"+row.id+"/refunds"'));
+});
+
+test("customer order status transitions lock the order row before changing fulfillment state", () => {
+  const statusHandler = router.slice(router.indexOf('def update_customer_order_status'));
+  assert.match(statusHandler, /with_for_update\(\)/);
+});
