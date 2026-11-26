@@ -107,7 +107,7 @@ def test_supplier_bill_number_reuse_with_changed_content_is_rejected_atomically(
 
         assert first.status_code == 201, first.text
         assert conflict.status_code == 409, conflict.text
-        assert "不同內容" in conflict.json()["detail"]
+        assert "內容與原帳單不同" in conflict.json()["detail"]
 
         refreshed = client.get(
             f"/companies/{company_id}/supplier-payables/bills/{first.json()['id']}"
