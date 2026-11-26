@@ -2735,7 +2735,7 @@ $("returnPaymentForm").addEventListener("submit",async event=>{
   message("returnPaymentStatus","退貨收付款紀錄已新增。");
   try{await loadReturnPayments(selectedReturn);}catch(refreshError){message("returnPaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
  }catch(error){
-  if(idempotencyKey&&error.status>=400&&error.status<500)clearPaymentIdempotencyKey("return",selectedReturn.id,idempotencyKey);
+  if(idempotencyKey&&error.status===422)clearPaymentIdempotencyKey("return",selectedReturn.id,idempotencyKey);
   message("returnPaymentStatus",error.message,true);
  }
  finally{button.disabled=false;}
@@ -3689,7 +3689,7 @@ $("salePaymentForm").addEventListener("submit",async event=>{
   message("salePaymentStatus","收付款紀錄已新增。");
   try{await loadSalePayments(currentSale);}catch(refreshError){message("salePaymentStatus","收付款已登錄，但紀錄重新載入失敗："+refreshError.message,true);}
  }catch(error){
-  if(idempotencyKey&&error.status>=400&&error.status<500)clearPaymentIdempotencyKey("sale",currentSale.id,idempotencyKey);
+  if(idempotencyKey&&error.status===422)clearPaymentIdempotencyKey("sale",currentSale.id,idempotencyKey);
   message("salePaymentStatus",error.message,true);
  }
  finally{button.disabled=false;}
