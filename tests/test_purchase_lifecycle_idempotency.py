@@ -32,6 +32,8 @@ def _context():
     db.add(company)
     db.flush()
     site = Site(company_id=company.id, code="MAIN", name="總店")
+    db.add(site)
+    db.flush()
     supplier = Supplier(company_id=company.id, code="SUP-RETRY", name="測試供應商")
     location = StorageLocation(
         site_id=site.id, code="SAFE", name="保險櫃", location_type="SAFE"
