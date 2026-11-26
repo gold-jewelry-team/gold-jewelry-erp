@@ -5080,7 +5080,7 @@ async function startCustomerOrderSale(orderId){
   if(currentSale&&currentSale.status==="DRAFT"&&currentSale.id!==sale.id){message("quoteOrderStatus","目前已有其他銷售草稿，請先完成或作廢。",true);return;}
   currentSaleCustomerOrderId=row.id;
   saleCartLines=[];renderSaleCart();renderSaleResult(sale);
-  $("saleDraftResult").scrollIntoView({behavior:"smooth",block:"start"});
+  $("saleDraftResult").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
   message("saleStatus","已開啟客訂正式銷售單 "+sale.sale_no+"；草稿可由銷售紀錄編輯。");
   return;
  }
@@ -5137,7 +5137,7 @@ async function startCustomerOrderSale(orderId){
  currentSaleCustomerOrderId=row.id;
  saleCartLines=lines;currentSale=null;renderSaleCart();
  $("saleDraftResult").innerHTML="";$("saleDraftActions").classList.add("hidden");$("newSaleActions").classList.add("hidden");
- $("saleHeaderForm").scrollIntoView({behavior:"smooth",block:"start"});
+ $("saleHeaderForm").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
  message("saleStatus","已帶入客訂商品。請逐項確認交貨實測重量、工錢及出貨庫位，再建立正式銷售草稿；價格會依目前有效金價重算。");
 }
 function resetCustomerOrderEditor(){
