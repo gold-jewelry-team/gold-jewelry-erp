@@ -179,7 +179,7 @@ def test_purchase_cancel_retry_is_idempotent():
         assert exact_retry.json()["status"] == "CANCELLED"
 
         db = test_session()
-        stored_purchase = db.get(Purchase, purchase_id)
+        stored_purchase = db.get(Purchase, UUID(purchase_id))
         assert stored_purchase.status == "CANCELLED"
         assert db.query(InventoryMovement).filter(
             InventoryMovement.movement_type == "RECEIPT"
