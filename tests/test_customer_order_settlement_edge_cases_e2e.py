@@ -111,14 +111,14 @@ def _context(code: str):
     return engine, TestSession, ids
 
 
-def _create_order(client, ids, *, order_no, deposit, item, total="12300.00"):
+def _create_order(client, ids, *, order_no, deposit, item, total="12300.00", items=None):
     response = client.post(
         f"/companies/{ids['company_id']}/customer-orders",
         json={
             "site_id": str(ids["site_id"]),
             "order_no": order_no,
             "customer_name": "邊界測試客戶",
-            "items": [item],
+            "items": items if items is not None else [item],
             "total_amount": total,
             "initial_deposit": deposit,
             "payment_method": "CASH",
@@ -267,6 +267,24 @@ def test_lower_delivery_price_refund_and_full_return_reconcile_customer_order_le
         assert return_payment.status_code == 201, return_payment.text
         assert return_payment.json()["direction"] == "OUT"
         assert return_payment_replay.status_code == 200, return_payment_replay.text
+
+        order_after_return = client.get(
+            f"{base}/customer-orders/{order_id}"
+        )
+        assert order_after_return.status_code == 200, order_after_return.text
+        sale_projection = order_after_return.json()["sale"]
+        assert sale_projection["sale_no"] == "SO-LOWER-RETURN-001"
+        assert sale_projection["return_status"] == "FULL"
+        assert sale_projection["return_count"] == 1
+        assert sale_projection["line_count"] == 1
+        assert sale_projection["returned_line_count"] == 1
+        assert sale_projection["return_reversal_amount"] == "-9900.00"
+        return_projection = sale_projection["returns"][0]
+        assert return_projection["settlement_direction"] == "OUT"
+        assert return_projection["settled_amount"] == "9900.00"
+        assert return_projection["outstanding_amount"] == "0.00"
+        assert return_projection["settlement_status"] == "SETTLED"
+        assert return_projection["payments"][0]["direction"] == "OUT"
 
         with TestSession() as db:
             order_payments = list(db.scalars(select(PaymentTransaction).where(
@@ -444,6 +462,111 @@ def test_negative_trade_in_sale_refunds_order_deposit_then_pays_store_obligation
         assert closing["collected_amount"] == "1000.00"
         assert closing["refunded_amount"] == "11700.00"
         assert closing["net_cash_flow"] == "-10700.00"
+    finally:
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+def test_customer_order_projection_shows_partial_return_and_unsettled_refund():
+    engine, TestSession, ids = _context("ORDER-PARTIAL-RETURN")
+    try:
+        with TestSession() as db:
+            create_inventory_movement(
+                db,
+                company_id=ids["company_id"],
+                site_id=ids["site_id"],
+                product_id=ids["product_id"],
+                movement_type="RECEIPT",
+                quantity=Decimal("1"),
+                to_location_id=ids["location_id"],
+                weight=Decimal("1.0000"),
+                weight_unit_code="QIAN",
+                reference_type="TEST-RECEIPT-SECOND",
+            )
+            db.commit()
+
+        client = TestClient(app)
+        item = {
+            "product_id": str(ids["product_id"]),
+            "product_code": "ORDER-PARTIAL-RETURN-001",
+            "product_name": "客訂黃金戒指",
+            "weight": 1.0,
+            "weight_unit_code": "QIAN",
+            "labor_fee": 300,
+            "old_gold_weight": 0,
+            "trade_in_source": None,
+            "trade_in_ratio": None,
+            "estimated_line_amount": 12300,
+        }
+        order = _create_order(
+            client, ids,
+            order_no="CO-PARTIAL-RETURN-001",
+            deposit="24600.00",
+            item=item,
+            items=[item, item],
+            total="24600.00",
+        )
+        order_id = UUID(order["id"])
+        base = f"/companies/{ids['company_id']}"
+        sale_response = client.post(f"{base}/sales", json={
+            "site_id": str(ids["site_id"]),
+            "customer_order_id": str(order_id),
+            "sale_no": "SO-PARTIAL-RETURN-001",
+            "payment_method": "CASH",
+            "lines": [
+                {"product_id": str(ids["product_id"]), "source_location_id": str(ids["location_id"])},
+                {"product_id": str(ids["product_id"]), "source_location_id": str(ids["location_id"])},
+            ],
+        })
+        assert sale_response.status_code == 201, sale_response.text
+        sale = sale_response.json()
+        sale_id = UUID(sale["id"])
+        assert sale["final_amount"] == "24600.00"
+
+        completed = client.post(f"{base}/sales/{sale_id}/complete")
+        assert completed.status_code == 200, completed.text
+
+        returned = client.post(
+            f"{base}/sales/{sale_id}/returns",
+            json={
+                "return_no": "RT-PARTIAL-RETURN-001",
+                "sale_line_ids": [sale["lines"][0]["id"]],
+                "reason": "只退其中一件",
+            },
+        )
+        assert returned.status_code == 201, returned.text
+
+        projection = client.get(
+            f"{base}/customer-orders/{order_id}"
+        )
+        assert projection.status_code == 200, projection.text
+        order_json = projection.json()
+        assert order_json["status"] == "COMPLETED"
+        sale_json = order_json["sale"]
+        assert sale_json["return_status"] == "PARTIAL"
+        assert sale_json["line_count"] == 2
+        assert sale_json["returned_line_count"] == 1
+        assert sale_json["returns"][0]["settlement_status"] == "UNPAID"
+        assert sale_json["returns"][0]["settled_amount"] == "0.00"
+        assert sale_json["returns"][0]["outstanding_amount"] == "12300.00"
+
+        return_id = returned.json()["id"]
+        paid = client.post(
+            f"{base}/sales/returns/{return_id}/payments",
+            json={
+                "payment_method": "TRANSFER",
+                "amount": "5000.00",
+                "note": "先退部分款項",
+            },
+        )
+        assert paid.status_code == 201, paid.text
+        after_partial_refund = client.get(
+            f"{base}/customer-orders/{order_id}"
+        ).json()["sale"]["returns"][0]
+        assert after_partial_refund["settlement_status"] == "PARTIAL"
+        assert after_partial_refund["settled_amount"] == "5000.00"
+        assert after_partial_refund["outstanding_amount"] == "7300.00"
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)

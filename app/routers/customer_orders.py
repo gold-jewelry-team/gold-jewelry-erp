@@ -12,6 +12,7 @@ from app.models.company import Company
 from app.models.customer_order import CustomerOrder
 from app.models.payment_transaction import PaymentTransaction
 from app.models.sale import Sale
+from app.models.sale_return import SaleReturn
 from app.models.site import Site
 from app.routers.schemas.customer_orders import CustomerOrderCreate, CustomerOrderPaymentCreate, CustomerOrderRead, CustomerOrderRefundCreate, CustomerOrderUpdate
 from app.services.payments import (
@@ -32,9 +33,19 @@ def get_db():
         db.close()
 
 
+def _customer_order_read_options():
+    linked_sale = selectinload(CustomerOrder.sale)
+    return (
+        selectinload(CustomerOrder.payments),
+        linked_sale.selectinload(Sale.lines),
+        linked_sale.selectinload(Sale.returns).selectinload(SaleReturn.lines),
+        linked_sale.selectinload(Sale.returns).selectinload(SaleReturn.payments),
+    )
+
+
 def _load(db: Session, company_id: UUID, order_id: UUID):
     return db.scalar(select(CustomerOrder).options(
-        selectinload(CustomerOrder.payments), selectinload(CustomerOrder.sale)
+        *_customer_order_read_options()
     ).where(
         CustomerOrder.company_id == company_id, CustomerOrder.id == order_id
     ))
@@ -50,7 +61,7 @@ def list_customer_orders(
     db: Session = Depends(get_db),
 ):
     statement = select(CustomerOrder).options(
-        selectinload(CustomerOrder.payments), selectinload(CustomerOrder.sale)
+        *_customer_order_read_options()
     ).where(CustomerOrder.company_id == company_id)
     if site_id:
         statement = statement.where(CustomerOrder.site_id == site_id)

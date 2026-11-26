@@ -41,6 +41,7 @@ class Sale(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     lines: Mapped[list["SaleLine"]] = relationship(back_populates="sale", order_by="SaleLine.line_no")
+    returns: Mapped[list["SaleReturn"]] = relationship(back_populates="sale", order_by="SaleReturn.created_at")
 
 
 class SaleLine(Base):

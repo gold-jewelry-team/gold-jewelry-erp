@@ -26,7 +26,9 @@ class SaleReturn(Base):
     reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    sale: Mapped["Sale"] = relationship(back_populates="returns")
     lines: Mapped[list["SaleReturnLine"]] = relationship(back_populates="sale_return", order_by="SaleReturnLine.created_at")
+    payments: Mapped[list["PaymentTransaction"]] = relationship(back_populates="sale_return", order_by="PaymentTransaction.paid_at")
 
 
 class SaleReturnLine(Base):
