@@ -10,6 +10,7 @@ const orders = read("app/static/employee_customer_orders.html");
 const catalog = read("app/static/employee_catalog.html");
 const goldMaterial = read("app/static/gold_material.html");
 const mainWorkspace = read("app/static/index.html");
+const bankingWorkspace = read("app/static/banking.html");
 
 const localizedUnknownStatus = /label:(?:status|bill\.status|order\.status)\?"其他狀態":"狀態未設定"/;
 
@@ -77,4 +78,16 @@ test("main business workspace uses Traditional Chinese fallbacks for statuses, p
   assert.doesNotMatch(mainWorkspace, /movementTypeLabels\[x\.movement_type\]\|\|x\.movement_type/);
   assert.doesNotMatch(mainWorkspace, /labels\[x\.location_type\]\|\|x\.location_type/);
   assert.doesNotMatch(mainWorkspace, /escapeHtml\(row\.payment_method\)/);
+});
+
+
+test("banking workspace localizes transaction types, transfer sources, and directions", () => {
+  assert.match(bankingWorkspace, /bankTransactionTypeLabels=\{CASH_DEPOSIT:"現金存入",CASH_WITHDRAWAL:"現金提款",TRANSFER_IN:"轉入",TRANSFER_OUT:"轉出",BANK_FEE:"銀行手續費",INTEREST_IN:"利息收入",OTHER_ADJUSTMENT:"其他調整"\}/);
+  assert.match(bankingWorkspace, /function bankTransactionTypeLabel\(type\)/);
+  assert.match(bankingWorkspace, /function bankDirectionLabel\(value,labels\)/);
+  assert.match(bankingWorkspace, /其他轉帳來源/);
+  assert.doesNotMatch(bankingWorkspace, /esc\(x\.transaction_type\)/);
+  assert.doesNotMatch(bankingWorkspace, /\[type\]\|\|type/);
+  assert.doesNotMatch(bankingWorkspace, /x\.direction===\"IN\"\?\"收入\":\"支出\"/);
+  assert.doesNotMatch(bankingWorkspace, /x\.direction===\"IN\"\?\"銀行收入\":\"銀行支出\"/);
 });
