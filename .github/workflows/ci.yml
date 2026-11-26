@@ -92,6 +92,8 @@ jobs:
         run: node --test tests/responsive_gold_price_summary_runtime.test.js
       - name: Run category panel bulk status runtime tests
         run: node --test tests/category_panel_bulk_status_runtime.test.js
+      - name: Run settings navigation runtime tests
+        run: node --test tests/settings_navigation_runtime.test.js
       - name: Run mobile scroll target offset runtime tests
         run: node --test tests/mobile_scroll_target_offset_runtime.test.js
       - name: Run back-to-top reduced motion runtime tests
