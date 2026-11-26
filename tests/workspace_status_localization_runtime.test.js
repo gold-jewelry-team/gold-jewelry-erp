@@ -42,7 +42,7 @@ test("employee workspaces display weight units in Traditional Chinese", () => {
     ["catalog", catalog],
     ["gold material", goldMaterial],
   ]) {
-    assert.match(html, /weightUnitLabels=\{G:"公克",QIAN:"錢",LIANG:"兩"\}/, name);
+    assert.match(html, /weightUnitLabels=\{G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"\}/, name);
     assert.match(html, /function weightUnitLabel\(unit\)/, name);
   }
   assert.doesNotMatch(sales, /\+formatWeight\([^)]*\)\s*\+\s*\(unit\|\|""\)/);
