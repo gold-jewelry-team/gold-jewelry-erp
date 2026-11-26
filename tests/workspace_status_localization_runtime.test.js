@@ -9,6 +9,7 @@ const payables = read("app/static/employee_payables.html");
 const orders = read("app/static/employee_customer_orders.html");
 const catalog = read("app/static/employee_catalog.html");
 const goldMaterial = read("app/static/gold_material.html");
+const mainWorkspace = read("app/static/index.html");
 
 const localizedUnknownStatus = /label:(?:status|bill\.status|order\.status)\?"其他狀態":"狀態未設定"/;
 
@@ -54,4 +55,23 @@ test("employee workspaces display weight units in Traditional Chinese", () => {
 test("gold material movement history never exposes unknown movement type codes", () => {
   assert.match(goldMaterial, /typeLabels\[x\.movement_type\]\|\|"其他金料異動"/);
   assert.doesNotMatch(goldMaterial, /typeLabels\[x\.movement_type\]\|\|x\.movement_type/);
+});
+
+
+test("main business workspace uses Traditional Chinese fallbacks for statuses, payments, directions, and operation types", () => {
+  assert.match(mainWorkspace, /function statusDisplayLabel\(value,labels\)/);
+  assert.match(mainWorkspace, /function paymentMethodDisplayLabel\(value,labels=paymentMethodLabels\)/);
+  assert.match(mainWorkspace, /function directionDisplayLabel\(value,labels\)/);
+  assert.match(mainWorkspace, /其他區域類型/);
+  assert.match(mainWorkspace, /其他庫存異動/);
+  assert.match(mainWorkspace, /其他庫存操作/);
+  assert.doesNotMatch(mainWorkspace, /statusLabels\[row\.status\]\|\|row\.status/);
+  assert.doesNotMatch(mainWorkspace, /stateLabels\[row\.status\]\|\|row\.status/);
+  assert.doesNotMatch(mainWorkspace, /purchaseStatusLabels\[(?:row|x)\.status\]\|\|(row|x)\.status/);
+  assert.doesNotMatch(mainWorkspace, /labels\[row\.status\]\|\|row\.status/);
+  assert.doesNotMatch(mainWorkspace, /paymentMethodLabels\[(?:row|x)\.payment_method\]\|\|(row|x)\.payment_method/);
+  assert.doesNotMatch(mainWorkspace, /tenderLabels\[payment\.payment_method\]\|\|payment\.payment_method/);
+  assert.doesNotMatch(mainWorkspace, /movementTypeLabels\[x\.movement_type\]\|\|x\.movement_type/);
+  assert.doesNotMatch(mainWorkspace, /labels\[x\.location_type\]\|\|x\.location_type/);
+  assert.doesNotMatch(mainWorkspace, /escapeHtml\(row\.payment_method\)/);
 });
