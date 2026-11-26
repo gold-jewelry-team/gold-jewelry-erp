@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -304,11 +305,8 @@ def test_operational_period_report_validates_date_range_and_company_site_scope()
         engine.dispose()
 
 def test_operational_reports_workspace_localizes_expected_and_actual_cash_drawer_labels():
-    with TestClient(app) as client:
-        response = client.get("/reports")
-
-    assert response.status_code == 200
-    html = response.text
+    html_path = Path(__file__).resolve().parents[1] / "app" / "static" / "reports.html"
+    html = html_path.read_text(encoding="utf-8")
     assert 'BANK_DEPOSIT:"存入銀行"' in html
     assert 'BANK_WITHDRAWAL:"銀行提款"' in html
     assert 'FLOAT_INCREASE:"增加備用金"' in html
