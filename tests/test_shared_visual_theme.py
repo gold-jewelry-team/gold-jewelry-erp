@@ -7,7 +7,7 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=warm-20261126">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=warm-20261126b">'
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
@@ -15,9 +15,11 @@ def test_shared_theme_stylesheet_is_public_and_served() -> None:
 
     assert response.status_code == 200
     assert "text/css" in response.headers["content-type"]
-    assert "--erp-bg:#f5f0e7" in response.text
-    assert "--erp-bronze:#79582f" in response.text
+    assert "--erp-bg:#faf7f1" in response.text
+    assert "--erp-bronze:#98713f" in response.text
     assert "prefers-reduced-motion:reduce" in response.text
+    assert "#eadfc9" in response.text
+    assert "header h1{color:#493b2c}" in response.text
 
 
 def test_every_static_workspace_page_uses_the_shared_theme() -> None:
