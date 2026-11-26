@@ -3920,6 +3920,7 @@ $("salePaymentForm").addEventListener("submit",async event=>{
  finally{button.disabled=false;}
 });
 function transferQuoteToSale(){
+ currentSaleCustomerOrderId=null;
  if(!companyId||!selectedSiteId){quoteSetStatus("請先選擇公司與據點。",true);return;}
  if(!quoteSelectedProducts.length){quoteSetStatus("請先加入至少一項商品。",true);return;}
  if(currentSale){quoteSetStatus("目前已有尚未處理的銷售單，請先完成或作廢。",true);return;}
