@@ -88,6 +88,6 @@ test("banking workspace localizes transaction types, transfer sources, and direc
   assert.match(bankingWorkspace, /其他轉帳來源/);
   assert.doesNotMatch(bankingWorkspace, /esc\(x\.transaction_type\)/);
   assert.doesNotMatch(bankingWorkspace, /\[type\]\|\|type/);
-  assert.doesNotMatch(bankingWorkspace, /x\.direction===\"IN\"\?\"收入\":\"支出\"/);
-  assert.doesNotMatch(bankingWorkspace, /x\.direction===\"IN\"\?\"銀行收入\":\"銀行支出\"/);
+  assert.doesNotMatch(bankingWorkspace, /\b(?:x|tx)\.direction===\"IN\"\?\"收入\":\"支出\"/);
+  assert.doesNotMatch(bankingWorkspace, /\b(?:x|tx)\.direction===\"IN\"\?\"銀行收入\":\"銀行支出\"/);
 });
