@@ -146,6 +146,8 @@
       const n=Number(value);
       return Number.isFinite(n)?n.toLocaleString("zh-TW",{maximumFractionDigits:3}):"—";
     }
+    const weightUnitLabels={G:"公克",QIAN:"錢",LIANG:"兩"};
+    function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
     function statusInfo(status){
       const map={
         DRAFT:{label:"草稿",cls:"badge draft"},
@@ -154,7 +156,7 @@
         RECEIVED:{label:"已入庫",cls:"badge"},
         CANCELLED:{label:"已取消",cls:"badge cancel"}
       };
-      return map[status]||{label:status||"未知",cls:"badge"};
+      return map[status]||{label:status?"其他狀態":"狀態未設定",cls:"badge"};
     }
     function applyLocalSearch(rows){
       const q=$("search").value.trim().toLocaleLowerCase();
@@ -210,7 +212,7 @@
           const qty="已入庫 "+quantityText(line.received_quantity)+"／"+quantityText(line.quantity);
           const info=[
             "數量："+qty,
-            line.weight===null||line.weight===undefined?"": "重量："+quantityText(line.weight)+" "+(line.weight_unit_code||""),
+            line.weight===null||line.weight===undefined?"": "重量："+quantityText(line.weight)+" "+weightUnitLabel(line.weight_unit_code),
             "單價："+amountText(line.unit_cost,purchase.currency_code),
             "工費："+amountText(line.cost_labor_fee,purchase.currency_code)
           ].filter(Boolean).join("　｜　");
