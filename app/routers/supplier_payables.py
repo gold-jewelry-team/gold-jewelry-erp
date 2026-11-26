@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
 from app.core.company_access import require_current_actor_permission
-from app.core.company_access import require_current_actor_permission
 from app.models.purchase import Purchase
 from app.models.supplier_payable import SupplierBill, SupplierPayment
 from app.routers.schemas.supplier_payables import (
@@ -19,6 +18,7 @@ from app.routers.schemas.supplier_payables import (
     SupplierPaymentRead,
 )
 from app.services.supplier_payables import (
+    SupplierBillIdempotencyConflict,
     SupplierPaymentIdempotencyConflict,
     create_supplier_bill,
     record_supplier_payment,
@@ -55,12 +55,13 @@ def _load_payment(db: Session, company_id: UUID, payment_id: UUID) -> SupplierPa
 def post_supplier_bill(
     company_id: UUID,
     payload: SupplierBillCreate,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     if payload.purchase_id is not None:
         require_current_actor_permission(db, "purchases.view")
     try:
-        bill = create_supplier_bill(
+        bill, created = create_supplier_bill(
             db,
             company_id=company_id,
             site_id=payload.site_id,
@@ -72,10 +73,16 @@ def post_supplier_bill(
             currency_code=payload.currency_code,
             total_amount=payload.total_amount,
             note=payload.note,
+            return_created=True,
         )
         bill_id = bill.id
+        if not created:
+            response.status_code = 200
         db.commit()
         return _load_bill(db, company_id, bill_id)
+    except SupplierBillIdempotencyConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
         db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
