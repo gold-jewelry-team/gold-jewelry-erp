@@ -1663,7 +1663,7 @@ async function handleScannedProductCode(code,target){
    if(!selectedPurchase){message("purchaseReceiveStatus","請先開啟要驗收的採購單。",true);return;}
    const line=(selectedPurchase.lines||[]).find(x=>x.product_id===product.id&&Number(x.received_quantity)<Number(x.quantity));
    if(!line){message("purchaseReceiveStatus","此商品不在目前採購單的未完成明細中。",true);return;}
-   selectedPurchaseLine=line.id;const remaining=Number(line.quantity)-Number(line.received_quantity);$("purchaseReceiveQuantity").max=String(remaining);$("purchaseReceiveQuantity").value=String(remaining);$("purchaseReceiveForm").classList.remove("hidden");$("purchaseReceiveScanCode").value="";message("purchaseReceiveStatus","已選取驗收商品："+product.product_code+"；請確認入庫位置與數量。");
+   selectedPurchaseLine=line.id;const remaining=Number(line.quantity)-Number(line.received_quantity);$("purchaseReceiveQuantity").max=String(remaining);$("purchaseReceiveQuantity").value=String(remaining);$("purchaseReceiveForm").classList.remove("hidden");$("purchaseReceiveScanCode").value="";message("purchaseReceiveStatus","已選取驗收商品："+product.product_code+"；請確認入庫位置與數量。");focusPurchaseField($("purchaseReceiveLocation").value?"purchaseReceiveQuantity":"purchaseReceiveLocation");
   }else if(target==="stocktake"){
    await addStocktakeProduct(product);
   }else if(target==="inventory"){
