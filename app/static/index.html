@@ -158,6 +158,9 @@ label{color:#536158;font-weight:600}
 .category-nav button[aria-pressed="true"] .category-count{background:#ffffff25;color:#fff}
 .category-shortcuts{background:#fbfaf5;border-color:#e9e2d4;box-shadow:none}
 .category-shortcuts-label,.panel-subnav-label{color:#7a6a4b;font-weight:800;letter-spacing:.02em}
+.category-shortcuts.settings-mode{flex-wrap:wrap;overflow:visible;white-space:normal}
+.category-shortcuts.settings-mode .category-shortcuts-label,.category-shortcuts.settings-mode .category-shortcuts-status{flex:1 1 100%}
+.category-shortcuts.settings-mode .category-settings-search{flex:1 1 100%;width:100%;max-width:560px}
 .category-settings-search{flex:1 1 100%;width:100%;min-width:0;min-height:40px;padding:8px 12px;border:1px solid #e5dfd2;border-radius:10px;background:#fffefa;color:#25332b;font:inherit;font-size:14px}
 @media(max-width:899px){.category-settings-search{flex:0 0 min(280px,78vw);width:min(280px,78vw);min-height:40px}}
 .category-shortcuts button{background:#fffefa;border-color:#e6dfd1;color:#4b5d50}
@@ -246,6 +249,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 
 @media(max-width:899px){
  .category-nav button{min-height:44px;padding:9px 12px}
+ .category-shortcuts.settings-mode{flex-wrap:wrap;overflow:visible;white-space:normal}
+ .category-shortcuts.settings-mode .category-settings-search{flex:1 1 100%;width:100%;max-width:none}
  .category-shortcuts{
   gap:6px;
   flex-wrap:nowrap;
@@ -4338,6 +4343,7 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  search.setAttribute("aria-label","搜尋設定功能");
  search.hidden=true;
  shortcuts.appendChild(search);
+ const settingsButtons=new Map();
  const status=document.createElement("span");
  status.className="category-shortcuts-status";
  status.setAttribute("role","status");
@@ -4413,6 +4419,8 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
  });
  const renderShortcuts=category=>{
   shortcuts.querySelectorAll("button").forEach(b=>b.remove());
+  settingsButtons.clear();
+  shortcuts.classList.toggle("settings-mode",category==="settings");
   search.hidden=category!=="settings";
   search.value="";
   status.textContent=category==="settings"?"可搜尋設定名稱，點選項目後才展開內容":"可展開或收合本分類功能區";
@@ -4454,7 +4462,8 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
    button.type="button";
    button.textContent=titleFor(panel);
    button.title="定位到："+titleFor(panel);
-   button.dataset.settingsPanel=panel.id||titleFor(panel);
+   button.dataset.settingsPanel=panel.id||String(categoryPanels.indexOf(panel));
+   settingsButtons.set(panel,button);
    button.addEventListener("click",()=>{
     if(panel.classList.contains("panel-collapsed")){
      const toggle=panel.querySelector(":scope > h2 .panel-toggle");
@@ -4472,10 +4481,10 @@ loadCompanies().catch(e=>message("globalStatus",e.message,true));
   const categoryPanels=panels.filter(p=>p.dataset.category==="settings");
   let shown=0;
   categoryPanels.forEach(panel=>{
-   const text=[titleFor(panel),...subTitlesOf(panel)].join(" ").toLocaleLowerCase();
+   const text=[titleFor(panel),...subTitlesOf(panel),panel.textContent||""].join(" ").toLocaleLowerCase();
    const match=!q||text.includes(q);
    panel.style.display=match?"":"none";
-   const button=shortcuts.querySelector('button[data-settings-panel="'+(panel.id||titleFor(panel))+'"]');
+   const button=settingsButtons.get(panel);
    if(button)button.hidden=!match;
    if(match)shown++;
   });
