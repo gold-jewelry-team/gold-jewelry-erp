@@ -352,6 +352,8 @@ button.secondary{background:#edf2ed;color:#315b46;border-color:#dce6dc}
 }
 
 /* Inventory stock cards: separate identity, available quantity, and traceable location details. */
+#inventoryStockPanel .stock-results-summary{margin:2px 0 9px;padding:9px 11px;border-radius:10px;background:#f2f5f0;color:#46564b;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+#stocktakePanel .stocktake-summary{margin:8px 0 10px;padding:11px 12px;border:1px solid #dce6dc;border-radius:11px;background:#f4f7f2;color:#3d5143;font-size:13px;font-weight:700;line-height:1.6;font-variant-numeric:tabular-nums}
 #inventoryStockPanel .stock-item{gap:11px;padding:14px;border-color:#e8e2d5;background:#fffefa}
 #inventoryStockPanel .stock-item-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center}
 #inventoryStockPanel .stock-item-identity{display:grid;gap:7px;min-width:0}
@@ -805,12 +807,12 @@ button.secondary:disabled{opacity:.42}
 <h2>商品庫存查詢</h2>
 <p class="sub">依目前選取的據點查詢各商品在不同儲存位置的數量，可搜尋商品編號、條碼、名稱或櫃位。</p>
 <div class="grid">
-<div class="field"><label for="inventorySearch">商品／條碼／櫃位搜尋</label><input id="inventorySearch" maxlength="100" placeholder="輸入商品編號、條碼、名稱或位置"></div>
+<div class="field"><label for="inventorySearch">商品／條碼／櫃位搜尋</label><input id="inventorySearch" type="search" maxlength="100" enterkeyhint="search" placeholder="掃描或輸入商品編號／條碼／名稱／櫃位"></div>
 <div class="field"><label for="stockLocationFilter">儲存位置</label><select id="stockLocationFilter"><option value="">全部位置</option></select></div>
 <div class="field wide"><label><input id="includeZeroStock" type="checkbox" style="width:auto;min-height:0;margin-right:6px">顯示零庫存項目</label></div>
 </div>
 <div class="actions"><button id="refreshStock" type="button">查詢庫存</button><button id="scanInventoryButton" class="secondary" type="button">相機掃描</button></div>
-<div id="stockList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
+<div id="stockResultsSummary" class="stock-results-summary" aria-live="polite">請先選擇公司與據點</div><div id="stockList" aria-live="polite"><div class="empty">請先選擇公司與據點</div></div>
 </section>
 <section class="panel span2" id="stocktakePanel">
  <h2>條碼盤點</h2>
@@ -818,7 +820,7 @@ button.secondary:disabled{opacity:.42}
  <div class="grid"><div class="field"><label for="stocktakeLocation">盤點儲存位置</label><select id="stocktakeLocation"><option value="">請選擇位置</option></select></div>
  <div class="field"><label for="stocktakeBarcode">掃描／輸入商品條碼（Enter／Tab）</label><input id="stocktakeBarcode" autocomplete="off" inputmode="numeric" placeholder="掃描器輸入後按 Enter／Tab"></div></div>
  <div class="actions"><button id="scanStocktakeButton" class="secondary" type="button">相機掃描</button><button id="refreshStocktake" class="secondary" type="button">重新讀取帳面庫存</button><button id="resetStocktake" class="secondary" type="button">清空本次盤點</button></div>
- <div id="stocktakeStatus" class="status" role="status">尚未開始盤點</div><div id="stocktakeList" aria-live="polite"><div class="empty">請先選擇盤點位置</div></div>
+ <div id="stocktakeSummary" class="stocktake-summary" aria-live="polite">請先選擇盤點位置</div><div id="stocktakeStatus" class="status" role="status">尚未開始盤點</div><div id="stocktakeList" aria-live="polite"><div class="empty">請先選擇盤點位置</div></div>
  <div class="actions"><button id="applyStocktake" type="button">確認差異並更新庫存</button></div>
  <p class="muted">盤點草稿會暫存在目前瀏覽器；正式確認後，每筆差異會寫入不可覆寫的庫存異動紀錄。</p>
 </section>
@@ -1429,6 +1431,7 @@ let productsById=new Map();
 let editingProduct=null;
 let inventoryProducts=[];
 let inventoryLocations=[];
+let inventoryStockRows=[];
 const movementTypeLabels={RECEIPT:"入庫",SALE:"銷售",TRANSFER:"櫃位調撥",ADJUSTMENT:"庫存調整",RETURN:"退貨",REPAIR_SEND:"送修",REPAIR_RETURN:"維修返還"};
 const goldPriceSourceLabels={MANUAL:"手動",IMPORT:"匯入",SYSTEM:"系統"};
 let dailyClosingsById=new Map();
@@ -1659,7 +1662,7 @@ async function handleScannedProductCode(code,target){
   }else if(target==="stocktake"){
    await addStocktakeProduct(product);
   }else if(target==="inventory"){
-   $("inventorySearch").value=product.barcode||code;await loadInventoryStock();
+   $("inventorySearch").value=product.barcode||code;renderInventoryStock();
    message("globalStatus","已找到："+product.product_code+" · "+product.name);
   }else{
    $("search").value=code;await loadProducts();
@@ -1787,7 +1790,14 @@ function persistStocktakeDraft(){
  try{localStorage.setItem(stocktakeStorageKey(),JSON.stringify(draft));}catch(error){message("stocktakeStatus","瀏覽器無法儲存盤點暫存，請勿關閉此頁面。",true);}
 }
 function renderStocktake(){
- const box=$("stocktakeList");
+ const box=$("stocktakeList"),summary=$("stocktakeSummary");
+ const appliedCount=stocktakeLines.filter(x=>x.applied).length;
+ const pending=stocktakeLines.filter(x=>!x.applied);
+ const verifiedCount=pending.filter(x=>x.verified).length;
+ const varianceCount=pending.filter(x=>x.verified&&Number(x.counted)!==Number(x.expected)).length;
+ summary.textContent=stocktakeLocationId
+  ?"待盤商品 "+pending.length+" 項 · 已核對 "+verifiedCount+" 項 · 尚待核對 "+(pending.length-verifiedCount)+" 項 · 有差異 "+varianceCount+" 項 · 已完成 "+appliedCount+" 項"
+  :"請先選擇盤點位置";
  if(!stocktakeLocationId){box.innerHTML='<div class="empty">請先選擇盤點位置</div>';$("applyStocktake").disabled=true;return;}
  if(!stocktakeLines.length){box.innerHTML='<div class="empty">此位置目前沒有帳面庫存商品。</div>';$("applyStocktake").disabled=true;return;}
  box.innerHTML=stocktakeLines.map((line,index)=>{
@@ -1795,7 +1805,6 @@ function renderStocktake(){
   const removeButton=Number(line.expected)===0&&!line.applied?'<button class="secondary" type="button" data-remove-stocktake="'+index+'">移除此非帳面商品</button>':'';
   return '<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 帳面數量：'+escapeHtml(line.expected)+'</span><div class="grid"><div class="field"><label>實際盤點數量（可填 0）</label><input type="number" min="0" step="1" value="'+escapeHtml(line.counted)+'" data-stocktake-count="'+index+'" '+(line.applied?'disabled':'')+'></div><div class="field"><label>差異</label><div class="pill">'+(variance>0?"+":"")+escapeHtml(variance)+(line.applied?" · 已入帳":"")+'</div></div></div><label><input type="checkbox" style="width:auto;min-height:0;margin-right:6px" data-stocktake-verified="'+index+'" '+(line.verified?'checked':'')+' '+(line.applied?'disabled':'')+'>已核對此商品（掃描確認或人工清點後勾選）</label><div class="actions">'+(line.applied?'<span class="muted">已完成</span>':removeButton)+'</div></article>';
  }).join("");
- const pending=stocktakeLines.filter(x=>!x.applied);
  $("applyStocktake").disabled=!pending.length||pending.some(x=>!x.verified);
 }
 async function loadStocktakeBaseline(refreshSnapshot=false){
@@ -1852,19 +1861,21 @@ function restoreStocktakeDraft(){
  persistStocktakeDraft();renderStocktake();
 }
 async function addStocktakeProduct(product){
- if(!stocktakeLocationId){message("stocktakeStatus","請先選擇盤點儲存位置。",true);return;}
- if(!product||!product.is_active){message("stocktakeStatus","找不到有效商品。",true);return;}
+ const scanInput=$("stocktakeBarcode");
+ if(!stocktakeLocationId){scanInput.value="";message("stocktakeStatus","請先選擇盤點儲存位置。",true);scanInput.focus();return;}
+ if(!product||!product.is_active){scanInput.value="";message("stocktakeStatus","找不到有效商品。",true);scanInput.focus();return;}
  let line=stocktakeLines.find(item=>item.product.id===product.id);
  if(line){
-  if(line.applied||line.verified){message("stocktakeStatus","此商品已掃描或已核對，不可重複計數；如數量有差異請人工修改並重新核對。",true);return;}
+  if(line.applied||line.verified){scanInput.value="";message("stocktakeStatus","此商品已掃描或已核對，不可重複計數；如數量有差異請人工修改並重新核對。",true);scanInput.focus();return;}
   line.counted=1;line.verified=true;
  }else{
   const expected=stocktakeExpectedByProduct.get(product.id)||0;
   line={product,expected,expected_net_weight:Number(product.net_weight||0),counted:1,verified:true,applied:false,idempotency_key:newStocktakeAdjustmentKey()};
   stocktakeLines.push(line);
  }
- persistStocktakeDraft();renderStocktake();$("stocktakeBarcode").value="";
+ persistStocktakeDraft();renderStocktake();scanInput.value="";
  message("stocktakeStatus","已確認商品："+product.product_code+" · "+product.name+"；請繼續掃描下一件。");
+ if(typeof scanInput.focus==="function")scanInput.focus();
 }
 function inventoryAdjustmentPendingStorageKey(company,site){
  return "gold-erp:inventory-adjustment:"+company+":"+site;
@@ -2002,7 +2013,8 @@ async function loadInventoryOptions(){
  const productIds=["adjustmentProduct","transferProduct","movementProductFilter","saleProduct","quoteProduct","purchaseProduct"];
  const locationIds=["stockLocationFilter","stocktakeLocation","adjustmentLocation","transferFromLocation","transferToLocation","movementLocationFilter","saleLocation","purchaseReceiveLocation"];
  if(!companyId||!selectedSiteId){
-  inventoryProducts=[];inventoryLocations=[];stocktakeLines=[];stocktakeLocationId="";stocktakeExpectedByProduct=new Map();renderStocktake();
+  inventoryProducts=[];inventoryLocations=[];inventoryStockRows=[];stocktakeLines=[];stocktakeLocationId="";stocktakeExpectedByProduct=new Map();renderStocktake();
+  $("stockResultsSummary").textContent="請先選擇公司與據點";
   $("stockList").innerHTML='<div class="empty">請先選擇公司與據點</div>';
   $("movementList").innerHTML='<div class="empty">請先選擇公司與據點</div>';
   for(const id of productIds)$(id).innerHTML=id==="movementProductFilter"?'<option value="">全部商品</option>':'<option value="">請選擇商品</option>';
@@ -2054,19 +2066,26 @@ async function loadInventoryOptions(){
  restorePendingInventoryAdjustment();
  restorePendingInventoryTransfer();
 }
+function renderInventoryStock(){
+ const box=$("stockList"),summary=$("stockResultsSummary");
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';summary.textContent="請先選擇公司與據點";return;}
+ const q=$("inventorySearch").value.trim().toLocaleLowerCase();
+ const filtered=inventoryStockRows.filter(x=>!q||[x.product_code,x.product_name,x.barcode,x.location_name,x.location_code].some(v=>String(v||"").toLocaleLowerCase().includes(q)));
+ const quantityTotal=filtered.reduce((total,row)=>total+Number(row.quantity||0),0);
+ summary.textContent="符合 "+filtered.length+" 筆庫存位置資料 · 數量合計 "+quantityTotal+" 件"+(q?" · 搜尋中":"");
+ const productMap=new Map(inventoryProducts.map(p=>[p.id,p]));
+ box.innerHTML=filtered.length?filtered.map(x=>{const product=productMap.get(x.product_id);const weight=product?'<span><small>單件淨重</small><strong>'+escapeHtml(product.net_weight)+' '+escapeHtml(goldUnitLabel(product.weight_unit_code||"QIAN"))+'</strong></span>':'';return '<article class="item stock-item"><div class="stock-item-head"><div class="stock-item-identity"><strong>'+escapeHtml(x.product_name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span></div><div class="stock-item-quantity"><span>目前庫存</span><strong>'+escapeHtml(x.quantity)+'</strong></div></div><div class="stock-item-meta"><span><small>條碼</small><strong>'+escapeHtml(x.barcode||"未設定")+'</strong></span><span><small>儲存位置</small><strong>'+escapeHtml(x.location_name)+'（'+escapeHtml(x.location_code)+'）</strong></span>'+weight+'</div></article>';}).join(""):'<div class="empty">'+(q?"沒有符合搜尋條件的庫存，請檢查條碼或清除搜尋。":"沒有符合條件的庫存資料")+'</div>';
+}
 async function loadInventoryStock(){
- const box=$("stockList");
- if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
+ const box=$("stockList"),summary=$("stockResultsSummary");
+ if(!companyId||!selectedSiteId){inventoryStockRows=[];renderInventoryStock();return;}
  box.innerHTML='<div class="empty">庫存載入中…</div>';
+ summary.textContent="正在更新庫存資料…";
  const params=new URLSearchParams({site_id:selectedSiteId,include_zero:String($("includeZeroStock").checked)});
  if($("stockLocationFilter").value)params.set("location_id",$("stockLocationFilter").value);
- const rows=await api("/companies/"+companyId+"/inventory/stock?"+params.toString());
- const q=$("inventorySearch").value.trim().toLocaleLowerCase();
- const filtered=rows.filter(x=>!q||[x.product_code,x.product_name,x.barcode,x.location_name,x.location_code].some(v=>String(v||"").toLocaleLowerCase().includes(q)));
- const productMap=new Map(inventoryProducts.map(p=>[p.id,p]));
- box.innerHTML=filtered.length?filtered.map(x=>{const product=productMap.get(x.product_id);const weight=product?'<span><small>單件淨重</small><strong>'+escapeHtml(product.net_weight)+' '+escapeHtml(goldUnitLabel(product.weight_unit_code||"QIAN"))+'</strong></span>':'';return '<article class="item stock-item"><div class="stock-item-head"><div class="stock-item-identity"><strong>'+escapeHtml(x.product_name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span></div><div class="stock-item-quantity"><span>目前庫存</span><strong>'+escapeHtml(x.quantity)+'</strong></div></div><div class="stock-item-meta"><span><small>條碼</small><strong>'+escapeHtml(x.barcode||"未設定")+'</strong></span><span><small>儲存位置</small><strong>'+escapeHtml(x.location_name)+'（'+escapeHtml(x.location_code)+'）</strong></span>'+weight+'</div></article>';}).join(""):'<div class="empty">沒有符合條件的庫存資料</div>';
-}
-async function loadInventoryMovements(){
+ inventoryStockRows=await api("/companies/"+companyId+"/inventory/stock?"+params.toString());
+ renderInventoryStock();
+}async function loadInventoryMovements(){
  const box=$("movementList");
  if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';return;}
  box.innerHTML='<div class="empty">異動紀錄載入中…</div>';
@@ -4339,7 +4358,8 @@ $("closeScanner").addEventListener("click",closeCameraScanner);
 $("switchScannerCamera").addEventListener("click",async()=>{scanFacingMode=scanFacingMode==="environment"?"user":"environment";await openCameraScanner(scanTarget);});
 $("scanModal").addEventListener("click",event=>{if(event.target===$("scanModal"))closeCameraScanner();});
 window.addEventListener("pagehide",stopCameraScanner);
-$("inventorySearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadInventoryStock().catch(err=>message("globalStatus",err.message,true));});
+$("inventorySearch").addEventListener("input",renderInventoryStock);
+$("inventorySearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();renderInventoryStock();}});
 $("stockLocationFilter").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
 $("includeZeroStock").addEventListener("change",()=>loadInventoryStock().catch(e=>message("globalStatus",e.message,true)));
 $("refreshMovements").addEventListener("click",()=>loadInventoryMovements().catch(e=>message("globalStatus",e.message,true)));
