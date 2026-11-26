@@ -271,7 +271,7 @@ def create_sale_draft(
 
     if linked_order is not None:
         _validate_customer_order_lines(linked_order, [line for line, _ in line_results])
-        if card_amount is None:
+        if card_amount is None and payment_method != "CARD":
             prior_card = max(
                 Decimal("0"),
                 _customer_order_payment_nets(session, linked_order.id).get("CARD", Decimal("0")),
@@ -351,23 +351,30 @@ def update_sale_draft(
     note: str | None = None, at: datetime | None = None,
 ) -> Sale:
     """Reprice and replace all lines of an uncompleted sale without changing its identity."""
-    sale = session.execute(
-        select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
-    ).scalar_one_or_none()
-    if sale is None:
-        raise ValueError("找不到指定銷售單。")
-    if sale.status != "DRAFT":
-        raise ValueError("只有尚未完成的銷售草稿可以修改；已完成銷售請走退貨流程。")
+    linked_order_id = session.scalar(
+        select(Sale.customer_order_id).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        )
+    )
     linked_order = None
-    if sale.customer_order_id is not None:
+    if linked_order_id is not None:
         linked_order = session.execute(
             select(CustomerOrder).where(
-                CustomerOrder.id == sale.customer_order_id,
+                CustomerOrder.id == linked_order_id,
                 CustomerOrder.company_id == company_id,
             ).with_for_update()
         ).scalar_one_or_none()
         if linked_order is None or linked_order.status != "READY":
             raise ValueError("客訂連結已失效，請先核對客訂單狀態。")
+    sale = session.execute(
+        select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
+    ).scalar_one_or_none()
+    if sale is None:
+        raise ValueError("找不到指定銷售單。")
+    if sale.customer_order_id != linked_order_id:
+        raise ValueError("銷售單客訂連結已變動，請重新載入後再操作。")
+    if sale.status != "DRAFT":
+        raise ValueError("只有尚未完成的銷售草稿可以修改；已完成銷售請走退貨流程。")
     if not lines:
         raise ValueError("銷售明細不可空白。")
 
@@ -414,11 +421,30 @@ def update_sale_draft(
 
 def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
     """Atomically deduct each sold item and complete the sale."""
+    linked_order_id = session.scalar(
+        select(Sale.customer_order_id).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        )
+    )
+    linked_order = None
+    if linked_order_id is not None:
+        linked_order = session.execute(
+            select(CustomerOrder).where(
+                CustomerOrder.id == linked_order_id,
+                CustomerOrder.company_id == company_id,
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if linked_order is None:
+            raise ValueError("正式銷售連結的客訂單不存在，請先核對資料。")
     sale = session.execute(
-        select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
+        select(Sale).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        ).with_for_update()
     ).scalar_one_or_none()
     if sale is None:
         raise ValueError("找不到指定銷售單。")
+    if sale.customer_order_id != linked_order_id:
+        raise ValueError("銷售單客訂連結已變動，請重新載入後再操作。")
     # Completing a sale is safe to retry after a lost HTTP response: the
     # first request commits the stock ledger and status atomically, so a
     # repeated request should return the completed sale without posting stock
@@ -427,16 +453,6 @@ def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
         return sale
     if sale.status != "DRAFT":
         raise ValueError("只有草稿銷售單可以完成。")
-    linked_order = None
-    if sale.customer_order_id is not None:
-        linked_order = session.execute(
-            select(CustomerOrder).where(
-                CustomerOrder.id == sale.customer_order_id,
-                CustomerOrder.company_id == company_id,
-            ).with_for_update()
-        ).scalar_one_or_none()
-        if linked_order is None:
-            raise ValueError("正式銷售連結的客訂單不存在，請先核對資料。")
         if linked_order.status != "READY":
             raise ValueError("客訂單必須維持待交貨狀態，才能完成正式銷售。")
         if linked_order.final_sale_amount != sale.final_amount:
@@ -487,22 +503,33 @@ def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
 
 
 def void_sale_draft(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
-    sale = session.execute(
-        select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
-    ).scalar_one_or_none()
-    if sale is None:
-        raise ValueError("找不到指定銷售單。")
-    if sale.status != "DRAFT":
-        raise ValueError("只有草稿銷售單可以作廢；已完成銷售請走退貨流程。")
-    if sale.customer_order_id is not None:
+    linked_order_id = session.scalar(
+        select(Sale.customer_order_id).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        )
+    )
+    linked_order = None
+    if linked_order_id is not None:
         linked_order = session.execute(
             select(CustomerOrder).where(
-                CustomerOrder.id == sale.customer_order_id,
+                CustomerOrder.id == linked_order_id,
                 CustomerOrder.company_id == company_id,
             ).with_for_update()
         ).scalar_one_or_none()
         if linked_order is None or linked_order.status != "READY":
             raise ValueError("客訂連結狀態異常，無法安全解除銷售草稿。")
+    sale = session.execute(
+        select(Sale).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        ).with_for_update()
+    ).scalar_one_or_none()
+    if sale is None:
+        raise ValueError("找不到指定銷售單。")
+    if sale.customer_order_id != linked_order_id:
+        raise ValueError("銷售單客訂連結已變動，請重新載入後再操作。")
+    if sale.status != "DRAFT":
+        raise ValueError("只有草稿銷售單可以作廢；已完成銷售請走退貨流程。")
+    if linked_order is not None:
         linked_order.final_sale_amount = None
         sale.customer_order_id = None
     sale.status = "VOID"

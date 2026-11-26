@@ -37,6 +37,8 @@ def test_customer_order_converts_to_one_sale_without_duplicate_cash_or_stock():
         db.add(company)
         db.flush()
         site = Site(company_id=company.id, code="MAIN", name="總店")
+        db.add(site)
+        db.flush()
         location = StorageLocation(
             site_id=site.id, code="SAFE", name="保險櫃", location_type="SAFE"
         )

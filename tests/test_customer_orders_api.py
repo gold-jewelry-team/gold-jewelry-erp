@@ -292,7 +292,7 @@ def test_customer_order_refund_is_append_only_and_required_before_cancellation()
 
         key = str(uuid4())
         refund_payload = {
-            "amount": "3000.00", "payment_method": "TRANSFER",
+            "amount": "3000.00", "payment_method": "CASH",
             "note": "全額退還訂金", "idempotency_key": key,
         }
         refunded = client.post(
