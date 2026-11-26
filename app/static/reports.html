@@ -21,6 +21,15 @@ h2{font-size:16px;margin:0 0 8px;color:#2d3b31}.sub{font-size:12px;line-height:1
 .empty{padding:22px 10px;text-align:center;color:#788079;font-size:13px}.note{font-size:11px;color:#737d75;line-height:1.6;margin-top:10px}.check-list{display:grid;gap:7px;margin-top:10px}.check-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px;border:1px solid #e8ebe7;border-radius:10px;background:#fff}.check-row strong{display:block;font-size:12px}.check-row small{display:block;color:#7b837c;font-size:10px;margin-top:3px}.check-status{font-size:11px;font-weight:800;white-space:nowrap}.check-status.pass{color:#267047}.check-status.error{color:#b42318}.check-summary{font-size:12px;color:#526257;margin-top:8px}
 @media(max-width:760px){main{padding:10px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:12px}.metric strong{font-size:16px}}
 @media(max-width:380px){.grid{grid-template-columns:1fr 1fr}.head{align-items:flex-start}.back{padding:7px 9px}}
+
+/* Mobile layout containment: keep the page viewport fixed; only wide data tables may scroll. */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body,header,main,.head,.panel,.grid,.field,.cards,.metric,.currency-block,.check-list,.check-row{min-width:0;max-width:100%}
+main{width:100%}
+.grid>* ,.cards>* ,.check-row>*{min-width:0}
+.table-wrap{display:block;width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.table-wrap table{width:100%;max-width:none}
+@media(max-width:760px){header,main{width:100%;max-width:100%}.panel{min-width:0}.metric strong{overflow-wrap:anywhere}}
 </style>
 </head>
 <body>
