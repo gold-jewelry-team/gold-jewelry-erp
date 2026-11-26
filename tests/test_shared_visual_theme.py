@@ -11,7 +11,7 @@ THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=warm-20261126b">'
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
-    response = client.get("/theme.css?v=warm-20261126")
+    response = client.get("/theme.css?v=warm-20261126b")
 
     assert response.status_code == 200
     assert "text/css" in response.headers["content-type"]
