@@ -183,3 +183,38 @@ def test_sales_number_is_prefilled_and_card_amount_only_appears_for_mixed_tender
     assert '$("saleNo").value=createDocumentNumber("SO")' in html
     assert '$("saleCardAmount").value=sale.card_amount;syncSalePaymentFields();' in html
     assert '$("salePaymentMethod").addEventListener("change",syncSalePaymentFields)' in html
+
+def test_purchase_scan_and_line_entry_keep_the_operator_in_flow():
+    html = TestClient(app).get("/app").text
+
+    scan_start = html.index('}else if(target==="purchase"){')
+    scan_end = html.index('}else if(target==="purchaseReceive"){', scan_start)
+    purchase_scan = html[scan_start:scan_end]
+    assert 'focusPurchaseField("purchaseQuantity")' in purchase_scan
+
+    entry_start = html.index('$("addPurchaseLine").addEventListener("click"')
+    entry_end = html.index("function resetPurchaseEditor()", entry_start)
+    purchase_entry = html[entry_start:entry_end]
+    assert 'focusPurchaseField("purchaseScanCode")' in purchase_entry
+    assert '["purchaseQuantity","purchaseWeight"]' in purchase_entry
+    assert '["purchaseWeight","purchaseWeightUnit"]' in purchase_entry
+    assert '["purchaseUnitCost","purchaseCostLaborFee"]' in purchase_entry
+    assert '$("purchaseLineNote").addEventListener("keydown"' in purchase_entry
+
+
+def test_partial_purchase_receipts_keep_the_receive_workspace_open():
+    html = TestClient(app).get("/app").text
+
+    assert "function renderPurchaseReceiveLines()" in html
+    receive_scan_start = html.index('}else if(target==="purchaseReceive"){')
+    receive_scan_end = html.index('}else if(target==="stocktake"){', receive_scan_start)
+    receive_scan = html[receive_scan_start:receive_scan_end]
+    assert 'focusPurchaseField($("purchaseReceiveLocation").value?"purchaseReceiveQuantity":"purchaseReceiveLocation")' in receive_scan
+
+    receive_start = html.index('$("purchaseReceiveForm").addEventListener("submit"')
+    receive_end = html.index('$("restorePendingExpense").addEventListener', receive_start)
+    receive_handler = html[receive_start:receive_end]
+    assert 'const refreshedPurchase=purchasesById.get(purchaseId)' in receive_handler
+    assert 'focusPurchaseField("purchaseReceiveScanCode")' in receive_handler
+    assert "到貨驗收已成功入庫，但清單更新失敗" in receive_handler
+    assert "不要重複驗收" in receive_handler
