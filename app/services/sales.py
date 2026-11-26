@@ -453,6 +453,7 @@ def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
         return sale
     if sale.status != "DRAFT":
         raise ValueError("只有草稿銷售單可以完成。")
+    if linked_order is not None:
         if linked_order.status != "READY":
             raise ValueError("客訂單必須維持待交貨狀態，才能完成正式銷售。")
         if linked_order.final_sale_amount != sale.final_amount:
