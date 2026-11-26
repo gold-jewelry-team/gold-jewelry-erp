@@ -67,6 +67,8 @@ class SupplierPaymentAllocationRead(BaseModel):
     payment_id: UUID
     bill_id: UUID
     amount: Decimal
+    reversed_amount: Decimal
+    reversible_amount: Decimal
     created_at: datetime
 
 

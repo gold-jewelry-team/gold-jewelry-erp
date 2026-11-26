@@ -87,7 +87,7 @@ class SupplierPayment(Base):
 
     @property
     def reversible_amount(self) -> Decimal:
-        return max(Decimal("0"), self.total_amount - self.reversed_amount)
+        return max(Decimal("0.00"), self.total_amount - self.reversed_amount)
 
     @property
     def status(self) -> str:
@@ -121,6 +121,10 @@ class SupplierPaymentAllocation(Base):
     @property
     def reversed_amount(self) -> Decimal:
         return sum((item.amount for item in self.reversal_allocations), Decimal("0"))
+
+    @property
+    def reversible_amount(self) -> Decimal:
+        return max(Decimal("0.00"), self.amount - self.reversed_amount)
 
 
 class SupplierPaymentReversal(Base):

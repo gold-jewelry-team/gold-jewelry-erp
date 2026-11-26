@@ -1043,6 +1043,21 @@ button.secondary:disabled{opacity:.42}
 <h3>供應商付款紀錄</h3>
 <div id="supplierPaymentHistory" aria-live="polite"><div class="empty">尚無付款紀錄</div></div>
 </section>
+<section class="panel hidden" id="supplierPaymentReversalPanel">
+<h3>供應商付款沖銷／退回</h3>
+<p class="sub">保留原付款與分攤紀錄，只沖回指定金額並恢復帳單未付餘額。已完成日結的日期不可回溯沖銷。</p>
+<div id="selectedSupplierPaymentReversal"></div>
+<form id="supplierPaymentReversalForm">
+<div class="grid">
+<div class="field"><label for="supplierPaymentReversalNo">沖銷單號</label><input id="supplierPaymentReversalNo" maxlength="50" required></div>
+<div class="field"><label for="supplierPaymentReversalAllocation">原付款分攤帳單</label><select id="supplierPaymentReversalAllocation" required></select></div>
+<div class="field"><label for="supplierPaymentReversalAmount">本次沖銷金額（TWD）</label><input id="supplierPaymentReversalAmount" type="number" min="0.01" step="0.01" required></div>
+<div class="field wide"><label for="supplierPaymentReversalReason">沖銷／退回原因</label><input id="supplierPaymentReversalReason" maxlength="500" required></div>
+</div>
+<div class="actions"><button type="submit">確認沖銷／退回</button><button id="cancelSupplierPaymentReversal" class="secondary" type="button">取消</button></div>
+</form>
+<div id="supplierPaymentReversalStatus" class="status" role="status"></div>
+</section>
 </section>
 <section class="panel span2" id="purchasingPanel">
 <h2>採購與到貨驗收</h2>
@@ -1369,8 +1384,10 @@ let editingExpenseId="";
 let expensesById=new Map();
 let supplierCatalogProductsById=new Map();
 let supplierBillsById=new Map();
+let supplierPaymentsById=new Map();
 let editingSupplierBillId="";
 let selectedSupplierBill=null;
+let selectedSupplierPayment=null;
 let purchaseCartLines=[];
 let editingPurchaseId="";
 let purchasesById=new Map();
@@ -2782,10 +2799,21 @@ async function loadSupplierBills(){
  }).join(""):'<div class="empty">沒有符合條件的供應商帳單</div>';
 }
 async function loadSupplierPayments(){
- if(!companyId){$("supplierPaymentHistory").innerHTML='<div class="empty">請先選擇公司</div>';return;}
+ if(!companyId){supplierPaymentsById=new Map();$("supplierPaymentHistory").innerHTML='<div class="empty">請先選擇公司</div>';return;}
  const params=new URLSearchParams();if(selectedSiteId)params.set("site_id",selectedSiteId);
  const rows=await api("/companies/"+companyId+"/supplier-payables/payments"+(params.toString()?"?"+params.toString():""));
- $("supplierPaymentHistory").innerHTML=rows.length?rows.map(row=>'<article class="item"><strong>'+escapeHtml(row.payment_no)+' · '+escapeHtml(row.payment_method)+'</strong><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 付款時間：'+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</span><span class="pill">付款總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+'</span><span class="muted">分攤：'+(row.allocations||[]).map(a=>escapeHtml(supplierBillsById.get(a.bill_id)?.bill_no||"帳單")+" "+escapeHtml(a.amount)).join("、")+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'</article>').join(""):'<div class="empty">尚無供應商付款紀錄</div>';
+ supplierPaymentsById=new Map(rows.map(row=>[row.id,row]));
+ const stateLabels={POSTED:"未沖銷",PARTIALLY_REVERSED:"部分沖銷",REVERSED:"已全額沖銷"};
+ $("supplierPaymentHistory").innerHTML=rows.length?rows.map(row=>{
+  const pending=readPendingSupplierPaymentReversal(companyId,row.site_id,row.id);
+  const canReverse=(row.allocations||[]).some(a=>Number(a.reversible_amount||0)>0);
+  const action=pending||canReverse?'<button class="secondary" type="button" data-reverse-supplier-payment="'+escapeHtml(row.id)+'">'+(pending?"恢復待確認沖銷":"沖銷／退回")+'</button>':'';
+  const allocations=(row.allocations||[]).map(a=>{
+   const billNo=supplierBillsById.get(a.bill_id)?.bill_no||"帳單";
+   return escapeHtml(billNo)+" "+escapeHtml(a.amount)+"（已沖 "+escapeHtml(a.reversed_amount||"0.00")+"）";
+  }).join("、");
+  return '<article class="item"><strong>'+escapeHtml(row.payment_no)+' · '+escapeHtml(row.payment_method)+'</strong><span class="pill">'+escapeHtml(stateLabels[row.status]||row.status)+'</span><span class="muted">供應商：'+escapeHtml(suppliersById.get(row.supplier_id)?.name||"供應商")+' · 付款時間：'+escapeHtml(row.paid_at?new Date(row.paid_at).toLocaleString("zh-TW"):"")+'</span><span class="pill">付款總額：'+escapeHtml(row.total_amount)+' '+escapeHtml(row.currency_code)+'</span><span class="muted">已沖銷：'+escapeHtml(row.reversed_amount||"0.00")+' · 尚可沖銷：'+escapeHtml(row.reversible_amount||"0.00")+'</span><span class="muted">分攤：'+allocations+'</span>'+(row.reference_no?'<span class="muted">交易編號：'+escapeHtml(row.reference_no)+'</span>':'')+'<div class="actions">'+action+'</div></article>';
+ }).join(""):'<div class="empty">尚無供應商付款紀錄</div>';
 }
 async function loadSupplierOfferings(){
  const box=$("supplierOfferingList");if(!companyId){box.innerHTML='<div class="empty">請先選擇公司</div>';return;}
@@ -3064,6 +3092,39 @@ function savePendingSupplierPayment(company,site,bill,payload){
 function clearPendingSupplierPayment(company,site,bill){
  try{localStorage.removeItem(supplierPaymentPendingStorageKey(company,site,bill));}catch(error){}
 }
+function supplierPaymentReversalPendingStorageKey(company,site,payment){
+ return "gold-erp-supplier-payment-reversal:"+company+":"+site+":"+payment;
+}
+function readPendingSupplierPaymentReversal(company,site,payment){
+ const key=supplierPaymentReversalPendingStorageKey(company,site,payment);
+ try{
+  const raw=localStorage.getItem(key);
+  if(!raw)return null;
+  const pending=JSON.parse(raw);
+  return pending&&pending.fingerprint&&pending.payload?pending:null;
+ }catch(error){
+  try{localStorage.removeItem(key);}catch(storageError){}
+  return null;
+ }
+}
+function savePendingSupplierPaymentReversal(company,site,payment,payload){
+ const key=supplierPaymentReversalPendingStorageKey(company,site,payment);
+ const fingerprint=JSON.stringify(payload);
+ const existing=readPendingSupplierPaymentReversal(company,site,payment);
+ if(existing){
+  if(existing.fingerprint!==fingerprint){
+   throw new Error("上一筆供應商付款沖銷尚未確認結果，請先恢復原沖銷單號及內容重試，不可修改內容另送。");
+  }
+  return existing;
+ }
+ const pending={fingerprint,payload};
+ try{localStorage.setItem(key,JSON.stringify(pending));}
+ catch(error){throw new Error("瀏覽器無法保存沖銷重送資料，請確認儲存空間後再試。");}
+ return pending;
+}
+function clearPendingSupplierPaymentReversal(company,site,payment){
+ try{localStorage.removeItem(supplierPaymentReversalPendingStorageKey(company,site,payment));}catch(error){}
+}
 $("supplierPaymentForm").addEventListener("submit",async event=>{
  event.preventDefault();
  if(!selectedSupplierBill||!companyId||!selectedSiteId)return;
@@ -3101,6 +3162,95 @@ $("supplierPaymentForm").addEventListener("submit",async event=>{
   }
  }finally{button.disabled=false;}
 });
+$("supplierPaymentHistory").addEventListener("click",event=>{
+ const button=event.target.closest("[data-reverse-supplier-payment]");
+ if(!button)return;
+ const payment=supplierPaymentsById.get(button.dataset.reverseSupplierPayment);
+ if(!payment||!companyId)return;
+ const pending=readPendingSupplierPaymentReversal(companyId,payment.site_id,payment.id);
+ const pendingItem=pending?.payload?.allocations?.[0];
+ const options=(payment.allocations||[]).filter(a=>Number(a.reversible_amount||0)>0||a.id===pendingItem?.payment_allocation_id);
+ if(!options.length){message("supplierPaymentReversalStatus","這筆付款已無可沖銷金額。",true);return;}
+ selectedSupplierPayment=payment;
+ $("selectedSupplierPaymentReversal").innerHTML='<article class="item"><strong>'+escapeHtml(payment.payment_no)+' · '+escapeHtml(payment.payment_method)+'</strong><span class="muted">原付款總額 '+escapeHtml(payment.total_amount)+' TWD · 已沖銷 '+escapeHtml(payment.reversed_amount||"0.00")+' · 尚可沖銷 '+escapeHtml(payment.reversible_amount||"0.00")+'</span></article>';
+ $("supplierPaymentReversalAllocation").innerHTML=options.map(a=>{
+  const billNo=supplierBillsById.get(a.bill_id)?.bill_no||"帳單";
+  return '<option value="'+escapeHtml(a.id)+'">'+escapeHtml(billNo)+' · 原分攤 '+escapeHtml(a.amount)+' · 尚可沖 '+escapeHtml(a.reversible_amount||"0.00")+'</option>';
+ }).join("");
+ const chosenId=pendingItem?.payment_allocation_id||options[0].id;
+ $("supplierPaymentReversalAllocation").value=chosenId;
+ const allocation=options.find(a=>a.id===chosenId);
+ if(!allocation){message("supplierPaymentReversalStatus","找不到待重送的原付款分攤，請先查閱付款沖銷紀錄。",true);return;}
+ $("supplierPaymentReversalNo").value=pending?.payload?.reversal_no||("SPR-"+Date.now());
+ $("supplierPaymentReversalAmount").max=String(allocation.reversible_amount||allocation.amount);
+ $("supplierPaymentReversalAmount").value=pendingItem?.amount||Number(allocation.reversible_amount||0).toFixed(2);
+ $("supplierPaymentReversalReason").value=pending?.payload?.reason||"";
+ const locked=Boolean(pending);
+ $("supplierPaymentReversalAllocation").disabled=locked;
+ $("supplierPaymentReversalNo").disabled=locked;
+ $("supplierPaymentReversalAmount").disabled=locked;
+ $("supplierPaymentReversalReason").disabled=locked;
+ message("supplierPaymentReversalStatus",pending?"已恢復上一筆尚未確認結果的沖銷內容，請按相同內容重送。":"請確認原付款分攤與本次沖銷金額；沖銷原因會保留在紀錄中。");
+ $("supplierPaymentReversalPanel").classList.remove("hidden");
+ $("supplierPaymentReversalPanel").scrollIntoView({behavior:typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});
+});
+$("supplierPaymentReversalAllocation").addEventListener("change",()=>{
+ if(!selectedSupplierPayment)return;
+ const allocation=(selectedSupplierPayment.allocations||[]).find(a=>a.id===$("supplierPaymentReversalAllocation").value);
+ if(!allocation)return;
+ const max=Number(allocation.reversible_amount||0);
+ $("supplierPaymentReversalAmount").max=max.toFixed(2);
+ $("supplierPaymentReversalAmount").value=max.toFixed(2);
+});
+$("supplierPaymentReversalForm").addEventListener("submit",async event=>{
+ event.preventDefault();
+ if(!selectedSupplierPayment||!companyId)return;
+ const allocationId=$("supplierPaymentReversalAllocation").value;
+ const amount=String($("supplierPaymentReversalAmount").value).trim();
+ const max=Number($("supplierPaymentReversalAmount").max||0);
+ if(!(Number(amount)>0)||Number(amount)>max){
+  message("supplierPaymentReversalStatus","沖銷金額必須大於 0，且不可超過這筆原付款分攤尚可沖銷的金額。",true);return;
+ }
+ const payload={
+  reversal_no:$("supplierPaymentReversalNo").value.trim(),
+  reason:$("supplierPaymentReversalReason").value.trim(),
+  allocations:[{payment_allocation_id:allocationId,amount}]
+ };
+ if(!payload.reversal_no||!payload.reason){message("supplierPaymentReversalStatus","請填寫沖銷單號及原因。",true);return;}
+ try{savePendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id,payload);}
+ catch(error){message("supplierPaymentReversalStatus",error.message,true);return;}
+ const button=$("supplierPaymentReversalForm").querySelector('button[type="submit"]');
+ button.disabled=true;
+ try{
+  try{
+   await api("/companies/"+companyId+"/supplier-payables/payments/"+selectedSupplierPayment.id+"/reverse",{method:"POST",body:JSON.stringify(payload)});
+  }catch(error){
+   if(error.status===409||error.status===422)clearPendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id);
+   message("supplierPaymentReversalStatus",error.message,true);return;
+  }
+  clearPendingSupplierPaymentReversal(companyId,selectedSupplierPayment.site_id,selectedSupplierPayment.id);
+  selectedSupplierPayment=null;
+  $("supplierPaymentReversalPanel").classList.add("hidden");
+  message("supplierPaymentReversalStatus","供應商付款沖銷已成功登錄，原付款紀錄保留。");
+  try{
+   await loadSupplierBills();
+   await loadSupplierPayments();
+   message("supplierBillStatus","供應商付款沖銷已成功登錄，帳單未付餘額及付款紀錄已更新。");
+  }catch(refreshError){
+   message("supplierBillStatus","沖銷已成功入帳，但清單更新失敗。請重新整理帳單與付款紀錄；不要另建一張相同沖銷。",true);
+  }
+ }finally{button.disabled=false;}
+});
+$("cancelSupplierPaymentReversal").addEventListener("click",()=>{
+ $("supplierPaymentReversalPanel").classList.add("hidden");
+ selectedSupplierPayment=null;
+});
+const hideSupplierPaymentReversal=()=>{
+ selectedSupplierPayment=null;
+ $("supplierPaymentReversalPanel").classList.add("hidden");
+};
+$("siteSelect").addEventListener("change",hideSupplierPaymentReversal);
+$("companySelect").addEventListener("change",hideSupplierPaymentReversal);
 const purchaseStatusLabels={DRAFT:"草稿",ORDERED:"已下單",PARTIALLY_RECEIVED:"部分到貨",RECEIVED:"已收貨",CANCELLED:"已取消"};
 const expenseCategoryLabels={RENT:"租金",UTILITIES:"水電瓦斯",SALARIES:"薪資",SUPPLIES:"耗材",SHIPPING:"運費",REPAIR:"維修",OTHER:"其他"};
 const drawerTypeLabels={BANK_DEPOSIT:"存入銀行",BANK_WITHDRAWAL:"銀行提款",FLOAT_INCREASE:"增加備用金",FLOAT_DECREASE:"減少備用金",OTHER_IN:"其他收入",OTHER_OUT:"其他支出"};

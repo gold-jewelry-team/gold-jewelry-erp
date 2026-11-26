@@ -354,6 +354,8 @@ def record_supplier_payment_reversal(
     ).with_for_update()).scalar_one_or_none()
     if payment is None:
         raise ValueError("找不到指定供應商付款紀錄。")
+    if payment.currency_code != "TWD":
+        raise ValueError("目前只支援新台幣供應商付款沖銷。")
 
     now = datetime.now(timezone.utc)
     assert_business_day_open(session, site_id=payment.site_id, at=now)
