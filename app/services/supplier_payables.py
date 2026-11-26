@@ -24,6 +24,10 @@ def _validate_money(value: Decimal, label: str) -> None:
         raise ValueError(f"{label}最多只能有小數點後兩位。")
 
 
+class SupplierBillIdempotencyConflict(ValueError):
+    """Raised when a supplier bill number is reused for different details."""
+
+
 def create_supplier_bill(
     session: Session,
     *,
@@ -37,7 +41,8 @@ def create_supplier_bill(
     total_amount: Decimal,
     purchase_id: UUID | None = None,
     note: str | None = None,
-) -> SupplierBill:
+    return_created: bool = False,
+) -> SupplierBill | tuple[SupplierBill, bool]:
     _validate_money(total_amount, "供應商帳單金額")
     if due_date is not None and due_date < bill_date:
         raise ValueError("到期日不可早於帳單日期。")
@@ -45,11 +50,45 @@ def create_supplier_bill(
         raise ValueError("幣別必須使用三碼英文字母代碼。")
 
     site = session.get(Site, site_id)
-    supplier = session.get(Supplier, supplier_id)
     if site is None or site.company_id != company_id:
         raise ValueError("據點不存在或不屬於指定公司。")
-    if supplier is None or supplier.company_id != company_id:
+
+    # Serialize bill creation per supplier. The unique identity is
+    # (company_id, supplier_id, bill_no), so locking the supplier rather
+    # than a site also covers the same supplier invoicing multiple sites.
+    supplier = session.execute(
+        select(Supplier)
+        .where(Supplier.id == supplier_id, Supplier.company_id == company_id)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if supplier is None:
         raise ValueError("供應商不存在或不屬於指定公司。")
+
+    normalized_currency = currency_code.upper()
+    existing = session.scalar(
+        select(SupplierBill)
+        .where(
+            SupplierBill.company_id == company_id,
+            SupplierBill.supplier_id == supplier_id,
+            SupplierBill.bill_no == bill_no,
+        )
+        .with_for_update()
+    )
+    if existing is not None:
+        same_request = (
+            existing.site_id == site_id
+            and existing.purchase_id == purchase_id
+            and existing.bill_date == bill_date
+            and existing.due_date == due_date
+            and existing.currency_code == normalized_currency
+            and existing.total_amount == total_amount
+            and existing.note == note
+        )
+        if not same_request:
+            raise SupplierBillIdempotencyConflict(
+                "此供應商帳單號碼已用於不同內容；請查閱原帳單，勿重複建立。"
+            )
+        return (existing, False) if return_created else existing
 
     if purchase_id is not None:
         purchase = session.get(Purchase, purchase_id)
@@ -61,7 +100,7 @@ def create_supplier_bill(
             or purchase.status not in {"ORDERED", "PARTIALLY_RECEIVED", "RECEIVED"}
         ):
             raise ValueError("關聯採購單不存在、供應商／據點不符，或採購單狀態不允許建立應付帳單。")
-        if purchase.currency_code != currency_code.upper():
+        if purchase.currency_code != normalized_currency:
             raise ValueError("帳單幣別必須與關聯採購單一致。")
 
     bill = SupplierBill(
@@ -72,14 +111,14 @@ def create_supplier_bill(
         bill_no=bill_no,
         bill_date=bill_date,
         due_date=due_date,
-        currency_code=currency_code.upper(),
+        currency_code=normalized_currency,
         total_amount=total_amount,
         status="OPEN",
         note=note,
     )
     session.add(bill)
     session.flush()
-    return bill
+    return (bill, True) if return_created else bill
 
 
 class SupplierPaymentIdempotencyConflict(ValueError):
