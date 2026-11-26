@@ -163,7 +163,8 @@
       PAID:{label:"已付清",cls:"badge"},
       VOID:{label:"已作廢",cls:"badge void"}
     };
-    const paymentLabels={CASH:"現金",CARD:"刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    const paymentLabels={CASH:"現金",CARD:"刷卡",MIXED:"現金＋刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    function paymentMethodLabel(value){return paymentLabels[value]||(value?"其他付款方式":"付款方式未設定");}
     function detail(label,value){
       const box=node("div","detail");
       box.append(node("small","",label));
@@ -189,7 +190,7 @@
           : (canSuppliers?"供應商資料無法載入":"供應商名稱尚未授權顯示")
         ));
         head.append(title);
-        const s=billStatusMap[bill.status]||{label:bill.status||"未知",cls:"badge"};
+        const s=billStatusMap[bill.status]||{label:bill.status?"其他狀態":"狀態未設定",cls:"badge"};
         head.append(node("span",s.cls,s.label));
         card.append(head);
         card.append(node("div","amount",amountText(bill.total_amount,bill.currency_code)));
@@ -232,7 +233,7 @@
         title.append(node("h3","",payment.payment_no||"未命名付款單"));
         title.append(node("div","record-sub",dateTimeText(payment.paid_at)));
         head.append(title);
-        head.append(node("span","badge",paymentLabels[payment.payment_method]||payment.payment_method||"付款"));
+        head.append(node("span","badge",paymentMethodLabel(payment.payment_method)));
         card.append(head);
         card.append(node("div","amount",amountText(payment.total_amount,payment.currency_code)));
         const supplier=suppliersById.get(payment.supplier_id);
