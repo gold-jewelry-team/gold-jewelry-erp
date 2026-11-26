@@ -302,3 +302,21 @@ def test_operational_period_report_validates_date_range_and_company_site_scope()
     finally:
         app.dependency_overrides.clear()
         engine.dispose()
+
+def test_operational_reports_workspace_localizes_expected_and_actual_cash_drawer_labels():
+    with TestClient(app) as client:
+        response = client.get("/reports")
+
+    assert response.status_code == 200
+    html = response.text
+    assert 'BANK_DEPOSIT:"存入銀行"' in html
+    assert 'BANK_WITHDRAWAL:"銀行提款"' in html
+    assert 'FLOAT_INCREASE:"增加備用金"' in html
+    assert 'FLOAT_DECREASE:"減少備用金"' in html
+    assert 'OTHER_IN:"其他現金收入"' in html
+    assert 'OTHER_OUT:"其他現金支出"' in html
+    assert 'IN:"流入現金櫃"' in html
+    assert 'OUT:"流出現金櫃"' in html
+    assert 'expectedDrawerMovementName(r.expected_drawer_movement_type,r.expected_drawer_direction)' in html
+    assert 'actualDrawerMovementName(r.actual_drawer_movement)' in html
+    assert 'r.actual_drawer_movement.movement_type+" / "+r.actual_drawer_movement.direction' not in html
