@@ -8,7 +8,7 @@ from app.main import app
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
 THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-20261127b">'
-INDEX_THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-20261127c">'
+INDEX_THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-20261127d">'
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
@@ -65,3 +65,23 @@ def test_home_workspace_renders_chibi_jewelry_category_illustrations() -> None:
     assert "寶石|翡翠|玉石" in home
     assert ".jewelry-category-card-head" in theme
     assert ".jewelry-category-preview" in theme
+
+
+def test_dutch_rabbit_context_hints_cover_stocktake_zero_stock_and_empty_states() -> None:
+    home = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    theme = (STATIC_DIR / "theme.css").read_text(encoding="utf-8")
+
+    assert "createBunnyContextNote" in home
+    assert "renderZeroStockBunnyHint(filtered)" in home
+    assert "Number(row.quantity)===0" in home
+    assert "補貨小提醒" in home
+    assert "盤點任務完成！" in home
+    assert 'appliedCount>0&&!pending.length' in home
+    assert "bunnyEmptyStockGuide" in home
+    assert "bunnyEmptyStocktakeGuide" in home
+    assert "bunnyEmptyCategoryGuide" in home
+    assert "bunnyEmptyQuoteGuide" in home
+    assert "目前查詢範圍有 " in home
+    assert ".bunny-context-note" in theme
+    assert ".bunny-context-note.is-alert" in theme
+    assert ".bunny-context-note.is-success" in theme
