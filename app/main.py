@@ -213,7 +213,7 @@ def login_page() -> FileResponse:
 
 @app.get("/theme.css", tags=["workspace"], include_in_schema=False)
 def shared_theme_stylesheet() -> FileResponse:
-    """Serve the shared warm visual theme without requiring a signed-in session."""
+    """Serve the shared visual theme without requiring a signed-in session."""
     return FileResponse(
         Path(__file__).parent / "static" / "theme.css",
         media_type="text/css",
