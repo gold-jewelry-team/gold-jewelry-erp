@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#202522">
+  <meta name="robots" content="noindex,nofollow">
+  <title>銀樓 ERP｜員工客戶訂單</title>
+  <link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127e">
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202522;background:#f4f5f2;font-synthesis:none}
+    *{box-sizing:border-box}
+    body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+    header{background:#202522;color:#fff;padding:20px 16px 18px}
+    .header-inner,main{width:min(100%,960px);margin:0 auto}
+    .back{display:inline-flex;align-items:center;min-height:40px;color:#e2ebe3;text-decoration:none;font-size:13px;font-weight:700}
+    header h1{font-size:22px;margin:10px 0 4px}
+    header p{font-size:13px;color:#d2dad4;margin:0;line-height:1.6;overflow-wrap:anywhere}
+    main{padding:14px;display:grid;gap:12px}
+    .panel{background:#fff;border:1px solid #e2e7e1;border-radius:15px;padding:14px;box-shadow:0 2px 10px #17231a0a}
+    .identity{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+    .identity strong{font-size:15px;display:block}
+    .muted{color:#6b756e;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+    .filters{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+    .search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+    input,select{width:100%;min-width:0;min-height:44px;border:1px solid #cfd8cf;border-radius:10px;padding:9px 12px;font:inherit;font-size:16px;background:#fff;color:#202522}
+    button{min-height:44px;border:1px solid #dbe3db;border-radius:10px;padding:9px 12px;background:#f5f7f4;color:#304337;font:inherit;font-size:14px;font-weight:750;cursor:pointer}
+    button:disabled{opacity:.55;cursor:wait}
+    input:focus-visible,select:focus-visible,button:focus-visible,.back:focus-visible{outline:3px solid #8ba992;outline-offset:2px}
+    .count{font-size:12px;color:#657168;margin:10px 2px}
+    .notice{border:1px solid #dce5dc;background:#f6faf6;border-radius:12px;padding:12px;color:#34463a;font-size:13px;line-height:1.65}
+    .notice.warning{background:#fff9ec;border-color:#f0dfb8;color:#74501b}
+    .notice.error{background:#fff4f2;border-color:#f0d1cb;color:#9a3327}
+    .list{display:grid;gap:10px}
+    .record{min-width:0;border:1px solid #e2e8e1;border-radius:12px;padding:12px;background:#fff}
+    .record-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .record h3{font-size:15px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+    .record-sub{color:#68746b;font-size:12px;margin-top:3px;line-height:1.55;overflow-wrap:anywhere}
+    .badge{flex:none;border-radius:999px;padding:4px 8px;background:#edf2ed;color:#39513f;font-size:11px;font-weight:750;white-space:nowrap}
+    .badge.pending{background:#fff3dc;color:#7b571e}
+    .badge.arrived{background:#eaf1fb;color:#345379}
+    .badge.cancel{background:#f0f1ef;color:#69736b}
+    .badge.refund{background:#fff0e9;color:#864322}
+    .amount{font-size:18px;font-weight:800;margin-top:9px}
+    .details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    .detail{padding:8px;border-radius:9px;background:#f6f8f5;min-width:0}
+    .detail small{display:block;font-size:11px;color:#68746b}
+    .detail strong{display:block;font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+    .section-title{font-size:13px;font-weight:800;margin:13px 0 7px}
+    .items,.payments{display:grid;gap:7px;margin-top:9px}
+    .line{border-radius:9px;background:#f8faf7;padding:9px}
+    .line-title{font-size:13px;font-weight:750;line-height:1.5;overflow-wrap:anywhere}
+    .line-info{font-size:11px;color:#667269;line-height:1.6;margin-top:3px;overflow-wrap:anywhere}
+    .payment{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;border-top:1px solid #edf0ec;padding:8px 0 0}
+    .payment:first-child{border-top:0;padding-top:0}
+    .payment strong{display:block;font-size:12px}
+    .payment small{display:block;color:#68746b;font-size:11px;line-height:1.55;margin-top:2px}
+    .payment-amount{font-size:13px;font-weight:800;text-align:right;white-space:nowrap}
+    .payment-amount.refund{color:#9a4b2b}
+    .empty{padding:22px 8px;text-align:center;color:#6b756e;font-size:13px;line-height:1.7}
+    [hidden]{display:none!important}
+    @media(min-width:600px){header{padding-left:16px;padding-right:16px}main{padding-top:18px}.panel{padding:16px}.filters{grid-template-columns:minmax(0,1.5fr) minmax(160px,.8fr)}.list{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}}
+  </style>
+
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="back" href="/employee">← 回員工工作區</a>
+      <h1>客戶訂單</h1>
+      <p id="companyName">正在確認公司與功能授權…</p>
+    </div>
+  </header>
+<aside class="bunny-page-guide" data-scene="orders" role="note" aria-label="道奇兔店長小提醒"><span class="bunny-page-guide-art"><svg viewBox="0 0 100 100" role="img" aria-label="黑白道奇兔店長"><ellipse cx="38" cy="24" rx="11" ry="24" fill="#252729" transform="rotate(-13 38 24)"/><ellipse cx="64" cy="23" rx="10" ry="23" fill="#fff" stroke="#d7d8d2" stroke-width="2" transform="rotate(12 64 23)"/><path d="M29 24q8-5 15 1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="62" rx="34" ry="29" fill="#fff" stroke="#d7d8d2" stroke-width="2"/><path d="M22 51q2-19 25-18 14 0 20 13 3 8-3 14-11 9-26 5-14-3-16-14Z" fill="#252729"/><path d="M58 38q16-9 28 6 9 11 0 22-9 10-22 3-9-5-7-17Z" fill="#252729"/><ellipse cx="40" cy="60" rx="5" ry="6" fill="#252729"/><ellipse cx="69" cy="60" rx="5" ry="6" fill="#252729"/><circle cx="41.5" cy="58" r="1.8" fill="#fff"/><circle cx="70.5" cy="58" r="1.8" fill="#fff"/><ellipse cx="55" cy="72" rx="5" ry="3.5" fill="#e8a9a4"/><path d="M55 75q-5 6-10 1m10-1q5 6 10 1" fill="none" stroke="#8b7771" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="27" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><ellipse cx="75" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><path d="m83 17 3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#e4c16e"/></svg><svg class="bunny-page-guide-prop" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 13 16 5l12 8v15H4z" fill="#fff8ea" stroke="#6e8c72" stroke-width="1.7" stroke-linejoin="round"/><path d="M4 13h24M16 5v23M11 9l5 4 5-4" fill="none" stroke="#c6a25a" stroke-width="1.8" stroke-linejoin="round"/><path d="m12 19 3 3 6-6" fill="none" stroke="#6e8c72" stroke-width="1.7" stroke-linecap="round"/></svg></span><span class="bunny-page-guide-copy"><strong>訂單小管家幫你整理進度</strong><span>查看訂單、訂金與退款紀錄時，記得核對客戶及日期。</span></span><span class="bunny-page-guide-sparkle" aria-hidden="true">✦</span></aside>
+
+  <main>
+    <section class="panel">
+      <div class="identity">
+        <div>
+          <strong id="displayName">載入中…</strong>
+          <div class="muted" id="companyCode"></div>
+        </div>
+        <div class="muted">唯讀查詢，包含訂金收款與退款紀錄</div>
+      </div>
+      <div id="status" class="notice" role="status" aria-live="polite" style="margin-top:12px">正在確認登入與授權…</div>
+    </section>
+    <section class="panel" id="workspace" hidden>
+      <div class="filters">
+        <div class="search-row">
+          <input id="search" type="search" autocomplete="off" placeholder="搜尋訂單編號、客戶姓名或電話" aria-label="搜尋客戶訂單">
+          <button type="button" id="searchButton">搜尋</button>
+        </div>
+        <select id="orderStatus" aria-label="訂單狀態">
+          <option value="">全部狀態</option>
+          <option value="PENDING_DEPOSIT">待收訂金</option>
+          <option value="IN_PROGRESS">進行中</option>
+          <option value="ARRIVED">已到貨</option>
+          <option value="READY">待交貨</option>
+          <option value="COMPLETED">已完成</option>
+          <option value="CANCELLED">已取消</option>
+        </select>
+      </div>
+      <div id="count" class="count">尚未載入資料</div>
+      <div id="list" class="list" aria-live="polite"><div class="empty">正在載入客戶訂單…</div></div>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const params=new URLSearchParams(window.location.search);
+    const companyId=params.get("company_id")||"";
+    let currentRows=[];
+    function node(tag,cls,text){
+      const el=document.createElement(tag);
+      if(cls)el.className=cls;
+      if(text!==undefined)el.textContent=text;
+      return el;
+    }
+    function bunnyEmptyGuide(title,copy,token){
+      const guide=node("div","bunny-empty-guide");
+      guide.setAttribute("role","status");
+      const art=node("span","bunny-empty-art");
+      art.setAttribute("aria-hidden","true");
+      art.innerHTML='<svg viewBox="0 0 72 72" focusable="false"><ellipse cx="23" cy="17" rx="8" ry="15" fill="#26282a" transform="rotate(-12 23 17)"/><ellipse cx="47" cy="16" rx="7" ry="14" fill="#fff" stroke="#cfd4ce" stroke-width="1.5" transform="rotate(11 47 16)"/><path d="M16 14q6-4 11 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="36" cy="42" rx="27" ry="23" fill="#fff" stroke="#cfd4ce" stroke-width="1.6"/><path d="M10 36q2-16 19-16 8 0 10 9 1 9-7 15-10 7-19 0-4-3-3-8Z" fill="#26282a"/><path d="M43 27q13-11 23 1 7 9 0 19-7 8-18 3-8-4-7-14Z" fill="#26282a"/><ellipse cx="25" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><ellipse cx="50" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><circle cx="26" cy="40.5" r="1.2" fill="#fff"/><circle cx="51" cy="40.5" r="1.2" fill="#fff"/><ellipse cx="37" cy="52" rx="4" ry="2.8" fill="#e8aaa2"/><path d="M37 54q-4 4-8 0m8 0q4 4 8 0" fill="none" stroke="#897772" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      art.append(node("span","bunny-empty-token",token||"✧"));
+      const copyBox=node("span","bunny-empty-copy");
+      copyBox.append(node("strong","",title));
+      copyBox.append(node("span","",copy));
+      guide.append(art,copyBox);
+      return guide;
+    }
+
+    function setStatus(message,kind){
+      const box=$("status");
+      box.className="notice"+(kind?" "+kind:"");
+      box.textContent=message;
+    }
+    function grantScope(membership,code){
+      const grant=(membership.permissions||[]).find(item=>item.code===code);
+      return grant?grant.data_scope:null;
+    }
+    async function fetchJson(path){
+      const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});
+      const data=await response.json().catch(()=>({}));
+      if(response.status===401){
+        window.location.replace("/login");
+        throw new Error("登入已失效，請重新登入。");
+      }
+      if(!response.ok)throw new Error(data.detail||"無法載入資料，請稍後再試。");
+      return data;
+    }
+    function amountText(value,currency){
+      const n=Number(value);
+      if(!Number.isFinite(n))return "—";
+      try{return new Intl.NumberFormat("zh-TW",{style:"currency",currency:currency||"TWD",maximumFractionDigits:2}).format(n);}
+      catch(_error){return n.toLocaleString("zh-TW")+" "+(currency||"");}
+    }
+    function dateText(value,includeTime=false){
+      if(!value)return "—";
+      const d=new Date(value);
+      if(Number.isNaN(d.getTime()))return String(value);
+      return includeTime?d.toLocaleString("zh-TW",{hour12:false}):d.toLocaleDateString("zh-TW");
+    }
+    const statusMap={
+      PENDING_DEPOSIT:{label:"待收訂金",cls:"badge pending"},
+      IN_PROGRESS:{label:"進行中",cls:"badge"},
+      ARRIVED:{label:"已到貨",cls:"badge arrived"},
+      READY:{label:"待交貨",cls:"badge arrived"},
+      COMPLETED:{label:"已完成",cls:"badge"},
+      CANCELLED:{label:"已取消",cls:"badge cancel"}
+    };
+    const paymentMethodLabels={CASH:"現金",CARD:"刷卡",MIXED:"現金＋刷卡",TRANSFER:"轉帳",OTHER:"其他"};
+    const weightUnitLabels={G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"};
+    function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
+    function paymentMethodLabel(value){return paymentMethodLabels[value]||(value?"其他付款方式":"付款方式未設定");}
+    function detail(label,value){
+      const box=node("div","detail");
+      box.append(node("small","",label));
+      box.append(node("strong","",value===null||value===undefined||value===""?"—":String(value)));
+      return box;
+    }
+    function renderPayment(payment,currency){
+      const wrap=node("div","payment");
+      const info=node("div","");
+      const direction=payment.direction==="OUT"?"退款":payment.direction==="IN"?"收款":"收付方向未設定";
+      info.append(node("strong","",direction+" · "+(paymentMethodLabel(payment.payment_method))));
+      info.append(node("small","",dateText(payment.paid_at,true)));
+      if(payment.note)info.append(node("small","","備註："+payment.note));
+      wrap.append(info);
+      const amount=node("div","payment-amount"+(payment.direction==="OUT"?" refund":""), (payment.direction==="OUT"?"−":payment.direction==="IN"?"+":"")+amountText(payment.amount,currency));
+      wrap.append(amount);
+      return wrap;
+    }
+    function render(rows){
+      const list=$("list");
+      list.replaceChildren();
+      if(!rows.length){
+        const hasFilters=Boolean($("search").value.trim()||$("orderStatus").value);
+        list.append(bunnyEmptyGuide(
+          hasFilters?"沒有符合條件的客戶訂單":"目前尚無客戶訂單",
+          hasFilters?"可清除關鍵字或改選其他訂單狀態，再重新查詢。":"建立客戶訂單後，訂金、到貨進度、交貨及退款紀錄都會集中顯示在這裡。",
+          hasFilters?"⌕":"◇"
+        ));
+        $("count").textContent="共 0 筆訂單";
+        return;
+      }
+      rows.forEach(order=>{
+        const card=node("article","record");
+        const head=node("div","record-head");
+        const title=node("div","");
+        title.append(node("h3","",order.order_no||"未命名客訂單"));
+        title.append(node("div","record-sub","客戶："+(order.customer_name||"未填姓名")));
+        head.append(title);
+        const status=statusMap[order.status]||{label:order.status?"其他狀態":"狀態未設定",cls:"badge"};
+        head.append(node("span",status.cls,status.label));
+        card.append(head);
+
+        const meta=[];
+        meta.push("電話："+(order.customer_phone||"未填"));
+        meta.push("預計交貨："+dateText(order.expected_delivery_date));
+        meta.push("建立日期："+dateText(order.created_at,true));
+        card.append(node("div","record-sub",meta.join("　｜　")));
+
+        const details=node("div","details");
+        details.append(detail("訂單總額",amountText(order.total_amount,order.currency_code)));
+        details.append(detail("已收訂金／收款淨額",amountText(order.deposit_amount,order.currency_code)));
+        details.append(detail("尚欠金額",amountText(order.balance_amount,order.currency_code)));
+        details.append(detail("付款紀錄",String((order.payments||[]).length)+" 筆"));
+        card.append(details);
+
+        const orderItems=node("div","items");
+        orderItems.append(node("div","section-title","訂購品項"));
+        (order.items||[]).slice(0,5).forEach(item=>{
+          const line=node("div","line");
+          line.append(node("div","line-title",item.product_name||item.product_code||"訂製商品"));
+          const meta=[
+            item.quantity!==undefined?"數量："+item.quantity:"",
+            item.net_weight!==undefined?"淨重："+item.net_weight+" "+weightUnitLabel(item.weight_unit_code):"",
+            item.labor_fee!==undefined?"工費："+amountText(item.labor_fee,order.currency_code):""
+          ].filter(Boolean).join("　｜　");
+          if(meta)line.append(node("div","line-info",meta));
+          orderItems.append(line);
+        });
+        if((order.items||[]).length>5){
+          orderItems.append(node("div","line-info","另有 "+((order.items||[]).length-5)+" 項訂購品項"));
+        }
+        card.append(orderItems);
+
+        const payments=node("div","payments");
+        payments.append(node("div","section-title","訂金／收款／退款流水"));
+        const paymentRows=order.payments||[];
+        if(paymentRows.length){
+          paymentRows.forEach(payment=>payments.append(renderPayment(payment,order.currency_code)));
+        }else{
+          payments.append(bunnyEmptyGuide(
+            "這筆訂單尚無收退款紀錄",
+            "收到訂金或辦理退款後，收付款明細會自動列在這裡。",
+            "$"
+          ));
+        }
+        card.append(payments);
+        if(order.note)card.append(node("div","record-sub","備註："+order.note));
+        list.append(card);
+      });
+      $("count").textContent="共 "+rows.length+" 筆客訂單（最多顯示 100 筆）";
+    }
+    async function loadOrders(){
+      $("searchButton").disabled=true;
+      $("list").replaceChildren(node("div","empty","正在載入客戶訂單…"));
+      try{
+        const query=new URLSearchParams({limit:"100"});
+        const q=$("search").value.trim();
+        if(q)query.set("q",q);
+        if($("orderStatus").value)query.set("status",$("orderStatus").value);
+        const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/customer-orders?"+query.toString());
+        currentRows=Array.isArray(rows)?rows:[];
+        render(currentRows);
+      }catch(error){
+        $("list").replaceChildren(node("div","empty",error.message||"載入失敗。"));
+        $("count").textContent="資料載入失敗";
+      }finally{
+        $("searchButton").disabled=false;
+      }
+    }
+    async function loadWorkspace(){
+      if(!companyId){
+        setStatus("缺少公司識別資訊，請從員工工作區重新進入。","warning");
+        $("companyName").textContent="尚未選擇公司";
+        return;
+      }
+      try{
+        const data=await fetchJson("/auth/google/workspace");
+        $("displayName").textContent=data.user?.display_name||"Google 使用者";
+        const membership=(data.memberships||[]).find(item=>item.company_id===companyId)||null;
+        if(!membership){
+          setStatus("此帳號沒有這間公司的成員資格，無法查看公司資料。","error");
+          return;
+        }
+        $("companyName").textContent=membership.company_name||"公司工作區";
+        $("companyCode").textContent="公司代碼："+(membership.company_code||"—");
+        if(membership.status!=="ACTIVE"){
+          setStatus("此公司成員資格目前不是核准狀態，無法查看營運資料。","warning");
+          return;
+        }
+        const orderScope=grantScope(membership,"customer_orders.view");
+        if(!["ALL","OWN"].includes(orderScope)||grantScope(membership,"payments.view")!=="ALL"){
+          setStatus("目前尚未具備客戶訂單查詢所需權限。此查詢需要客訂查看，以及全公司收付款查看權限。","warning");
+          return;
+        }
+        $("workspace").hidden=false;
+        setStatus("已確認客訂與收付款查看權限。此頁只顯示訂單與既有收款／退款流水，不會收訂金或執行退款。");
+        await loadOrders();
+      }catch(error){
+        setStatus(error.message||"目前無法確認登入與公司權限。","error");
+      }
+    }
+    $("searchButton").addEventListener("click",loadOrders);
+    $("search").addEventListener("keydown",event=>{if(event.key==="Enter")loadOrders();});
+    $("orderStatus").addEventListener("change",loadOrders);
+    loadWorkspace();
+  </script>
+</body>
+</html>

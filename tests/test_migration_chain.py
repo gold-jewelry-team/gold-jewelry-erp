@@ -2,11 +2,14 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 
-def test_alembic_history_is_a_single_linear_chain_through_user_identity_memberships():
+def test_alembic_history_is_a_single_linear_chain_through_customer_order_sale_link():
     script = ScriptDirectory.from_config(Config("alembic.ini"))
-    assert script.get_heads() == ["0034_user_identity_memberships"]
+    assert script.get_heads() == ["0037_customer_order_sale_link"]
 
     expected = [
+        "0037_customer_order_sale_link",
+        "0036_supplier_payment_reversals",
+        "0035_company_role_permissions",
         "0034_user_identity_memberships",
         "0033_inventory_op_requests",
         "0032_bank_operation_idempotency",

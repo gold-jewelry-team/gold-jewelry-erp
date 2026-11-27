@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#202522">
+  <meta name="robots" content="noindex,nofollow">
+  <title>銀樓 ERP｜員工採購進貨紀錄</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202522;background:#f4f5f2;font-synthesis:none}
+    *{box-sizing:border-box}
+    body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+    header{background:#202522;color:#fff;padding:20px 16px 18px}
+    .header-inner,main{width:min(100%,960px);margin:0 auto}
+    .back{display:inline-flex;align-items:center;min-height:40px;color:#e2ebe3;text-decoration:none;font-size:13px;font-weight:700}
+    header h1{font-size:22px;margin:10px 0 4px}
+    header p{font-size:13px;color:#d2dad4;margin:0;line-height:1.6;overflow-wrap:anywhere}
+    main{padding:14px;display:grid;gap:12px}
+    .panel{background:#fff;border:1px solid #e2e7e1;border-radius:15px;padding:14px;box-shadow:0 2px 10px #17231a0a}
+    .identity{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+    .identity strong{font-size:15px;display:block}
+    .muted{color:#6b756e;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+    .filters{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+    .search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+    input,select{width:100%;min-width:0;min-height:44px;border:1px solid #cfd8cf;border-radius:10px;padding:9px 12px;font:inherit;font-size:16px;background:#fff;color:#202522}
+    button{min-height:44px;border:1px solid #dbe3db;border-radius:10px;padding:9px 12px;background:#f5f7f4;color:#304337;font:inherit;font-size:14px;font-weight:750;cursor:pointer}
+    button:disabled{opacity:.55;cursor:wait}
+    input:focus-visible,select:focus-visible,button:focus-visible,.back:focus-visible{outline:3px solid #8ba992;outline-offset:2px}
+    .count{font-size:12px;color:#657168;margin:10px 2px}
+    .notice{border:1px solid #dce5dc;background:#f6faf6;border-radius:12px;padding:12px;color:#34463a;font-size:13px;line-height:1.65}
+    .notice.warning{background:#fff9ec;border-color:#f0dfb8;color:#74501b}
+    .notice.error{background:#fff4f2;border-color:#f0d1cb;color:#9a3327}
+    .list{display:grid;gap:10px}
+    .record{min-width:0;border:1px solid #e2e8e1;border-radius:12px;padding:12px;background:#fff}
+    .record-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .record h3{font-size:15px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+    .record-sub{color:#68746b;font-size:12px;margin-top:2px;line-height:1.55;overflow-wrap:anywhere}
+    .badge{flex:none;border-radius:999px;padding:4px 8px;background:#edf2ed;color:#39513f;font-size:11px;font-weight:750;white-space:nowrap}
+    .badge.draft{background:#fff3dc;color:#7b571e}
+    .badge.partial{background:#eaf1fb;color:#345379}
+    .badge.cancel{background:#f0f1ef;color:#69736b}
+    .details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    .detail{padding:8px;border-radius:9px;background:#f6f8f5;min-width:0}
+    .detail small{display:block;font-size:11px;color:#68746b}
+    .detail strong{display:block;font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+    .lines{display:grid;gap:7px;margin-top:10px;padding-top:10px;border-top:1px solid #edf0ec}
+    .line{border-radius:9px;background:#f8faf7;padding:9px}
+    .line-title{font-size:13px;font-weight:750;line-height:1.5;overflow-wrap:anywhere}
+    .line-info{font-size:11px;color:#667269;line-height:1.6;margin-top:3px;overflow-wrap:anywhere}
+    .empty{padding:22px 8px;text-align:center;color:#6b756e;font-size:13px;line-height:1.7}
+    [hidden]{display:none!important}
+    @media(min-width:600px){
+      header{padding-left:16px;padding-right:16px}
+      main{padding-top:18px}
+      .panel{padding:16px}
+      .filters{grid-template-columns:minmax(0,1.6fr) minmax(160px,.8fr)}
+      .list{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+    }
+  </style>
+<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127e">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="back" href="/employee">← 回員工工作區</a>
+      <h1>採購與進貨紀錄</h1>
+      <p id="companyName">正在確認公司與功能授權…</p>
+    </div>
+  </header>
+<aside class="bunny-page-guide" data-scene="purchases" role="note" aria-label="道奇兔店長小提醒"><span class="bunny-page-guide-art"><svg viewBox="0 0 100 100" role="img" aria-label="黑白道奇兔店長"><ellipse cx="38" cy="24" rx="11" ry="24" fill="#252729" transform="rotate(-13 38 24)"/><ellipse cx="64" cy="23" rx="10" ry="23" fill="#fff" stroke="#d7d8d2" stroke-width="2" transform="rotate(12 64 23)"/><path d="M29 24q8-5 15 1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="62" rx="34" ry="29" fill="#fff" stroke="#d7d8d2" stroke-width="2"/><path d="M22 51q2-19 25-18 14 0 20 13 3 8-3 14-11 9-26 5-14-3-16-14Z" fill="#252729"/><path d="M58 38q16-9 28 6 9 11 0 22-9 10-22 3-9-5-7-17Z" fill="#252729"/><ellipse cx="40" cy="60" rx="5" ry="6" fill="#252729"/><ellipse cx="69" cy="60" rx="5" ry="6" fill="#252729"/><circle cx="41.5" cy="58" r="1.8" fill="#fff"/><circle cx="70.5" cy="58" r="1.8" fill="#fff"/><ellipse cx="55" cy="72" rx="5" ry="3.5" fill="#e8a9a4"/><path d="M55 75q-5 6-10 1m10-1q5 6 10 1" fill="none" stroke="#8b7771" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="27" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><ellipse cx="75" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><path d="m83 17 3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#e4c16e"/></svg><svg class="bunny-page-guide-prop" viewBox="0 0 32 32" aria-hidden="true"><path d="m4 10 12-6 12 6v16l-12 4-12-4z" fill="#fff8ea" stroke="#6e8c72" stroke-width="1.7" stroke-linejoin="round"/><path d="m4 10 12 6 12-6M16 16v14M11 7l12 6" fill="none" stroke="#c6a25a" stroke-width="1.6"/><path d="M13 4 16 2l3 2" fill="none" stroke="#6e8c72" stroke-width="1.4"/></svg></span><span class="bunny-page-guide-copy"><strong>進貨小管家陪你核對</strong><span>確認供應商、商品明細與進貨日期，資料更清楚。</span></span><span class="bunny-page-guide-sparkle" aria-hidden="true">✦</span></aside>
+
+  <main>
+    <section class="panel">
+      <div class="identity">
+        <div>
+          <strong id="displayName">載入中…</strong>
+          <div class="muted" id="companyCode"></div>
+        </div>
+        <div class="muted">唯讀查詢，不會建立採購單或執行驗收</div>
+      </div>
+      <div id="status" class="notice" role="status" aria-live="polite" style="margin-top:12px">正在確認登入與授權…</div>
+    </section>
+    <section class="panel" id="workspace" hidden>
+      <div class="filters">
+        <div class="search-row">
+          <input id="search" type="search" autocomplete="off" placeholder="搜尋採購單號、供應商、商品或備註" aria-label="搜尋採購紀錄">
+          <button type="button" id="searchButton">搜尋</button>
+        </div>
+        <select id="purchaseStatus" aria-label="採購狀態">
+          <option value="">全部狀態</option>
+          <option value="DRAFT">草稿</option>
+          <option value="ORDERED">已下單</option>
+          <option value="PARTIALLY_RECEIVED">部分入庫</option>
+          <option value="RECEIVED">已入庫</option>
+          <option value="CANCELLED">已取消</option>
+        </select>
+      </div>
+      <div id="count" class="count">尚未載入資料</div>
+      <div id="list" class="list" aria-live="polite"><div class="empty">正在載入採購紀錄…</div></div>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const params=new URLSearchParams(window.location.search);
+    const companyId=params.get("company_id")||"";
+    let currentRows=[];
+    let suppliersById=new Map();
+    let productsById=new Map();
+    let canSuppliers=false;
+    let canProducts=false;
+    function node(tag,cls,text){
+      const el=document.createElement(tag);
+      if(cls)el.className=cls;
+      if(text!==undefined)el.textContent=text;
+      return el;
+    }
+    function bunnyEmptyGuide(title,copy,token){
+      const guide=node("div","bunny-empty-guide");
+      guide.setAttribute("role","status");
+      const art=node("span","bunny-empty-art");
+      art.setAttribute("aria-hidden","true");
+      art.innerHTML='<svg viewBox="0 0 72 72" focusable="false"><ellipse cx="23" cy="17" rx="8" ry="15" fill="#26282a" transform="rotate(-12 23 17)"/><ellipse cx="47" cy="16" rx="7" ry="14" fill="#fff" stroke="#cfd4ce" stroke-width="1.5" transform="rotate(11 47 16)"/><path d="M16 14q6-4 11 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="36" cy="42" rx="27" ry="23" fill="#fff" stroke="#cfd4ce" stroke-width="1.6"/><path d="M10 36q2-16 19-16 8 0 10 9 1 9-7 15-10 7-19 0-4-3-3-8Z" fill="#26282a"/><path d="M43 27q13-11 23 1 7 9 0 19-7 8-18 3-8-4-7-14Z" fill="#26282a"/><ellipse cx="25" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><ellipse cx="50" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><circle cx="26" cy="40.5" r="1.2" fill="#fff"/><circle cx="51" cy="40.5" r="1.2" fill="#fff"/><ellipse cx="37" cy="52" rx="4" ry="2.8" fill="#e8aaa2"/><path d="M37 54q-4 4-8 0m8 0q4 4 8 0" fill="none" stroke="#897772" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      art.append(node("span","bunny-empty-token",token||"✧"));
+      const copyBox=node("span","bunny-empty-copy");
+      copyBox.append(node("strong","",title));
+      copyBox.append(node("span","",copy));
+      guide.append(art,copyBox);
+      return guide;
+    }
+
+    function setStatus(message,kind){
+      const box=$("status");
+      box.className="notice"+(kind?" "+kind:"");
+      box.textContent=message;
+    }
+    function grantScope(membership,code){
+      const item=(membership.permissions||[]).find(grant=>grant.code===code);
+      return item?item.data_scope:null;
+    }
+    function validView(scope){return scope==="ALL"||scope==="OWN";}
+    async function fetchJson(path){
+      const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});
+      const data=await response.json().catch(()=>({}));
+      if(response.status===401){
+        window.location.replace("/login");
+        throw new Error("登入已失效，請重新登入。");
+      }
+      if(!response.ok)throw new Error(data.detail||"無法載入資料，請稍後再試。");
+      return data;
+    }
+    function dateText(value){
+      if(!value)return "—";
+      const date=new Date(value+"T00:00:00");
+      return Number.isNaN(date.getTime())?String(value):date.toLocaleDateString("zh-TW");
+    }
+    function amountText(value,currency){
+      const n=Number(value);
+      if(!Number.isFinite(n))return "—";
+      try{return new Intl.NumberFormat("zh-TW",{style:"currency",currency:currency||"TWD",maximumFractionDigits:2}).format(n);}
+      catch(_error){return n.toLocaleString("zh-TW")+" "+(currency||"");}
+    }
+    function quantityText(value){
+      const n=Number(value);
+      return Number.isFinite(n)?n.toLocaleString("zh-TW",{maximumFractionDigits:3}):"—";
+    }
+    const weightUnitLabels={G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"};
+    function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
+    function statusInfo(status){
+      const map={
+        DRAFT:{label:"草稿",cls:"badge draft"},
+        ORDERED:{label:"已下單",cls:"badge"},
+        PARTIALLY_RECEIVED:{label:"部分入庫",cls:"badge partial"},
+        RECEIVED:{label:"已入庫",cls:"badge"},
+        CANCELLED:{label:"已取消",cls:"badge cancel"}
+      };
+      return map[status]||{label:status?"其他狀態":"狀態未設定",cls:"badge"};
+    }
+    function applyLocalSearch(rows){
+      const q=$("search").value.trim().toLocaleLowerCase();
+      if(!q)return rows;
+      return rows.filter(purchase=>{
+        const supplier=suppliersById.get(purchase.supplier_id);
+        const supplierText=supplier?[supplier.code,supplier.name].join(" "):"";
+        const products=(purchase.lines||[]).map(line=>{
+          const product=productsById.get(line.product_id);
+          return product?[product.product_code,product.name].join(" "):"";
+        }).join(" ");
+        return [
+          purchase.purchase_no,purchase.note,supplierText,products
+        ].some(value=>String(value||"").toLocaleLowerCase().includes(q));
+      });
+    }
+    function render(rows){
+      const list=$("list");
+      list.replaceChildren();
+      if(!rows.length){
+        const hasFilters=Boolean($("search").value.trim()||$("purchaseStatus").value);
+        list.append(bunnyEmptyGuide(
+          hasFilters?"沒有符合條件的採購紀錄":"目前尚無採購紀錄",
+          hasFilters?"可以清除關鍵字或改選其他採購狀態，再重新查詢。":"建立採購單並完成下單後，採購與到貨進度就會顯示在這裡。",
+          hasFilters?"⌕":"▣"
+        ));
+        $("count").textContent="共 0 筆採購單";
+        return;
+      }
+      rows.forEach(purchase=>{
+        const card=node("article","record");
+        const head=node("div","record-head");
+        const title=node("div","");
+        title.append(node("h3","",purchase.purchase_no||"未命名採購單"));
+        const supplier=suppliersById.get(purchase.supplier_id);
+        title.append(node("div","record-sub",supplier
+          ? "供應商："+supplier.code+"　"+supplier.name
+          : (canSuppliers?"供應商資料無法載入":"供應商名稱尚未授權顯示")
+        ));
+        head.append(title);
+        const status=statusInfo(purchase.status);
+        head.append(node("span",status.cls,status.label));
+        card.append(head);
+        const details=node("div","details");
+        details.append(detail("採購日期",dateText(purchase.order_date)));
+        details.append(detail("預計到貨",dateText(purchase.expected_date)));
+        details.append(detail("幣別",purchase.currency_code||"—"));
+        details.append(detail("商品項目",String((purchase.lines||[]).length)+" 項"));
+        card.append(details);
+        const lines=node("div","lines");
+        (purchase.lines||[]).forEach(line=>{
+          const item=node("div","line");
+          const product=productsById.get(line.product_id);
+          const productTitle=product
+            ? (product.product_code||"")+"　"+(product.name||"商品")
+            : (canProducts?"商品資料無法載入":"商品名稱尚未授權顯示");
+          item.append(node("div","line-title",productTitle));
+          const qty="已入庫 "+quantityText(line.received_quantity)+"／"+quantityText(line.quantity);
+          const info=[
+            "數量："+qty,
+            line.weight===null||line.weight===undefined?"": "重量："+quantityText(line.weight)+" "+weightUnitLabel(line.weight_unit_code),
+            "單價："+amountText(line.unit_cost,purchase.currency_code),
+            "工費："+amountText(line.cost_labor_fee,purchase.currency_code)
+          ].filter(Boolean).join("　｜　");
+          item.append(node("div","line-info",info));
+          if(line.note)item.append(node("div","line-info","備註："+line.note));
+          lines.append(item);
+        });
+        card.append(lines);
+        if(purchase.note)card.append(node("div","record-sub","採購備註："+purchase.note));
+        list.append(card);
+      });
+      $("count").textContent="共 "+rows.length+" 筆採購單（最多顯示 100 筆）";
+    }
+    function detail(label,value){
+      const box=node("div","detail");
+      box.append(node("small","",label));
+      box.append(node("strong","",value===null||value===undefined||value===""?"—":String(value)));
+      return box;
+    }
+    async function loadPurchases(){
+      $("searchButton").disabled=true;
+      $("list").replaceChildren(node("div","empty","正在載入採購紀錄…"));
+      try{
+        const query=new URLSearchParams({limit:"100"});
+        if($("purchaseStatus").value)query.set("status",$("purchaseStatus").value);
+        const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/purchases?"+query.toString());
+        currentRows=Array.isArray(rows)?rows:[];
+        render(applyLocalSearch(currentRows));
+      }catch(error){
+        $("list").replaceChildren(node("div","empty",error.message||"載入失敗。"));
+        $("count").textContent="資料載入失敗";
+      }finally{
+        $("searchButton").disabled=false;
+      }
+    }
+    async function loadOptionalMasters(){
+      if(canSuppliers){
+        try{
+          const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/suppliers?limit=500");
+          suppliersById=new Map((rows||[]).map(item=>[item.id,item]));
+        }catch(_error){
+          suppliersById=new Map();
+        }
+      }
+      if(canProducts){
+        try{
+          const rows=await fetchJson("/companies/"+encodeURIComponent(companyId)+"/products?limit=500");
+          productsById=new Map((rows||[]).map(item=>[item.id,item]));
+        }catch(_error){
+          productsById=new Map();
+        }
+      }
+    }
+    async function loadWorkspace(){
+      if(!companyId){
+        setStatus("缺少公司識別資訊，請從員工工作區重新進入。","warning");
+        $("companyName").textContent="尚未選擇公司";
+        return;
+      }
+      try{
+        const data=await fetchJson("/auth/google/workspace");
+        $("displayName").textContent=data.user?.display_name||"Google 使用者";
+        const membership=(data.memberships||[]).find(item=>item.company_id===companyId)||null;
+        if(!membership){
+          setStatus("此帳號沒有這間公司的成員資格，無法查看公司資料。","error");
+          return;
+        }
+        $("companyName").textContent=membership.company_name||"公司工作區";
+        $("companyCode").textContent="公司代碼："+(membership.company_code||"—");
+        if(membership.status!=="ACTIVE"){
+          setStatus("此公司成員資格目前不是核准狀態，無法查看營運資料。","warning");
+          return;
+        }
+        const purchaseScope=grantScope(membership,"purchases.view");
+        if(!validView(purchaseScope)){
+          setStatus("目前尚未授予採購紀錄查看權限。請聯絡公司管理者設定。","warning");
+          return;
+        }
+        canSuppliers=grantScope(membership,"suppliers.view")==="ALL";
+        canProducts=grantScope(membership,"products.view")==="ALL";
+        $("workspace").hidden=false;
+        setStatus("已確認公司資格與採購查看權限。僅會在另有全公司供應商／商品查看授權時載入對應名稱；本頁不會新增採購或執行驗收。");
+        await loadOptionalMasters();
+        await loadPurchases();
+      }catch(error){
+        setStatus(error.message||"目前無法確認登入與公司權限。","error");
+      }
+    }
+    $("searchButton").addEventListener("click",()=>render(applyLocalSearch(currentRows)));
+    $("search").addEventListener("keydown",event=>{if(event.key==="Enter")render(applyLocalSearch(currentRows));});
+    $("purchaseStatus").addEventListener("change",loadPurchases);
+    loadWorkspace();
+  </script>
+</body>
+</html>

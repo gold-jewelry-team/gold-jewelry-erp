@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#202522">
+  <meta name="robots" content="noindex,nofollow">
+  <title>銀樓 ERP｜商品與庫存查詢</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#202522;background:#f4f5f2;font-synthesis:none}
+    *{box-sizing:border-box}
+    body{margin:0;padding:0 0 env(safe-area-inset-bottom)}
+    header{background:#202522;color:#fff;padding:20px 16px 18px}
+    .header-inner,main{width:min(100%,960px);margin:0 auto}
+    .back{display:inline-flex;align-items:center;min-height:40px;color:#e2ebe3;text-decoration:none;font-size:13px;font-weight:700}
+    header h1{font-size:22px;margin:10px 0 4px}
+    header p{font-size:13px;color:#d2dad4;margin:0;line-height:1.6;overflow-wrap:anywhere}
+    main{padding:14px;display:grid;gap:12px}
+    .panel{background:#fff;border:1px solid #e2e7e1;border-radius:15px;padding:14px;box-shadow:0 2px 10px #17231a0a}
+    .identity{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+    .identity strong{font-size:15px;display:block}
+    .muted{color:#6b756e;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+    .tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    button{min-height:44px;border:1px solid #dbe3db;border-radius:10px;padding:9px 12px;background:#f5f7f4;color:#304337;font:inherit;font-size:14px;font-weight:750;cursor:pointer}
+    button[aria-pressed="true"]{background:#263b30;color:#fff;border-color:#263b30}
+    button:disabled{opacity:.55;cursor:wait}
+    .search-row{display:flex;gap:8px;margin-top:12px}
+    input{width:100%;min-width:0;min-height:44px;border:1px solid #cfd8cf;border-radius:10px;padding:9px 12px;font:inherit;font-size:16px;background:#fff;color:#202522}
+    input:focus-visible,button:focus-visible,.back:focus-visible{outline:3px solid #8ba992;outline-offset:2px}
+    .search-row button{white-space:nowrap}
+    .count{font-size:12px;color:#657168;margin:10px 2px 0}
+    .notice{border:1px solid #dce5dc;background:#f6faf6;border-radius:12px;padding:12px;color:#34463a;font-size:13px;line-height:1.65}
+    .notice.warning{background:#fff9ec;border-color:#f0dfb8;color:#74501b}
+    .notice.error{background:#fff4f2;border-color:#f0d1cb;color:#9a3327}
+    .items{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:10px}
+    .item{min-width:0;border:1px solid #e2e8e1;border-radius:12px;padding:12px;background:#fff}
+    .item-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+    .item h3{font-size:15px;line-height:1.5;margin:0;overflow-wrap:anywhere}
+    .code{font-size:12px;font-weight:750;color:#375441;overflow-wrap:anywhere}
+    .badge{flex:none;border-radius:999px;padding:4px 8px;background:#edf2ed;color:#39513f;font-size:11px;font-weight:750}
+    .badge.off{background:#f0f1ef;color:#69736b}
+    .details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+    .detail{padding:8px;border-radius:9px;background:#f6f8f5;min-width:0}
+    .detail small{display:block;font-size:11px;color:#68746b}
+    .detail strong{display:block;font-size:13px;margin-top:3px;overflow-wrap:anywhere}
+    .empty{padding:22px 8px;text-align:center;color:#6b756e;font-size:13px;line-height:1.7}
+    [hidden]{display:none!important}
+    @media(min-width:600px){header{padding-left:16px;padding-right:16px}main{padding-top:18px}.panel{padding:16px}}
+  </style>
+<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127e">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a class="back" href="/employee">← 回員工工作區</a>
+      <h1 id="pageTitle">商品與庫存查詢</h1>
+      <p id="companyName">正在確認公司與功能授權…</p>
+    </div>
+  </header>
+<aside class="bunny-page-guide" data-scene="catalog" role="note" aria-label="道奇兔店長小提醒"><span class="bunny-page-guide-art"><svg viewBox="0 0 100 100" role="img" aria-label="黑白道奇兔店長"><ellipse cx="38" cy="24" rx="11" ry="24" fill="#252729" transform="rotate(-13 38 24)"/><ellipse cx="64" cy="23" rx="10" ry="23" fill="#fff" stroke="#d7d8d2" stroke-width="2" transform="rotate(12 64 23)"/><path d="M29 24q8-5 15 1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="62" rx="34" ry="29" fill="#fff" stroke="#d7d8d2" stroke-width="2"/><path d="M22 51q2-19 25-18 14 0 20 13 3 8-3 14-11 9-26 5-14-3-16-14Z" fill="#252729"/><path d="M58 38q16-9 28 6 9 11 0 22-9 10-22 3-9-5-7-17Z" fill="#252729"/><ellipse cx="40" cy="60" rx="5" ry="6" fill="#252729"/><ellipse cx="69" cy="60" rx="5" ry="6" fill="#252729"/><circle cx="41.5" cy="58" r="1.8" fill="#fff"/><circle cx="70.5" cy="58" r="1.8" fill="#fff"/><ellipse cx="55" cy="72" rx="5" ry="3.5" fill="#e8a9a4"/><path d="M55 75q-5 6-10 1m10-1q5 6 10 1" fill="none" stroke="#8b7771" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="27" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><ellipse cx="75" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><path d="m83 17 3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#e4c16e"/></svg><svg class="bunny-page-guide-prop" viewBox="0 0 32 32" aria-hidden="true"><circle cx="13" cy="13" r="8" fill="#fffdf6" stroke="#6e8c72" stroke-width="2.4"/><path d="m19 19 8 8" stroke="#c6a25a" stroke-width="4" stroke-linecap="round"/><path d="M10 13h6m-3-3v6" stroke="#6e8c72" stroke-width="1.3" stroke-linecap="round"/></svg></span><span class="bunny-page-guide-copy"><strong>商品小管家陪你查庫存</strong><span>可用商品名稱、編號或條碼快速找到資料。</span></span><span class="bunny-page-guide-sparkle" aria-hidden="true">✦</span></aside>
+
+  <main>
+    <section class="panel">
+      <div class="identity">
+        <div>
+          <strong id="displayName">載入中…</strong>
+          <div class="muted" id="companyCode"></div>
+        </div>
+        <div class="muted" id="permissionHint">僅提供已授權的唯讀查詢</div>
+      </div>
+      <div id="status" class="notice" role="status" aria-live="polite" style="margin-top:12px">正在確認登入與授權…</div>
+    </section>
+    <section class="panel" id="workspace" hidden>
+      <div class="tabs" id="tabs">
+        <button type="button" id="productsTab" aria-pressed="true">商品查詢</button>
+        <button type="button" id="inventoryTab" aria-pressed="false">庫存查詢</button>
+      </div>
+      <div class="search-row">
+        <input id="search" type="search" autocomplete="off" placeholder="輸入商品編號、條碼或名稱" aria-label="搜尋商品">
+        <button type="button" id="searchButton">搜尋</button>
+      </div>
+      <div id="count" class="count">尚未載入資料</div>
+      <div id="items" class="items" aria-live="polite">
+        <div class="empty">正在載入資料…</div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const params=new URLSearchParams(window.location.search);
+    const companyId=params.get("company_id")||"";
+    const requestedView=params.get("view")==="inventory"?"inventory":"products";
+    let activeView="products";
+    let currentMembership=null;
+    let allowed={products:false,inventory:false};
+    let currentRows=[];
+    function node(tag,cls,text){
+      const el=document.createElement(tag);
+      if(cls)el.className=cls;
+      if(text!==undefined)el.textContent=text;
+      return el;
+    }
+    function bunnyEmptyGuide(title,copy,token){
+      const guide=node("div","bunny-empty-guide");
+      guide.setAttribute("role","status");
+      const art=node("span","bunny-empty-art");
+      art.setAttribute("aria-hidden","true");
+      art.innerHTML='<svg viewBox="0 0 72 72" focusable="false"><ellipse cx="23" cy="17" rx="8" ry="15" fill="#26282a" transform="rotate(-12 23 17)"/><ellipse cx="47" cy="16" rx="7" ry="14" fill="#fff" stroke="#cfd4ce" stroke-width="1.5" transform="rotate(11 47 16)"/><path d="M16 14q6-4 11 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="36" cy="42" rx="27" ry="23" fill="#fff" stroke="#cfd4ce" stroke-width="1.6"/><path d="M10 36q2-16 19-16 8 0 10 9 1 9-7 15-10 7-19 0-4-3-3-8Z" fill="#26282a"/><path d="M43 27q13-11 23 1 7 9 0 19-7 8-18 3-8-4-7-14Z" fill="#26282a"/><ellipse cx="25" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><ellipse cx="50" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><circle cx="26" cy="40.5" r="1.2" fill="#fff"/><circle cx="51" cy="40.5" r="1.2" fill="#fff"/><ellipse cx="37" cy="52" rx="4" ry="2.8" fill="#e8aaa2"/><path d="M37 54q-4 4-8 0m8 0q4 4 8 0" fill="none" stroke="#897772" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      art.append(node("span","bunny-empty-token",token||"✧"));
+      const copyBox=node("span","bunny-empty-copy");
+      copyBox.append(node("strong","",title));
+      copyBox.append(node("span","",copy));
+      guide.append(art,copyBox);
+      return guide;
+    }
+
+    function setStatus(message,kind){
+      const box=$("status");
+      box.className="notice"+(kind?" "+kind:"");
+      box.textContent=message;
+    }
+    function hasAllView(membership,code){
+      const grant=(membership.permissions||[]).find(item=>item.code===code);
+      return Boolean(grant&&grant.data_scope==="ALL");
+    }
+    function formatNumber(value){
+      const number=Number(value);
+      return Number.isFinite(number)?number.toLocaleString("zh-TW",{maximumFractionDigits:4}):"—";
+    }
+    const weightUnitLabels={G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"};
+    function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
+    function detail(label,value){
+      const box=node("div","detail");
+      box.append(node("small","",label));
+      box.append(node("strong","",value===null||value===undefined||value===""?"—":String(value)));
+      return box;
+    }
+    function renderProducts(rows){
+      const list=$("items");
+      list.replaceChildren();
+      if(!rows.length){
+        const hasQuery=Boolean($("search").value.trim());
+        list.append(bunnyEmptyGuide(
+          hasQuery?"沒有找到符合的商品":"目前沒有可顯示的商品",
+          hasQuery?"試試商品編號、條碼或名稱，也可以縮短關鍵字再搜尋。":"若公司尚未建立商品主檔，請先由管理者新增商品；完成後這裡就能查詢。",
+          hasQuery?"⌕":"◇"
+        ));
+        $("count").textContent="共 0 筆商品";
+        return;
+      }
+      rows.forEach(product=>{
+        const card=node("article","item");
+        const head=node("div","item-head");
+        const title=node("div","");
+        title.append(node("h3","",product.name||"未命名商品"));
+        title.append(node("div","code",product.product_code||"—"));
+        head.append(title);
+        head.append(node("span",product.is_active?"badge":"badge off",product.is_active?"啟用":"已停用"));
+        card.append(head);
+        const details=node("div","details");
+        details.append(detail("條碼",product.barcode));
+        details.append(detail("材質／分類代碼",product.material_code));
+        details.append(detail("總重",formatNumber(product.gross_weight)+" "+weightUnitLabel(product.weight_unit_code)));
+        details.append(detail("淨重",formatNumber(product.net_weight)+" "+weightUnitLabel(product.weight_unit_code)));
+        if(product.chain_length)details.append(detail("鍊長",product.chain_length));
+        if(product.style_code)details.append(detail("款式",product.style_code));
+        card.append(details);
+        list.append(card);
+      });
+      $("count").textContent="共 "+rows.length+" 筆商品";
+    }
+    function renderInventory(rows){
+      const list=$("items");
+      list.replaceChildren();
+      if(!rows.length){
+        const hasQuery=Boolean($("search").value.trim());
+        list.append(bunnyEmptyGuide(
+          hasQuery?"沒有找到符合的庫存":"目前沒有庫存位置資料",
+          hasQuery?"可以改用商品編號、條碼或櫃位名稱搜尋，或清除關鍵字查看全部。":"請先確認公司與據點；若商品尚未入庫，完成入庫後才會顯示庫存位置。",
+          hasQuery?"⌕":"▤"
+        ));
+        $("count").textContent="共 0 筆庫存位置";
+        return;
+      }
+      rows.forEach(stock=>{
+        const card=node("article","item");
+        const head=node("div","item-head");
+        const title=node("div","");
+        title.append(node("h3","",stock.product_name||"未命名商品"));
+        title.append(node("div","code",stock.product_code||"—"));
+        head.append(title);
+        head.append(node("span","badge","庫存 "+formatNumber(stock.quantity)));
+        card.append(head);
+        const details=node("div","details");
+        details.append(detail("條碼",stock.barcode));
+        details.append(detail("門市／據點",stock.site_name));
+        details.append(detail("櫃位代碼",stock.location_code));
+        details.append(detail("櫃位名稱",stock.location_name));
+        card.append(details);
+        list.append(card);
+      });
+      $("count").textContent="共 "+rows.length+" 筆庫存位置";
+    }
+    function applyLocalSearch(rows){
+      const term=$("search").value.trim().toLocaleLowerCase();
+      if(!term)return rows;
+      return rows.filter(row=>[
+        row.product_code,row.barcode,row.name,row.product_name,
+        row.site_name,row.location_code,row.location_name
+      ].some(value=>String(value||"").toLocaleLowerCase().includes(term)));
+    }
+    function setView(view){
+      activeView=view;
+      $("productsTab").hidden=!allowed.products;
+      $("inventoryTab").hidden=!allowed.inventory;
+      $("productsTab").setAttribute("aria-pressed",String(view==="products"));
+      $("inventoryTab").setAttribute("aria-pressed",String(view==="inventory"));
+      $("pageTitle").textContent=view==="products"?"商品查詢":"庫存查詢";
+      $("search").value="";
+      $("search").placeholder=view==="products"?"輸入商品編號、條碼或名稱":"輸入商品編號、名稱、門市或櫃位";
+      $("search").setAttribute("aria-label",view==="products"?"搜尋商品":"搜尋庫存");
+      loadCurrentView();
+    }
+    async function fetchJson(path){
+      const response=await fetch(path,{credentials:"same-origin",cache:"no-store"});
+      const data=await response.json().catch(()=>({}));
+      if(response.status===401){
+        window.location.replace("/login");
+        throw new Error("登入已失效，請重新登入。");
+      }
+      if(!response.ok)throw new Error(data.detail||"無法載入資料，請稍後再試。");
+      return data;
+    }
+    async function loadCurrentView(){
+      $("searchButton").disabled=true;
+      $("items").replaceChildren(node("div","empty","正在載入資料…"));
+      try{
+        const base="/companies/"+encodeURIComponent(companyId);
+        if(activeView==="products"){
+          const q=$("search").value.trim();
+          const suffix=q?"?limit=200&q="+encodeURIComponent(q):"?limit=200";
+          currentRows=await fetchJson(base+"/products"+suffix);
+          renderProducts(currentRows);
+        }else{
+          currentRows=await fetchJson(base+"/inventory/stock");
+          renderInventory(applyLocalSearch(currentRows));
+        }
+      }catch(error){
+        $("items").replaceChildren(node("div","empty",error.message||"載入失敗，請重新整理。"));
+        $("count").textContent="資料載入失敗";
+      }finally{
+        $("searchButton").disabled=false;
+      }
+    }
+    async function loadWorkspace(){
+      if(!companyId){
+        setStatus("缺少公司識別資訊，請從員工工作區重新進入。","warning");
+        $("companyName").textContent="尚未選擇公司";
+        return;
+      }
+      try{
+        const data=await fetchJson("/auth/google/workspace");
+        $("displayName").textContent=data.user?.display_name||"Google 使用者";
+        currentMembership=(data.memberships||[]).find(item=>item.company_id===companyId)||null;
+        if(!currentMembership){
+          setStatus("此帳號沒有這間公司的成員資格，無法查看公司資料。","error");
+          return;
+        }
+        $("companyName").textContent=currentMembership.company_name||"公司工作區";
+        $("companyCode").textContent="公司代碼："+(currentMembership.company_code||"—");
+        if(currentMembership.status!=="ACTIVE"){
+          setStatus("此公司成員資格目前不是核准狀態，無法查看營運資料。","warning");
+          return;
+        }
+        allowed.products=hasAllView(currentMembership,"products.view");
+        allowed.inventory=hasAllView(currentMembership,"inventory.view")&&allowed.products;
+        if(!allowed.products&&!allowed.inventory){
+          setStatus("目前尚未授予商品或庫存查詢權限。請聯絡公司管理者設定。","warning");
+          return;
+        }
+        $("workspace").hidden=false;
+        $("productsTab").hidden=!allowed.products;
+        $("inventoryTab").hidden=!allowed.inventory;
+        const view=requestedView==="inventory"&&allowed.inventory?"inventory":"products";
+        setStatus("已確認公司資格與查詢權限。此頁僅提供唯讀資料，不會修改商品或庫存。");
+        setView(view);
+      }catch(error){
+        setStatus(error.message||"目前無法確認登入與公司權限。","error");
+      }
+    }
+    $("productsTab").addEventListener("click",()=>allowed.products&&setView("products"));
+    $("inventoryTab").addEventListener("click",()=>allowed.inventory&&setView("inventory"));
+    $("searchButton").addEventListener("click",()=>{
+      if(activeView==="products")loadCurrentView();
+      else renderInventory(applyLocalSearch(currentRows));
+    });
+    $("search").addEventListener("keydown",event=>{
+      if(event.key==="Enter"){
+        if(activeView==="products")loadCurrentView();
+        else renderInventory(applyLocalSearch(currentRows));
+      }
+    });
+    loadWorkspace();
+  </script>
+</body>
+</html>

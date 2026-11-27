@@ -1,0 +1,554 @@
+/* Shared blue, jade-green and champagne theme for every Gold Jewelry ERP workspace.
+   Soft surfaces support long sessions; success, warning and danger colors stay semantic. */
+:root{
+  color-scheme:light;
+  --erp-ink:#3e443d;
+  --erp-muted:#74796f;
+  --erp-bg:#f6f6ef;
+  --erp-surface:#ffffff;
+  --erp-surface-soft:#f7f8f2;
+  --erp-surface-muted:#edf3ec;
+  --erp-line:#e5e5d9;
+  --erp-blue:#668aa0;
+  --erp-blue-dark:#4f7188;
+  --erp-green:#7b9d87;
+  --erp-green-dark:#527b62;
+  --erp-green-soft:#edf4ed;
+  --erp-champagne:#d6b875;
+  --erp-shadow:0 5px 18px rgba(42,68,97,.075);
+  --app-ink:var(--erp-ink);
+  --app-muted:var(--erp-muted);
+  --app-bg:var(--erp-bg);
+  --app-panel:var(--erp-surface);
+  --app-green:var(--erp-green);
+  --app-green-dark:var(--erp-green-dark);
+  --app-gold:var(--erp-champagne);
+  --app-line:var(--erp-line);
+  --app-shadow:var(--erp-shadow);
+  /* Keep the generic green token for success indicators, not primary actions. */
+  --green:var(--erp-green-dark);
+  --line:var(--erp-line);
+  --muted:var(--erp-muted);
+  font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;
+}
+html,body{background:var(--erp-bg);color:var(--erp-ink)}
+body{background-color:var(--erp-bg);background-image:radial-gradient(ellipse at 8% 4%,rgba(204,224,207,.52),transparent 34%),radial-gradient(ellipse at 94% 18%,rgba(239,222,184,.34),transparent 30%),linear-gradient(135deg,#f8f8f2 0%,#f1f5ee 48%,#f8f4e9 100%);background-attachment:fixed}
+header{
+  background:linear-gradient(115deg,#f2f3e9 0%,#e5eee5 54%,#f4eddd 100%);
+  color:#3e4a40;
+  box-shadow:0 3px 14px rgba(42,68,97,.08);
+}
+header p{color:#69776a}
+header h1{color:#3e4a40}
+header .eyebrow{color:#5c7390}
+header a[style]{color:#52785e!important}
+header a,.back,.back-link{color:#365e91}
+header .back,header .back-link{border-color:#cbd8c9}
+header .quick-nav a{
+  color:#365e91;
+  background:rgba(255,255,255,.68);
+  border-color:#d2ddd0;
+}
+header .quick-nav a:hover,header .quick-nav a:focus-visible{
+  background:#fff;
+  outline-color:#7b9d87;
+}
+header .quick-nav-empty{
+  color:#5c735f;
+  background:rgba(255,255,255,.72);
+  border-color:#c4d5e9;
+}
+header [data-nav-loading]{color:#69776a!important}
+header .company-bar{
+  background:rgba(255,255,255,.62);
+  border-color:#c4d5e9;
+}
+header .company-bar label{color:#5b6c5d}
+header .company-bar select{
+  color:#3e443d;
+  background:#fff;
+  border-color:#d2ddd0;
+}
+main{color:var(--erp-ink)}
+.panel,.member,.permission,.company,.item,.mobile-bank-details,.mobile-report-details,
+.role-editor,.allocation-row,.table-wrap{
+  border-color:var(--erp-line);
+}
+.panel,.member,.permission,.company,.item{
+  background:var(--erp-surface);
+  box-shadow:var(--erp-shadow);
+}
+h1,h2,h3,h4{color:var(--erp-ink)}
+label{color:#52657a}
+.sub,.muted,.hint,.meta,.footer-note{color:var(--erp-muted)}
+input,select,textarea{
+  background:#fff;
+  color:var(--erp-ink);
+  border-color:#cbd9e8;
+}
+input::placeholder,textarea::placeholder{color:#8a9aab}
+input:focus,select:focus,textarea:focus,
+input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:3px solid rgba(123,157,135,.22);
+  outline-offset:1px;
+  border-color:#8eae95;
+}
+input[type=checkbox],input[type=radio]{accent-color:var(--erp-green-dark)}
+button:not(.secondary):not(.danger){
+  background:linear-gradient(180deg,#86a990 0%,#668c70 100%);
+  color:#fff;
+  box-shadow:0 2px 6px rgba(65,96,70,.15);
+}
+button:not(.secondary):not(.danger):hover{filter:brightness(1.06)}
+button.secondary{
+  background:#edf4ed;
+  color:#527b62;
+  border:1px solid #d5e2d4;
+  box-shadow:none;
+}
+button.danger{background:#a64236;color:#fff}
+button:disabled{filter:saturate(.55);opacity:.58}
+a{color:#66869a}
+.category-nav{
+  background:var(--erp-surface);
+  border-color:var(--erp-line);
+  box-shadow:var(--erp-shadow);
+}
+.category-nav button{
+  background:#f2f5ef;
+  border-color:#e1e6dc;
+  color:#647364;
+}
+.category-nav button[aria-pressed="true"]{
+  background:linear-gradient(180deg,#3974bf 0%,#2f65b0 100%);
+  border-color:#668c70;
+  color:#fff;
+}
+.category-shortcuts{
+  background:var(--erp-surface);
+  border-color:var(--erp-line);
+  box-shadow:var(--erp-shadow);
+}
+.category-shortcuts button{
+  background:#f0f5ee;
+  border-color:#dce6d9;
+  color:#56775d;
+}
+.category-shortcuts button:active{background:var(--erp-green);color:#fff}
+main>section.panel[data-category="inventory"]{--category-accent:#6f9f8c}
+main>section.panel[data-category="sales"]{--category-accent:#5d83b5}
+main>section.panel[data-category="products"]{--category-accent:#c4a15c}
+main>section.panel[data-category="purchasing"]{--category-accent:#80a8c7}
+main>section.panel[data-category="finance"]{--category-accent:#6f9f8c}
+main>section.panel[data-category="pricing"]{--category-accent:#c28d43}
+main>section.panel[data-category="settings"]{--category-accent:#8a9fb7}
+main>section.panel[data-category="advanced"]{--category-accent:#9b8bab}
+.table-wrap{background:var(--erp-surface)}
+table th,th{background:#f0f3ec;color:#5b6e5d}
+table td{color:#465348;border-bottom-color:#e7eef6}
+tr:last-child td{border-bottom-color:transparent}
+.detail,.line,.scan-feedback-code,.gold-currency-rate-editor{
+  background:var(--erp-surface-soft);
+  border-color:var(--erp-line);
+}
+.notice{
+  background:#f1f5ed;
+  border-color:#dce6d8;
+  color:#5d705f;
+}
+#homeDashboard .home-action-primary{
+  background:#f0f5ee;
+  border-color:#dce6d9;
+}
+#homeDashboard .home-more{
+  background:#f1f8f4;
+  border-color:#d8e8de;
+}
+#homeDashboard .home-tips{
+  background:#fbf7ed;
+  border-color:#eee3c9;
+}
+#homeDashboard .home-more>summary{color:#56775d}
+#homeDashboard .home-tips>summary{color:#7a6746}
+.quick-nav a{border-color:#ffffff66}
+.quick-nav a:hover,.quick-nav a:focus-visible{background:#ffffff35}
+.pill,.badge{
+  background:#eaf4ef;
+  color:#426f5e;
+}
+.scan-feedback{
+  background:var(--erp-surface);
+  border-color:var(--erp-line);
+}
+#goldPriceSummary{
+  background:#fbf6e9;
+  border-color:#ddc990;
+  color:#51452f;
+}
+#goldPriceSummary .gold-summary-head strong,
+#goldPriceSummary .gold-summary-head label,
+#goldPriceSummary .gold-summary-price span,
+#goldPriceSummary .gold-summary-price small,
+#goldPriceSummary .gold-summary-foot,
+#goldPriceSummary .gold-summary-reminder{color:#76613b}
+#goldPriceSummary .gold-summary-price{
+  background:#fffdf7;
+  border:1px solid #eee3c9;
+}
+#goldPriceSummary .gold-summary-price strong{color:#493d2b}
+#goldPriceSummary .gold-summary-head select{
+  background:#fff;
+  color:#3c4c5d;
+  border-color:#dfd1ad;
+}
+::selection{background:rgba(123,157,135,.23);color:var(--erp-ink)}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+
+/* Refined botanical warmth: remove the cold blue cast and add subtle depth. */
+:root{
+  --erp-bg:#f6f6ef;
+  --erp-surface:#fffefa;
+  --erp-surface-soft:#f7f8f2;
+  --erp-line:#e5e5d9;
+  --erp-ink:#3e443d;
+  --erp-muted:#74796f;
+  --erp-blue:#66869a;
+  --erp-blue-dark:#527185;
+  --erp-green:#7b9d87;
+  --erp-green-dark:#527b62;
+  --erp-champagne:#d6b875;
+  --app-bg:var(--erp-bg);
+  --app-panel:var(--erp-surface);
+  --app-green:var(--erp-green);
+  --app-green-dark:var(--erp-green-dark);
+}
+html,body{background-color:#f6f6ef}
+body{
+ background-image:
+  radial-gradient(ellipse at 7% 5%,rgba(204,224,207,.58),transparent 35%),
+  radial-gradient(ellipse at 93% 16%,rgba(239,222,184,.40),transparent 32%),
+  radial-gradient(ellipse at 48% 100%,rgba(222,234,220,.34),transparent 42%),
+  linear-gradient(135deg,#f9f8f2 0%,#f0f4ed 48%,#f8f3e8 100%);
+ background-attachment:fixed;
+}
+header{
+ background:linear-gradient(112deg,#f2f3e9 0%,#e5eee5 52%,#f4eddd 100%);
+ color:#3e4a40;
+}
+header h1{color:#3e4a40}header h1,header p,header .eyebrow{color:#46564a}
+header a,header .back,header .back-link{color:#52785e}
+header .quick-nav a{background:rgba(255,255,255,.72);color:#52785e;border-color:#d2ddd0}
+button:not(.secondary):not(.danger){
+ background:linear-gradient(180deg,#86a990 0%,#668c70 100%);
+ box-shadow:0 2px 7px rgba(65,96,70,.15);
+}
+button.secondary{background:#edf4ed;color:#527b62;border-color:#d5e2d4}
+.category-nav button[aria-pressed="true"]{background:linear-gradient(180deg,#86a990 0%,#668c70 100%);border-color:#668c70}
+.category-shortcuts button{background:#f0f5ee;border-color:#dce6d9;color:#56775d}
+table th,th{background:#f0f3ec;color:#5b6e5d}
+.panel,.member,.permission,.company,.item,.table-wrap{
+ background:rgba(255,254,250,.94);
+}
+.panel,.member,.permission,.company,.item,.table-wrap{
+ box-shadow:0 5px 20px rgba(74,91,70,.055);
+}
+a{color:#66869a}
+#goldPriceSummary{background:linear-gradient(135deg,#fbf6e9 0%,#f7f2e4 100%);border-color:#ddc990}
+
+
+/* Botanical warmth refinement: neutral canvas, jade actions and layered ambient color. */
+:root{
+ --erp-ink:#3e443d;--erp-muted:#74796f;--erp-bg:#f6f6ef;
+ --erp-surface:#fffefa;--erp-surface-soft:#f7f8f2;--erp-line:#e5e5d9;
+ --erp-blue:#66869a;--erp-blue-dark:#527185;
+ --erp-green:#7b9d87;--erp-green-dark:#527b62;--erp-green-soft:#edf4ed;
+ --erp-champagne:#d6b875;
+ --app-ink:var(--erp-ink);--app-muted:var(--erp-muted);--app-bg:var(--erp-bg);
+ --app-panel:var(--erp-surface);--app-green:var(--erp-green);--app-green-dark:var(--erp-green-dark);
+ --app-gold:var(--erp-champagne);--app-line:var(--erp-line);
+ --green:var(--erp-green-dark);--line:var(--erp-line);--muted:var(--erp-muted);
+}
+html,body{background-color:#f6f6ef;color:#3e443d}
+body{
+ background-image:
+  radial-gradient(ellipse at 7% 5%,rgba(204,224,207,.58),transparent 35%),
+  radial-gradient(ellipse at 93% 16%,rgba(239,222,184,.40),transparent 32%),
+  radial-gradient(ellipse at 48% 100%,rgba(222,234,220,.34),transparent 42%),
+  linear-gradient(135deg,#f9f8f2 0%,#f0f4ed 48%,#f8f3e8 100%);
+ background-attachment:fixed;
+}
+header{background:linear-gradient(112deg,#f2f3e9 0%,#e5eee5 52%,#f4eddd 100%);color:#3e4a40}
+header h1,header p,header .eyebrow{color:#46564a}
+header a,header .back,header .back-link{color:#52785e}
+header .quick-nav a{background:rgba(255,255,255,.72);color:#52785e;border-color:#d2ddd0}
+button:not(.secondary):not(.danger){background:linear-gradient(180deg,#86a990 0%,#668c70 100%);box-shadow:0 2px 7px rgba(65,96,70,.15)}
+button.secondary{background:#edf4ed;color:#527b62;border-color:#d5e2d4}
+.category-nav button[aria-pressed="true"]{background:linear-gradient(180deg,#86a990 0%,#668c70 100%);border-color:#668c70}
+.category-shortcuts button{background:#f0f5ee;border-color:#dce6d9;color:#56775d}
+table th,th{background:#f0f3ec;color:#5b6e5d}
+.panel,.member,.permission,.company,.item,.table-wrap{background:rgba(255,254,250,.94);box-shadow:0 5px 20px rgba(74,91,70,.055)}
+a{color:#66869a}
+#goldPriceSummary{background:linear-gradient(135deg,#fbf6e9 0%,#f7f2e4 100%);border-color:#ddc990}
+
+
+/* Subtle jewelry-house identity: fine gold rings and botanical ambient shapes. */
+body::before{
+ content:"";
+ position:fixed;
+ z-index:0;
+ pointer-events:none;
+ top:118px;
+ right:-118px;
+ width:390px;
+ height:390px;
+ opacity:.42;
+ background:
+  radial-gradient(circle at center,transparent 0 54px,rgba(196,164,99,.22) 55px 56px,transparent 57px 82px),
+  radial-gradient(circle at center,transparent 0 105px,rgba(123,157,135,.15) 106px 107px,transparent 108px 132px),
+  radial-gradient(circle at center,transparent 0 155px,rgba(196,164,99,.13) 156px 157px,transparent 158px 184px);
+}
+header{
+ position:sticky;
+ border-bottom:2px solid rgba(214,184,117,.68);
+}
+header::after{
+ content:"";
+ position:absolute;
+ left:0;right:0;bottom:-2px;
+ height:1px;
+ background:linear-gradient(90deg,transparent,rgba(214,184,117,.78),transparent);
+ pointer-events:none;
+}
+main{position:relative;z-index:1}
+.panel,.member,.permission,.company,.item,.table-wrap{
+ border-color:rgba(215,218,202,.9);
+}
+.panel h2{letter-spacing:.01em}
+button:not(.secondary):not(.danger){
+ border-bottom:2px solid rgba(214,184,117,.72);
+}
+button.secondary{
+ border-bottom:1px solid rgba(123,157,135,.24);
+}
+#goldPriceSummary{
+ box-shadow:inset 3px 0 0 rgba(214,184,117,.78),0 4px 14px rgba(115,94,48,.055);
+}
+@media(max-width:640px){
+ body::before{top:170px;right:-220px;opacity:.25}
+}
+
+
+/* Q 版珠寶分類插圖：以暖金、玉綠、奶油白維持銀樓品牌一致性 */
+.jewelry-category-card-head{
+ display:flex;align-items:center;gap:11px;min-width:0;padding:2px 0;
+}
+.jewelry-category-card-head strong{min-width:0;overflow-wrap:anywhere}
+.jewelry-category-illustration{
+ flex:0 0 52px;width:52px;height:52px;display:inline-flex;align-items:center;justify-content:center;
+ border:1px solid #eadfbe;border-radius:16px;
+ background:radial-gradient(circle at 32% 24%,#fffef5 0,#f8f1dc 58%,#edf3e9 100%);
+ box-shadow:0 2px 7px rgba(126,99,47,.08);
+}
+.jewelry-category-illustration svg{display:block;width:88%;height:88%;overflow:visible}
+.jewelry-category-illustration.is-compact{flex-basis:44px;width:44px;height:44px;border-radius:14px}
+.jewelry-category-preview{
+ display:flex;align-items:center;gap:11px;margin-top:8px;padding:9px 11px;
+ border:1px solid #e8e1ce;border-radius:13px;background:linear-gradient(110deg,#fbfaf2,#f1f6ef);
+}
+.jewelry-category-preview .jewelry-category-illustration{flex-basis:48px;width:48px;height:48px}
+.jewelry-category-preview-copy{display:grid;gap:3px;min-width:0}
+.jewelry-category-preview-copy strong{font-size:13px;color:#45564a;font-weight:750;overflow-wrap:anywhere}
+.jewelry-category-preview-copy small{font-size:11px;color:#788276;line-height:1.45}
+@media(max-width:420px){
+ .jewelry-category-card-head{gap:9px}
+ .jewelry-category-illustration.is-compact{flex-basis:40px;width:40px;height:40px}
+ .jewelry-category-preview{padding:8px 9px}
+}
+
+
+/* 道奇兔店長情境提示：柔和玉綠與香檳金，不阻擋主要作業 */
+.bunny-context-note{
+ display:flex;align-items:center;gap:9px;margin:8px 0 10px;padding:9px 11px;
+ border:1px solid #e5e3d6;border-radius:13px;
+ background:linear-gradient(105deg,#fffdf6,#f2f6ef);
+ box-shadow:0 2px 8px rgba(80,92,69,.045);
+}
+.bunny-context-art{
+ width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;
+}
+.bunny-context-art svg{display:block;width:44px;height:44px;overflow:visible}
+.bunny-context-copy{display:grid;gap:3px;min-width:0}
+.bunny-context-copy strong{font-size:12px;line-height:1.4;color:#526b58}
+.bunny-context-copy p{margin:0;font-size:11px;line-height:1.55;color:#727b71;overflow-wrap:anywhere}
+.bunny-context-note.is-alert{border-color:#eadcb9;background:linear-gradient(105deg,#fffaf0,#f5f4e9)}
+.bunny-context-note.is-alert .bunny-context-copy strong{color:#86652e}
+.bunny-context-note.is-success{border-color:#d8e6d8;background:linear-gradient(105deg,#f4faf2,#edf5ed)}
+.bunny-context-note.is-success .bunny-context-copy strong{color:#477452}
+.bunny-context-note.is-empty{background:linear-gradient(105deg,#fbfaf4,#f1f6ef)}
+/* 操作成功的輕量道奇兔確認，不取代原本狀態文字，也不遮擋表單 */
+.bunny-context-note.is-feedback{gap:7px;margin:4px 0 6px;padding:6px 8px;border-radius:10px;box-shadow:none}
+.bunny-context-note.is-feedback .bunny-context-art,
+.bunny-context-note.is-feedback .bunny-context-art svg{width:30px;height:30px}
+.bunny-context-note.is-feedback .bunny-context-art{flex-basis:30px}
+.bunny-context-note.is-feedback .bunny-context-copy{gap:1px}
+.bunny-context-note.is-feedback .bunny-context-copy strong{font-size:11px}
+.bunny-context-note.is-feedback .bunny-context-copy p{font-size:10px;line-height:1.45}
+@media(max-width:420px){
+ .bunny-context-note{gap:8px;padding:8px 9px}
+ .bunny-context-art,.bunny-context-art svg{width:40px;height:40px}
+ .bunny-context-art{flex-basis:40px}
+ .bunny-context-note.is-feedback{gap:6px;margin:3px 0 5px;padding:5px 7px}
+ .bunny-context-note.is-feedback .bunny-context-art,
+ .bunny-context-note.is-feedback .bunny-context-art svg{width:28px;height:28px}
+ .bunny-context-note.is-feedback .bunny-context-art{flex-basis:28px}
+}
+
+
+/* Consistent Dutch rabbit shopkeeper guide shared across all workspaces */
+.bunny-page-guide{display:flex;align-items:center;gap:12px;max-width:760px;margin:12px auto 14px;padding:9px 14px;border:1px solid #e9dfca;border-radius:16px;background:linear-gradient(105deg,#fffaf0 0%,#f0f6ee 100%);box-shadow:0 3px 12px rgba(99,79,43,.055);color:var(--erp-ink);}
+.bunny-page-guide-art{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;}
+.bunny-page-guide-art svg{width:56px;height:56px;overflow:visible;}
+.bunny-page-guide-copy{display:grid;gap:3px;min-width:0;}
+.bunny-page-guide-copy strong{font-size:13px;line-height:1.4;color:#526b58;}
+.bunny-page-guide-copy span{font-size:11px;line-height:1.55;color:#74796f;}
+.bunny-page-guide-sparkle{margin-left:auto;color:#c59b4b;font-size:20px;flex:0 0 auto;}
+@media(max-width:600px){.bunny-page-guide{margin:10px 12px 12px;padding:8px 10px;gap:9px}.bunny-page-guide-art{width:50px;height:50px;flex-basis:50px}.bunny-page-guide-art svg{width:49px;height:49px}.bunny-page-guide-copy strong{font-size:12px}.bunny-page-guide-copy span{font-size:10px}.bunny-page-guide-sparkle{font-size:16px}}
+
+
+/* 道奇兔店長的頁面情境小道具：角色維持一致，配件依工作內容切換 */
+.bunny-page-guide-art{position:relative;isolation:isolate;}
+.bunny-page-guide-art::after{
+ content:"";position:absolute;right:-2px;bottom:0;z-index:2;
+ width:21px;height:21px;display:grid;place-items:center;
+ border:1px solid #e8d9b5;border-radius:50%;
+ background:linear-gradient(145deg,#fffefa,#f4ead1);
+ box-shadow:0 2px 5px rgba(89,72,39,.12);
+ font-size:12px;line-height:1;
+}
+.bunny-page-guide[data-scene="banking"] .bunny-page-guide-art::after{content:"🧾"}
+.bunny-page-guide[data-scene="work"] .bunny-page-guide-art::after{content:"📋"}
+.bunny-page-guide[data-scene="catalog"] .bunny-page-guide-art::after{content:"🔎"}
+.bunny-page-guide[data-scene="orders"] .bunny-page-guide-art::after{content:"🎁"}
+.bunny-page-guide[data-scene="payables"] .bunny-page-guide-art::after{content:"💰"}
+.bunny-page-guide[data-scene="purchases"] .bunny-page-guide-art::after{content:"📦"}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-art::after{content:"🛍️"}
+.bunny-page-guide[data-scene="material"] .bunny-page-guide-art::after{content:"⚖️"}
+.bunny-page-guide[data-scene="welcome"] .bunny-page-guide-art::after{content:"✨"}
+.bunny-page-guide[data-scene="members"] .bunny-page-guide-art::after{content:"👥"}
+.bunny-page-guide[data-scene="reports"] .bunny-page-guide-art::after{content:"📊"}
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-art::after{content:"🔐"}
+.bunny-page-guide[data-scene] .bunny-page-guide-art svg{transform:translateY(-1px);}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-art svg,
+.bunny-page-guide[data-scene="purchases"] .bunny-page-guide-art svg{transform:rotate(-2deg) translateY(-1px);}
+.bunny-page-guide[data-scene="reports"] .bunny-page-guide-art svg,
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-art svg{transform:rotate(2deg) translateY(-1px);}
+.bunny-page-guide:hover .bunny-page-guide-art::after{transform:translateY(-2px) rotate(5deg);}
+.bunny-page-guide-copy span{max-width:62ch;}
+@media(max-width:600px){
+ .bunny-page-guide{max-width:none;width:auto;}
+ .bunny-page-guide-art::after{width:19px;height:19px;font-size:11px;}
+}
+@media(prefers-reduced-motion:no-preference){
+ .bunny-page-guide-art::after{transition:transform .18s ease;}
+}
+
+
+/* 情境道具 SVG：與道奇兔同框但不遮住表情，手機上保留足夠呼吸空間。 */
+.bunny-page-guide-art{
+ position:relative;
+ width:68px;
+ height:60px;
+ flex:0 0 68px;
+ display:grid;
+ place-items:center;
+}
+.bunny-page-guide-art>svg:not(.bunny-page-guide-prop){
+ position:relative;
+ z-index:1;
+ width:56px;
+ height:56px;
+ transform-origin:50% 65%;
+}
+.bunny-page-guide-art::after{content:none!important}
+.bunny-page-guide-prop{
+ position:absolute!important;
+ z-index:3;
+ right:-2px;
+ bottom:-1px;
+ width:28px!important;
+ height:28px!important;
+ padding:2px;
+ border:1px solid #e7ddc5;
+ border-radius:9px;
+ background:linear-gradient(145deg,#fffefa,#f4f0e3);
+ box-shadow:0 2px 6px rgba(75,83,65,.13);
+ overflow:visible;
+}
+.bunny-page-guide[data-scene="banking"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="work"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="catalog"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:scale(1.035) translateY(-1px)}
+.bunny-page-guide[data-scene="orders"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(3deg) translateY(-1px)}
+.bunny-page-guide[data-scene="payables"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-3deg)}
+.bunny-page-guide[data-scene="purchases"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(2deg) translate(-1px,-1px)}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-3deg) translateY(-1px)}
+.bunny-page-guide[data-scene="material"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-1deg) scale(1.025)}
+.bunny-page-guide[data-scene="welcome"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:scale(1.04) translateY(-1px)}
+.bunny-page-guide[data-scene="members"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="reports"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(1deg) translateY(-1px)}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-prop,
+.bunny-page-guide[data-scene="orders"] .bunny-page-guide-prop{background:linear-gradient(145deg,#fffaf0,#f7e9d9)}
+.bunny-page-guide[data-scene="material"] .bunny-page-guide-prop{background:linear-gradient(145deg,#fffdf1,#f4e8c5)}
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-prop{background:linear-gradient(145deg,#f7faf4,#e8f0e7)}
+@media(max-width:600px){
+ .bunny-page-guide-art{width:62px;height:54px;flex-basis:62px}
+ .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){width:51px;height:51px}
+ .bunny-page-guide-prop{width:25px!important;height:25px!important;right:-1px;bottom:-1px;padding:1px;border-radius:8px}
+}
+@media(prefers-reduced-motion:no-preference){
+ .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transition:transform .18s ease}
+ .bunny-page-guide:hover .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:translateY(-2px) rotate(1deg)}
+}
+
+
+/* 道奇兔空狀態導引：讓查無資料、尚無紀錄及無可處理項目都有溫暖且可讀的說明。 */
+.bunny-empty-guide{
+ display:flex;align-items:center;gap:12px;width:min(100%,620px);
+ margin:10px auto 12px;padding:12px 14px;
+ border:1px solid #e7e3d5;border-radius:15px;
+ background:linear-gradient(112deg,#fffdf7 0%,#f1f6ef 100%);
+ box-shadow:0 3px 10px rgba(76,91,68,.045);
+ text-align:left;
+}
+.bunny-empty-art{
+ position:relative;display:grid;place-items:center;
+ width:62px;height:62px;flex:0 0 62px;
+ border:1px solid #e8e2d1;border-radius:17px;
+ background:radial-gradient(circle at 34% 24%,#fffefa 0%,#f7f2e4 64%,#eef4ec 100%);
+}
+.bunny-empty-art>svg{display:block;width:58px;height:58px;overflow:visible}
+.bunny-empty-token{
+ position:absolute;right:-5px;bottom:-4px;display:grid;place-items:center;
+ min-width:23px;height:23px;padding:0 4px;border:1px solid #e5d7b3;
+ border-radius:9px;background:#fffaf0;color:#866d3e;
+ box-shadow:0 2px 5px rgba(83,73,48,.12);
+ font-size:13px;font-weight:800;line-height:1;
+}
+.bunny-empty-copy{display:grid;gap:4px;min-width:0}
+.bunny-empty-copy strong{color:#526b58;font-size:13px;line-height:1.45;font-weight:750}
+.bunny-empty-copy>span{color:#737b70;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+@media(max-width:480px){
+ .bunny-empty-guide{gap:10px;margin:8px 0 10px;padding:10px 11px;border-radius:13px}
+ .bunny-empty-art{width:52px;height:52px;flex-basis:52px;border-radius:14px}
+ .bunny-empty-art>svg{width:49px;height:49px}
+ .bunny-empty-token{min-width:21px;height:21px;font-size:12px}
+ .bunny-empty-copy strong{font-size:12px}
+ .bunny-empty-copy>span{font-size:11px}
+}
+@media(prefers-reduced-motion:no-preference){
+ .bunny-empty-art>svg{transition:transform .18s ease}
+ .bunny-empty-guide:hover .bunny-empty-art>svg{transform:translateY(-2px) rotate(-2deg)}
+}

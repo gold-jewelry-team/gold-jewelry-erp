@@ -3,16 +3,66 @@
 PENDING is committed before touching the inventory ledger. The movement insert and
 COMPLETED transition are then committed together in the caller's transaction.
 """
+from contextlib import contextmanager
+import hashlib
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.inventory import InventoryMovement
 from app.models.inventory_operation_request import InventoryOperationRequest
 from app.services.inventory_operation_requests import fingerprint_inventory_operation
+
+
+
+@contextmanager
+def inventory_operation_lock(session: Session, *, company_id: UUID, idempotency_key: UUID):
+    """Serialize an idempotency key across the durable-PENDING and ledger commits.
+
+    The lock uses a dedicated PostgreSQL connection so it survives the request
+    session's intentional commit of the PENDING marker. It is released explicitly
+    after the operation finishes; a disconnected process releases it automatically.
+    SQLite test sessions skip this PostgreSQL-specific coordination.
+    """
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        yield
+        return
+
+    digest = hashlib.sha256(
+        f"{company_id}:{idempotency_key}".encode("utf-8")
+    ).digest()
+    lock_key = int.from_bytes(digest[:8], byteorder="big", signed=True)
+    connection = bind.connect()
+    acquired = False
+    try:
+        connection.execute(
+            text("SELECT pg_advisory_lock(CAST(:lock_key AS BIGINT))"),
+            {"lock_key": lock_key},
+        )
+        connection.commit()
+        acquired = True
+        try:
+            yield
+        finally:
+            if acquired:
+                try:
+                    released = connection.execute(
+                        text("SELECT pg_advisory_unlock(CAST(:lock_key AS BIGINT))"),
+                        {"lock_key": lock_key},
+                    ).scalar_one()
+                    connection.commit()
+                    if not released:
+                        raise RuntimeError("PostgreSQL inventory operation lock was not held.")
+                except Exception:
+                    # Never return a possibly still-locked physical connection to the pool.
+                    connection.invalidate()
+                    raise
+    finally:
+        connection.close()
 
 
 class InventoryOperationRequestConflict(ValueError):

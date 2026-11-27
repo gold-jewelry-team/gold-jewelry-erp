@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
+from app.core.company_access import require_current_actor_permission
 from app.models.operating_expense import OperatingExpense
 from app.services.daily_closing import assert_business_day_open
 from app.services.operating_expenses import (
@@ -69,6 +70,8 @@ class ExpenseRead(BaseModel):
 
 @router.post("",response_model=ExpenseRead,status_code=201)
 def post_expense(company_id: UUID,payload: ExpenseCreate,response: Response,db: Session=Depends(get_db)):
+    if payload.payment_method is not None:
+        require_current_actor_permission(db, "payments.create")
     try:
         row,created=create_expense(
             db,company_id=company_id,return_created=True,**payload.model_dump()

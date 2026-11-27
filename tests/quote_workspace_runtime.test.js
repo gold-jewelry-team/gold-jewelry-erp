@@ -70,6 +70,7 @@ function setup(values = {}) {
       get("quoteStatus").textContent = message;
       get("quoteStatus").isError = isError;
     },
+    createDocumentNumber(prefix) { return prefix + "-TEST-DOCUMENT"; },
     renderQuoteLines() {},
     renderSaleCart() {},
     renderSaleResult() {},
@@ -84,6 +85,7 @@ function setup(values = {}) {
   };
   context.quoteTradeInInput = undefined;
   vm.createContext(context);
+  vm.runInContext(extract("function syncSalePaymentFields(){", "\nfunction transferQuoteToSale(){"), context);
   vm.runInContext(extract("function quoteTradeInInput(){", "\nfunction renderQuoteEntryPreview(){"), context);
   vm.runInContext(extract("function quoteCalculateLineAmount(", "\nfunction renderQuoteEntryPreview(){"), context);
   vm.runInContext(extract("function renderQuoteEntryPreview(){", "\nasync function addQuoteProduct(){"), context);
@@ -308,6 +310,8 @@ test("臨時估價可完整帶入正式銷售購物車，保留重量、工錢�
   assert.equal(line.trade_in_ratio, "0.95");
   assert.equal(get("salePaymentMethod").value, "MIXED");
   assert.equal(get("saleCardAmount").value, "5000");
+  assert.equal(get("saleCardAmount").disabled, false);
+  assert.equal(get("saleNo").value, "SO-TEST-DOCUMENT");
   assert.match(get("saleStatus").textContent, /共用報價明細帶入銷售購物車/);
 });
 

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from functools import wraps
 from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
@@ -32,9 +33,24 @@ from app.services.inventory_operation_registry import (
     InventoryOperationRequestConflict,
     prepare_inventory_operation_request,
     mark_inventory_operation_failed,
+    inventory_operation_lock,
 )
 
 router = APIRouter(prefix="/companies/{company_id}/inventory", tags=["inventory"])
+
+
+def _serialize_inventory_operation(endpoint):
+    """Keep the same idempotency key from registration through ledger commit."""
+    @wraps(endpoint)
+    def wrapped(*args, **kwargs):
+        db = kwargs["db"]
+        with inventory_operation_lock(
+            db,
+            company_id=kwargs["company_id"],
+            idempotency_key=kwargs["payload"].idempotency_key,
+        ):
+            return endpoint(*args, **kwargs)
+    return wrapped
 
 
 def get_db():
@@ -43,6 +59,29 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def _serialize_inventory_recovery(endpoint):
+    """Coordinate manual recovery with any live request using the same key."""
+    @wraps(endpoint)
+    def wrapped(*args, **kwargs):
+        db = kwargs["db"]
+        company_id = kwargs["company_id"]
+        request_id = kwargs["request_id"]
+        idempotency_key = db.scalar(
+            select(InventoryOperationRequest.idempotency_key).where(
+                InventoryOperationRequest.id == request_id,
+                InventoryOperationRequest.company_id == company_id,
+            )
+        )
+        if idempotency_key is None:
+            return endpoint(*args, **kwargs)
+        with inventory_operation_lock(
+            db, company_id=company_id, idempotency_key=idempotency_key
+        ):
+            db.expire_all()
+            return endpoint(*args, **kwargs)
+    return wrapped
 
 
 @router.get("/stock", response_model=list[StockBalanceRead])
@@ -226,6 +265,7 @@ def list_inventory_operation_requests(
     "/operation-requests/{request_id}/retry",
     response_model=InventoryMovementRead,
 )
+@_serialize_inventory_recovery
 def retry_inventory_operation_request(
     company_id: UUID,
     request_id: UUID,
@@ -374,6 +414,7 @@ def retry_inventory_operation_request(
 
 
 @router.post("/adjustments", response_model=InventoryMovementRead, status_code=201)
+@_serialize_inventory_operation
 def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCreate,
                               response: Response, db: Session = Depends(get_db)):
     try:
@@ -440,6 +481,7 @@ def post_inventory_adjustment(company_id: UUID, payload: InventoryAdjustmentCrea
 
 
 @router.post("/transfers", response_model=InventoryMovementRead, status_code=201)
+@_serialize_inventory_operation
 def post_inventory_transfer(company_id: UUID, payload: InventoryTransferCreate,
                             response: Response, db: Session = Depends(get_db)):
     try:

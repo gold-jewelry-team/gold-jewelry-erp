@@ -40,6 +40,7 @@ class PaymentTransaction(Base):
     sale_return_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("sale_returns.id", ondelete="RESTRICT"), nullable=True)
     customer_order_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("customer_orders.id", ondelete="RESTRICT"), nullable=True)
     customer_order: Mapped["CustomerOrder | None"] = relationship(back_populates="payments")
+    sale_return: Mapped["SaleReturn | None"] = relationship(back_populates="payments")
     direction: Mapped[str] = mapped_column(String(3), nullable=False)
     payment_method: Mapped[str] = mapped_column(String(12), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)

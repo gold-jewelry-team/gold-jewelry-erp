@@ -299,10 +299,24 @@ def test_sale_api_prices_snapshots_and_deducts_inventory_atomically():
         assert movements[0].movement_type == "SALE"
         check_session.close()
 
+        # If the first completion response was lost, retrying the exact
+        # request returns the committed sale instead of looking like failure.
         duplicate_completion = client.post(
             f"/companies/{company_id}/sales/{sale['id']}/complete"
         )
-        assert duplicate_completion.status_code == 422
+        assert duplicate_completion.status_code == 200, duplicate_completion.text
+        assert duplicate_completion.json()["id"] == completed.json()["id"]
+        assert duplicate_completion.json()["status"] == "COMPLETED"
+        assert duplicate_completion.json()["completed_at"] == completed.json()["completed_at"]
+
+        duplicate_check = TestSession()
+        assert duplicate_check.query(InventoryMovement).filter_by(
+            reference_type="SALE_LINE"
+        ).count() == 1
+        assert get_stock_balance(
+            duplicate_check, product_id=product_id, location_id=location_id
+        ) == Decimal("0")
+        duplicate_check.close()
 
         # Closing the Taipei business day must block both new drafts and
         # completion of drafts created before the close.

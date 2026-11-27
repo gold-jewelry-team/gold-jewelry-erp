@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -174,6 +175,7 @@ def test_operational_report_cross_checks_daily_close_cash_count_and_bank_deposit
         }
         assert result["bank_cash_movement_summary"] == {
             "transactions_checked": 1, "errors": 0,
+            "unlinked_cash_drawer_movements": 0,
         }
         assert result["bank_cash_movements"][0]["status"] == "PASS"
         assert result["bank_cash_movements"][0]["actual_drawer_movement"]["direction"] == "OUT"
@@ -196,6 +198,17 @@ def test_operational_report_flags_missing_daily_close_and_missing_bank_drawer_pa
         db.query(DailyClosingPaymentSummary).delete()
         db.query(DailyClosing).delete()
         db.query(CashDrawerMovement).filter(CashDrawerMovement.bank_transaction_id.is_not(None)).delete()
+        db.add(CashDrawerMovement(
+            company_id=company_id,
+            site_id=site_id,
+            movement_type="BANK_DEPOSIT",
+            direction="OUT",
+            amount=Decimal("25.00"),
+            currency_code="TWD",
+            description="未連結銀行流水的現金存款",
+            created_by_name="店員乙",
+            created_at=EVENT_TIME,
+        ))
         db.commit()
         db.close()
 
@@ -208,9 +221,25 @@ def test_operational_report_flags_missing_daily_close_and_missing_bank_drawer_pa
         assert len(result["daily_closings"]) == 1
         assert result["daily_closings"][0]["status"] == "NOT_CLOSED"
         assert result["daily_closing_summary"]["days_checked"] == 1
-        assert result["bank_cash_movement_summary"]["errors"] == 1
-        assert result["bank_cash_movements"][0]["status"] == "ERROR"
-        assert result["bank_cash_movements"][0]["actual_drawer_movement"] is None
+        assert result["bank_cash_movement_summary"] == {
+            "transactions_checked": 2,
+            "errors": 2,
+            "unlinked_cash_drawer_movements": 1,
+        }
+        missing_bank_pair = next(
+            row for row in result["bank_cash_movements"]
+            if row["transaction_type"] == "CASH_DEPOSIT"
+        )
+        orphan_drawer = next(
+            row for row in result["bank_cash_movements"]
+            if row["transaction_type"] == "UNLINKED_DRAWER_MOVEMENT"
+        )
+        assert missing_bank_pair["status"] == "ERROR"
+        assert missing_bank_pair["actual_drawer_movement"] is None
+        assert orphan_drawer["status"] == "ERROR"
+        assert orphan_drawer["bank_transaction_id"] is None
+        assert orphan_drawer["actual_drawer_movement"]["movement_type"] == "BANK_DEPOSIT"
+        assert orphan_drawer["issue"] == "現金櫃存提款未連結銀行流水。"
     finally:
         app.dependency_overrides.clear()
         engine.dispose()

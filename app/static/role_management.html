@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>角色與權限｜黃金珠寶 ERP</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f5f2;color:#202720;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+header{background:#202522;color:#fff;padding:18px 16px}.header-row{max-width:900px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:12px}.back-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 12px;border:1px solid #ffffff55;border-radius:9px;color:#fff;text-decoration:none;font-size:13px;font-weight:650;white-space:nowrap}.back-link:focus-visible{outline:3px solid #b7d8bd;outline-offset:2px}header h1{font-size:20px;margin:0 0 4px}header p{font-size:12px;color:#cbd3cd;margin:0}
+main{max-width:900px;margin:auto;padding:16px;display:grid;gap:14px}.panel,.permission{background:#fff;border:1px solid #e1e6e1;border-radius:14px;padding:15px}
+h2{font-size:16px;margin:0 0 10px}.hint,.meta{font-size:12px;color:#657067;line-height:1.6}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select,input{font:inherit;min-height:42px;border:1px solid #d5ddd5;border-radius:9px;background:white;padding:8px;min-width:0}
+button{font:inherit;min-height:42px;border:0;border-radius:9px;padding:8px 14px;background:#263b30;color:white;font-weight:650}button.secondary{background:#edf1ed;color:#263b30}button.danger{background:#8d302a;color:#fff}
+#notice{font-size:13px;min-height:20px;color:#4e6554}#notice.error{color:#a32d25}
+#permissions{display:grid;gap:10px}.group{display:grid;gap:8px}.group h3{font-size:14px;margin:4px 0}
+.permission{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:12px}
+.permission label{font-size:13px;font-weight:650}.permission small{display:block;color:#68736b;font-size:11px;margin-top:3px}
+.permission input[type=checkbox]{width:20px;height:20px;min-height:20px}
+.permission select{min-width:110px}
+.empty{padding:20px;text-align:center;color:#68736b;font-size:13px}
+@media(max-width:560px){.header-row{align-items:flex-start;flex-direction:column}.back-link{width:100%}.permission{grid-template-columns:minmax(0,1fr) auto}.permission select{grid-column:1/-1;width:100%}.selectors select{width:100%}.selectors>*{flex:1 1 100%}}
+</style>
+<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127e">
+</head>
+<body>
+<header><div class="header-row"><div><h1>角色與權限管理</h1><p>設定每間公司的自訂角色，以及查看、新增、修改、作廢和資料範圍</p></div><a class="back-link" href="/app">← 返回門市工作台</a></div></header>
+<aside class="bunny-page-guide" data-scene="permissions" role="note" aria-label="道奇兔店長小提醒"><span class="bunny-page-guide-art"><svg viewBox="0 0 100 100" role="img" aria-label="黑白道奇兔店長"><ellipse cx="38" cy="24" rx="11" ry="24" fill="#252729" transform="rotate(-13 38 24)"/><ellipse cx="64" cy="23" rx="10" ry="23" fill="#fff" stroke="#d7d8d2" stroke-width="2" transform="rotate(12 64 23)"/><path d="M29 24q8-5 15 1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="62" rx="34" ry="29" fill="#fff" stroke="#d7d8d2" stroke-width="2"/><path d="M22 51q2-19 25-18 14 0 20 13 3 8-3 14-11 9-26 5-14-3-16-14Z" fill="#252729"/><path d="M58 38q16-9 28 6 9 11 0 22-9 10-22 3-9-5-7-17Z" fill="#252729"/><ellipse cx="40" cy="60" rx="5" ry="6" fill="#252729"/><ellipse cx="69" cy="60" rx="5" ry="6" fill="#252729"/><circle cx="41.5" cy="58" r="1.8" fill="#fff"/><circle cx="70.5" cy="58" r="1.8" fill="#fff"/><ellipse cx="55" cy="72" rx="5" ry="3.5" fill="#e8a9a4"/><path d="M55 75q-5 6-10 1m10-1q5 6 10 1" fill="none" stroke="#8b7771" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="27" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><ellipse cx="75" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><path d="m83 17 3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#e4c16e"/></svg><svg class="bunny-page-guide-prop" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 27 7v8q0 9-11 14Q5 24 5 15V7z" fill="#edf4ed" stroke="#6e8c72" stroke-width="1.8" stroke-linejoin="round"/><rect x="11" y="14" width="10" height="8" rx="2" fill="#e8d39b" stroke="#9a8048" stroke-width="1.4"/><path d="M13 14v-2a3 3 0 0 1 6 0v2" fill="none" stroke="#6e8c72" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="bunny-page-guide-copy"><strong>權限小管家提醒你</strong><span>調整角色前，先確認功能權限與資料可見範圍。</span></span><span class="bunny-page-guide-sparkle" aria-hidden="true">✦</span></aside>
+
+<main>
+<section class="panel">
+<h2>選擇公司與角色</h2>
+<div class="row selectors">
+<select id="company" aria-label="選擇公司"><option value="">載入公司中…</option></select>
+<select id="role" aria-label="選擇角色"><option value="">請先選擇公司</option></select>
+<button id="reload" class="secondary" type="button">重新整理</button>
+</div>
+<div id="notice" role="status" aria-live="polite"></div>
+<div class="hint">系統角色不能刪除。自訂角色預設全部拒絕；只有勾選授權的項目才會開放。若選擇「僅本人」，系統會依建立者資料過濾；目前修改與作廢仍會額外受到伺服器限制。</div>
+</section>
+<section class="panel">
+<h2>新增自訂角色</h2>
+<form id="create-form" class="row">
+<input id="new-code" placeholder="角色代碼，例如 STOCK_VIEWER" pattern="[A-Z][A-Z0-9_]{1,39}" maxlength="40" required>
+<input id="new-name" placeholder="角色名稱" maxlength="100" required>
+<button type="submit">新增角色</button>
+</form>
+</section>
+<section class="panel">
+<div class="row" style="justify-content:space-between">
+<h2 style="margin:0">權限設定</h2>
+<button id="save" type="button" disabled>儲存權限</button>
+</div>
+<div id="role-meta" class="hint"></div>
+<div id="permissions"><div class="empty">請先選擇公司與角色。</div></div>
+</section>
+</main>
+<script>
+const companySelect=document.getElementById("company");
+const roleSelect=document.getElementById("role");
+const permissionsEl=document.getElementById("permissions");
+const noticeEl=document.getElementById("notice");
+const saveButton=document.getElementById("save");
+let roleRows=[];
+let currentRole=null;
+let companyLoadVersion=0;
+let roleLoadVersion=0;
+function el(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;}
+function notice(message,error=false){noticeEl.textContent=message;noticeEl.className=error?"error":"";}
+async function api(path,options={}){const response=await fetch("/admin/api"+path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||"操作失敗，請稍後再試。");return data;}
+async function loadCompanies(){try{const companies=await api("/companies");companySelect.replaceChildren();for(const company of companies){const option=el("option",company.name+"（"+company.code+"）");option.value=company.id;companySelect.append(option);}if(!companies.length){companySelect.append(el("option","目前沒有啟用中的公司"));return;}await loadRoles();}catch(e){notice(e.message,true);}}
+async function loadRoles(preferredId){const companyId=companySelect.value;if(!companyId)return;saveButton.disabled=true;const requestVersion=++companyLoadVersion;try{const roles=await api("/companies/"+companyId+"/roles");if(requestVersion!==companyLoadVersion||companySelect.value!==companyId)return;roleSelect.replaceChildren();for(const role of roles){const option=el("option",role.name+(role.is_system?"（系統）":"（自訂）"));option.value=role.id;roleSelect.append(option);}if(preferredId)roleSelect.value=preferredId;await loadSelectedRole();}catch(e){if(requestVersion===companyLoadVersion)notice(e.message,true);}}
+async function loadSelectedRole(){const requestVersion=++roleLoadVersion;const role=roleSelect.value;const companyId=companySelect.value;saveButton.disabled=true;if(!role||!companyId){currentRole=null;roleRows=[];permissionsEl.replaceChildren(el("div","目前沒有角色。","empty"));saveButton.disabled=true;return;}try{const roles=await api("/companies/"+companyId+"/roles");if(requestVersion!==roleLoadVersion||roleSelect.value!==role||companySelect.value!==companyId)return;currentRole=roles.find(r=>r.id===role)||null;if(!currentRole){permissionsEl.replaceChildren(el("div","找不到角色。","empty"));saveButton.disabled=true;return;}roleRows=currentRole.permissions.map(p=>({...p}));renderPermissions();document.getElementById("role-meta").textContent=(currentRole.description||"")+(currentRole.is_system?"｜系統預設角色":"｜自訂角色");saveButton.disabled=false;}catch(e){if(requestVersion===roleLoadVersion)notice(e.message,true);}}
+function renderPermissions(){permissionsEl.replaceChildren();const groups=new Map();for(const p of roleRows){if(!groups.has(p.resource_code))groups.set(p.resource_code,[]);groups.get(p.resource_code).push(p);}for(const [resource,items] of groups){const group=el("section",undefined,"group");group.append(el("h3",items[0].name.split("－")[0]||resource));for(const item of items){const card=el("div",undefined,"permission");const info=el("div");info.append(el("label",item.name));info.append(el("small",item.code));const checkbox=el("input");checkbox.type="checkbox";checkbox.checked=!!item.is_allowed;checkbox.setAttribute("aria-label",item.name+"授權");checkbox.addEventListener("change",()=>{item.is_allowed=checkbox.checked;scope.disabled=!checkbox.checked;});const scope=el("select");scope.setAttribute("aria-label",item.name+"資料範圍");for(const [value,label] of [["ALL","全公司資料"],["OWN","僅本人建立"]]){const option=el("option",label);option.value=value;scope.append(option);}scope.value=item.data_scope||"OWN";scope.disabled=!item.is_allowed;scope.addEventListener("change",()=>item.data_scope=scope.value);card.append(info,checkbox,scope);group.append(card);}permissionsEl.append(group);}}
+companySelect.addEventListener("change",()=>loadRoles());
+roleSelect.addEventListener("change",loadSelectedRole);
+document.getElementById("reload").addEventListener("click",()=>loadRoles(roleSelect.value));
+saveButton.addEventListener("click",async()=>{if(!currentRole)return;saveButton.disabled=true;try{const updated=await api("/roles/"+currentRole.id+"/permissions",{method:"PUT",body:JSON.stringify({permissions:roleRows.map(p=>({code:p.code,is_allowed:p.is_allowed,data_scope:p.data_scope||"OWN"}))})});currentRole=updated;roleRows=updated.permissions.map(p=>({...p}));renderPermissions();notice("權限設定已儲存。");}catch(e){notice(e.message,true);}finally{saveButton.disabled=false;}});
+document.getElementById("create-form").addEventListener("submit",async event=>{event.preventDefault();const companyId=companySelect.value;if(!companyId){notice("請先選擇公司。",true);return;}try{const role=await api("/companies/"+companyId+"/roles",{method:"POST",body:JSON.stringify({code:document.getElementById("new-code").value.trim(),name:document.getElementById("new-name").value.trim()})});document.getElementById("new-code").value="";document.getElementById("new-name").value="";notice("自訂角色已建立，預設沒有任何授權。");await loadRoles(role.id);}catch(e){notice(e.message,true);}});
+loadCompanies();
+</script>
+</body>
+</html>

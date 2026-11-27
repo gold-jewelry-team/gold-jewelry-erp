@@ -45,6 +45,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install Chromium for access-control browser tests
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Run access-control UI browser tests
+        run: pytest -q tests/test_access_control_ui_browser.py
       - name: Check inline browser JavaScript syntax
         run: |
           python - <<'PY'
@@ -86,6 +92,8 @@ jobs:
         run: node --test tests/responsive_gold_price_summary_runtime.test.js
       - name: Run category panel bulk status runtime tests
         run: node --test tests/category_panel_bulk_status_runtime.test.js
+      - name: Run settings navigation runtime tests
+        run: node --test tests/settings_navigation_runtime.test.js
       - name: Run mobile scroll target offset runtime tests
         run: node --test tests/mobile_scroll_target_offset_runtime.test.js
       - name: Run back-to-top reduced motion runtime tests
@@ -100,6 +108,10 @@ jobs:
         run: node --test tests/quick_nav_empty_search_runtime.test.js
       - name: Run scanner startup fallback runtime tests
         run: node --test tests/scanner_startup_fallback_runtime.test.js
+      - name: Run Dutch rabbit stocktake feedback runtime tests
+        run: node --test tests/stocktake_bunny_feedback_runtime.test.js
+      - name: Run saved-operation Dutch rabbit feedback runtime tests
+        run: node --test tests/operation_bunny_feedback_runtime.test.js
       - name: Run label dialog close runtime tests
         run: node --test tests/label_dialog_close_runtime.test.js
       - name: Run sticker print formatting runtime tests
@@ -110,10 +122,18 @@ jobs:
         run: node --test tests/product_stock_weight_unit_runtime.test.js
       - name: Run movement and purchase weight unit runtime tests
         run: node --test tests/product_stock_weight_unit_runtime.test.js
+      - name: Run workspace status and unit localization runtime tests
+        run: node --test tests/workspace_status_localization_runtime.test.js
+      - name: Run shared blue-green visual theme tests
+        run: pytest -q tests/test_shared_visual_theme.py
       - name: Run operating expense retry runtime tests
         run: node --test tests/operating_expense_retry_runtime.test.js
       - name: Run cash drawer retry runtime tests
         run: node --test tests/cash_drawer_retry_runtime.test.js
+      - name: Run cash drawer operator memory runtime tests
+        run: node --test tests/cash_drawer_operator_memory_runtime.test.js
+      - name: Run daily closing confirmation runtime tests
+        run: node --test tests/daily_closing_confirmation_runtime.test.js
       - name: Run sale and return payment retry runtime tests
         run: node --test tests/payment_retry_runtime.test.js
       - name: Run supplier payment retry runtime tests
@@ -149,7 +169,7 @@ jobs:
       - name: Run sale draft edit runtime tests
         run: node --test tests/sale_draft_edit_runtime.test.js
       - name: Run tests
-        run: pytest -q
+        run: pytest -q --ignore=tests/test_access_control_ui_browser.py --ignore=tests/test_access_control_ui_e2e.py
       - name: Upgrade PostgreSQL schema to head
         run: alembic upgrade head
         env:
@@ -187,6 +207,11 @@ jobs:
               "bank_statement_imports",
               "bank_statement_lines",
               "bank_reconciliation_snapshots",
+              "permissions",
+              "company_roles",
+              "company_role_permissions",
+              "company_membership_roles",
+              "record_actors",
           }
           missing = sorted(required_tables - tables)
           assert not missing, f"Missing PostgreSQL tables: {missing}"
@@ -271,6 +296,14 @@ jobs:
           print("PostgreSQL schema verification passed.")
           engine.dispose()
           PY
+      - name: Verify Migration 0035 backfills existing companies and memberships
+        run: |
+          alembic downgrade 0034_user_identity_memberships
+          python scripts/verify_migration_0035_seed.py seed
+          alembic upgrade head
+          python scripts/verify_migration_0035_seed.py verify
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
       - name: Verify full downgrade
         run: alembic downgrade base
         env:
@@ -291,3 +324,13 @@ jobs:
           test "$current_id" = "$head_id"
         env:
           DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+      - name: Run authenticated admin browser end-to-end test
+        run: pytest -q tests/test_access_control_ui_e2e.py
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/gold_jewelry_erp
+          ENVIRONMENT: production
+          ADMIN_USERNAME: ci-owner
+          ADMIN_PASSWORD: ci-browser-test-password-123456
+          SESSION_SECRET_KEY: ci-browser-test-secret-key-0123456789abcdef
+          SESSION_COOKIE_SECURE: "false"
+          GOOGLE_OAUTH_ENABLED: "false"

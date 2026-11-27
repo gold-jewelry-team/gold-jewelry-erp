@@ -223,3 +223,5 @@ def test_company_setup_updates_are_company_scoped_and_require_active_parents():
         json={"code": "BLOCKED", "name": "不可建立"},
     )
     assert blocked_site.status_code == 422
+
+

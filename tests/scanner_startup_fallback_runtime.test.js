@@ -24,12 +24,20 @@ function setup({ barcodeDetector = true, mediaDevices = true, formats = ["ean_13
         srcObject: null,
         focused: false,
         children: [],
-        replaceChildren() { this.children = []; },
+        firstElementChild: null,
+        attributes: {},
+        replaceChildren() { this.children = []; this.firstElementChild = null; },
+        appendChild(child) { this.children.push(child); this.firstElementChild = child; },
+        setAttribute(name, value) { this.attributes[name] = value; },
         focus() { this.focused = true; },
         play: async () => {},
         classList: {
-          add(name) { this.added = name; },
-          remove(name) { this.removed = name; },
+          added: "",
+          removed: [],
+          classes: new Set(),
+          add(name) { this.added = name; this.classes.add(name); },
+          remove(...names) { this.removed.push(...names); names.forEach(name => this.classes.delete(name)); },
+          contains(name) { return this.classes.has(name); },
         },
       });
     }
@@ -41,7 +49,21 @@ function setup({ barcodeDetector = true, mediaDevices = true, formats = ["ean_13
     async detect() { return []; }
   }
   const context = {
-    document: { activeElement: { id: "scan-trigger" } },
+    document: {
+      activeElement: { id: "scan-trigger" },
+      querySelector(selector) {
+        assert.equal(selector, ".bunny-shop-note .bunny-art");
+        return {
+          cloneNode() {
+            return {
+              className: "",
+              attributes: {},
+              setAttribute(name, value) { this.attributes[name] = value; },
+            };
+          },
+        };
+      },
+    },
     window: barcodeDetector ? { BarcodeDetector: Detector } : {},
     navigator: mediaDevices ? {
       mediaDevices: {
@@ -76,9 +98,17 @@ function setup({ barcodeDetector = true, mediaDevices = true, formats = ["ean_13
     },
     message(id, text, error) { messages.push({ id, text, error }); },
     requestAnimationFrame(callback) { return 1; },
+    renderScanHistory() { context.historyRendered = (context.historyRendered || 0) + 1; },
     $(id) { return get(id); },
   };
+  const feedbackStart = html.indexOf("function ensureScanFeedbackBunny(){");
+  const feedbackEnd = html.indexOf("\nasync function copyLastScannedCode", feedbackStart);
+  assert.notEqual(feedbackStart, -1, "Rabbit scanner feedback helpers must exist");
+  assert.notEqual(feedbackEnd, -1, "Rabbit scanner feedback helpers must have a stable boundary");
+  const feedbackSource = html.slice(feedbackStart, feedbackEnd);
   vm.createContext(context);
+  vm.runInContext('let lastScannedCode="",lastScannedTarget="";', context);
+  vm.runInContext(feedbackSource, context);
   vm.runInContext(source, context);
   return { context, get, messages, cameraCalls, stopped };
 }
@@ -90,6 +120,13 @@ test("unsupported BarcodeDetector explains the fallback without requesting camer
   assert.equal(ui.messages.length, 1);
   assert.match(ui.messages[0].text, /外接條碼槍或手動輸入/);
   assert.equal(ui.messages[0].error, true);
+  assert.equal(ui.get("scanFeedbackTitle").textContent, "目前無法使用相機掃描");
+  assert.equal(ui.get("scanFeedback").classList.contains("warning"), true);
+  assert.equal(ui.get("scanFeedback").classList.contains("hidden"), false);
+  assert.equal(ui.get("scanFeedbackBunny").children.length, 1);
+  assert.equal(ui.get("scanFeedbackCode").hidden, true);
+  assert.equal(ui.get("copyScannedCode").hidden, true);
+  assert.equal(ui.context.historyRendered, 1);
 });
 
 test("missing getUserMedia explains the HTTPS and camera permission requirement", async () => {
@@ -99,6 +136,11 @@ test("missing getUserMedia explains the HTTPS and camera permission requirement"
   assert.equal(ui.messages.length, 1);
   assert.match(ui.messages[0].text, /HTTPS/);
   assert.equal(ui.messages[0].error, true);
+  assert.equal(ui.get("scanFeedbackTitle").textContent, "相機權限尚未就緒");
+  assert.equal(ui.get("scanFeedback").classList.contains("warning"), true);
+  assert.equal(ui.get("scanFeedbackBunny").children.length, 1);
+  assert.equal(ui.get("scanFeedbackCode").hidden, true);
+  assert.equal(ui.get("manualLookupCode").hidden, true);
 });
 
 test("unsupported barcode formats close startup cleanly and show a useful error", async () => {
@@ -109,16 +151,26 @@ test("unsupported barcode formats close startup cleanly and show a useful error"
   assert.equal(ui.context.scanDetector, null);
   assert.equal(ui.messages.length, 1);
   assert.match(ui.messages[0].text, /不支援所選的條碼格式/);
+  assert.equal(ui.get("scanFeedbackTitle").textContent, "相機掃描無法啟動");
+  assert.equal(ui.get("scanFeedback").classList.contains("error"), true);
+  assert.equal(ui.get("scanFeedbackBunny").children.length, 1);
+  assert.equal(ui.get("scanFeedbackCode").hidden, true);
 });
 
 test("camera permission rejection cleans up and reports the browser error", async () => {
-  const ui = setup({ cameraError: new Error("NotAllowedError: Permission denied") });
+  const permissionError = new Error("Permission denied");
+  permissionError.name = "NotAllowedError";
+  const ui = setup({ cameraError: permissionError });
   await ui.context.openCameraScanner("sale");
   assert.equal(ui.cameraCalls.length, 1);
   assert.equal(ui.get("scanModal").classList.added, "hidden");
   assert.equal(ui.context.scanStream, null);
   assert.equal(ui.context.scanDetector, null);
   assert.equal(ui.messages.length, 1);
-  assert.match(ui.messages[0].text, /Permission denied/);
+  assert.match(ui.messages[0].text, /尚未授權相機/);
   assert.equal(ui.messages[0].error, true);
+  assert.equal(ui.get("scanFeedbackTitle").textContent, "相機掃描無法啟動");
+  assert.equal(ui.get("scanFeedback").classList.contains("warning"), true);
+  assert.equal(ui.get("scanFeedbackBunny").children.length, 1);
+  assert.equal(ui.get("scanFeedbackCode").hidden, true);
 });

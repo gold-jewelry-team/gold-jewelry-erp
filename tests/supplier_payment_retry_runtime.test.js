@@ -131,3 +131,69 @@ test("corrupted supplier payment local draft is safely discarded", () => {
   assert.equal(context.readPendingSupplierPayment("company-1", "site-1", "bill-4"), null);
   assert.equal(storage.getItem(key), null);
 });
+
+
+test("supplier payment reversal retry storage is scoped by company, site and payment", () => {
+  const { context } = setup();
+  const key = context.supplierPaymentReversalPendingStorageKey("company-1", "site-1", "payment-1");
+  assert.equal(key, "gold-erp-supplier-payment-reversal:company-1:site-1:payment-1");
+  assert.notEqual(
+    key,
+    context.supplierPaymentReversalPendingStorageKey("company-1", "site-2", "payment-1"),
+  );
+});
+
+test("supplier payment reversal payload survives reload and permits only exact retry", () => {
+  const storage = new MemoryStorage();
+  const firstPage = setup(storage);
+  const payload = {
+    reversal_no: "SPR-001",
+    reason: "銀行退匯",
+    allocations: [{ payment_allocation_id: "allocation-1", amount: "250.00" }],
+  };
+  const saved = firstPage.context.savePendingSupplierPaymentReversal(
+    "company-1", "site-1", "payment-1", payload,
+  );
+  assert.equal(saved.payload.reversal_no, "SPR-001");
+
+  const reloadedPage = setup(storage);
+  const restored = reloadedPage.context.readPendingSupplierPaymentReversal(
+    "company-1", "site-1", "payment-1",
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(restored.payload)), payload);
+  assert.equal(restored.fingerprint, JSON.stringify(payload));
+
+  assert.throws(
+    () => reloadedPage.context.savePendingSupplierPaymentReversal(
+      "company-1", "site-1", "payment-1",
+      { ...payload, allocations: [{ payment_allocation_id: "allocation-1", amount: "300.00" }] },
+    ),
+    /上一筆供應商付款沖銷尚未確認結果/,
+  );
+});
+
+test("supplier payment reversal retry draft is cleared only after explicit clear", () => {
+  const { context, storage } = setup();
+  const key = context.supplierPaymentReversalPendingStorageKey("company-1", "site-1", "payment-2");
+  const payload = {
+    reversal_no: "SPR-002",
+    reason: "供應商退回款項",
+    allocations: [{ payment_allocation_id: "allocation-2", amount: "80.00" }],
+  };
+  context.savePendingSupplierPaymentReversal("company-1", "site-1", "payment-2", payload);
+  assert.notEqual(storage.getItem(key), null);
+  context.clearPendingSupplierPaymentReversal("company-1", "site-1", "payment-2");
+  assert.equal(storage.getItem(key), null);
+  assert.equal(context.readPendingSupplierPaymentReversal("company-1", "site-1", "payment-2"), null);
+});
+
+test("corrupted supplier payment reversal retry draft is safely discarded", () => {
+  const key = "gold-erp-supplier-payment-reversal:company-1:site-1:payment-3";
+  const storage = new MemoryStorage({ [key]: "{invalid-json" });
+  const { context } = setup(storage);
+  assert.doesNotThrow(
+    () => context.readPendingSupplierPaymentReversal("company-1", "site-1", "payment-3"),
+  );
+  assert.equal(context.readPendingSupplierPaymentReversal("company-1", "site-1", "payment-3"), null);
+  assert.equal(storage.getItem(key), null);
+});

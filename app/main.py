@@ -1,10 +1,15 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from sqlalchemy.exc import SQLAlchemyError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from app.core.auth import verify_session_token
+from app.core.actor_context import ActorContext, current_actor
+from app.core import actor_attribution as _actor_attribution  # noqa: F401 - registers ORM audit and row-scope events
+from app.core.company_access import authorize_google_company_request, company_id_from_path
+from app.db.session import SessionLocal
 from app.core.config import settings
 from app.routers.auth import router as auth_router
 from app.routers.google_auth import router as google_auth_router
@@ -72,7 +77,7 @@ app.include_router(operational_reports_router)
 
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    """Fail closed in production and protect every app/API route with an admin session."""
+    """Fail closed: owner sessions for administration, Google sessions for scoped member access."""
     path = request.url.path
     health_paths = {"/health", "/health/db"}
 
@@ -89,14 +94,16 @@ async def security_middleware(request: Request, call_next):
     if path in health_paths:
         return await call_next(request)
 
-    if path == "/login":
+    if path in {"/login", "/theme.css", "/employee", "/employee/catalog", "/employee/sales", "/employee/purchases", "/employee/payables", "/employee/customer-orders", "/role-management"}:
+        # /employee serves only a static onboarding shell; its API independently
+        # validates the HttpOnly Google session and returns only the current user's data.
         return await call_next(request)
 
-    # OAuth endpoints enforce their own state/session checks. In particular,
-    # Google sessions are not administrator sessions and never unlock /app or APIs.
+    # OAuth endpoints enforce their own state/session checks. Google sessions
+    # never unlock the administrator workspace or administrator management APIs.
     if path in {
         "/auth/google/config", "/auth/google/start", "/auth/google/callback",
-        "/auth/google/status", "/auth/google/logout",
+        "/auth/google/status", "/auth/google/workspace", "/auth/google/logout",
     }:
         return await call_next(request)
 
@@ -137,10 +144,60 @@ async def security_middleware(request: Request, call_next):
     username = verify_session_token(token) if token else None
     if username:
         request.state.admin_username = username
-        return await call_next(request)
+        actor_token = current_actor.set(
+            ActorContext(actor_type="ADMIN", admin_username=username)
+        )
+        try:
+            return await call_next(request)
+        finally:
+            current_actor.reset(actor_token)
+
+    # Google members may use the self-service employee workspace and an explicitly
+    # company-scoped API path. The server validates the session and exact membership
+    # on every request; a client-supplied company_id is never authorization.
+    google_token = request.cookies.get(settings.google_session_cookie_name, "")
+    company_id = company_id_from_path(path)
+    if google_token and company_id is not None:
+        try:
+            with SessionLocal() as db:
+                grant = authorize_google_company_request(
+                    db, google_token, company_id, request.method, path=path
+                )
+        except HTTPException as exc:
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
+                headers={"Cache-Control": "no-store"},
+            )
+        except SQLAlchemyError:
+            return JSONResponse(
+                status_code=503,
+                content={"detail": "公司權限資料暫時無法驗證，請稍後再試。"},
+                headers={"Cache-Control": "no-store"},
+            )
+        request.state.google_user_id = grant["user_id"]
+        request.state.google_display_name = grant["display_name"]
+        request.state.company_id = grant["company_id"]
+        request.state.company_role = grant["role"]
+        request.state.membership_id = grant["membership_id"]
+        actor_token = current_actor.set(
+            ActorContext(
+                actor_type="GOOGLE",
+                user_id=grant["user_id"],
+                company_id=grant["company_id"],
+                membership_id=grant["membership_id"],
+                data_scope=grant["data_scope"],
+                permission_code=grant["permission_code"],
+            )
+        )
+        try:
+            return await call_next(request)
+        finally:
+            current_actor.reset(actor_token)
 
     if path == "/app" or path == "/":
-        return RedirectResponse(url="/login", status_code=303)
+        destination = "/employee" if google_token else "/login"
+        return RedirectResponse(url=destination, status_code=303)
 
     return JSONResponse(
         status_code=401,
@@ -154,9 +211,51 @@ def login_page() -> FileResponse:
     return FileResponse(Path(__file__).parent / "static" / "login.html")
 
 
+@app.get("/theme.css", tags=["workspace"], include_in_schema=False)
+def shared_theme_stylesheet() -> FileResponse:
+    """Serve the shared visual theme without requiring a signed-in session."""
+    return FileResponse(
+        Path(__file__).parent / "static" / "theme.css",
+        media_type="text/css",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
 @app.get("/", tags=["system"])
 def root() -> dict[str, str]:
     return {"name": settings.app_name, "status": "ok", "docs": "/docs"}
+
+
+@app.get("/employee", tags=["workspace"], include_in_schema=False)
+def employee_workspace() -> FileResponse:
+    """Serve the Google-member onboarding and permission overview page."""
+    return FileResponse(Path(__file__).parent / "static" / "employee.html")
+
+
+@app.get("/employee/catalog", tags=["workspace"], include_in_schema=False)
+def employee_catalog_workspace() -> FileResponse:
+    """Serve a read-only employee catalog shell; APIs enforce each company grant."""
+    return FileResponse(Path(__file__).parent / "static" / "employee_catalog.html")
+
+@app.get("/employee/sales", tags=["workspace"], include_in_schema=False)
+def employee_sales_workspace() -> FileResponse:
+    """Serve a read-only employee sales and returns history shell."""
+    return FileResponse(Path(__file__).parent / "static" / "employee_sales.html")
+
+@app.get("/employee/purchases", tags=["workspace"], include_in_schema=False)
+def employee_purchases_workspace() -> FileResponse:
+    """Serve a read-only employee purchase and receiving history shell."""
+    return FileResponse(Path(__file__).parent / "static" / "employee_purchases.html")
+
+@app.get("/employee/payables", tags=["workspace"], include_in_schema=False)
+def employee_payables_workspace() -> FileResponse:
+    """Serve a read-only employee supplier bills and payments history shell."""
+    return FileResponse(Path(__file__).parent / "static" / "employee_payables.html")
+
+@app.get("/employee/customer-orders", tags=["workspace"], include_in_schema=False)
+def employee_customer_orders_workspace() -> FileResponse:
+    """Serve a read-only employee customer order and payment history shell."""
+    return FileResponse(Path(__file__).parent / "static" / "employee_customer_orders.html")
 
 
 @app.get("/app", tags=["workspace"], include_in_schema=False)
@@ -180,6 +279,13 @@ def operational_reports_workspace() -> FileResponse:
 def gold_material_workspace() -> FileResponse:
     """Serve the fine-gold material ledger workspace."""
     return FileResponse(Path(__file__).parent / "static" / "gold_material.html")
+
+
+
+@app.get("/role-management", tags=["workspace"], include_in_schema=False)
+def role_management_workspace() -> FileResponse:
+    """Serve administrator role and permission management workspace."""
+    return FileResponse(Path(__file__).parent / "static" / "role_management.html")
 
 
 @app.get("/member-management", tags=["workspace"], include_in_schema=False)

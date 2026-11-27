@@ -67,6 +67,8 @@ class SupplierPaymentAllocationRead(BaseModel):
     payment_id: UUID
     bill_id: UUID
     amount: Decimal
+    reversed_amount: Decimal
+    reversible_amount: Decimal
     created_at: datetime
 
 
@@ -85,3 +87,61 @@ class SupplierPaymentRead(BaseModel):
     note: str | None
     created_at: datetime
     allocations: list[SupplierPaymentAllocationRead]
+    reversed_amount: Decimal
+    reversible_amount: Decimal
+    status: str
+
+
+class SupplierPaymentReversalAllocationCreate(BaseModel):
+    payment_allocation_id: UUID
+    amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+
+
+class SupplierPaymentReversalCreate(BaseModel):
+    reversal_no: str = Field(min_length=1, max_length=50)
+    allocations: list[SupplierPaymentReversalAllocationCreate] = Field(min_length=1, max_length=100)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class SupplierPaymentReversalAllocationRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    reversal_id: UUID
+    payment_allocation_id: UUID
+    amount: Decimal
+    created_at: datetime
+
+
+class SupplierPaymentReversalRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    company_id: UUID
+    site_id: UUID
+    supplier_id: UUID
+    payment_id: UUID
+    reversal_no: str
+    total_amount: Decimal
+    currency_code: str
+    reversed_at: datetime
+    reason: str
+    created_at: datetime
+    allocations: list[SupplierPaymentReversalAllocationRead]
+
+
+class SupplierPayableAgingRow(BaseModel):
+    supplier_id: UUID
+    currency_code: str
+    outstanding_bill_count: int
+    overdue_bill_count: int
+    total_outstanding: Decimal
+    not_due_amount: Decimal
+    no_due_date_amount: Decimal
+    overdue_1_30_amount: Decimal
+    overdue_31_60_amount: Decimal
+    overdue_61_90_amount: Decimal
+    overdue_91_plus_amount: Decimal
+
+
+class SupplierPayableAgingRead(BaseModel):
+    as_of_date: date
+    rows: list[SupplierPayableAgingRow]

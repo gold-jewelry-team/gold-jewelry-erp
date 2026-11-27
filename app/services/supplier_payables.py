@@ -1,15 +1,19 @@
 """Supplier bill creation and allocated payable settlement."""
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.purchase import Purchase
 from app.models.site import Site
 from app.models.supplier import Supplier
-from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
+from app.models.supplier_payable import (
+    SupplierBill, SupplierPayment, SupplierPaymentAllocation,
+    SupplierPaymentReversal, SupplierPaymentReversalAllocation,
+)
 from app.models.gold_material import GoldMaterialSettlementAllocation
 from app.services.daily_closing import assert_business_day_open
 
@@ -22,6 +26,10 @@ def _validate_money(value: Decimal, label: str) -> None:
         raise ValueError(f"{label}必須是正數 Decimal。")
     if value.quantize(CENT) != value:
         raise ValueError(f"{label}最多只能有小數點後兩位。")
+
+
+class SupplierBillIdempotencyConflict(ValueError):
+    """Raised when a supplier bill number is reused for different details."""
 
 
 def create_supplier_bill(
@@ -37,7 +45,8 @@ def create_supplier_bill(
     total_amount: Decimal,
     purchase_id: UUID | None = None,
     note: str | None = None,
-) -> SupplierBill:
+    return_created: bool = False,
+) -> SupplierBill | tuple[SupplierBill, bool]:
     _validate_money(total_amount, "供應商帳單金額")
     if due_date is not None and due_date < bill_date:
         raise ValueError("到期日不可早於帳單日期。")
@@ -45,11 +54,45 @@ def create_supplier_bill(
         raise ValueError("幣別必須使用三碼英文字母代碼。")
 
     site = session.get(Site, site_id)
-    supplier = session.get(Supplier, supplier_id)
     if site is None or site.company_id != company_id:
         raise ValueError("據點不存在或不屬於指定公司。")
-    if supplier is None or supplier.company_id != company_id:
+
+    # Serialize bill creation per supplier. The unique identity is
+    # (company_id, supplier_id, bill_no), so locking the supplier rather
+    # than a site also covers the same supplier invoicing multiple sites.
+    supplier = session.execute(
+        select(Supplier)
+        .where(Supplier.id == supplier_id, Supplier.company_id == company_id)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if supplier is None:
         raise ValueError("供應商不存在或不屬於指定公司。")
+
+    normalized_currency = currency_code.upper()
+    existing = session.scalar(
+        select(SupplierBill)
+        .where(
+            SupplierBill.company_id == company_id,
+            SupplierBill.supplier_id == supplier_id,
+            SupplierBill.bill_no == bill_no,
+        )
+        .with_for_update()
+    )
+    if existing is not None:
+        same_request = (
+            existing.site_id == site_id
+            and existing.purchase_id == purchase_id
+            and existing.bill_date == bill_date
+            and existing.due_date == due_date
+            and existing.currency_code == normalized_currency
+            and existing.total_amount == total_amount
+            and existing.note == note
+        )
+        if not same_request:
+            raise SupplierBillIdempotencyConflict(
+                "此供應商帳單號碼重複，但本次內容與原帳單不同；請查閱原帳單，勿重複建立。"
+            )
+        return (existing, False) if return_created else existing
 
     if purchase_id is not None:
         purchase = session.get(Purchase, purchase_id)
@@ -61,7 +104,7 @@ def create_supplier_bill(
             or purchase.status not in {"ORDERED", "PARTIALLY_RECEIVED", "RECEIVED"}
         ):
             raise ValueError("關聯採購單不存在、供應商／據點不符，或採購單狀態不允許建立應付帳單。")
-        if purchase.currency_code != currency_code.upper():
+        if purchase.currency_code != normalized_currency:
             raise ValueError("帳單幣別必須與關聯採購單一致。")
 
     bill = SupplierBill(
@@ -72,14 +115,14 @@ def create_supplier_bill(
         bill_no=bill_no,
         bill_date=bill_date,
         due_date=due_date,
-        currency_code=currency_code.upper(),
+        currency_code=normalized_currency,
         total_amount=total_amount,
         status="OPEN",
         note=note,
     )
     session.add(bill)
     session.flush()
-    return bill
+    return (bill, True) if return_created else bill
 
 
 class SupplierPaymentIdempotencyConflict(ValueError):
@@ -184,11 +227,20 @@ def record_supplier_payment(
             select(func.coalesce(func.sum(SupplierPaymentAllocation.amount), 0))
             .where(SupplierPaymentAllocation.bill_id == bill.id)
         ) or 0)
+        cash_reversed = Decimal(session.scalar(
+            select(func.coalesce(func.sum(SupplierPaymentReversalAllocation.amount), 0))
+            .join(
+                SupplierPaymentAllocation,
+                SupplierPaymentAllocation.id
+                == SupplierPaymentReversalAllocation.payment_allocation_id,
+            )
+            .where(SupplierPaymentAllocation.bill_id == bill.id)
+        ) or 0)
         gold_paid = Decimal(session.scalar(
             select(func.coalesce(func.sum(GoldMaterialSettlementAllocation.amount), 0))
             .where(GoldMaterialSettlementAllocation.bill_id == bill.id)
         ) or 0)
-        already_paid = cash_paid + gold_paid
+        already_paid = cash_paid - cash_reversed + gold_paid
         remaining = bill.total_amount - already_paid
         requested = allocation_amounts[bill.id]
         if requested > remaining:
@@ -221,3 +273,296 @@ def record_supplier_payment(
 
     session.flush()
     return (payment, True) if return_created else payment
+
+
+
+class SupplierPaymentReversalIdempotencyConflict(ValueError):
+    """Raised when a reversal number is reused for a different reversal."""
+
+
+def record_supplier_payment_reversal(
+    session: Session,
+    *,
+    company_id: UUID,
+    payment_id: UUID,
+    reversal_no: str,
+    allocations: list[dict],
+    reason: str,
+    return_created: bool = False,
+) -> SupplierPaymentReversal | tuple[SupplierPaymentReversal, bool]:
+    """Append a partial/full reversal against exact original payment allocations."""
+    memo = (reason or "").strip()
+    number = (reversal_no or "").strip()
+    if not memo:
+        raise ValueError("沖銷原因不可空白。")
+    if not number:
+        raise ValueError("沖銷單號不可空白。")
+    if not allocations:
+        raise ValueError("供應商付款沖銷至少需要一筆原付款分攤。")
+
+    requested: dict[UUID, Decimal] = {}
+    for item in allocations:
+        allocation_id = item["payment_allocation_id"]
+        amount = item["amount"]
+        _validate_money(amount, "沖銷金額")
+        if allocation_id in requested:
+            raise ValueError("同一張原付款分攤不可在同一沖銷單中重複指定。")
+        requested[allocation_id] = amount
+    reversal_total = sum(requested.values(), Decimal("0"))
+
+    preliminary = session.scalar(select(SupplierPayment).where(
+        SupplierPayment.id == payment_id,
+        SupplierPayment.company_id == company_id,
+    ))
+    if preliminary is None:
+        raise ValueError("找不到指定供應商付款紀錄。")
+
+    # Lock the site first, matching supplier payment creation. This serializes
+    # duplicate reversal requests and competing balance adjustments.
+    site = session.execute(select(Site).where(
+        Site.id == preliminary.site_id,
+        Site.company_id == company_id,
+    ).with_for_update()).scalar_one_or_none()
+    if site is None:
+        raise ValueError("供應商付款據點不存在或不屬於指定公司。")
+
+    existing = session.scalar(select(SupplierPaymentReversal).where(
+        SupplierPaymentReversal.site_id == site.id,
+        SupplierPaymentReversal.reversal_no == number,
+    ).with_for_update())
+    if existing is not None:
+        existing_allocations = {
+            row.payment_allocation_id: row.amount
+            for row in session.scalars(select(SupplierPaymentReversalAllocation).where(
+                SupplierPaymentReversalAllocation.reversal_id == existing.id
+            )).all()
+        }
+        if (
+            existing.company_id != company_id
+            or existing.payment_id != payment_id
+            or existing.total_amount != reversal_total
+            or existing.reason != memo
+            or existing_allocations != requested
+        ):
+            raise SupplierPaymentReversalIdempotencyConflict(
+                "此沖銷單號已用於不同的供應商付款沖銷內容，請先查閱原沖銷紀錄。"
+            )
+        return (existing, False) if return_created else existing
+
+    payment = session.execute(select(SupplierPayment).where(
+        SupplierPayment.id == payment_id,
+        SupplierPayment.company_id == company_id,
+    ).with_for_update()).scalar_one_or_none()
+    if payment is None:
+        raise ValueError("找不到指定供應商付款紀錄。")
+    if payment.currency_code != "TWD":
+        raise ValueError("目前只支援新台幣供應商付款沖銷。")
+
+    now = datetime.now(timezone.utc)
+    assert_business_day_open(session, site_id=payment.site_id, at=now)
+
+    original_allocations = list(session.scalars(select(SupplierPaymentAllocation)
+        .where(SupplierPaymentAllocation.payment_id == payment.id)
+        .order_by(SupplierPaymentAllocation.id)
+        .with_for_update()).all())
+    original_by_id = {row.id: row for row in original_allocations}
+    if not set(requested).issubset(original_by_id):
+        raise ValueError("沖銷分攤只能指定這筆原付款實際存在的帳單分攤。")
+
+    previous = list(session.scalars(select(SupplierPaymentReversalAllocation)
+        .where(SupplierPaymentReversalAllocation.payment_allocation_id.in_(list(requested)))
+        .with_for_update()).all())
+    reversed_by_allocation: dict[UUID, Decimal] = {}
+    for row in previous:
+        reversed_by_allocation[row.payment_allocation_id] = (
+            reversed_by_allocation.get(row.payment_allocation_id, Decimal("0")) + row.amount
+        )
+    for allocation_id, amount in requested.items():
+        remaining = original_by_id[allocation_id].amount - reversed_by_allocation.get(
+            allocation_id, Decimal("0")
+        )
+        if amount > remaining:
+            raise ValueError(f"原付款分攤尚可沖銷金額為 {remaining}，本次不可超額沖銷。")
+
+    bill_ids = sorted({original_by_id[key].bill_id for key in requested}, key=str)
+    bills = list(session.scalars(select(SupplierBill)
+        .where(SupplierBill.id.in_(bill_ids))
+        .order_by(SupplierBill.id)
+        .with_for_update()).all())
+    if len(bills) != len(bill_ids):
+        raise ValueError("原付款分攤關聯的供應商帳單不存在。")
+    if any(
+        bill.company_id != company_id
+        or bill.site_id != payment.site_id
+        or bill.supplier_id != payment.supplier_id
+        for bill in bills
+    ):
+        raise ValueError("原付款分攤的帳單公司、據點或供應商不一致。")
+
+    reversal = SupplierPaymentReversal(
+        company_id=company_id,
+        site_id=payment.site_id,
+        supplier_id=payment.supplier_id,
+        payment_id=payment.id,
+        reversal_no=number,
+        total_amount=reversal_total,
+        currency_code=payment.currency_code,
+        reversed_at=now,
+        reason=memo,
+    )
+    session.add(reversal)
+    session.flush()
+    for allocation_id, amount in requested.items():
+        session.add(SupplierPaymentReversalAllocation(
+            reversal_id=reversal.id,
+            payment_allocation_id=allocation_id,
+            amount=amount,
+        ))
+    session.flush()
+
+    for bill in bills:
+        cash_paid = Decimal(session.scalar(select(func.coalesce(
+            func.sum(SupplierPaymentAllocation.amount), 0
+        )).where(SupplierPaymentAllocation.bill_id == bill.id)) or 0)
+        cash_reversed = Decimal(session.scalar(select(func.coalesce(
+            func.sum(SupplierPaymentReversalAllocation.amount), 0
+        )).join(
+            SupplierPaymentAllocation,
+            SupplierPaymentAllocation.id
+            == SupplierPaymentReversalAllocation.payment_allocation_id,
+        ).where(SupplierPaymentAllocation.bill_id == bill.id)) or 0)
+        gold_paid = Decimal(session.scalar(select(func.coalesce(
+            func.sum(GoldMaterialSettlementAllocation.amount), 0
+        )).where(GoldMaterialSettlementAllocation.bill_id == bill.id)) or 0)
+        net_paid = cash_paid - cash_reversed + gold_paid
+        bill.status = (
+            "PAID" if net_paid == bill.total_amount
+            else "PARTIALLY_PAID" if net_paid > 0
+            else "OPEN"
+        )
+
+    session.flush()
+    return (reversal, True) if return_created else reversal
+
+
+def get_supplier_payable_aging(
+    session: Session,
+    *,
+    company_id: UUID,
+    site_id: UUID | None = None,
+    supplier_id: UUID | None = None,
+    as_of_date: date | None = None,
+) -> dict:
+    """Group open supplier balances by supplier/currency and due-date age."""
+    effective_date = as_of_date or datetime.now(ZoneInfo("Asia/Taipei")).date()
+
+    cash_paid = (
+        select(
+            SupplierPaymentAllocation.bill_id.label("bill_id"),
+            func.sum(SupplierPaymentAllocation.amount).label("cash_paid"),
+        )
+        .group_by(SupplierPaymentAllocation.bill_id)
+        .subquery()
+    )
+    cash_reversed = (
+        select(
+            SupplierPaymentAllocation.bill_id.label("bill_id"),
+            func.sum(SupplierPaymentReversalAllocation.amount).label("cash_reversed"),
+        )
+        .join(
+            SupplierPaymentAllocation,
+            SupplierPaymentAllocation.id
+            == SupplierPaymentReversalAllocation.payment_allocation_id,
+        )
+        .group_by(SupplierPaymentAllocation.bill_id)
+        .subquery()
+    )
+    gold_paid = (
+        select(
+            GoldMaterialSettlementAllocation.bill_id.label("bill_id"),
+            func.sum(GoldMaterialSettlementAllocation.amount).label("gold_paid"),
+        )
+        .group_by(GoldMaterialSettlementAllocation.bill_id)
+        .subquery()
+    )
+
+    net_paid = (
+        func.coalesce(cash_paid.c.cash_paid, 0)
+        - func.coalesce(cash_reversed.c.cash_reversed, 0)
+        + func.coalesce(gold_paid.c.gold_paid, 0)
+    )
+    outstanding = SupplierBill.total_amount - net_paid
+    aging_bucket = case(
+        (SupplierBill.due_date.is_(None), "NO_DUE_DATE"),
+        (SupplierBill.due_date >= effective_date, "NOT_DUE"),
+        (SupplierBill.due_date >= effective_date - timedelta(days=30), "OVERDUE_1_30"),
+        (SupplierBill.due_date >= effective_date - timedelta(days=60), "OVERDUE_31_60"),
+        (SupplierBill.due_date >= effective_date - timedelta(days=90), "OVERDUE_61_90"),
+        else_="OVERDUE_91_PLUS",
+    )
+    statement = (
+        select(
+            SupplierBill.supplier_id,
+            SupplierBill.currency_code,
+            aging_bucket.label("aging_bucket"),
+            func.count(SupplierBill.id).label("bill_count"),
+            func.sum(outstanding).label("outstanding_amount"),
+        )
+        .select_from(SupplierBill)
+        .outerjoin(cash_paid, cash_paid.c.bill_id == SupplierBill.id)
+        .outerjoin(cash_reversed, cash_reversed.c.bill_id == SupplierBill.id)
+        .outerjoin(gold_paid, gold_paid.c.bill_id == SupplierBill.id)
+        .where(
+            SupplierBill.company_id == company_id,
+            SupplierBill.status != "VOID",
+            outstanding > 0,
+        )
+        .group_by(SupplierBill.supplier_id, SupplierBill.currency_code, aging_bucket)
+        .order_by(SupplierBill.currency_code, SupplierBill.supplier_id, aging_bucket)
+    )
+    if site_id is not None:
+        statement = statement.where(SupplierBill.site_id == site_id)
+    if supplier_id is not None:
+        statement = statement.where(SupplierBill.supplier_id == supplier_id)
+
+    summary_by_supplier_currency: dict[tuple[UUID, str], dict] = {}
+    for row in session.execute(statement):
+        key = (row.supplier_id, row.currency_code)
+        summary = summary_by_supplier_currency.setdefault(key, {
+            "supplier_id": row.supplier_id,
+            "currency_code": row.currency_code,
+            "outstanding_bill_count": 0,
+            "overdue_bill_count": 0,
+            "total_outstanding": Decimal("0.00"),
+            "not_due_amount": Decimal("0.00"),
+            "no_due_date_amount": Decimal("0.00"),
+            "overdue_1_30_amount": Decimal("0.00"),
+            "overdue_31_60_amount": Decimal("0.00"),
+            "overdue_61_90_amount": Decimal("0.00"),
+            "overdue_91_plus_amount": Decimal("0.00"),
+        })
+        count = int(row.bill_count or 0)
+        amount = Decimal(row.outstanding_amount or 0)
+        summary["outstanding_bill_count"] += count
+        summary["total_outstanding"] += amount
+        if row.aging_bucket == "NOT_DUE":
+            summary["not_due_amount"] += amount
+        elif row.aging_bucket == "NO_DUE_DATE":
+            summary["no_due_date_amount"] += amount
+        else:
+            bucket_field = {
+                "OVERDUE_1_30": "overdue_1_30_amount",
+                "OVERDUE_31_60": "overdue_31_60_amount",
+                "OVERDUE_61_90": "overdue_61_90_amount",
+                "OVERDUE_91_PLUS": "overdue_91_plus_amount",
+            }[row.aging_bucket]
+            summary[bucket_field] += amount
+            summary["overdue_bill_count"] += count
+
+    return {
+        "as_of_date": effective_date,
+        "rows": sorted(
+            summary_by_supplier_currency.values(),
+            key=lambda item: (item["currency_code"], str(item["supplier_id"])),
+        ),
+    }

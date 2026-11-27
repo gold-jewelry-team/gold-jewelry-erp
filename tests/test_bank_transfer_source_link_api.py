@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -273,6 +274,55 @@ def test_transfer_older_than_account_opening_balance_is_not_linked():
         check = TestSession()
         assert check.query(BankTransaction).count() == 0
         check.close()
+    finally:
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+
+
+
+def test_transfer_source_module_permissions_are_enforced(monkeypatch):
+    engine, _TestSession, ids = _context()
+    try:
+        client = TestClient(app)
+        company_id = ids["company_id"]
+        base = f"/companies/{company_id}/bank-accounts"
+        account_id = _create_account(
+            client, company_id, "權限測試帳戶", datetime.now(timezone.utc) - timedelta(days=2)
+        )
+
+        def allow_only_payment_view(_db, permission_code):
+            if permission_code != "payments.view":
+                raise HTTPException(status_code=403, detail=f"需要 {permission_code}")
+
+        monkeypatch.setattr(
+            bank_accounts, "require_current_actor_permission", allow_only_payment_view
+        )
+
+        pending = client.get(f"{base}/pending-transfers")
+        assert pending.status_code == 200, pending.text
+        assert pending.json()
+        assert {row["source_type"] for row in pending.json()} == {"PAYMENT_TRANSACTION"}
+
+        denied = client.post(
+            f"{base}/{account_id}/transfer-links",
+            json={
+                "source_type": "SUPPLIER_PAYMENT",
+                "source_id": str(ids["supplier_payment_id"]),
+                "created_by_name": "測試成員",
+            },
+        )
+        assert denied.status_code == 403, denied.text
+
+        allowed = client.post(
+            f"{base}/{account_id}/transfer-links",
+            json={
+                "source_type": "PAYMENT_TRANSACTION",
+                "source_id": str(ids["payment_id"]),
+                "created_by_name": "測試成員",
+            },
+        )
+        assert allowed.status_code == 201, allowed.text
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(engine)

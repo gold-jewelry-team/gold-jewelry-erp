@@ -8,6 +8,7 @@ from app.models.product_code_sequence import ProductCodeSequence
 from app.models.inventory import InventoryMovement
 from app.models.inventory_operation_request import InventoryOperationRequest
 from app.models.user_identity import AuthIdentity, CompanyMembership, User, UserSession
+from app.models.access_control import CompanyMembershipRole, CompanyRole, CompanyRolePermission, Permission, RecordActor
 from app.models.supplier import Supplier
 from app.models.purchase import Purchase, PurchaseLine
 from app.models.gold_material import GoldMaterialMovement, GoldMaterialSettlementAllocation
@@ -17,7 +18,7 @@ __all__ = [
     "Company", "Site", "StorageLocation", "GoldPrice", "Sale", "SaleLine",
     "Product", "ProductCategory", "ProductCodeSequence", "InventoryMovement",
     "InventoryOperationRequest", "User", "AuthIdentity", "CompanyMembership",
-    "UserSession", "Supplier", "Purchase", "PurchaseLine",
+    "UserSession", "Permission", "CompanyRole", "CompanyRolePermission", "CompanyMembershipRole", "RecordActor", "Supplier", "Purchase", "PurchaseLine",
     "SaleReturn", "SaleReturnLine", "DailyClosing", "DailyClosingPaymentSummary",
     "PaymentTransaction", "SupplierBill", "SupplierPayment", "SupplierPaymentAllocation",
     "OperatingExpense", "DailyCashCount", "CashDrawerMovement", "BankAccount",
@@ -25,12 +26,16 @@ __all__ = [
     "BankReconciliationSnapshot", "LaborCodeSetting", "LaborCodeMapping",
     "GoldMaterialMovement", "GoldMaterialSettlementAllocation",
     "SupplierCategoryOffering", "SupplierProductOffering", "CustomerOrder",
+    "SupplierPaymentReversal", "SupplierPaymentReversalAllocation",
 ]
 
 from app.models.sale_return import SaleReturn, SaleReturnLine
 from app.models.daily_closing import DailyClosing, DailyClosingPaymentSummary
 from app.models.payment_transaction import PaymentTransaction
-from app.models.supplier_payable import SupplierBill, SupplierPayment, SupplierPaymentAllocation
+from app.models.supplier_payable import (
+    SupplierBill, SupplierPayment, SupplierPaymentAllocation,
+    SupplierPaymentReversal, SupplierPaymentReversalAllocation,
+)
 from app.models.operating_expense import OperatingExpense
 from app.models.cash_count import DailyCashCount
 from app.models.cash_drawer_movement import CashDrawerMovement

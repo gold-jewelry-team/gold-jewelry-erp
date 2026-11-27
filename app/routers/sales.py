@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
+from app.core.company_access import require_current_actor_permission
 from app.models.sale import Sale, SaleLine
 from app.routers.schemas.sales import SaleActionResult, SaleCreate, SaleRead
 from app.services.sales import complete_sale, create_sale_draft, update_sale_draft, void_sale_draft
@@ -79,6 +80,11 @@ def list_sales(
 
 @router.post("", response_model=SaleRead, status_code=201)
 def create_sale(company_id: UUID, payload: SaleCreate, db: Session = Depends(get_db)):
+    if payload.customer_order_id is not None:
+        require_current_actor_permission(db, "customer_orders.update")
+    if any(line.product_id is not None for line in payload.lines):
+        require_current_actor_permission(db, "products.view")
+        require_current_actor_permission(db, "inventory.view")
     try:
         sale = create_sale_draft(
             db,
@@ -87,6 +93,7 @@ def create_sale(company_id: UUID, payload: SaleCreate, db: Session = Depends(get
             sale_no=payload.sale_no,
             payment_method=payload.payment_method,
             card_amount=payload.card_amount,
+            customer_order_id=payload.customer_order_id,
             lines=[line.model_dump() for line in payload.lines],
             note=payload.note,
         )
@@ -112,11 +119,18 @@ def get_sale(company_id: UUID, sale_id: UUID, db: Session = Depends(get_db)):
 
 @router.patch("/{sale_id}", response_model=SaleRead)
 def patch_sale(company_id: UUID, sale_id: UUID, payload: SaleCreate, db: Session = Depends(get_db)):
+    if any(line.product_id is not None for line in payload.lines):
+        require_current_actor_permission(db, "products.view")
+        require_current_actor_permission(db, "inventory.view")
     sale = db.scalar(select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id))
     if sale is None:
         raise HTTPException(status_code=404, detail="找不到指定銷售單。")
     if payload.site_id != sale.site_id:
         raise HTTPException(status_code=422, detail="銷售草稿不可變更所屬據點。")
+    if payload.customer_order_id is not None and payload.customer_order_id != sale.customer_order_id:
+        raise HTTPException(status_code=422, detail="銷售草稿不可在修改時更換客訂連結。")
+    if sale.customer_order_id is not None:
+        require_current_actor_permission(db, "customer_orders.update")
     try:
         update_sale_draft(
             db, company_id=company_id, sale_id=sale_id, sale_no=payload.sale_no,
@@ -135,6 +149,11 @@ def patch_sale(company_id: UUID, sale_id: UUID, payload: SaleCreate, db: Session
 
 @router.post("/{sale_id}/complete", response_model=SaleRead)
 def post_complete_sale(company_id: UUID, sale_id: UUID, db: Session = Depends(get_db)):
+    linked_order_id = db.scalar(select(Sale.customer_order_id).where(
+        Sale.id == sale_id, Sale.company_id == company_id
+    ))
+    if linked_order_id is not None:
+        require_current_actor_permission(db, "customer_orders.update")
     try:
         complete_sale(db, company_id=company_id, sale_id=sale_id)
         db.commit()
@@ -146,6 +165,11 @@ def post_complete_sale(company_id: UUID, sale_id: UUID, db: Session = Depends(ge
 
 @router.post("/{sale_id}/void", response_model=SaleActionResult)
 def post_void_sale(company_id: UUID, sale_id: UUID, db: Session = Depends(get_db)):
+    linked_order_id = db.scalar(select(Sale.customer_order_id).where(
+        Sale.id == sale_id, Sale.company_id == company_id
+    ))
+    if linked_order_id is not None:
+        require_current_actor_permission(db, "customer_orders.update")
     try:
         sale = void_sale_draft(db, company_id=company_id, sale_id=sale_id)
         db.commit()

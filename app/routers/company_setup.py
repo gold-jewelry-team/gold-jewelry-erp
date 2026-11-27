@@ -28,6 +28,7 @@ def get_db():
         db.close()
 
 
+
 @router.get("/companies", response_model=list[CompanyRead])
 def list_companies(include_inactive: bool = False, db: Session = Depends(get_db)):
     statement = select(Company)
@@ -46,6 +47,7 @@ def create_company(payload: CompanyCreate, db: Session = Depends(get_db)):
         ensure_default_product_categories(db, company.id)
         db.commit()
         db.refresh(company)
+
         return company
     except IntegrityError as exc:
         db.rollback()

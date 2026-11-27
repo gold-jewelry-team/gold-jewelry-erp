@@ -16,7 +16,7 @@ from app.models.site import Site
 from app.routers import customer_orders
 
 
-def test_customer_order_paid_in_full_at_creation_can_complete_after_delivery():
+def test_customer_order_paid_in_full_still_requires_formal_sale_to_complete():
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -64,7 +64,7 @@ def test_customer_order_paid_in_full_at_creation_can_complete_after_delivery():
         assert order["balance_amount"] == "0.00"
         assert len(order["payments"]) == 1
 
-        for next_status in ("ARRIVED", "READY", "COMPLETED"):
+        for next_status in ("ARRIVED", "READY"):
             changed = client.patch(
                 f"/companies/{company_id}/customer-orders/{order['id']}/status",
                 params={"status": next_status},
@@ -72,6 +72,16 @@ def test_customer_order_paid_in_full_at_creation_can_complete_after_delivery():
             assert changed.status_code == 200, changed.text
             assert changed.json()["status"] == next_status
             assert changed.json()["balance_amount"] == "0.00"
+
+        direct_completion = client.patch(
+            f"/companies/{company_id}/customer-orders/{order['id']}/status",
+            params={"status": "COMPLETED"},
+        )
+        assert direct_completion.status_code == 409
+        assert "必須透過正式銷售單完成" in direct_completion.json()["detail"]
+        assert client.get(
+            f"/companies/{company_id}/customer-orders/{order['id']}"
+        ).json()["status"] == "READY"
 
         verify = TestSession()
         persisted = verify.scalar(
@@ -87,7 +97,7 @@ def test_customer_order_paid_in_full_at_creation_can_complete_after_delivery():
                 PaymentTransaction.customer_order_id == UUID(order["id"])
             )
         )
-        assert persisted.status == "COMPLETED"
+        assert persisted.status == "READY"
         assert persisted.deposit_amount == Decimal("50000.00")
         assert payment_count == 1
         assert payment_total == Decimal("50000.00")

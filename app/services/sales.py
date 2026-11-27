@@ -3,9 +3,11 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_FLOOR
 from uuid import UUID, uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models.customer_order import CustomerOrder
+from app.models.payment_transaction import PaymentTransaction
 from app.models.product import Product
 from app.models.sale import Sale, SaleLine
 from app.models.site import Site
@@ -62,6 +64,44 @@ def _allocate_integer_total(total: Decimal, weights: list[Decimal]) -> list[Deci
     return floors
 
 
+def _customer_order_payment_nets(session: Session, order_id: UUID) -> dict[str, Decimal]:
+    rows = session.execute(
+        select(
+            PaymentTransaction.payment_method,
+            PaymentTransaction.direction,
+            func.coalesce(func.sum(PaymentTransaction.amount), 0),
+        )
+        .where(PaymentTransaction.customer_order_id == order_id)
+        .group_by(PaymentTransaction.payment_method, PaymentTransaction.direction)
+    ).all()
+    balances: dict[str, Decimal] = {}
+    for method, direction, amount in rows:
+        signed = Decimal(amount or 0) if direction == "IN" else -Decimal(amount or 0)
+        balances[method] = balances.get(method, Decimal("0")) + signed
+    return balances
+
+
+def _validate_customer_order_lines(order: CustomerOrder, sale_lines: list[SaleLine]) -> None:
+    items = order.items if isinstance(order.items, list) else []
+    if len(items) != len(sale_lines):
+        raise ValueError("正式銷售品項數量必須與客訂明細一致，請勿遺漏或額外加入商品。")
+    for index, (item, line) in enumerate(zip(items, sale_lines), start=1):
+        stored_product_id = item.get("product_id")
+        line_product_id = str(line.product_id) if line.product_id is not None else None
+        expected_product_id = str(stored_product_id) if stored_product_id else None
+        if expected_product_id != line_product_id:
+            raise ValueError(f"第 {index} 項正式商品與客訂明細不一致，請重新核對。")
+        if line.product_id is None:
+            stored_name = (item.get("product_name") or "").strip()
+            if stored_name and stored_name != line.product_name_snapshot:
+                raise ValueError(f"第 {index} 項臨時估價商品名稱與客訂明細不一致。")
+        stored_old_weight = Decimal(str(item.get("old_gold_weight") or "0"))
+        if stored_old_weight != Decimal(str(line.old_gold_weight or "0")):
+            raise ValueError(f"第 {index} 項舊金折抵重量與客訂明細不一致。")
+        if item.get("trade_in_source") != line.trade_in_source:
+            raise ValueError(f"第 {index} 項舊金來源與客訂明細不一致。")
+
+
 def create_sale_draft(
     session: Session,
     *,
@@ -73,13 +113,33 @@ def create_sale_draft(
     card_amount: Decimal | None = None,
     note: str | None = None,
     at: datetime | None = None,
+    customer_order_id: UUID | None = None,
 ) -> Sale:
-    """Create a draft sale; card fee is calculated once on the order's card tender."""
+    """Create a draft sale; linked customer-order receipts remain in their original ledger."""
     if payment_method not in {"CASH", "CARD", "MIXED", "TRANSFER", "OTHER"}:
         raise ValueError("不支援的付款方式。")
     site = session.get(Site, site_id)
     if site is None or site.company_id != company_id:
         raise ValueError("據點不存在或不屬於指定公司。")
+    linked_order = None
+    if customer_order_id is not None:
+        linked_order = session.execute(
+            select(CustomerOrder).where(
+                CustomerOrder.id == customer_order_id,
+                CustomerOrder.company_id == company_id,
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if linked_order is None:
+            raise ValueError("找不到指定客訂單，或客訂單不屬於目前公司。")
+        if linked_order.site_id != site_id:
+            raise ValueError("客訂單與正式銷售必須屬於同一營業據點。")
+        if linked_order.status != "READY":
+            raise ValueError("只有已到貨且待交貨的客訂單可以建立正式銷售。")
+        existing_sale = session.scalar(
+            select(Sale.id).where(Sale.customer_order_id == linked_order.id)
+        )
+        if existing_sale is not None:
+            raise ValueError("此客訂單已建立正式銷售草稿，請開啟原銷售單繼續處理。")
     if not lines:
         raise ValueError("銷售明細不可空白。")
 
@@ -88,6 +148,7 @@ def create_sale_draft(
     sale = Sale(
         company_id=company_id,
         site_id=site_id,
+        customer_order_id=linked_order.id if linked_order is not None else None,
         sale_no=sale_no,
         payment_method=payment_method,
         currency_code="TWD",
@@ -208,7 +269,21 @@ def create_sale_draft(
         line_results.append((line, result.subtotal))
         subtotal_total += result.subtotal
 
+    if linked_order is not None:
+        _validate_customer_order_lines(linked_order, [line for line, _ in line_results])
+        if card_amount is None and payment_method != "CARD":
+            prior_card = max(
+                Decimal("0"),
+                _customer_order_payment_nets(session, linked_order.id).get("CARD", Decimal("0")),
+            )
+            card_amount = prior_card
+
     positive_subtotal = max(Decimal("0"), round_twd_like_legacy(subtotal_total))
+    if linked_order is not None and card_amount is not None:
+        # Older customer-order card receipts did not add the POS surcharge.
+        # Treat their net amount as card principal, capped at today's positive
+        # item subtotal; any excess remains refundable through the order ledger.
+        card_amount = min(max(Decimal("0"), card_amount), positive_subtotal)
     if card_amount is None:
         if payment_method == "CARD":
             card_amount = positive_subtotal
@@ -263,6 +338,8 @@ def create_sale_draft(
     sale.card_amount = card_amount
     sale.card_fee = card_fee_total
     sale.final_amount = final_total
+    if linked_order is not None:
+        linked_order.final_sale_amount = final_total
     session.flush()
     return sale
 
@@ -274,16 +351,44 @@ def update_sale_draft(
     note: str | None = None, at: datetime | None = None,
 ) -> Sale:
     """Reprice and replace all lines of an uncompleted sale without changing its identity."""
+    linked_order_id = session.scalar(
+        select(Sale.customer_order_id).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        )
+    )
+    linked_order = None
+    if linked_order_id is not None:
+        linked_order = session.execute(
+            select(CustomerOrder).where(
+                CustomerOrder.id == linked_order_id,
+                CustomerOrder.company_id == company_id,
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if linked_order is None or linked_order.status != "READY":
+            raise ValueError("客訂連結已失效，請先核對客訂單狀態。")
     sale = session.execute(
         select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
     ).scalar_one_or_none()
     if sale is None:
         raise ValueError("找不到指定銷售單。")
+    if sale.customer_order_id != linked_order_id:
+        raise ValueError("銷售單客訂連結已變動，請重新載入後再操作。")
     if sale.status != "DRAFT":
         raise ValueError("只有尚未完成的銷售草稿可以修改；已完成銷售請走退貨流程。")
     if not lines:
         raise ValueError("銷售明細不可空白。")
 
+    if linked_order is not None:
+        candidate_lines = [
+            SaleLine(
+                product_id=item.get("product_id"),
+                product_name_snapshot=(item.get("product_name") or "").strip() or "臨時估價",
+                old_gold_weight=Decimal(str(item.get("old_gold_weight") or "0")),
+                trade_in_source=item.get("trade_in_source"),
+            )
+            for item in lines
+        ]
+        _validate_customer_order_lines(linked_order, candidate_lines)
     temporary = create_sale_draft(
         session, company_id=company_id, site_id=sale.site_id,
         sale_no="TMP-" + uuid4().hex[:24], payment_method=payment_method,
@@ -306,6 +411,8 @@ def update_sale_draft(
     sale.card_fee = temporary.card_fee
     sale.final_amount = temporary.final_amount
     sale.note = note
+    if linked_order is not None:
+        linked_order.final_sale_amount = temporary.final_amount
     session.flush()
     session.delete(temporary)
     session.flush()
@@ -314,13 +421,50 @@ def update_sale_draft(
 
 def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
     """Atomically deduct each sold item and complete the sale."""
+    linked_order_id = session.scalar(
+        select(Sale.customer_order_id).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        )
+    )
+    linked_order = None
+    if linked_order_id is not None:
+        linked_order = session.execute(
+            select(CustomerOrder).where(
+                CustomerOrder.id == linked_order_id,
+                CustomerOrder.company_id == company_id,
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if linked_order is None:
+            raise ValueError("正式銷售連結的客訂單不存在，請先核對資料。")
     sale = session.execute(
-        select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
+        select(Sale).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        ).with_for_update()
     ).scalar_one_or_none()
     if sale is None:
         raise ValueError("找不到指定銷售單。")
+    if sale.customer_order_id != linked_order_id:
+        raise ValueError("銷售單客訂連結已變動，請重新載入後再操作。")
+    # Completing a sale is safe to retry after a lost HTTP response: the
+    # first request commits the stock ledger and status atomically, so a
+    # repeated request should return the completed sale without posting stock
+    # movements a second time.
+    if sale.status == "COMPLETED":
+        return sale
     if sale.status != "DRAFT":
         raise ValueError("只有草稿銷售單可以完成。")
+    if linked_order is not None:
+        if linked_order.status != "READY":
+            raise ValueError("客訂單必須維持待交貨狀態，才能完成正式銷售。")
+        if linked_order.final_sale_amount != sale.final_amount:
+            raise ValueError("正式銷售金額快照已變動，請重新開啟銷售草稿核對。")
+        if sale.final_amount > 0 and linked_order.deposit_amount != sale.final_amount:
+            difference = sale.final_amount - linked_order.deposit_amount
+            if difference > 0:
+                raise ValueError(f"客訂尚有尾款 NT$ {difference} 未收清，不可完成交貨。")
+            raise ValueError(f"客訂超收 NT$ {abs(difference)}，請先依原付款方式完成退款。")
+        if sale.final_amount <= 0 and linked_order.deposit_amount != 0:
+            raise ValueError("此筆正式銷售不需向客戶收款，請先退還客訂目前淨收款後再完成交貨。")
     lines = list(session.scalars(
         select(SaleLine).where(SaleLine.sale_id == sale.id).order_by(SaleLine.line_no)
     ).all())
@@ -353,18 +497,42 @@ def complete_sale(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
         )
     sale.status = "COMPLETED"
     sale.completed_at = completed_at
+    if linked_order is not None:
+        linked_order.status = "COMPLETED"
     session.flush()
     return sale
 
 
 def void_sale_draft(session: Session, *, company_id: UUID, sale_id: UUID) -> Sale:
+    linked_order_id = session.scalar(
+        select(Sale.customer_order_id).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        )
+    )
+    linked_order = None
+    if linked_order_id is not None:
+        linked_order = session.execute(
+            select(CustomerOrder).where(
+                CustomerOrder.id == linked_order_id,
+                CustomerOrder.company_id == company_id,
+            ).with_for_update()
+        ).scalar_one_or_none()
+        if linked_order is None or linked_order.status != "READY":
+            raise ValueError("客訂連結狀態異常，無法安全解除銷售草稿。")
     sale = session.execute(
-        select(Sale).where(Sale.id == sale_id, Sale.company_id == company_id).with_for_update()
+        select(Sale).where(
+            Sale.id == sale_id, Sale.company_id == company_id
+        ).with_for_update()
     ).scalar_one_or_none()
     if sale is None:
         raise ValueError("找不到指定銷售單。")
+    if sale.customer_order_id != linked_order_id:
+        raise ValueError("銷售單客訂連結已變動，請重新載入後再操作。")
     if sale.status != "DRAFT":
         raise ValueError("只有草稿銷售單可以作廢；已完成銷售請走退貨流程。")
+    if linked_order is not None:
+        linked_order.final_sale_amount = None
+        sale.customer_order_id = None
     sale.status = "VOID"
     sale.voided_at = datetime.now(timezone.utc)
     session.flush()

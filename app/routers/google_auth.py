@@ -1,8 +1,9 @@
-"""Google OpenID Connect login.
+"""Google OpenID Connect login and the employee onboarding workspace.
 
-Google identities receive a revocable server-side session, but this phase
-intentionally does not grant access to business pages or business APIs.
+Google identities receive a revocable server-side session. Company business
+APIs remain available only with an ACTIVE membership and explicit permissions.
 """
+
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -19,7 +20,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.models import AuthIdentity, Company, CompanyMembership, User, UserSession
+from app.services.access_control import replace_membership_roles
+from app.models import (
+    AuthIdentity, Company, CompanyMembership, CompanyMembershipRole,
+    CompanyRole, CompanyRolePermission, Permission, RecordActor, User, UserSession,
+)
 
 router = APIRouter(prefix="/auth/google", tags=["Google authentication"])
 
@@ -31,10 +36,19 @@ OAUTH_COOKIE_MAX_AGE = 600
 def _oauth_ready() -> None:
     if not settings.google_oauth_configured:
         raise HTTPException(status_code=503, detail="Google 登入尚未啟用或尚未完成部署設定。")
-    # Do not start OAuth until migration 0034 is present in this database.
+    # Do not start OAuth until user, membership, role, permission, and record-actor schemas exist.
     try:
         with SessionLocal() as db:
+            db.scalar(select(User.id).limit(1))
+            db.scalar(select(AuthIdentity.id).limit(1))
+            db.scalar(select(Company.id).limit(1))
+            db.scalar(select(CompanyMembership.id).limit(1))
             db.scalar(select(UserSession.id).limit(1))
+            db.scalar(select(CompanyMembershipRole.id).limit(1))
+            db.scalar(select(CompanyRole.id).limit(1))
+            db.scalar(select(CompanyRolePermission.id).limit(1))
+            db.scalar(select(Permission.id).limit(1))
+            db.scalar(select(RecordActor.id).limit(1))
     except SQLAlchemyError:
         raise HTTPException(status_code=503, detail="Google 登入資料庫尚未完成設定。")
 
@@ -59,10 +73,9 @@ def google_login_config() -> dict[str, bool]:
     if not settings.google_oauth_configured:
         return {"enabled": False}
     try:
-        with SessionLocal() as db:
-            db.scalar(select(UserSession.id).limit(1))
+        _oauth_ready()
         return {"enabled": True}
-    except SQLAlchemyError:
+    except HTTPException:
         return {"enabled": False}
 
 
@@ -182,26 +195,19 @@ def google_callback(request: Request):
                 # Only a single active company can be assigned automatically.
                 # Zero or multiple companies require a future administrator action.
                 if len(active_companies) == 1:
-                    db.add(CompanyMembership(
+                    membership = CompanyMembership(
                         company_id=active_companies[0].id,
                         user_id=user.id,
                         status="PENDING",
                         role="STAFF",
-                    ))
+                    )
+                    db.add(membership)
+                    db.flush()
+                    replace_membership_roles(db, membership, ["STAFF"])
 
-            if identity is not None:
-                membership_statuses = list(db.scalars(
-                    select(CompanyMembership.status).where(
-                        CompanyMembership.user_id == user.id
-                    )
-                ))
-                if membership_statuses and not any(
-                    status in {"ACTIVE", "PENDING"} for status in membership_statuses
-                ):
-                    raise HTTPException(
-                        status_code=403,
-                        detail="此帳號目前沒有可使用的公司成員資格，請聯絡管理者。",
-                    )
+            # Rejected/suspended users may still sign in to view their own
+            # onboarding status. Company business APIs separately require ACTIVE
+            # membership and a permission grant, so this does not restore data access.
 
             db.add(UserSession(
                 user_id=user.id,
@@ -215,7 +221,7 @@ def google_callback(request: Request):
         # Includes missing 0034 tables: fail closed and keep the old admin login usable.
         raise HTTPException(status_code=503, detail="Google 登入服務尚未完成資料庫設定，請稍後再試。")
 
-    redirect = RedirectResponse("/login?google=connected", status_code=303)
+    redirect = RedirectResponse("/employee", status_code=303)
     redirect.set_cookie(
         settings.google_session_cookie_name,
         raw_session_token,
@@ -223,7 +229,7 @@ def google_callback(request: Request):
         httponly=True,
         secure=settings.session_cookie_secure,
         samesite="lax",
-        path="/auth/google",
+        path="/",
     )
     _clear_flow_cookies(redirect)
     return redirect
@@ -254,7 +260,7 @@ def google_login_status(request: Request) -> dict:
             if not memberships:
                 status = "NEEDS_COMPANY_ASSIGNMENT"
             elif any(item.status == "ACTIVE" for item in memberships):
-                status = "APPROVED_BUT_NOT_OPEN"
+                status = "ACTIVE"
             elif any(item.status == "PENDING" for item in memberships):
                 status = "PENDING_APPROVAL"
             elif any(item.status == "SUSPENDED" for item in memberships):
@@ -268,6 +274,154 @@ def google_login_status(request: Request) -> dict:
         raise
     except SQLAlchemyError:
         raise HTTPException(status_code=503, detail="Google 登入資料庫尚未完成設定。")
+
+
+@router.get("/workspace")
+def google_employee_workspace(request: Request, response: Response) -> dict:
+    """Return only the signed-in member's own company memberships and effective grants."""
+    raw_token = request.cookies.get(settings.google_session_cookie_name, "")
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="尚未使用 Google 帳號登入。")
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    now = datetime.now(timezone.utc)
+    try:
+        with SessionLocal() as db:
+            session = db.scalar(select(UserSession).where(
+                UserSession.token_hash == token_hash,
+                UserSession.revoked_at.is_(None),
+                UserSession.expires_at > now,
+            ))
+            if session is None:
+                raise HTTPException(status_code=401, detail="登入已失效，請重新登入。")
+            user = db.get(User, session.user_id)
+            if user is None or not user.is_active:
+                raise HTTPException(status_code=403, detail="此帳號目前無法使用。")
+
+            membership_rows = db.execute(
+                select(CompanyMembership, Company.name, Company.code, Company.is_active)
+                .join(Company, Company.id == CompanyMembership.company_id)
+                .where(CompanyMembership.user_id == user.id)
+                .order_by(Company.name)
+            ).all()
+            memberships = []
+            for membership, company_name, company_code, company_is_active in membership_rows:
+                role_rows = db.execute(
+                    select(CompanyRole.code, CompanyRole.name)
+                    .join(
+                        CompanyMembershipRole,
+                        CompanyMembershipRole.role_id == CompanyRole.id,
+                    )
+                    .where(
+                        CompanyMembershipRole.membership_id == membership.id,
+                        CompanyRole.company_id == membership.company_id,
+                        CompanyRole.is_active.is_(True),
+                    )
+                    .order_by(CompanyRole.name)
+                ).all()
+                roles = [{"code": code, "name": name} for code, name in role_rows]
+                if not roles and membership.role:
+                    fallback_names = {
+                        "OWNER": "負責人",
+                        "MANAGER": "管理者",
+                        "STAFF": "一般成員",
+                    }
+                    roles = [{
+                        "code": membership.role,
+                        "name": fallback_names.get(membership.role, membership.role),
+                    }]
+
+                granted = {}
+                if membership.status == "ACTIVE" and company_is_active:
+                    grant_rows = db.execute(
+                        select(
+                            Permission.code,
+                            Permission.name,
+                            Permission.resource_code,
+                            Permission.action_code,
+                            CompanyRolePermission.data_scope,
+                        )
+                        .join(
+                            CompanyRolePermission,
+                            CompanyRolePermission.permission_id == Permission.id,
+                        )
+                        .join(
+                            CompanyRole,
+                            CompanyRole.id == CompanyRolePermission.role_id,
+                        )
+                        .join(
+                            CompanyMembershipRole,
+                            CompanyMembershipRole.role_id == CompanyRole.id,
+                        )
+                        .where(
+                            CompanyMembershipRole.membership_id == membership.id,
+                            CompanyRole.is_active.is_(True),
+                            CompanyRole.company_id == membership.company_id,
+                            Permission.is_active.is_(True),
+                            CompanyRolePermission.is_allowed.is_(True),
+                        )
+                    ).all()
+                    for code, name, resource_code, action_code, data_scope in grant_rows:
+                        existing = granted.get(code)
+                        effective_scope = (
+                            "ALL"
+                            if data_scope == "ALL" or (existing and existing["data_scope"] == "ALL")
+                            else "OWN"
+                        )
+                        granted[code] = {
+                            "code": code,
+                            "name": name,
+                            "resource_code": resource_code,
+                            "action_code": action_code,
+                            "data_scope": effective_scope,
+                        }
+
+                membership_status = (
+                    "COMPANY_INACTIVE"
+                    if membership.status == "ACTIVE" and not company_is_active
+                    else membership.status
+                )
+                memberships.append({
+                    "id": str(membership.id),
+                    "company_id": str(membership.company_id),
+                    "company_name": company_name,
+                    "company_code": company_code,
+                    "company_is_active": bool(company_is_active),
+                    "status": membership_status,
+                    "roles": roles,
+                    "permissions": [granted[key] for key in sorted(granted)],
+                })
+
+            statuses = {item["status"] for item in memberships}
+            if "ACTIVE" in statuses:
+                overall_status = "ACTIVE"
+            elif "PENDING" in statuses:
+                overall_status = "PENDING_APPROVAL"
+            elif "SUSPENDED" in statuses:
+                overall_status = "SUSPENDED"
+            elif "REJECTED" in statuses:
+                overall_status = "REJECTED"
+            elif "COMPANY_INACTIVE" in statuses:
+                overall_status = "COMPANY_INACTIVE"
+            else:
+                overall_status = "NEEDS_COMPANY_ASSIGNMENT"
+
+            session.last_seen_at = now
+            db.commit()
+            response.headers["Cache-Control"] = "no-store"
+            return {
+                "authenticated": True,
+                "user": {
+                    "id": str(user.id),
+                    "display_name": user.display_name,
+                    "email": user.email,
+                },
+                "status": overall_status,
+                "memberships": memberships,
+            }
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
+        raise HTTPException(status_code=503, detail="員工工作區資料暫時無法載入，請稍後再試。")
 
 
 @router.post("/logout")
@@ -286,7 +440,7 @@ def google_logout(request: Request, response: Response) -> dict[str, bool]:
             pass
     response.delete_cookie(
         settings.google_session_cookie_name,
-        path="/auth/google",
+        path="/",
         secure=settings.session_cookie_secure,
         httponly=True,
         samesite="lax",

@@ -39,6 +39,7 @@ class SaleLineCreate(BaseModel):
 
 class SaleCreate(BaseModel):
     site_id: UUID
+    customer_order_id: UUID | None = None
     sale_no: str = Field(min_length=1, max_length=40)
     payment_method: str = Field(default="CASH", pattern="^(CASH|CARD|MIXED|TRANSFER|OTHER)$")
     card_amount: Decimal | None = Field(default=None, ge=0, max_digits=18, decimal_places=2)
@@ -90,6 +91,7 @@ class SaleRead(BaseModel):
     id: UUID
     company_id: UUID
     site_id: UUID
+    customer_order_id: UUID | None
     sale_no: str
     status: str
     payment_method: str

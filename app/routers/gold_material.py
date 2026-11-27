@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.db.session import SessionLocal
+from app.core.company_access import require_current_actor_permission
 from app.models.gold_material import GoldMaterialMovement
 from app.models.site import Site
 from app.routers.schemas.gold_material import (
@@ -68,6 +69,13 @@ def post_gold_material_movement(
     company_id: UUID, payload: GoldMaterialMovementCreate, response: Response,
     db: Session = Depends(get_db)
 ):
+    if payload.supplier_id is not None:
+        require_current_actor_permission(db, "suppliers.view")
+    if payload.purchase_id is not None:
+        require_current_actor_permission(db, "purchases.view")
+    if payload.movement_type == "SUPPLIER_DELIVERY":
+        require_current_actor_permission(db, "supplier_payables.view")
+        require_current_actor_permission(db, "supplier_payables.update")
     try:
         movement, created = record_gold_material_movement(
             db, company_id=company_id, site_id=payload.site_id,

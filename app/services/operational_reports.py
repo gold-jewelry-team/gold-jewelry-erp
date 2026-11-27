@@ -11,7 +11,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.cash_drawer_movement import CashDrawerMovement
 from app.models.operating_expense import OperatingExpense
@@ -21,7 +21,7 @@ from app.models.sale_return import SaleReturn
 from app.models.site import Site
 from app.services.operational_reconciliation import build_daily_closing_reconciliation
 from app.services.outstanding_balances import build_outstanding_balance_report
-from app.models.supplier_payable import SupplierPayment
+from app.models.supplier_payable import SupplierPayment, SupplierPaymentReversal
 
 BUSINESS_TIMEZONE = ZoneInfo("Asia/Taipei")
 UTC = timezone.utc
@@ -60,6 +60,7 @@ def _new_bucket() -> dict:
         "customer_refunded_amount": ZERO,
         "supplier_payment_count": 0,
         "supplier_paid_amount": ZERO,
+        "supplier_payment_reversed_amount": ZERO,
         "paid_expense_count": 0,
         "expenses_paid_amount": ZERO,
         "cash_drawer_in_amount": ZERO,
@@ -73,6 +74,7 @@ def _new_method_bucket() -> dict:
         "customer_collected_amount": ZERO,
         "customer_refunded_amount": ZERO,
         "supplier_paid_amount": ZERO,
+        "supplier_payment_reversed_amount": ZERO,
         "expenses_paid_amount": ZERO,
         "cash_drawer_in_amount": ZERO,
         "cash_drawer_out_amount": ZERO,
@@ -108,6 +110,7 @@ def _serialize_bucket(bucket: dict) -> dict:
     result["net_operating_cash_flow"] = (
         result["net_customer_cash_flow"]
         - bucket["supplier_paid_amount"]
+        + bucket["supplier_payment_reversed_amount"]
         - bucket["expenses_paid_amount"]
     )
     # This is the expected change in physical cash, not total operating cash flow.
@@ -115,6 +118,7 @@ def _serialize_bucket(bucket: dict) -> dict:
         bucket["payment_methods"].get("CASH", {}).get("customer_collected_amount", ZERO)
         - bucket["payment_methods"].get("CASH", {}).get("customer_refunded_amount", ZERO)
         - bucket["payment_methods"].get("CASH", {}).get("supplier_paid_amount", ZERO)
+        + bucket["payment_methods"].get("CASH", {}).get("supplier_payment_reversed_amount", ZERO)
         - bucket["payment_methods"].get("CASH", {}).get("expenses_paid_amount", ZERO)
         + bucket["cash_drawer_in_amount"]
         - bucket["cash_drawer_out_amount"]
@@ -132,6 +136,7 @@ def _serialize_bucket(bucket: dict) -> dict:
             values["customer_collected_amount"]
             - values["customer_refunded_amount"]
             - values["supplier_paid_amount"]
+            + values["supplier_payment_reversed_amount"]
             - values["expenses_paid_amount"]
         )
         for key, value in list(method_result.items()):
@@ -177,6 +182,7 @@ def _build_integrity_checks(
         "customer_collected_amount",
         "customer_refunded_amount",
         "supplier_paid_amount",
+        "supplier_payment_reversed_amount",
         "expenses_paid_amount",
         "cash_drawer_in_amount",
         "cash_drawer_out_amount",
@@ -186,6 +192,7 @@ def _build_integrity_checks(
         "customer_collected_amount",
         "customer_refunded_amount",
         "supplier_paid_amount",
+        "supplier_payment_reversed_amount",
         "expenses_paid_amount",
         "cash_drawer_in_amount",
         "cash_drawer_out_amount",
@@ -220,11 +227,13 @@ def _build_integrity_checks(
         )
         period_net_operating = (
             bucket["customer_collected_amount"] - bucket["customer_refunded_amount"]
-            - bucket["supplier_paid_amount"] - bucket["expenses_paid_amount"]
+            - bucket["supplier_paid_amount"] + bucket["supplier_payment_reversed_amount"]
+            - bucket["expenses_paid_amount"]
         )
         daily_net_operating = sum((
             row["customer_collected_amount"] - row["customer_refunded_amount"]
-            - row["supplier_paid_amount"] - row["expenses_paid_amount"]
+            - row["supplier_paid_amount"] + row["supplier_payment_reversed_amount"]
+            - row["expenses_paid_amount"]
             for row in daily_buckets
         ), ZERO)
         add(
@@ -238,6 +247,7 @@ def _build_integrity_checks(
                 cash.get("customer_collected_amount", ZERO)
                 - cash.get("customer_refunded_amount", ZERO)
                 - cash.get("supplier_paid_amount", ZERO)
+                + cash.get("supplier_payment_reversed_amount", ZERO)
                 - cash.get("expenses_paid_amount", ZERO)
                 + row["cash_drawer_in_amount"] - row["cash_drawer_out_amount"]
             )
@@ -394,6 +404,28 @@ def build_operational_period_report(
         add_amount(
             payment.currency_code, payment.paid_at, "supplier_paid_amount",
             payment.total_amount, payment.payment_method,
+        )
+
+    supplier_reversals = list(session.scalars(
+        select(SupplierPaymentReversal)
+        .options(selectinload(SupplierPaymentReversal.payment))
+        .where(
+            SupplierPaymentReversal.company_id == company_id,
+            SupplierPaymentReversal.site_id == site_id,
+            SupplierPaymentReversal.reversed_at >= start_at,
+            SupplierPaymentReversal.reversed_at < end_at,
+        )
+    ).all())
+    for reversal in supplier_reversals:
+        original_payment = reversal.payment
+        if original_payment is None:
+            raise ValueError("供應商付款沖銷紀錄找不到原付款，無法分類付款方式。")
+        add_amount(
+            reversal.currency_code,
+            reversal.reversed_at,
+            "supplier_payment_reversed_amount",
+            reversal.total_amount,
+            original_payment.payment_method,
         )
 
     expenses = list(session.scalars(

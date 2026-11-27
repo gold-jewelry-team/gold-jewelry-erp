@@ -41,7 +41,10 @@ class SupplierBill(Base):
 
     @property
     def paid_amount(self) -> Decimal:
-        cash_paid = sum((item.amount for item in self.allocations), Decimal("0"))
+        cash_paid = sum(
+            (item.amount - item.reversed_amount for item in self.allocations),
+            Decimal("0"),
+        )
         gold_paid = sum((item.amount for item in self.gold_allocations), Decimal("0"))
         return cash_paid + gold_paid
 
@@ -74,6 +77,25 @@ class SupplierPayment(Base):
     allocations: Mapped[list["SupplierPaymentAllocation"]] = relationship(
         back_populates="payment", cascade="all, delete-orphan", order_by="SupplierPaymentAllocation.created_at"
     )
+    reversals: Mapped[list["SupplierPaymentReversal"]] = relationship(
+        back_populates="payment", order_by="SupplierPaymentReversal.reversed_at"
+    )
+
+    @property
+    def reversed_amount(self) -> Decimal:
+        return sum((item.total_amount for item in self.reversals), Decimal("0"))
+
+    @property
+    def reversible_amount(self) -> Decimal:
+        return max(Decimal("0.00"), self.total_amount - self.reversed_amount)
+
+    @property
+    def status(self) -> str:
+        if self.reversed_amount == 0:
+            return "POSTED"
+        if self.reversible_amount == 0:
+            return "REVERSED"
+        return "PARTIALLY_REVERSED"
 
 
 class SupplierPaymentAllocation(Base):
@@ -91,3 +113,67 @@ class SupplierPaymentAllocation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     payment: Mapped["SupplierPayment"] = relationship(back_populates="allocations")
     bill: Mapped["SupplierBill"] = relationship(back_populates="allocations")
+    reversal_allocations: Mapped[list["SupplierPaymentReversalAllocation"]] = relationship(
+        back_populates="payment_allocation",
+        order_by="SupplierPaymentReversalAllocation.created_at",
+    )
+
+    @property
+    def reversed_amount(self) -> Decimal:
+        return sum((item.amount for item in self.reversal_allocations), Decimal("0"))
+
+    @property
+    def reversible_amount(self) -> Decimal:
+        return max(Decimal("0.00"), self.amount - self.reversed_amount)
+
+
+class SupplierPaymentReversal(Base):
+    """Append-only reversal header for a previously recorded supplier payment."""
+
+    __tablename__ = "supplier_payment_reversals"
+    __table_args__ = (
+        CheckConstraint("total_amount > 0", name="ck_supplier_payment_reversals_total_positive"),
+        UniqueConstraint("site_id", "reversal_no", name="uq_supplier_payment_reversals_site_no"),
+        Index("ix_supplier_payment_reversals_company_site_reversed_at", "company_id", "site_id", "reversed_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
+    site_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=False)
+    supplier_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("suppliers.id", ondelete="RESTRICT"), nullable=False)
+    payment_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("supplier_payments.id", ondelete="RESTRICT"), nullable=False)
+    reversal_no: Mapped[str] = mapped_column(String(50), nullable=False)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="TWD", server_default="TWD")
+    reversed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    reason: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    payment: Mapped["SupplierPayment"] = relationship(back_populates="reversals")
+    allocations: Mapped[list["SupplierPaymentReversalAllocation"]] = relationship(
+        back_populates="reversal",
+        order_by="SupplierPaymentReversalAllocation.created_at",
+    )
+
+
+class SupplierPaymentReversalAllocation(Base):
+    """Amount reversed from one exact original supplier-payment allocation."""
+
+    __tablename__ = "supplier_payment_reversal_allocations"
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_supplier_payment_reversal_allocations_amount_positive"),
+        UniqueConstraint(
+            "reversal_id", "payment_allocation_id",
+            name="uq_supplier_payment_reversal_allocation_original",
+        ),
+        Index("ix_supplier_payment_reversal_allocations_original", "payment_allocation_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    reversal_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("supplier_payment_reversals.id", ondelete="RESTRICT"), nullable=False)
+    payment_allocation_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("supplier_payment_allocations.id", ondelete="RESTRICT"), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    reversal: Mapped["SupplierPaymentReversal"] = relationship(back_populates="allocations")
+    payment_allocation: Mapped["SupplierPaymentAllocation"] = relationship(back_populates="reversal_allocations")

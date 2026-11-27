@@ -12,6 +12,7 @@ from app.models.customer_order import CustomerOrder
 from app.models.sale import Sale
 from app.models.sale_return import SaleReturn
 from app.services.daily_closing import assert_business_day_open
+from app.services.pricing.rounding import round_twd_like_legacy
 
 PAYMENT_METHODS = {"CASH", "CARD", "TRANSFER", "OTHER"}
 CENT = Decimal("0.01")
@@ -124,6 +125,8 @@ def record_sale_payment(
     if obligation == 0:
         raise ValueError("此銷售單金額為零，無需建立收付款紀錄。")
     direction = "IN" if obligation > 0 else "OUT"
+    if sale.customer_order_id is not None and direction == "IN":
+        raise ValueError("此銷售單已連結客訂，客訂款項必須統一登錄在客訂收付款流水，避免重複入帳。")
     existing = _existing_idempotent_payment(
         session, company_id=company_id, idempotency_key=idempotency_key,
         source_field="sale_id", source_id=sale.id, direction=direction,
@@ -255,6 +258,26 @@ def record_return_payment(
 
 
 
+def _customer_order_payment_method_net(
+    session: Session, order_id: UUID, payment_method: str,
+) -> Decimal:
+    rows = session.execute(
+        select(
+            PaymentTransaction.direction,
+            func.coalesce(func.sum(PaymentTransaction.amount), 0),
+        )
+        .where(
+            PaymentTransaction.customer_order_id == order_id,
+            PaymentTransaction.payment_method == payment_method,
+        )
+        .group_by(PaymentTransaction.direction)
+    ).all()
+    return sum(
+        (Decimal(amount or 0) if direction == "IN" else -Decimal(amount or 0) for direction, amount in rows),
+        Decimal("0"),
+    )
+
+
 def refund_customer_order_payment(
     session: Session,
     *,
@@ -303,8 +326,39 @@ def refund_customer_order_payment(
             return existing
     if order.status in {"COMPLETED", "CANCELLED"}:
         raise ValueError("已完成或已取消的客訂單不可退款。")
-    if amount > order.deposit_amount:
-        raise ValueError(f"退款金額不可超過目前已收訂金／款項：{order.deposit_amount}。")
+    linked_sale = session.execute(
+        select(Sale).where(Sale.customer_order_id == order.id).with_for_update()
+    ).scalar_one_or_none()
+    refundable_balance = order.deposit_amount
+    if linked_sale is not None:
+        if linked_sale.status != "DRAFT":
+            raise ValueError("客訂已連結非草稿銷售，不能再修改訂金退款；請先核對正式銷售狀態。")
+        retained_amount = max(Decimal("0"), linked_sale.final_amount)
+        refundable_balance = max(Decimal("0"), order.deposit_amount - retained_amount)
+    if amount > refundable_balance:
+        raise ValueError(f"退款金額超過客訂可退餘額，目前最多可退：{refundable_balance}。")
+    method_net = _customer_order_payment_method_net(session, order.id, payment_method)
+    method_refundable = method_net
+    if linked_sale is not None:
+        method_nets = {
+            method: _customer_order_payment_method_net(session, order.id, method)
+            for method in ("CASH", "CARD", "TRANSFER", "OTHER")
+        }
+        if payment_method == "CARD":
+            allowed_card = linked_sale.card_amount + linked_sale.card_fee
+            method_refundable = min(method_net, max(Decimal("0"), method_nets["CARD"] - allowed_card))
+        else:
+            allowed_noncard = max(
+                Decimal("0"),
+                round_twd_like_legacy(linked_sale.subtotal) - linked_sale.card_amount,
+            )
+            received_noncard = sum(
+                (value for method, value in method_nets.items() if method != "CARD"),
+                Decimal("0"),
+            )
+            method_refundable = min(method_net, max(Decimal("0"), received_noncard - allowed_noncard))
+    if amount > method_refundable:
+        raise ValueError(f"退款金額不可超過此付款方式的可退超收餘額，目前可退：{method_refundable}。")
     assert_business_day_open(
         session, site_id=order.site_id, at=datetime.now(timezone.utc)
     )
@@ -381,9 +435,41 @@ def record_customer_order_payment(
             return existing
     if order.status in {"COMPLETED", "CANCELLED"}:
         raise ValueError("已完成或已取消的訂單不可再收款。")
-    remaining = order.total_amount - order.deposit_amount
-    if amount > remaining:
-        raise ValueError(f"收款金額超過訂單未收餘額，目前尚可收取：{remaining}。")
+    linked_sale = session.execute(
+        select(Sale).where(Sale.customer_order_id == order.id).with_for_update()
+    ).scalar_one_or_none()
+    if linked_sale is not None:
+        if linked_sale.status != "DRAFT":
+            raise ValueError("客訂已連結非草稿銷售，不能再新增客訂收款。")
+        obligation = max(Decimal("0"), linked_sale.final_amount)
+        remaining = max(Decimal("0"), obligation - order.deposit_amount)
+        if amount > remaining:
+            raise ValueError(f"正式銷售尚可收款餘額為：{remaining}。")
+        method_nets = {
+            method: _customer_order_payment_method_net(session, order.id, method)
+            for method in ("CASH", "CARD", "TRANSFER", "OTHER")
+        }
+        if payment_method == "CARD":
+            method_limit = linked_sale.card_amount + linked_sale.card_fee
+            already_collected = method_nets.get("CARD", Decimal("0"))
+        else:
+            method_limit = max(
+                Decimal("0"),
+                round_twd_like_legacy(linked_sale.subtotal) - linked_sale.card_amount,
+            )
+            already_collected = sum(
+                (value for method, value in method_nets.items() if method != "CARD"),
+                Decimal("0"),
+            )
+        method_remaining = method_limit - already_collected
+        if amount > method_remaining:
+            raise ValueError(
+                f"此付款方式超過正式銷售可收餘額，目前最多可收：{max(Decimal('0'), method_remaining)}。"
+            )
+    else:
+        remaining = order.total_amount - order.deposit_amount
+        if amount > remaining:
+            raise ValueError(f"收款金額超過訂單未收餘額，目前尚可收取：{remaining}。")
     assert_business_day_open(
         session, site_id=order.site_id, at=datetime.now(timezone.utc)
     )

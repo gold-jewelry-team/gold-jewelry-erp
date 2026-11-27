@@ -157,7 +157,7 @@ test("payment retry remains protected during the session when browser storage is
   );
 });
 
-test("confirmed success or explicit 4xx rejection can clear the pending payment key", () => {
+test("confirmed success or explicit validation rejection can clear the pending payment key", () => {
   const { context, storage } = setup();
   const payload = {
     payment_method: "CASH",
@@ -188,4 +188,14 @@ test("sale and return form handlers catch pending-payload mismatch and always re
   );
   assert.match(saleHandler, /finally\s*\{button.disabled=false;\}/);
   assert.match(returnHandler, /finally\s*\{button.disabled=false;\}/);
+  assert.match(
+    saleHandler,
+    /if\(idempotencyKey&&error\.status===422\)clearPaymentIdempotencyKey\("sale"/,
+  );
+  assert.match(
+    returnHandler,
+    /if\(idempotencyKey&&error\.status===422\)clearPaymentIdempotencyKey\("return"/,
+  );
+  assert.doesNotMatch(saleHandler, /error\.status>=400&&error\.status<500/);
+  assert.doesNotMatch(returnHandler, /error\.status>=400&&error\.status<500/);
 });

@@ -25,3 +25,14 @@ test("all in-page navigation respects the operating system reduced-motion prefer
   assert.ok(html.includes('target.scrollIntoView({behavior:'+reducedMotionBehavior+',block:"start"})'), "home dashboard shortcuts should respect reduced motion");
   assert.ok(!html.includes('scrollIntoView({behavior:"smooth"'), "no in-page scroll action should force smooth motion");
 });
+
+test("mobile back-to-top moves to the left to avoid right-aligned expand controls", () => {
+  assert.ok(
+    html.includes("@media(max-width:899px){#backToTop{right:auto;left:16px}}"),
+    "mobile and tablet back-to-top should stay on the left"
+  );
+  assert.ok(
+    html.includes(".panel-toggle{flex:0 0 auto;min-height:34px"),
+    "expand controls should retain their touch-friendly size"
+  );
+});

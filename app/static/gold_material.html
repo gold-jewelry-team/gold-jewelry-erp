@@ -35,12 +35,15 @@ th,td{padding:9px 10px;text-align:left;border-bottom:1px solid #edf0ec;vertical-
 .notice{padding:10px 12px;border-radius:10px;background:#f7f5ef;color:#665637;font-size:12px;line-height:1.6;margin:8px 0}
 @media(max-width:700px){main{padding:10px}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.panel{padding:12px}.header-row{align-items:flex-start;flex-direction:column}.back{align-self:flex-start}.summary-grid{grid-template-columns:1fr}.allocation-row{grid-template-columns:1fr 1fr}.allocation-row button{grid-column:1/-1}}
 </style>
+<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127e">
 </head>
 <body>
 <header>
  <div class="header-row"><h1>金料往來管理</h1><a class="back" href="/app">← 返回門市工作台</a></div>
  <p>足金換算庫存、舊金收受、調整與供應商舊金折抵</p>
 </header>
+<aside class="bunny-page-guide" data-scene="material" role="note" aria-label="道奇兔店長小提醒"><span class="bunny-page-guide-art"><svg viewBox="0 0 100 100" role="img" aria-label="黑白道奇兔店長"><ellipse cx="38" cy="24" rx="11" ry="24" fill="#252729" transform="rotate(-13 38 24)"/><ellipse cx="64" cy="23" rx="10" ry="23" fill="#fff" stroke="#d7d8d2" stroke-width="2" transform="rotate(12 64 23)"/><path d="M29 24q8-5 15 1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="50" cy="62" rx="34" ry="29" fill="#fff" stroke="#d7d8d2" stroke-width="2"/><path d="M22 51q2-19 25-18 14 0 20 13 3 8-3 14-11 9-26 5-14-3-16-14Z" fill="#252729"/><path d="M58 38q16-9 28 6 9 11 0 22-9 10-22 3-9-5-7-17Z" fill="#252729"/><ellipse cx="40" cy="60" rx="5" ry="6" fill="#252729"/><ellipse cx="69" cy="60" rx="5" ry="6" fill="#252729"/><circle cx="41.5" cy="58" r="1.8" fill="#fff"/><circle cx="70.5" cy="58" r="1.8" fill="#fff"/><ellipse cx="55" cy="72" rx="5" ry="3.5" fill="#e8a9a4"/><path d="M55 75q-5 6-10 1m10-1q5 6 10 1" fill="none" stroke="#8b7771" stroke-width="1.8" stroke-linecap="round"/><ellipse cx="27" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><ellipse cx="75" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><path d="m83 17 3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#e4c16e"/></svg><svg class="bunny-page-guide-prop" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4v23M8 8h16M10 8l-5 10h10zM22 8l-5 10h10z" fill="none" stroke="#6e8c72" stroke-width="1.8" stroke-linejoin="round"/><path d="M4 18q6 5 12 0m0 0q6 5 12 0M10 28h12" fill="none" stroke="#c6a25a" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="bunny-page-guide-copy"><strong>金料小管家提醒你</strong><span>金料異動前先確認據點、重量與換算單位。</span></span><span class="bunny-page-guide-sparkle" aria-hidden="true">✦</span></aside>
+
 <main>
 <section class="panel">
  <h2>公司與據點</h2>
@@ -101,7 +104,10 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const state={companyId:"",siteId:"",suppliers:[],bills:[],purchases:[],movements:[]};
 const grams={G:1,QIAN:3.75,LIANG:37.5};
+const weightUnitLabels={G:"公克",GRAM:"公克",QIAN:"錢",LIANG:"兩",TAEL:"兩"};
+function weightUnitLabel(unit){return weightUnitLabels[unit]||(unit?"其他單位":"");}
 const typeLabels={OPENING:"期初金料",RECEIPT:"收受金料",ADJUSTMENT_IN:"盤盈／增加",ADJUSTMENT_OUT:"盤虧／減少",SUPPLIER_DELIVERY:"交付供應商折抵"};
+const purchaseStatusLabelsForDisplay={ORDERED:"已下單",PARTIALLY_RECEIVED:"部分到貨",RECEIVED:"已收貨"};
 const api=async(path,options={})=>{
  const response=await fetch(path,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
  const data=await response.json().catch(()=>({detail:"伺服器回應格式錯誤"}));
@@ -119,7 +125,7 @@ function valuePreview(){
  const net=Math.max(0,gross-loss),fine=net*(grams[weightUnit]||1)*purity;
  const grossValue=price>0?Math.round((fine/(grams[priceUnit]||1)*price)*100)/100:0;
  const valuation=Math.round((grossValue-deduction)*100)/100;
- $("valuationPreview").textContent="預估淨重："+fmt(net,4)+" "+weightUnit+"；足金量："+fmt(fine,4)+" 公克；估值："+money(grossValue)+" 元；扣除折減／處理費後："+money(valuation)+" 元。正式數值以伺服器 Decimal 計算為準。";
+ $("valuationPreview").textContent="預估淨重："+fmt(net,4)+" "+weightUnitLabel(weightUnit)+"；足金量："+fmt(fine,4)+" 公克；估值："+money(grossValue)+" 元；扣除折減／處理費後："+money(valuation)+" 元。正式數值以伺服器 Decimal 計算為準。";
  return {net,fine,grossValue,valuation};
 }
 function renderBalance(row){
@@ -129,7 +135,7 @@ function renderBalance(row){
  $("balanceLiang").textContent=fmt(g/37.5,4);
 }
 function renderMovementList(){
- $("movementList").innerHTML=state.movements.length?'<div class="table-wrap"><table><thead><tr><th>日期</th><th>單號／類型</th><th>成色</th><th>毛重／淨重</th><th>足金量（公克）</th><th>估值</th><th>供應商／備註</th></tr></thead><tbody>'+state.movements.map(x=>'<tr><td>'+esc(new Date(x.occurred_at).toLocaleString("zh-TW",{timeZone:"Asia/Taipei"}))+'</td><td>'+esc(x.movement_no)+'<br><span class="pill">'+esc(typeLabels[x.movement_type]||x.movement_type)+'</span></td><td>'+esc(x.purity_label)+'（'+esc(x.purity_ratio)+'）</td><td>'+fmt(x.gross_weight)+'／'+fmt(x.net_weight)+' '+esc(x.weight_unit_code)+'</td><td>'+fmt(x.fine_gold_weight_g)+'</td><td>NT$ '+money(x.valuation_amount)+'</td><td>'+esc(supplierName(x.supplier_id))+(x.note?'<br><span class="muted">'+esc(x.note)+'</span>':"")+(x.allocations?.length?'<br><span class="muted">帳單折抵 '+x.allocations.length+' 筆</span>':"")+'</td></tr>').join("")+'</tbody></table></div>':'<div class="empty">目前據點尚無金料異動</div>';
+ $("movementList").innerHTML=state.movements.length?'<div class="table-wrap"><table><thead><tr><th>日期</th><th>單號／類型</th><th>成色</th><th>毛重／淨重</th><th>足金量（公克）</th><th>估值</th><th>供應商／備註</th></tr></thead><tbody>'+state.movements.map(x=>'<tr><td>'+esc(new Date(x.occurred_at).toLocaleString("zh-TW",{timeZone:"Asia/Taipei"}))+'</td><td>'+esc(x.movement_no)+'<br><span class="pill">'+esc(typeLabels[x.movement_type]||"其他金料異動")+'</span></td><td>'+esc(x.purity_label)+'（'+esc(x.purity_ratio)+'）</td><td>'+fmt(x.gross_weight)+'／'+fmt(x.net_weight)+' '+esc(weightUnitLabel(x.weight_unit_code))+'</td><td>'+fmt(x.fine_gold_weight_g)+'</td><td>NT$ '+money(x.valuation_amount)+'</td><td>'+esc(supplierName(x.supplier_id))+(x.note?'<br><span class="muted">'+esc(x.note)+'</span>':"")+(x.allocations?.length?'<br><span class="muted">帳單折抵 '+x.allocations.length+' 筆</span>':"")+'</td></tr>').join("")+'</tbody></table></div>':'<div class="empty">目前據點尚無金料異動</div>';
 }
 async function loadCompanies(){
  const rows=await api("/companies");
@@ -163,7 +169,7 @@ async function onSiteChange(){
   api("/companies/"+state.companyId+"/purchases?site_id="+encodeURIComponent(state.siteId)+"&limit=500")
  ]);
  renderBalance(balance);state.movements=movements;state.purchases=purchases.filter(x=>["ORDERED","PARTIALLY_RECEIVED","RECEIVED"].includes(x.status));
- $("purchaseSelect").innerHTML='<option value="">不指定</option>'+state.purchases.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.purchase_no)+' · '+esc(x.status)+'</option>').join("");
+ $("purchaseSelect").innerHTML='<option value="">不指定</option>'+state.purchases.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.purchase_no)+' · '+esc(purchaseStatusLabelsForDisplay[x.status]||"其他狀態")+'</option>').join("");
  renderMovementList();await loadBills();await restorePendingMovement();
 }
 async function loadBills(){

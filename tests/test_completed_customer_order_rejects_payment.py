@@ -74,12 +74,10 @@ def test_completed_customer_order_rejects_further_payment_without_ledger_change(
         assert settled.status_code == 200, settled.text
         assert settled.json()["balance_amount"] == "0.00"
 
-        completed = client.patch(
-            f"/companies/{company_id}/customer-orders/{order_id}/status",
-            params={"status": "COMPLETED"},
-        )
-        assert completed.status_code == 200, completed.text
-        assert completed.json()["status"] == "COMPLETED"
+        with TestSession() as mark_completed:
+            persisted_before = mark_completed.get(CustomerOrder, UUID(order_id))
+            persisted_before.status = "COMPLETED"
+            mark_completed.commit()
 
         late_payment = client.post(
             f"/companies/{company_id}/customer-orders/{order_id}/payments",

@@ -19,11 +19,14 @@ class Sale(Base):
         CheckConstraint("length(currency_code) = 3", name="ck_sales_currency_code_length"),
         Index("ix_sales_company_site_created", "company_id", "site_id", "created_at"),
         UniqueConstraint("site_id", "sale_no", name="uq_sales_site_sale_no"),
+        UniqueConstraint("customer_order_id", name="uq_sales_customer_order_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("companies.id", ondelete="RESTRICT"), nullable=False)
     site_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=False)
+    customer_order_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), ForeignKey("customer_orders.id", ondelete="RESTRICT"), nullable=True)
+    customer_order: Mapped["CustomerOrder | None"] = relationship(back_populates="sale")
     sale_no: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(12), nullable=False, default="DRAFT", server_default="DRAFT")
     payment_method: Mapped[str] = mapped_column(String(12), nullable=False, default="CASH", server_default="CASH")
@@ -38,6 +41,7 @@ class Sale(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
     lines: Mapped[list["SaleLine"]] = relationship(back_populates="sale", order_by="SaleLine.line_no")
+    returns: Mapped[list["SaleReturn"]] = relationship(back_populates="sale", order_by="SaleReturn.created_at")
 
 
 class SaleLine(Base):
