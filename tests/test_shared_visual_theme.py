@@ -7,11 +7,11 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=bluegreen-20261127a">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-20261127b">'
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
-    response = client.get("/theme.css?v=bluegreen-20261127a")
+    response = client.get("/theme.css?v=botanical-20261127b")
 
     assert response.status_code == 200
     assert "text/css" in response.headers["content-type"]
@@ -19,7 +19,7 @@ def test_shared_theme_stylesheet_is_public_and_served() -> None:
     assert "--erp-surface:#ffffff" in response.text
     assert "--erp-blue:#66869a" in response.text
     assert "--erp-green:#7b9d87" in response.text
-    assert "--erp-green-soft:#eaf4ef" in response.text
+    assert "--erp-green-soft:#edf4ed" in response.text
     assert "--erp-champagne:#d6b875" in response.text
     assert "--green:var(--erp-green-dark)" in response.text
     assert "prefers-reduced-motion:reduce" in response.text
@@ -27,6 +27,8 @@ def test_shared_theme_stylesheet_is_public_and_served() -> None:
     assert "header h1{color:#3e4a40}" in response.text
     assert "button.secondary{" in response.text
     assert "background:#edf4ed" in response.text
+    assert "radial-gradient(ellipse at 7% 5%" in response.text
+    assert "linear-gradient(135deg,#f9f8f2" in response.text
 
 
 def test_every_static_workspace_page_uses_the_shared_theme() -> None:
