@@ -292,3 +292,50 @@ table th,th{background:#f0f3ec;color:#5b6e5d}
 .panel,.member,.permission,.company,.item,.table-wrap{background:rgba(255,254,250,.94);box-shadow:0 5px 20px rgba(74,91,70,.055)}
 a{color:#66869a}
 #goldPriceSummary{background:linear-gradient(135deg,#fbf6e9 0%,#f7f2e4 100%);border-color:#ddc990}
+
+
+/* Subtle jewelry-house identity: fine gold rings and botanical ambient shapes. */
+body::before{
+ content:"";
+ position:fixed;
+ z-index:0;
+ pointer-events:none;
+ top:118px;
+ right:-118px;
+ width:390px;
+ height:390px;
+ opacity:.42;
+ background:
+  radial-gradient(circle at center,transparent 0 54px,rgba(196,164,99,.22) 55px 56px,transparent 57px 82px),
+  radial-gradient(circle at center,transparent 0 105px,rgba(123,157,135,.15) 106px 107px,transparent 108px 132px),
+  radial-gradient(circle at center,transparent 0 155px,rgba(196,164,99,.13) 156px 157px,transparent 158px 184px);
+}
+header{
+ position:sticky;
+ border-bottom:2px solid rgba(214,184,117,.68);
+}
+header::after{
+ content:"";
+ position:absolute;
+ left:0;right:0;bottom:-2px;
+ height:1px;
+ background:linear-gradient(90deg,transparent,rgba(214,184,117,.78),transparent);
+ pointer-events:none;
+}
+main{position:relative;z-index:1}
+.panel,.member,.permission,.company,.item,.table-wrap{
+ border-color:rgba(215,218,202,.9);
+}
+.panel h2{letter-spacing:.01em}
+button:not(.secondary):not(.danger){
+ border-bottom:2px solid rgba(214,184,117,.72);
+}
+button.secondary{
+ border-bottom:1px solid rgba(123,157,135,.24);
+}
+#goldPriceSummary{
+ box-shadow:inset 3px 0 0 rgba(214,184,117,.78),0 4px 14px rgba(115,94,48,.055);
+}
+@media(max-width:640px){
+ body::before{top:170px;right:-220px;opacity:.25}
+}
