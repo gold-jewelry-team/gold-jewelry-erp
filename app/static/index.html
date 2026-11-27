@@ -1523,6 +1523,7 @@ let selectedSiteId="";
 let companiesById=new Map(),sitesById=new Map(),storageLocationsById=new Map();
 let editingCompanyId="",editingSiteId="",editingLocationId="";
 let currentGoldPriceRows={BUY:null,SELL:null};
+let goldPriceHistoryRows=[];
 let goldDisplayUnit=localStorage.getItem("goldDisplayUnit")||"QIAN";
 let categoryNames=new Map();
 let productCategoriesById=new Map();
@@ -2388,19 +2389,73 @@ function isGoldPriceReminderBusinessDay(){
  const weekday=new Date(today+"T12:00:00+08:00").getDay();
  return weekday!==0&&weekday!==6&&!getGoldClosureDates().includes(today);
 }
+function getGoldPriceDailyComparison(current,history,displayUnit){
+ if(!current||!Array.isArray(history))return null;
+ const currentDate=taipeiDateKey(current.effective_at);
+ if(!currentDate)return null;
+ let candidates=history.filter(row=>
+  row&&row.price_type===current.price_type&&
+  taipeiDateKey(row.effective_at)<currentDate
+ );
+ if(current.site_id){
+  const siteRows=candidates.filter(row=>String(row.site_id||"")===String(current.site_id));
+  candidates=siteRows.length?siteRows:candidates.filter(row=>!row.site_id);
+ }else{
+  candidates=candidates.filter(row=>!row.site_id);
+ }
+ if(!candidates.length)return null;
+ candidates.sort((a,b)=>{
+  const dateOrder=taipeiDateKey(b.effective_at).localeCompare(taipeiDateKey(a.effective_at));
+  if(dateOrder)return dateOrder;
+  const effectiveOrder=new Date(b.effective_at)-new Date(a.effective_at);
+  if(effectiveOrder)return effectiveOrder;
+  return new Date(b.created_at||0)-new Date(a.created_at||0);
+ });
+ const previous=candidates[0];
+ if(String(previous.currency_code||"").toUpperCase()!==String(current.currency_code||"").toUpperCase())return null;
+ const comparableValue=row=>{
+  if(row.unit_code===current.unit_code)return Number(row.price_value);
+  return convertGoldPrice(row.price_value,row.unit_code,displayUnit);
+ };
+ const currentValue=comparableValue(current);
+ const previousValue=comparableValue(previous);
+ if(!Number.isFinite(currentValue)||!Number.isFinite(previousValue))return null;
+ const delta=currentValue-previousValue;
+ return {
+  direction:Math.abs(delta)<0.005?"same":delta>0?"up":"down",
+  delta,
+  previousDate:taipeiDateKey(previous.effective_at),
+  currency_code:current.currency_code,
+  unit_code:displayUnit
+ };
+}
 function renderGoldPriceViews(){
  const unit=goldDisplayUnit;
  const unitName=goldUnitLabel(unit);
  const buy=currentGoldPriceRows.BUY,sell=currentGoldPriceRows.SELL;
- const renderPrice=(row,label)=>{
+ const renderPrice=(row,label,showTrend=false)=>{
   if(!row)return '<div class="gold-summary-price"><span>'+label+'</span><strong>尚未設定</strong><small></small></div>';
   const converted=convertGoldPrice(row.price_value,row.unit_code,unit);
   if(converted===null)return '<div class="gold-summary-price"><span>'+label+'</span><strong>單位無法換算</strong><small></small></div>';
-  return '<div class="gold-summary-price"><span>'+label+'</span><strong>NT$ '+escapeHtml(formatGoldMoney(converted))+'</strong><small>／每'+unitName+'</small></div>';
+  let trendHtml="";
+  if(showTrend){
+   const comparison=getGoldPriceDailyComparison(row,goldPriceHistoryRows,unit);
+   if(comparison){
+    const arrow=comparison.direction==="up"?"↑":comparison.direction==="down"?"↓":"＝";
+    const movement=comparison.direction==="up"?"上漲":comparison.direction==="down"?"下跌":"持平";
+    const amount=comparison.direction==="same"?"":(comparison.delta>0?"+":"−")+formatGoldMoney(Math.abs(comparison.delta));
+    const currencyLabel=comparison.currency_code==="TWD"?"NT$ ":comparison.currency_code+" ";
+    const shortDate=comparison.previousDate.slice(5).replace("-","/");
+    const labelText="較 "+shortDate+" "+movement+(amount?" "+currencyLabel+amount:"");
+    const titleText="與 "+comparison.previousDate+" 的前一個有效報價日相比："+movement+(amount?" "+currencyLabel+amount:"");
+    trendHtml='<span class="gold-price-trend is-'+comparison.direction+'" title="'+escapeHtml(titleText)+'" aria-label="'+escapeHtml(titleText)+'"><span class="gold-price-trend-icon" aria-hidden="true">'+arrow+'</span><span>'+escapeHtml(labelText)+'</span></span>';
+   }
+  }
+  return '<div class="gold-summary-price"><span>'+label+'</span><strong>NT$ '+escapeHtml(formatGoldMoney(converted))+'</strong><small>／每'+unitName+trendHtml+'</small></div>';
  };
  const summary=$("goldSummaryValues");
  const sale=$("saleGoldPriceValues");
- if(summary)summary.innerHTML=buy||sell?renderPrice(buy,"買入價")+renderPrice(sell,"賣出價"):'請先選擇公司與據點，或尚未設定金價';
+ if(summary)summary.innerHTML=buy||sell?renderPrice(buy,"買入價",true)+renderPrice(sell,"賣出價",true):'請先選擇公司與據點，或尚未設定金價';
  if(sale)sale.innerHTML=buy||sell?renderPrice(buy,"買入價")+renderPrice(sell,"賣出價"):'尚未設定有效金價';
  const buyBox=$("effectiveBuyPrice"),sellBox=$("effectiveSellPrice");
  const renderCurrent=(row,label)=>{
@@ -2476,6 +2531,7 @@ async function loadGoldPrices(){
  const historyBox=$("goldPriceHistory");
  if(!companyId||!selectedSiteId){
   currentGoldPriceRows={BUY:null,SELL:null};
+  goldPriceHistoryRows=[];
   renderGoldPriceViews();
   if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
   if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
@@ -2491,6 +2547,7 @@ async function loadGoldPrices(){
   api("/companies/"+companyId+"/gold-prices?"+scope+"&limit=100")
  ]);
  currentGoldPriceRows={BUY:buy,SELL:sell};
+ goldPriceHistoryRows=Array.isArray(history)?history:[];
  renderGoldPriceViews();
  if(typeof renderQuoteCalculation==="function")renderQuoteCalculation();
  if(typeof renderQuoteEntryPreview==="function")renderQuoteEntryPreview();
@@ -5735,7 +5792,27 @@ $("quoteOrderStatus").addEventListener("click",event=>{
  if(!win){$("quoteOrderStatus").textContent="瀏覽器封鎖了列印視窗，請允許此網站開啟彈出視窗後再試。";return;}
  const rows=(order.items||[]).map(item=>"<tr><td>"+escapeHtml(item.product_name||"商品")+"</td><td>"+escapeHtml(item.size_or_length||"—")+"</td><td>"+escapeHtml(item.weight)+" "+escapeHtml(goldUnitLabel(item.weight_unit_code||"QIAN"))+"</td><td>"+escapeHtml(item.labor_fee)+"</td><td>NT$ "+quoteMoney(item.estimated_line_amount||0)+"</td></tr>").join("");
  const delivery=order.expected_delivery_date?new Date(order.expected_delivery_date).toLocaleDateString("zh-TW"):"依雙方約定";
- win.document.write("<!doctype html><html lang='zh-Hant'><meta charset='utf-8'><title>客戶訂購單</title><style>body{font-family:Arial,'Noto Sans TC',sans-serif;padding:28px;color:#222}h1{text-align:center;font-size:24px}table{width:100%;border-collapse:collapse;margin:18px 0}th,td{border:1px solid #aaa;padding:9px;text-align:left}th{background:#f2f2f2}.sum{margin-left:auto;width:280px;line-height:2}.muted{color:#666;font-size:12px;margin-top:28px}@media print{button{display:none}}</style><body><h1>客戶訂購單</h1><p>訂單編號："+escapeHtml(order.order_no)+"</p><p>客戶姓名："+escapeHtml(order.customer_name)+"　聯絡電話："+escapeHtml(order.customer_phone||"—")+"</p><p>預計交貨："+escapeHtml(delivery)+"</p><table><thead><tr><th>商品／款式</th><th>尺寸／長度</th><th>重量</th><th>工錢</th><th>預估金額</th></tr></thead><tbody>"+rows+"</tbody></table><div class='sum'><div>訂購總額：NT$ "+quoteMoney(order.total_amount)+"</div><div>已收訂金：NT$ "+quoteMoney(order.deposit_amount)+"</div><strong>尚欠尾款：NT$ "+quoteMoney(order.balance_amount)+"</strong></div><p>備註："+escapeHtml(order.note||"—")+"</p><p class='muted'>本單為客戶訂購憑據，非正式銷售發票。商品尚未扣除庫存；實際結帳依交貨時確認金價及商品資料為準。</p></body></html>");
+ win.document.write("<!doctype html><html lang='zh-Hant'><meta charset='utf-8'><title>客戶訂購單</title><style>body{font-family:Arial,'Noto Sans TC',sans-serif;padding:28px;color:#222}h1{text-align:center;font-size:24px}table{width:100%;border-collapse:collapse;margin:18px 0}th,td{border:1px solid #aaa;padding:9px;text-align:left}th{background:#f2f2f2}.sum{margin-left:auto;width:280px;line-height:2}.muted{color:#666;font-size:12px;margin-top:28px}@media print{button{display:none}}
+/* Tiny, date-aware gold price movement hints. */
+#goldPriceSummary .gold-price-trend{
+ display:inline-flex;align-items:center;gap:4px;margin-left:7px;padding:2px 6px;
+ border-radius:999px;font-size:10px;font-weight:700;line-height:1.5;vertical-align:middle;
+ white-space:normal;overflow-wrap:anywhere;
+}
+#goldPriceSummary .gold-price-trend-icon{
+ display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
+ border-radius:50%;font-size:12px;font-weight:900;flex:0 0 15px;
+}
+#goldPriceSummary .gold-price-trend.is-up{background:#fae9e6;color:#a64d43}
+#goldPriceSummary .gold-price-trend.is-up .gold-price-trend-icon{background:#f0d1cc}
+#goldPriceSummary .gold-price-trend.is-down{background:#eaf3eb;color:#4e7958}
+#goldPriceSummary .gold-price-trend.is-down .gold-price-trend-icon{background:#d2e5d5}
+#goldPriceSummary .gold-price-trend.is-same{background:#f0f0e9;color:#6b7067}
+#goldPriceSummary .gold-price-trend.is-same .gold-price-trend-icon{background:#e1e3da}
+@media(max-width:520px){
+ #goldPriceSummary .gold-price-trend{margin:4px 0 0 3px;font-size:10px}
+}
+</style><body><h1>客戶訂購單</h1><p>訂單編號："+escapeHtml(order.order_no)+"</p><p>客戶姓名："+escapeHtml(order.customer_name)+"　聯絡電話："+escapeHtml(order.customer_phone||"—")+"</p><p>預計交貨："+escapeHtml(delivery)+"</p><table><thead><tr><th>商品／款式</th><th>尺寸／長度</th><th>重量</th><th>工錢</th><th>預估金額</th></tr></thead><tbody>"+rows+"</tbody></table><div class='sum'><div>訂購總額：NT$ "+quoteMoney(order.total_amount)+"</div><div>已收訂金：NT$ "+quoteMoney(order.deposit_amount)+"</div><strong>尚欠尾款：NT$ "+quoteMoney(order.balance_amount)+"</strong></div><p>備註："+escapeHtml(order.note||"—")+"</p><p class='muted'>本單為客戶訂購憑據，非正式銷售發票。商品尚未扣除庫存；實際結帳依交貨時確認金價及商品資料為準。</p></body></html>");
  win.document.close();
  win.focus();
  win.print();
