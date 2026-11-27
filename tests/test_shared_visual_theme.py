@@ -180,3 +180,18 @@ def test_dutch_rabbit_stocktake_guidance_is_connected_to_review_and_variance_sta
     assert "bunnyStocktakeComplete" in home
     assert 'variant:"is-alert"' in home
     assert 'variant:"is-success"' in home
+
+
+def test_saved_operations_show_compact_dutch_rabbit_confirmation_without_masking_status() -> None:
+    home = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    theme = (STATIC_DIR / "theme.css").read_text(encoding="utf-8")
+
+    assert "function isBunnyPersistedOperationSuccess" in home
+    assert "function bunnyOperationFeedbackCopy" in home
+    assert "const bunnyNoteId=\"bunnyOperationFeedback-\"+id" in home
+    assert "renderBunnyContextNote(el,bunnyNoteId,persistedSuccess" in home
+    assert 'renderBunnyContextNote(el,bunnyNoteId,false,"","","")' in home
+    assert "道奇兔確認完成" in home
+    assert ".bunny-context-note.is-feedback" in theme
+    assert ".bunny-context-note.is-feedback .bunny-context-art" in theme
+    assert "@media(max-width:420px)" in theme
