@@ -654,6 +654,29 @@ button.secondary:disabled{opacity:.42}
 .bunny-sparkle{color:#c59b4b}
 @media(max-width:420px){.bunny-shop-note{gap:8px;padding:9px}.bunny-shop-note .bunny-art{width:56px;height:56px;flex-basis:56px}.bunny-shop-note svg{width:55px;height:55px}}
 
+
+/* 道奇兔掃描回饋：掃描結果與相機問題集中顯示，成功／提醒／錯誤清楚區分。 */
+.scan-feedback-head{display:flex;align-items:center;gap:10px;min-width:0}
+.scan-feedback-bunny{position:relative;display:grid;place-items:center;width:48px;height:48px;flex:0 0 48px;border:1px solid #e8dfcb;border-radius:14px;background:linear-gradient(145deg,#fffdf5,#eff5ed)}
+.scan-feedback-bunny-art{position:relative;width:44px;height:44px;display:block}
+.scan-feedback-bunny-art>svg:not(.bunny-shop-prop){display:block;width:44px;height:44px;overflow:visible}
+.scan-feedback-bunny-art .bunny-shop-prop{width:18px;height:18px;right:-2px;bottom:-1px;padding:1px;border-radius:6px}
+.scan-feedback-copy{display:grid;gap:4px;min-width:0}
+.scan-feedback .scan-feedback-title{margin:0;color:#526b58}
+.scan-feedback .scan-feedback-message{margin:0;line-height:1.55;overflow-wrap:anywhere}
+.scan-feedback.success{border-color:#d8e6d8;background:linear-gradient(112deg,#fbfff9,#f1f7ef)}
+.scan-feedback.success .scan-feedback-title{color:#477452}
+.scan-feedback.warning{border-color:#eadcb9;background:linear-gradient(112deg,#fffdf6,#fbf5e7)}
+.scan-feedback.warning .scan-feedback-title,.scan-feedback.warning .scan-feedback-message{color:#805e27}
+.scan-feedback.error{border-color:#efcfc9;background:linear-gradient(112deg,#fffaf9,#fcf0ee)}
+.scan-feedback.error .scan-feedback-title,.scan-feedback.error .scan-feedback-message{color:#a33228}
+@media(max-width:420px){
+ .scan-feedback{padding:11px}
+ .scan-feedback-bunny{width:42px;height:42px;flex-basis:42px}
+ .scan-feedback-bunny-art,.scan-feedback-bunny-art>svg:not(.bunny-shop-prop){width:39px;height:39px}
+ .scan-feedback-bunny-art .bunny-shop-prop{width:16px;height:16px}
+}
+
 </style>
 <link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127d">
 </head>
@@ -1435,9 +1458,14 @@ button.secondary:disabled{opacity:.42}
  </div>
 </div>
 <section id="scanFeedback" class="scan-feedback hidden" aria-live="polite">
- <div class="scan-feedback-title" id="scanFeedbackTitle">掃描結果</div>
+ <div class="scan-feedback-head">
+  <span id="scanFeedbackBunny" class="scan-feedback-bunny" aria-hidden="true"></span>
+  <div class="scan-feedback-copy">
+   <div class="scan-feedback-title" id="scanFeedbackTitle">掃描結果</div>
+   <div class="scan-feedback-message" id="scanFeedbackMessage"></div>
+  </div>
+ </div>
  <div class="scan-feedback-code" id="scanFeedbackCode"></div>
- <div class="scan-feedback-message" id="scanFeedbackMessage"></div>
  <div class="scan-feedback-actions">
   <button id="copyScannedCode" class="secondary" type="button">複製條碼</button>
   <button id="manualLookupCode" class="secondary" type="button">手動查詢</button>
@@ -1615,8 +1643,18 @@ function showScanChoices(codes){
 async function openCameraScanner(target){
  scanTrigger=document.activeElement;
  scanTarget=target;
- if(!("BarcodeDetector" in window)){message("globalStatus","此瀏覽器尚未支援相機條碼辨識；可使用外接條碼槍或手動輸入條碼。",true);return;}
- if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){message("globalStatus","瀏覽器無法使用相機，請確認使用 HTTPS 並允許相機權限。",true);return;}
+ $("scanFeedback").classList.add("hidden");
+ lastScannedCode="";
+ if(!("BarcodeDetector" in window)){
+  const hint="此瀏覽器尚未支援相機條碼辨識，可改用外接條碼槍或手動輸入條碼。";
+  showScanNotice("目前無法使用相機掃描",hint,"warning");
+  message("globalStatus",hint,true);return;
+ }
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+  const hint="瀏覽器無法呼叫相機，請確認使用 HTTPS 並在網站設定中允許相機權限；也可改用外接條碼槍或手動輸入。";
+  showScanNotice("相機權限尚未就緒",hint,"warning");
+  message("globalStatus",hint,true);return;
+ }
  try{
   stopCameraScanner();
   $("scanFormatMode").value=scanFormatMode;$("scanMultipleMode").value=scanMultipleMode;$("scanResults").replaceChildren();$("scanResults").hidden=true;
@@ -1639,7 +1677,19 @@ async function openCameraScanner(target){
    if(scanStream)scanFrameHandle=requestAnimationFrame(detect);
   };
   scanFrameHandle=requestAnimationFrame(detect);
- }catch(error){stopCameraScanner();$("scanModal").classList.add("hidden");message("globalStatus","無法啟動相機掃描："+(error.message||"請檢查相機權限"),true);}
+ }catch(error){
+  stopCameraScanner();$("scanModal").classList.add("hidden");
+  const reason=error.name==="NotAllowedError"
+   ?"瀏覽器尚未授權相機。請在網址列的網站設定中允許相機後重新掃描。"
+   :error.name==="NotFoundError"
+    ?"找不到可用相機，請改用外接條碼槍或手動輸入條碼。"
+    :error.name==="NotReadableError"
+     ?"相機可能正被其他程式使用，請先關閉其他相機視窗後再試。"
+     :"無法啟動相機掃描："+(error.message||"請檢查相機權限與裝置設定。");
+  const kind=["NotAllowedError","NotFoundError"].includes(error.name)?"warning":"error";
+  showScanNotice("相機掃描無法啟動",reason,kind);
+  message("globalStatus",reason,true);
+ }
 }
 const scanHistoryKey="goldJewelryRecentScans";
 let lastScannedCode="",lastScannedTarget="";
@@ -1653,13 +1703,46 @@ function renderScanHistory(){
  if(!rows.length){const empty=document.createElement("div");empty.className="muted";empty.textContent="尚無掃描紀錄";list.appendChild(empty);return;}
  rows.forEach(row=>{const item=document.createElement("div");item.className="scan-history-item";item.textContent=(row.time||"")+" · "+row.code+" · "+row.result;list.appendChild(item);});
 }
+function ensureScanFeedbackBunny(){
+ const host=$("scanFeedbackBunny");
+ if(!host||host.firstElementChild)return;
+ const source=document.querySelector(".bunny-shop-note .bunny-art");
+ if(!source)return;
+ const art=source.cloneNode(true);
+ art.className="scan-feedback-bunny-art";
+ art.setAttribute("aria-hidden","true");
+ host.appendChild(art);
+}
+function setScanFeedbackActionVisibility(showCode){
+ $("scanFeedbackCode").hidden=!showCode;
+ ["copyScannedCode","manualLookupCode","rescanCode"].forEach(id=>{$(id).hidden=!showCode;});
+}
+function showScanNotice(title,result,kind="warning"){
+ lastScannedCode="";lastScannedTarget=scanTarget||"";
+ const panel=$("scanFeedback");if(!panel)return;
+ ensureScanFeedbackBunny();
+ $("scanFeedbackTitle").textContent=title;
+ $("scanFeedbackMessage").textContent=result;
+ $("scanFeedbackCode").textContent="";
+ setScanFeedbackActionVisibility(false);
+ panel.classList.remove("hidden","success","warning","error");
+ panel.classList.add(kind);
+ panel.setAttribute("aria-live",kind==="error"?"assertive":"polite");
+ renderScanHistory();
+}
 function showScanFeedback(code,target,result,isError=false){
  lastScannedCode=String(code||"");lastScannedTarget=target||"";
  const panel=$("scanFeedback");if(!panel||!lastScannedCode)return;
- $("scanFeedbackTitle").textContent=isError?(String(result).includes("找不到")?"找不到商品":"掃描處理未完成"):"掃描成功";
+ ensureScanFeedbackBunny();
+ const notFound=Boolean(isError&&String(result).includes("找不到"));
+ const kind=!isError?"success":notFound?"warning":"error";
+ $("scanFeedbackTitle").textContent=kind==="success"?"掃描成功":notFound?"找不到商品":"掃描處理未完成";
  $("scanFeedbackCode").textContent=lastScannedCode;
  $("scanFeedbackMessage").textContent=result;
- panel.classList.toggle("error",Boolean(isError));panel.classList.remove("hidden");
+ setScanFeedbackActionVisibility(true);
+ panel.classList.remove("hidden","success","warning","error");
+ panel.classList.add(kind);
+ panel.setAttribute("aria-live",kind==="error"?"assertive":"polite");
  const rows=readScanHistory();
  rows.unshift({code:lastScannedCode,result:String(result).slice(0,80),time:new Date().toLocaleString("zh-TW")});
  try{localStorage.setItem(scanHistoryKey,JSON.stringify(rows.slice(0,10)));}catch(error){}
