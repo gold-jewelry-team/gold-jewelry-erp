@@ -132,6 +132,8 @@ jobs:
         run: node --test tests/cash_drawer_retry_runtime.test.js
       - name: Run cash drawer operator memory runtime tests
         run: node --test tests/cash_drawer_operator_memory_runtime.test.js
+      - name: Run daily closing confirmation runtime tests
+        run: node --test tests/daily_closing_confirmation_runtime.test.js
       - name: Run sale and return payment retry runtime tests
         run: node --test tests/payment_retry_runtime.test.js
       - name: Run supplier payment retry runtime tests
