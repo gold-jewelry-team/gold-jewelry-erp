@@ -679,9 +679,48 @@ button.secondary:disabled{opacity:.42}
 
 </style>
 <link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127e">
+
+<style>
+/* Make the gold-price update state visible before the price figures. */
+#goldPriceSummary .gold-price-alert{
+ display:flex;align-items:flex-start;gap:9px;margin:8px 0 10px;padding:11px 13px;
+ border:1px solid #e3bd70;border-radius:12px;background:#fff4dc;color:#76531f;
+ font-size:13px;font-weight:700;line-height:1.6;overflow-wrap:anywhere;
+}
+#goldPriceSummary .gold-price-alert:empty{display:none}
+#goldPriceSummary .gold-price-alert::before{
+ content:"";flex:0 0 9px;width:9px;height:9px;margin-top:5px;border-radius:50%;background:#c58b27;
+}
+#goldPriceSummary .gold-price-alert[data-state="closed"]{
+ border-color:#cbdcc9;background:#eef4eb;color:#4d6853;
+}
+#goldPriceSummary .gold-price-alert[data-state="closed"]::before{background:#789b7c}
+#goldPriceSummary .gold-price-alert[data-state="success"]{
+ border-color:#c6dfcc;background:#edf6ef;color:#42684d;
+}
+#goldPriceSummary .gold-price-alert[data-state="success"]::before{background:#5d9870}
+#goldPriceSummary .gold-currency-toggle{
+ display:flex;align-items:center;gap:10px;margin:10px 0 0;padding:10px 12px;
+ border:1px solid #e3e5d9;border-radius:12px;background:#f7f8f2;color:#405247;
+ cursor:pointer;
+}
+#goldPriceSummary .gold-currency-toggle input[type="checkbox"]{
+ flex:0 0 20px;width:20px;height:20px;min-height:20px;margin:0;padding:0;
+ border-radius:5px;accent-color:#668c70;
+}
+#goldPriceSummary .gold-currency-toggle-copy{display:grid;gap:2px;min-width:0}
+#goldPriceSummary .gold-currency-toggle-copy strong{font-size:13px;color:#3d5945}
+#goldPriceSummary .gold-currency-toggle-copy small{font-size:11px;color:#72796f;line-height:1.5}
+#goldPriceSummary .gold-currency-rate-editor{margin-top:8px}
+@media(max-width:520px){
+ #goldPriceSummary .gold-price-alert{font-size:12px;padding:10px 11px}
+ #goldPriceSummary .gold-currency-toggle{align-items:flex-start}
+ #goldPriceSummary .gold-currency-toggle input[type="checkbox"]{margin-top:2px}
+}
+</style>
 </head>
 <body>
-<header><div class="header-title-row"><h1>黃金珠寶進銷存</h1><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span id="quickNavEmpty" class="quick-nav-empty" role="status" aria-live="polite" hidden>找不到符合的功能，請換個關鍵字</span><button id="quickQuote" type="button" title="快速開啟現場報價（Alt+Q）">🧮 報價</button><button id="quickGoldPrice" class="quick-gold-price" type="button" title="快速調整今日金價（Alt+G）">🪙 金價</button><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></div><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-currency-tools"><div class="gold-currency-tools-head"><strong>外幣金價換算</strong><button id="toggleGoldCurrencyRates" class="secondary" type="button" aria-expanded="false">設定匯率／展開</button></div><div id="goldCurrencyRateEditor" class="gold-currency-rate-editor hidden"><p class="muted">輸入「1 外幣可兌換多少新台幣」，例如 1 USD = 32 TWD。匯率僅儲存在目前瀏覽器。</p><div class="gold-currency-rate-fields"><div><label for="goldUsdRate">美元 USD／TWD</label><input id="goldUsdRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 32"></div><div><label for="goldJpyRate">日圓 JPY／TWD（每 1 日圓）</label><input id="goldJpyRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 0.21"></div></div><button id="saveGoldCurrencyRates" type="button">儲存匯率</button><span id="goldCurrencyRateStatus" class="muted" role="status"></span></div><div id="goldCurrencyValues" class="gold-currency-values"><div class="muted">設定匯率後即可換算美金與日圓金價。</div></div></div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section></header>
+<header><div class="header-title-row"><h1>黃金珠寶進銷存</h1><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span id="quickNavEmpty" class="quick-nav-empty" role="status" aria-live="polite" hidden>找不到符合的功能，請換個關鍵字</span><button id="quickQuote" type="button" title="快速開啟現場報價（Alt+Q）">🧮 報價</button><button id="quickGoldPrice" class="quick-gold-price" type="button" title="快速調整今日金價（Alt+G）">🪙 金價</button><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></div><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldPriceReminder" class="gold-price-alert" role="status" aria-live="polite"></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-currency-tools"><label class="gold-currency-toggle" for="showGoldCurrencyConversion"><input id="showGoldCurrencyConversion" type="checkbox" aria-controls="goldCurrencyRateEditor"><span class="gold-currency-toggle-copy"><strong>外幣金額換算</strong><small>需要時勾選，顯示美金／日圓金價與匯率設定</small></span></label><div id="goldCurrencyRateEditor" class="gold-currency-rate-editor hidden"><p class="muted">輸入「1 外幣可兌換多少新台幣」，例如 1 USD = 32 TWD。匯率僅儲存在目前瀏覽器，可依需要自行更新。</p><div class="gold-currency-rate-fields"><div><label for="goldUsdRate">美元 USD／TWD</label><input id="goldUsdRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 32"></div><div><label for="goldJpyRate">日圓 JPY／TWD（每 1 日圓）</label><input id="goldJpyRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 0.21"></div></div><button id="saveGoldCurrencyRates" type="button">儲存匯率</button><span id="goldCurrencyRateStatus" class="muted" role="status"></span><div id="goldCurrencyValues" class="gold-currency-values"><div class="muted">設定匯率後即可換算美金與日圓金價。</div></div></div></div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldSummaryStatus" class="status" role="status"></div></section></header>
 <main>
 
 <section id="homeDashboard" aria-label="營運首頁">
@@ -2334,6 +2373,15 @@ function renderGoldClosureDates(){
  const dates=getGoldClosureDates();
  box.innerHTML=dates.length?dates.map(date=>'<div class="gold-closure-date"><span>'+escapeHtml(date)+'</span><button class="secondary" type="button" data-remove-gold-closure="'+escapeHtml(date)+'">移除</button></div>').join(""):'尚未設定額外休市日期';
 }
+function goldPriceReminderState({today,buyDate,sellDate,isBusinessDay,latestDate}){
+ const missing=[];
+ if(!buyDate||buyDate!==today)missing.push("買入價");
+ if(!sellDate||sellDate!==today)missing.push("賣出價");
+ const latestNote=latestDate?"最近一次有效牌價："+latestDate+"。":"目前尚無有效牌價紀錄。";
+ if(!missing.length)return {kind:"success",text:"今日買入價與賣出價均已更新。"};
+ if(!isBusinessDay)return {kind:"closed",text:"今日為週末或已設定的休市日，金價可能不更新。"+latestNote+"連續假日可至「金價管理」設定休市日期。"};
+ return {kind:"warning",text:"今日金價尚未完整更新，尚缺"+missing.join("與")+"。"+latestNote+"目前顯示最近一次有效牌價。"};
+}
 function isGoldPriceReminderBusinessDay(){
  const today=todayTaipeiDateKey();
  const weekday=new Date(today+"T12:00:00+08:00").getDay();
@@ -2365,17 +2413,22 @@ function renderGoldPriceViews(){
  renderGoldCurrencyValues();
  const latest=[buy,sell].filter(Boolean).sort((a,b)=>new Date(b.effective_at)-new Date(a.effective_at))[0];
  const updated=$("goldSummaryUpdated");
- if(updated)updated.textContent=latest?"最後生效時間："+formatGoldPriceDate(latest.effective_at):"尚未載入金價";
+ if(updated)updated.textContent=latest?"最近一次有效牌價："+formatGoldPriceDate(latest.effective_at):"尚無有效金價資料";
  const reminder=$("goldPriceReminder");
  if(reminder){
-  if(!companyId||!selectedSiteId)reminder.textContent="";
-  else if(!isGoldPriceReminderBusinessDay())reminder.textContent="";
-  else{
-   const today=todayTaipeiDateKey();
-   const missing=[];
-   if(!buy||taipeiDateKey(buy.effective_at)!==today)missing.push("買入價");
-   if(!sell||taipeiDateKey(sell.effective_at)!==today)missing.push("賣出價");
-   reminder.textContent=missing.length?"提醒：今日尚未更新"+missing.join("與")+"，請確認今日牌價。":"今日金價已更新。";
+  if(!companyId||!selectedSiteId){
+   reminder.textContent="";
+   delete reminder.dataset.state;
+  }else{
+   const state=goldPriceReminderState({
+    today:todayTaipeiDateKey(),
+    buyDate:buy?taipeiDateKey(buy.effective_at):null,
+    sellDate:sell?taipeiDateKey(sell.effective_at):null,
+    isBusinessDay:isGoldPriceReminderBusinessDay(),
+    latestDate:latest?taipeiDateKey(latest.effective_at):null
+   });
+   reminder.dataset.state=state.kind;
+   reminder.textContent=state.text;
   }
  }
  ["goldDisplayUnit","saleGoldDisplayUnit"].forEach(id=>{const select=$(id);if(select)select.value=unit;});
@@ -2401,7 +2454,7 @@ function renderGoldCurrencyValues(){
   return '<div class="gold-currency-card"><strong>'+item.label+'</strong><div class="gold-currency-line">買入：<b>'+converted(buy)+" "+item.code+'</b></div><div class="gold-currency-line">賣出：<b>'+converted(sell)+" "+item.code+'</b></div><small>1 '+item.code+" = "+item.rate+" TWD · 更新："+updated+'</small></div>';
  }).join("");
 }
-function openGoldCurrencyRateEditor(open){const editor=$("goldCurrencyRateEditor"),button=$("toggleGoldCurrencyRates");if(!editor||!button)return;editor.classList.toggle("hidden",!open);button.setAttribute("aria-expanded",String(open));button.textContent=open?"收合匯率設定":"設定匯率／展開";}
+function setGoldCurrencyConversionVisible(visible){const editor=$("goldCurrencyRateEditor");if(!editor)return;editor.classList.toggle("hidden",!visible);}
 function loadGoldCurrencyRateEditor(){const rates=getGoldCurrencyRates();$("goldUsdRate").value=rates.USD||"";$("goldJpyRate").value=rates.JPY||"";renderGoldCurrencyValues();}
 function saveGoldCurrencyRates(){const USD=Number($("goldUsdRate").value),JPY=Number($("goldJpyRate").value);if(!Number.isFinite(USD)||USD<=0||!Number.isFinite(JPY)||JPY<=0){message("goldCurrencyRateStatus","請輸入大於 0 的美元及日圓兌台幣匯率。",true);return;}const rates={USD,JPY,updated_at:new Date().toISOString()};localStorage.setItem(goldCurrencyRateStorageKey(),JSON.stringify(rates));renderGoldCurrencyValues();message("goldCurrencyRateStatus","匯率已儲存於目前瀏覽器。");}
 async function copyGoldQuote(language){
@@ -4483,7 +4536,7 @@ $("goldDisplayUnit").value=goldDisplayUnit;
 $("saleGoldDisplayUnit").value=goldDisplayUnit;
 $("goldDisplayUnit").addEventListener("change",event=>setGoldDisplayUnit(event.target.value));
 $("saleGoldDisplayUnit").addEventListener("change",event=>setGoldDisplayUnit(event.target.value));
-$("toggleGoldCurrencyRates").addEventListener("click",()=>openGoldCurrencyRateEditor($("goldCurrencyRateEditor").classList.contains("hidden")));
+$("showGoldCurrencyConversion").addEventListener("change",event=>setGoldCurrencyConversionVisible(event.target.checked));
 $("saveGoldCurrencyRates").addEventListener("click",saveGoldCurrencyRates);
 loadGoldCurrencyRateEditor();
 $("copyGoldQuoteZh").addEventListener("click",()=>copyGoldQuote("zh"));
