@@ -1586,7 +1586,7 @@ function clearPaymentIdempotencyKey(kind,sourceId,key){
 const statusMessageTimers=new Map();
 function isBunnyPersistedOperationSuccess(text,error=false){
  if(error)return false;
- return /已建立|已儲存|已新增|已更新|已作廢|已取消|已匯入|已調整|已結帳|已列印|已入帳|已送出|已成功|建立成功|已確認|已保留/.test(String(text||""));
+ return /成功|已建立|已儲存|已完成|已新增|已更新|已作廢|已取消|已匯入|已調整|已結帳|已列印|已入帳|已送出|已確認|已保留/.test(String(text||""));
 }
 function bunnyOperationFeedbackCopy(text){
  const value=String(text||"");
