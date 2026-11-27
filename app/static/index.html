@@ -2380,7 +2380,8 @@ function goldPriceReminderState({today,buyDate,sellDate,isBusinessDay,latestDate
  const latestNote=latestDate?"最近一次有效牌價："+latestDate+"。":"目前尚無有效牌價紀錄。";
  if(!missing.length)return {kind:"success",text:"今日買入價與賣出價均已更新。"};
  if(!isBusinessDay)return {kind:"closed",text:"今日為週末或已設定的休市日，金價可能不更新。"+latestNote+"連續假日可至「金價管理」設定休市日期。"};
- return {kind:"warning",text:"今日金價尚未完整更新，尚缺"+missing.join("與")+"。"+latestNote+"目前顯示最近一次有效牌價。"};
+ const followUpNote=latestDate?"目前顯示最近一次有效牌價。":"請至「金價管理」確認是否已建立牌價。";
+ return {kind:"warning",text:"今日金價尚未完整更新，尚缺"+missing.join("與")+"。"+latestNote+followUpNote};
 }
 function isGoldPriceReminderBusinessDay(){
  const today=todayTaipeiDateKey();
