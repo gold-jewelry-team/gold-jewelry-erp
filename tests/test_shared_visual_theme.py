@@ -168,4 +168,4 @@ def test_scanner_feedback_uses_contextual_dutch_rabbit_and_distinguishes_states(
     assert ".scan-feedback.success" in home
     assert ".scan-feedback.warning" in home
     assert ".scan-feedback.error" in home
-    assert "aria-live",kind==="error"?"assertive":"polite"" in home
+    assert 'aria-live",kind==="error"?"assertive":"polite"' in home
