@@ -367,3 +367,29 @@ button.secondary{
  .jewelry-category-illustration.is-compact{flex-basis:40px;width:40px;height:40px}
  .jewelry-category-preview{padding:8px 9px}
 }
+
+
+/* 道奇兔店長情境提示：柔和玉綠與香檳金，不阻擋主要作業 */
+.bunny-context-note{
+ display:flex;align-items:center;gap:9px;margin:8px 0 10px;padding:9px 11px;
+ border:1px solid #e5e3d6;border-radius:13px;
+ background:linear-gradient(105deg,#fffdf6,#f2f6ef);
+ box-shadow:0 2px 8px rgba(80,92,69,.045);
+}
+.bunny-context-art{
+ width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;
+}
+.bunny-context-art svg{display:block;width:44px;height:44px;overflow:visible}
+.bunny-context-copy{display:grid;gap:3px;min-width:0}
+.bunny-context-copy strong{font-size:12px;line-height:1.4;color:#526b58}
+.bunny-context-copy p{margin:0;font-size:11px;line-height:1.55;color:#727b71;overflow-wrap:anywhere}
+.bunny-context-note.is-alert{border-color:#eadcb9;background:linear-gradient(105deg,#fffaf0,#f5f4e9)}
+.bunny-context-note.is-alert .bunny-context-copy strong{color:#86652e}
+.bunny-context-note.is-success{border-color:#d8e6d8;background:linear-gradient(105deg,#f4faf2,#edf5ed)}
+.bunny-context-note.is-success .bunny-context-copy strong{color:#477452}
+.bunny-context-note.is-empty{background:linear-gradient(105deg,#fbfaf4,#f1f6ef)}
+@media(max-width:420px){
+ .bunny-context-note{gap:8px;padding:8px 9px}
+ .bunny-context-art,.bunny-context-art svg{width:40px;height:40px}
+ .bunny-context-art{flex-basis:40px}
+}
