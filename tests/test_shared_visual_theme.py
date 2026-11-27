@@ -7,7 +7,7 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127c">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127d">'
 INDEX_THEME_LINK = THEME_LINK
 
 
@@ -30,6 +30,9 @@ def test_shared_theme_stylesheet_is_public_and_served() -> None:
     assert "background:#edf4ed" in response.text
     assert "radial-gradient(ellipse at 7% 5%" in response.text
     assert "linear-gradient(135deg,#f9f8f2" in response.text
+    assert ".bunny-empty-guide" in response.text
+    assert ".bunny-empty-art" in response.text
+    assert "@media(max-width:480px)" in response.text
 
 
 def test_every_static_workspace_page_uses_the_shared_theme() -> None:
@@ -121,3 +124,25 @@ def test_dutch_rabbit_shopkeeper_guide_is_present_on_every_static_page() -> None
         (STATIC_DIR / page.name).read_text(encoding="utf-8")
         for page in html_pages if page.name != "index.html"
     )
+
+
+def test_employee_and_report_empty_states_show_contextual_dutch_rabbit_guides() -> None:
+    theme = (STATIC_DIR / "theme.css").read_text(encoding="utf-8")
+    page_expectations = {
+        "employee_catalog.html": ["function bunnyEmptyGuide", "沒有找到符合的商品", "沒有找到符合的庫存"],
+        "employee_sales.html": ["function bunnyEmptyGuide", "這組條件沒有銷售紀錄", "這筆銷售沒有退貨紀錄"],
+        "employee_purchases.html": ["function bunnyEmptyGuide", "沒有符合條件的採購紀錄"],
+        "employee_customer_orders.html": ["function bunnyEmptyGuide", "沒有符合條件的客戶訂單", "這筆訂單尚無收退款紀錄"],
+        "employee_payables.html": ["function bunnyEmptyGuide", "沒有符合條件的供應商帳單", "沒有符合條件的付款紀錄"],
+        "reports.html": ["function bunnyEmptyMarkup", "這段期間沒有營運資料", "目前沒有未結清項目"],
+    }
+
+    for filename, expected_strings in page_expectations.items():
+        html = (STATIC_DIR / filename).read_text(encoding="utf-8")
+        for expected in expected_strings:
+            assert expected in html, f"{filename} is missing contextual empty-state guidance: {expected}"
+
+    assert ".bunny-empty-guide" in theme
+    assert ".bunny-empty-copy" in theme
+    assert ".bunny-empty-token" in theme
+
