@@ -115,6 +115,20 @@
       if(text!==undefined)el.textContent=text;
       return el;
     }
+    function bunnyEmptyGuide(title,copy,token){
+      const guide=node("div","bunny-empty-guide");
+      guide.setAttribute("role","status");
+      const art=node("span","bunny-empty-art");
+      art.setAttribute("aria-hidden","true");
+      art.innerHTML='<svg viewBox="0 0 72 72" focusable="false"><ellipse cx="23" cy="17" rx="8" ry="15" fill="#26282a" transform="rotate(-12 23 17)"/><ellipse cx="47" cy="16" rx="7" ry="14" fill="#fff" stroke="#cfd4ce" stroke-width="1.5" transform="rotate(11 47 16)"/><path d="M16 14q6-4 11 0" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="36" cy="42" rx="27" ry="23" fill="#fff" stroke="#cfd4ce" stroke-width="1.6"/><path d="M10 36q2-16 19-16 8 0 10 9 1 9-7 15-10 7-19 0-4-3-3-8Z" fill="#26282a"/><path d="M43 27q13-11 23 1 7 9 0 19-7 8-18 3-8-4-7-14Z" fill="#26282a"/><ellipse cx="25" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><ellipse cx="50" cy="42" rx="3.6" ry="4.5" fill="#26282a"/><circle cx="26" cy="40.5" r="1.2" fill="#fff"/><circle cx="51" cy="40.5" r="1.2" fill="#fff"/><ellipse cx="37" cy="52" rx="4" ry="2.8" fill="#e8aaa2"/><path d="M37 54q-4 4-8 0m8 0q4 4 8 0" fill="none" stroke="#897772" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      art.append(node("span","bunny-empty-token",token||"✧"));
+      const copyBox=node("span","bunny-empty-copy");
+      copyBox.append(node("strong","",title));
+      copyBox.append(node("span","",copy));
+      guide.append(art,copyBox);
+      return guide;
+    }
+
     function setStatus(message,kind){
       const box=$("status");
       box.className="notice"+(kind?" "+kind:"");
@@ -180,7 +194,12 @@
       const list=$("list");
       list.replaceChildren();
       if(!rows.length){
-        list.append(node("div","empty","找不到符合條件的客戶訂單。"));
+        const hasFilters=Boolean($("search").value.trim()||$("orderStatus").value);
+        list.append(bunnyEmptyGuide(
+          hasFilters?"沒有符合條件的客戶訂單":"目前尚無客戶訂單",
+          hasFilters?"可清除關鍵字或改選其他訂單狀態，再重新查詢。":"建立客戶訂單後，訂金、到貨進度、交貨及退款紀錄都會集中顯示在這裡。",
+          hasFilters?"⌕":"◇"
+        ));
         $("count").textContent="共 0 筆訂單";
         return;
       }
@@ -232,7 +251,11 @@
         if(paymentRows.length){
           paymentRows.forEach(payment=>payments.append(renderPayment(payment,order.currency_code)));
         }else{
-          payments.append(node("div","empty","尚無收款或退款紀錄。"));
+          payments.append(bunnyEmptyGuide(
+            "這筆訂單尚無收退款紀錄",
+            "收到訂金或辦理退款後，收付款明細會自動列在這裡。",
+            "$"
+          ));
         }
         card.append(payments);
         if(order.note)card.append(node("div","record-sub","備註："+order.note));
