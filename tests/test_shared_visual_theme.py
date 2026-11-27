@@ -7,11 +7,11 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-20261127b">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=bluegreen-20261127a">'
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
-    response = client.get("/theme.css?v=botanical-20261127b")
+    response = client.get("/theme.css?v=bluegreen-20261127a")
 
     assert response.status_code == 200
     assert "text/css" in response.headers["content-type"]
