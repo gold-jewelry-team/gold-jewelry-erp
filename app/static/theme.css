@@ -257,3 +257,38 @@ table th,th{background:#f0f3ec;color:#5b6e5d}
 }
 a{color:#66869a}
 #goldPriceSummary{background:linear-gradient(135deg,#fbf6e9 0%,#f7f2e4 100%);border-color:#ddc990}
+
+
+/* Botanical warmth refinement: neutral canvas, jade actions and layered ambient color. */
+:root{
+ --erp-ink:#3e443d;--erp-muted:#74796f;--erp-bg:#f6f6ef;
+ --erp-surface:#fffefa;--erp-surface-soft:#f7f8f2;--erp-line:#e5e5d9;
+ --erp-blue:#66869a;--erp-blue-dark:#527185;
+ --erp-green:#7b9d87;--erp-green-dark:#527b62;--erp-green-soft:#edf4ed;
+ --erp-champagne:#d6b875;
+ --app-ink:var(--erp-ink);--app-muted:var(--erp-muted);--app-bg:var(--erp-bg);
+ --app-panel:var(--erp-surface);--app-green:var(--erp-green);--app-green-dark:var(--erp-green-dark);
+ --app-gold:var(--erp-champagne);--app-line:var(--erp-line);
+ --green:var(--erp-green-dark);--line:var(--erp-line);--muted:var(--erp-muted);
+}
+html,body{background-color:#f6f6ef;color:#3e443d}
+body{
+ background-image:
+  radial-gradient(ellipse at 7% 5%,rgba(204,224,207,.58),transparent 35%),
+  radial-gradient(ellipse at 93% 16%,rgba(239,222,184,.40),transparent 32%),
+  radial-gradient(ellipse at 48% 100%,rgba(222,234,220,.34),transparent 42%),
+  linear-gradient(135deg,#f9f8f2 0%,#f0f4ed 48%,#f8f3e8 100%);
+ background-attachment:fixed;
+}
+header{background:linear-gradient(112deg,#f2f3e9 0%,#e5eee5 52%,#f4eddd 100%);color:#3e4a40}
+header h1,header p,header .eyebrow{color:#46564a}
+header a,header .back,header .back-link{color:#52785e}
+header .quick-nav a{background:rgba(255,255,255,.72);color:#52785e;border-color:#d2ddd0}
+button:not(.secondary):not(.danger){background:linear-gradient(180deg,#86a990 0%,#668c70 100%);box-shadow:0 2px 7px rgba(65,96,70,.15)}
+button.secondary{background:#edf4ed;color:#527b62;border-color:#d5e2d4}
+.category-nav button[aria-pressed="true"]{background:linear-gradient(180deg,#86a990 0%,#668c70 100%);border-color:#668c70}
+.category-shortcuts button{background:#f0f5ee;border-color:#dce6d9;color:#56775d}
+table th,th{background:#f0f3ec;color:#5b6e5d}
+.panel,.member,.permission,.company,.item,.table-wrap{background:rgba(255,254,250,.94);box-shadow:0 5px 20px rgba(74,91,70,.055)}
+a{color:#66869a}
+#goldPriceSummary{background:linear-gradient(135deg,#fbf6e9 0%,#f7f2e4 100%);border-color:#ddc990}
