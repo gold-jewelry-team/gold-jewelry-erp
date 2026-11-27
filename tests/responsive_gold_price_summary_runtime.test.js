@@ -127,7 +127,7 @@ test("gold price summary emphasizes the amounts and reduces secondary label and 
 test("sales gold quote has a secondary price hierarchy and a narrow-phone fallback", () => {
   assert.match(html, /#saleGoldPriceValues\{\s*display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:8px;min-width:0;\s*\}/);
   assert.match(html, /#saleGoldPriceValues \.gold-summary-price>strong\{\s*display:block;min-width:0;font-size:clamp\(22px,2\.4vw,26px\);line-height:1\.12;\s*font-weight:800;letter-spacing:-\.025em;white-space:nowrap;overflow-wrap:normal;/);
-  assert.match(html, /@media\(max-width:520px\)\{\s*#saleGoldPriceValues \.gold-summary-price>strong\{font-size:clamp\(20px,6vw,23px\)\}/);
+  assert.match(html, /@media\(max-width:520px\)\{\s*#saleGoldPriceValues \.gold-summary-price\{min-height:68px;padding:8px\}\s*#saleGoldPriceValues \.gold-summary-price>strong\{font-size:clamp\(20px,6vw,23px\)\}/);
   assert.match(html, /@media\(max-width:360px\)\{\s*#saleGoldPriceValues\{grid-template-columns:minmax\(0,1fr\)\}/);
   assert.match(html, /id="saleGoldPriceValues" class="sale-gold-quote-values"/);
 });
