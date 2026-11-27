@@ -35,6 +35,19 @@ test("lookup and temporary progress messages do not masquerade as saved operatio
     "已產生編號：G00R-21664",
     "正在更新庫存資料…",
     "請先選擇公司。",
+    "已產生編號：G00R-21664；此號碼已保留，未使用也不會回收。",
+    "已確認商品：G00R-21663；請繼續掃描下一件。",
+  ];
+  for (const message of examples) {
+    assert.equal(context.isBunnyPersistedOperationSuccess(message, false), false, message);
+  }
+});
+
+test("partial success followed by a refresh failure is not shown as a completed operation", () => {
+  const examples = [
+    "商品已更新，但畫面重新載入失敗：NetworkError",
+    "退貨已建立，但部分畫面重新載入失敗：NetworkError",
+    "操作已成功，但清單刷新失敗：NetworkError",
   ];
   for (const message of examples) {
     assert.equal(context.isBunnyPersistedOperationSuccess(message, false), false, message);
