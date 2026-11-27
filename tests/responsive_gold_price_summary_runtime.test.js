@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import vm from "node:vm";
 
 const html = fs.readFileSync("app/static/index.html", "utf8");
 
@@ -34,4 +35,79 @@ test("very narrow phones stack copy buttons and keep select controls within the 
 
 test("desktop gold summary retains a wide but controlled price layout", () => {
   assert.match(html, /@media\(min-width:900px\)\{\s*#goldPriceSummary\{max-width:1180px\}\s*#goldPriceSummary \.gold-summary-values\{grid-template-columns:repeat\(2,minmax\(220px,1fr\)\);max-width:620px\}/);
+});
+
+test("foreign-currency conversion stays hidden until its checkbox is selected", () => {
+  assert.match(html, /<label class="gold-currency-toggle" for="showGoldCurrencyConversion">/);
+  assert.match(html, /<input id="showGoldCurrencyConversion" type="checkbox" aria-controls="goldCurrencyRateEditor">/);
+  assert.match(html, /id="goldCurrencyRateEditor" class="gold-currency-rate-editor hidden"/);
+  assert.match(html, /showGoldCurrencyConversion").addEventListener\("change",event=>setGoldCurrencyConversionVisible\(event.target.checked\)\)/);
+  assert.match(html, /function setGoldCurrencyConversionVisible\(visible\)/);
+  assert.ok(
+    html.indexOf('id="goldPriceReminder"') < html.indexOf('id="goldSummaryValues"'),
+    "gold-price freshness reminder must appear before the price figures",
+  );
+});
+
+const reminderStart = html.indexOf("function goldPriceReminderState(");
+const reminderEnd = html.indexOf("\\nfunction isGoldPriceReminderBusinessDay()", reminderStart);
+assert.notEqual(reminderStart, -1, "gold-price reminder state helper must exist");
+assert.notEqual(reminderEnd, -1, "gold-price reminder state helper must have a stable boundary");
+const reminderContext = {};
+vm.createContext(reminderContext);
+vm.runInContext(html.slice(reminderStart, reminderEnd), reminderContext);
+
+test("weekday with missing prices shows a prominent stale-price warning", () => {
+  const state = reminderContext.goldPriceReminderState({
+    today: "2026-11-27",
+    buyDate: "2026-11-26",
+    sellDate: null,
+    isBusinessDay: true,
+    latestDate: "2026-11-26",
+  });
+  assert.equal(state.kind, "warning");
+  assert.match(state.text, /今日金價尚未完整更新/);
+  assert.match(state.text, /賣出價/);
+  assert.match(state.text, /最近一次有效牌價：2026-11-26/);
+});
+
+test("weekends and configured closure dates explain that prices may not update", () => {
+  for (const isBusinessDay of [false]) {
+    const state = reminderContext.goldPriceReminderState({
+      today: "2026-11-28",
+      buyDate: "2026-11-27",
+      sellDate: "2026-11-27",
+      isBusinessDay,
+      latestDate: "2026-11-27",
+    });
+    assert.equal(state.kind, "closed");
+    assert.match(state.text, /週末或已設定的休市日/);
+    assert.match(state.text, /連續假日/);
+    assert.doesNotMatch(state.text, /尚未完整更新/);
+  }
+});
+
+test("fully updated prices show a positive state even on a closed day", () => {
+  const state = reminderContext.goldPriceReminderState({
+    today: "2026-11-28",
+    buyDate: "2026-11-28",
+    sellDate: "2026-11-28",
+    isBusinessDay: false,
+    latestDate: "2026-11-28",
+  });
+  assert.equal(state.kind, "success");
+  assert.match(state.text, /今日買入價與賣出價均已更新/);
+});
+
+test("a business day with no saved prices clearly reports both missing price types", () => {
+  const state = reminderContext.goldPriceReminderState({
+    today: "2026-11-27",
+    buyDate: null,
+    sellDate: null,
+    isBusinessDay: true,
+    latestDate: null,
+  });
+  assert.equal(state.kind, "warning");
+  assert.match(state.text, /買入價與賣出價/);
+  assert.match(state.text, /目前尚無有效牌價紀錄/);
 });
