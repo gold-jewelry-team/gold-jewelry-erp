@@ -404,3 +404,41 @@ button.secondary{
 .bunny-page-guide-copy span{font-size:11px;line-height:1.55;color:#74796f;}
 .bunny-page-guide-sparkle{margin-left:auto;color:#c59b4b;font-size:20px;flex:0 0 auto;}
 @media(max-width:600px){.bunny-page-guide{margin:10px 12px 12px;padding:8px 10px;gap:9px}.bunny-page-guide-art{width:50px;height:50px;flex-basis:50px}.bunny-page-guide-art svg{width:49px;height:49px}.bunny-page-guide-copy strong{font-size:12px}.bunny-page-guide-copy span{font-size:10px}.bunny-page-guide-sparkle{font-size:16px}}
+
+
+/* 道奇兔店長的頁面情境小道具：角色維持一致，配件依工作內容切換 */
+.bunny-page-guide-art{position:relative;isolation:isolate;}
+.bunny-page-guide-art::after{
+ content:"";position:absolute;right:-2px;bottom:0;z-index:2;
+ width:21px;height:21px;display:grid;place-items:center;
+ border:1px solid #e8d9b5;border-radius:50%;
+ background:linear-gradient(145deg,#fffefa,#f4ead1);
+ box-shadow:0 2px 5px rgba(89,72,39,.12);
+ font-size:12px;line-height:1;
+}
+.bunny-page-guide[data-scene="banking"] .bunny-page-guide-art::after{content:"🧾"}
+.bunny-page-guide[data-scene="work"] .bunny-page-guide-art::after{content:"📋"}
+.bunny-page-guide[data-scene="catalog"] .bunny-page-guide-art::after{content:"🔎"}
+.bunny-page-guide[data-scene="orders"] .bunny-page-guide-art::after{content:"🎁"}
+.bunny-page-guide[data-scene="payables"] .bunny-page-guide-art::after{content:"💰"}
+.bunny-page-guide[data-scene="purchases"] .bunny-page-guide-art::after{content:"📦"}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-art::after{content:"🛍️"}
+.bunny-page-guide[data-scene="material"] .bunny-page-guide-art::after{content:"⚖️"}
+.bunny-page-guide[data-scene="welcome"] .bunny-page-guide-art::after{content:"✨"}
+.bunny-page-guide[data-scene="members"] .bunny-page-guide-art::after{content:"👥"}
+.bunny-page-guide[data-scene="reports"] .bunny-page-guide-art::after{content:"📊"}
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-art::after{content:"🔐"}
+.bunny-page-guide[data-scene] .bunny-page-guide-art svg{transform:translateY(-1px);}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-art svg,
+.bunny-page-guide[data-scene="purchases"] .bunny-page-guide-art svg{transform:rotate(-2deg) translateY(-1px);}
+.bunny-page-guide[data-scene="reports"] .bunny-page-guide-art svg,
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-art svg{transform:rotate(2deg) translateY(-1px);}
+.bunny-page-guide:hover .bunny-page-guide-art::after{transform:translateY(-2px) rotate(5deg);}
+.bunny-page-guide-copy span{max-width:62ch;}
+@media(max-width:600px){
+ .bunny-page-guide{max-width:none;width:auto;}
+ .bunny-page-guide-art::after{width:19px;height:19px;font-size:11px;}
+}
+@media(prefers-reduced-motion:no-preference){
+ .bunny-page-guide-art::after{transition:transform .18s ease;}
+}
