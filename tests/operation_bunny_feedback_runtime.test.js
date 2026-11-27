@@ -20,6 +20,8 @@ test("saved and updated operations receive rabbit confirmation", () => {
     "匯率已儲存於目前瀏覽器。",
     "客訂收款已成功登錄。",
     "採購單已送出。",
+    "本次驗收成功，已新增庫存入庫流水。",
+    "銷售已完成；正式商品已扣除庫存。",
     "庫存調整已成功入帳。",
   ];
   for (const message of examples) {
