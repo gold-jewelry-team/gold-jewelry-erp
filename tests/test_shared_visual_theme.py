@@ -102,6 +102,14 @@ def test_dutch_rabbit_shopkeeper_guide_is_present_on_every_static_page() -> None
     assert 'data-scene="banking"' in (STATIC_DIR / "banking.html").read_text(encoding="utf-8")
     assert 'data-scene="sales"' in (STATIC_DIR / "employee_sales.html").read_text(encoding="utf-8")
     assert 'data-scene="permissions"' in (STATIC_DIR / "role_management.html").read_text(encoding="utf-8")
+    for page in html_pages:
+        if page.name != "index.html":
+            html = (STATIC_DIR / page.name).read_text(encoding="utf-8")
+            assert 'data-scene="' in html, f"{page.name} must define a contextual mascot scene."
+
+    for scene in ("banking", "work", "catalog", "orders", "payables", "purchases", "sales", "material", "welcome", "members", "reports", "permissions"):
+        assert f'data-scene="{scene}"' in theme, f"Missing contextual accessory for {scene}."
+
     assert "道奇兔店長小提醒" in " ".join(
         (STATIC_DIR / page.name).read_text(encoding="utf-8")
         for page in html_pages if page.name != "index.html"
