@@ -18,7 +18,8 @@ test("tablet gold summary uses full available width and tablet header gutters", 
 });
 
 test("narrow phones stack prices and currency inputs while keeping copy actions usable", () => {
-  const phoneStart = html.lastIndexOf("@media(max-width:520px){");
+  const responsiveStart = html.indexOf("/* Responsive gold summary");
+  const phoneStart = html.indexOf("@media(max-width:520px){", responsiveStart);
   assert.notEqual(phoneStart, -1, "missing narrow-phone responsive rules");
   const phoneEnd = html.indexOf("\n}", phoneStart);
   assert.notEqual(phoneEnd, -1, "narrow-phone responsive rules are not closed");
@@ -69,6 +70,7 @@ test("weekday with missing prices shows a prominent stale-price warning", () => 
   assert.match(state.text, /今日金價尚未完整更新/);
   assert.match(state.text, /賣出價/);
   assert.match(state.text, /最近一次有效牌價：2026-11-26/);
+  assert.match(state.text, /目前顯示最近一次有效牌價/);
 });
 
 test("weekends and configured closure dates explain that prices may not update", () => {
@@ -110,4 +112,6 @@ test("a business day with no saved prices clearly reports both missing price typ
   assert.equal(state.kind, "warning");
   assert.match(state.text, /買入價與賣出價/);
   assert.match(state.text, /目前尚無有效牌價紀錄/);
+  assert.match(state.text, /請至「金價管理」確認是否已建立牌價/);
+  assert.doesNotMatch(state.text, /目前顯示最近一次有效牌價/);
 });
