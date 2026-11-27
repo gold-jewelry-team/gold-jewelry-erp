@@ -7,8 +7,8 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-20261127b">'
-INDEX_THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-20261127d">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127a">'
+INDEX_THEME_LINK = THEME_LINK
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
@@ -85,3 +85,20 @@ def test_dutch_rabbit_context_hints_cover_stocktake_zero_stock_and_empty_states(
     assert ".bunny-context-note" in theme
     assert ".bunny-context-note.is-alert" in theme
     assert ".bunny-context-note.is-success" in theme
+
+
+def test_dutch_rabbit_shopkeeper_guide_is_present_on_every_static_page() -> None:
+    html_pages = sorted(STATIC_DIR.glob("*.html"))
+    theme = (STATIC_DIR / "theme.css").read_text(encoding="utf-8")
+
+    for page in html_pages:
+        html = page.read_text(encoding="utf-8")
+        assert "bunny-page-guide" in html or "bunny-shop-note" in html, (
+            f"{page.name} must show the consistent Dutch rabbit shopkeeper mascot."
+        )
+
+    assert ".bunny-page-guide" in theme
+    assert "道奇兔店長小提醒" in " ".join(
+        (STATIC_DIR / page.name).read_text(encoding="utf-8")
+        for page in html_pages if page.name != "index.html"
+    )
