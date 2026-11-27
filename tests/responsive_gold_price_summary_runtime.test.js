@@ -116,6 +116,14 @@ test("a business day with no saved prices clearly reports both missing price typ
   assert.doesNotMatch(state.text, /目前顯示最近一次有效牌價/);
 });
 
+test("gold price summary emphasizes the amounts and reduces secondary label and trend sizing", () => {
+  assert.match(html, /#goldPriceSummary \.gold-summary-price\{\s*display:grid;grid-template-columns:minmax\(0,1fr\);align-content:center;gap:3px;\s*min-height:94px;padding:9px 12px;\s*\}/);
+  assert.match(html, /#goldPriceSummary \.gold-summary-price>strong\{\s*display:block;min-width:0;font-size:clamp\(30px,3\.6vw,36px\);line-height:1\.1;\s*font-weight:800;letter-spacing:-\.035em;white-space:nowrap;overflow-wrap:normal;\s*\}/);
+  assert.match(html, /#goldPriceSummary \.gold-summary-price>span\{\s*font-size:10px;font-weight:700/);
+  assert.match(html, /#goldPriceSummary \.gold-summary-price \.gold-price-trend\{\s*margin-left:0;padding:2px 5px;font-size:9px/);
+  assert.match(html, /@media\(max-width:520px\)\{\s*#goldPriceSummary \.gold-summary-price\{min-height:88px;padding:9px 11px;gap:3px\}\s*#goldPriceSummary \.gold-summary-price>strong\{font-size:clamp\(29px,8vw,32px\)\}/);
+});
+
 test("gold summary keeps the currency unit phrase together while allowing the trend hint to wrap", () => {
   assert.ok(html.includes(`<span class="gold-price-unit">／每'+unitName+'</span>`));
   assert.match(html, /#goldPriceSummary \.gold-price-unit\{white-space:nowrap;display:inline-block\}/);
