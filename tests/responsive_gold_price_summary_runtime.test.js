@@ -117,9 +117,9 @@ test("a business day with no saved prices clearly reports both missing price typ
 });
 
 test("gold summary keeps the currency unit phrase together while allowing the trend hint to wrap", () => {
-  assert.match(html, /<span class="gold-price-unit">／每'\+unitName\+'<\\/span>/);
+  assert.ok(html.includes(`<span class="gold-price-unit">／每'+unitName+'</span>`));
   assert.match(html, /#goldPriceSummary \.gold-price-unit\{white-space:nowrap;display:inline-block\}/);
-  assert.match(html, /class="gold-price-unit">／每'\+unitName\+'<\\/span>'\+trendHtml/);
+  assert.ok(html.includes(`class="gold-price-unit">／每'+unitName+'</span>'+trendHtml`));
 });
 
 test("gold summary renders daily movement hints only beside the home buy and sell prices", () => {
