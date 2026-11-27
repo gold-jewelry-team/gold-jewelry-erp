@@ -655,7 +655,7 @@ button.secondary:disabled{opacity:.42}
 @media(max-width:420px){.bunny-shop-note{gap:8px;padding:9px}.bunny-shop-note .bunny-art{width:56px;height:56px;flex-basis:56px}.bunny-shop-note svg{width:55px;height:55px}}
 
 </style>
-<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-20261127c">
+<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-20261127d">
 </head>
 <body>
 <header><div class="header-title-row"><h1>黃金珠寶進銷存</h1><nav id="quickNav" class="quick-nav" aria-label="全站功能快速導覽"><input id="quickNavSearch" type="search" placeholder="搜尋功能…" aria-label="搜尋功能並快速跳轉"><span id="quickNavEmpty" class="quick-nav-empty" role="status" aria-live="polite" hidden>找不到符合的功能，請換個關鍵字</span><button id="quickQuote" type="button" title="快速開啟現場報價（Alt+Q）">🧮 報價</button><button id="quickGoldPrice" class="quick-gold-price" type="button" title="快速調整今日金價（Alt+G）">🪙 金價</button><span data-nav-loading style="font-size:12px;color:#dce6df">功能載入中…</span></nav></div><p>門市工作區 · 目前公司：<strong id="headerCompanyName">載入中…</strong></p><section id="goldPriceSummary" class="gold-summary" aria-label="目前金價"><div class="gold-summary-head"><strong>目前金價</strong><label for="goldDisplayUnit">顯示單位</label><select id="goldDisplayUnit"><option value="QIAN">每錢</option><option value="GRAM">每公克</option><option value="TAEL">每兩</option></select></div><div id="goldSummaryValues" class="gold-summary-values">請先選擇公司與據點</div><div class="gold-currency-tools"><div class="gold-currency-tools-head"><strong>外幣金價換算</strong><button id="toggleGoldCurrencyRates" class="secondary" type="button" aria-expanded="false">設定匯率／展開</button></div><div id="goldCurrencyRateEditor" class="gold-currency-rate-editor hidden"><p class="muted">輸入「1 外幣可兌換多少新台幣」，例如 1 USD = 32 TWD。匯率僅儲存在目前瀏覽器。</p><div class="gold-currency-rate-fields"><div><label for="goldUsdRate">美元 USD／TWD</label><input id="goldUsdRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 32"></div><div><label for="goldJpyRate">日圓 JPY／TWD（每 1 日圓）</label><input id="goldJpyRate" type="number" min="0.000001" step="0.000001" inputmode="decimal" placeholder="例如 0.21"></div></div><button id="saveGoldCurrencyRates" type="button">儲存匯率</button><span id="goldCurrencyRateStatus" class="muted" role="status"></span></div><div id="goldCurrencyValues" class="gold-currency-values"><div class="muted">設定匯率後即可換算美金與日圓金價。</div></div></div><div class="gold-summary-foot"><span id="goldSummaryUpdated">尚未載入金價</span><div class="gold-summary-actions"><button id="copyGoldQuoteZh" class="secondary" type="button">複製中文報價</button><button id="copyGoldQuoteEn" class="secondary" type="button">複製英文報價</button></div></div><div id="goldPriceReminder" class="gold-summary-reminder" role="status"></div><div id="goldSummaryStatus" class="status" role="status"></div></section></header>
@@ -1846,6 +1846,9 @@ function renderStocktake(){
   const removeButton=Number(line.expected)===0&&!line.applied?'<button class="secondary" type="button" data-remove-stocktake="'+index+'">移除此非帳面商品</button>':'';
   return '<article class="item"><strong>'+escapeHtml(line.product.product_code)+' · '+escapeHtml(line.product.name)+'</strong><span class="muted">條碼：'+escapeHtml(line.product.barcode||"未設定")+' · 帳面數量：'+escapeHtml(line.expected)+'</span><div class="grid"><div class="field"><label>實際盤點數量（可填 0）</label><input type="number" min="0" step="1" value="'+escapeHtml(line.counted)+'" data-stocktake-count="'+index+'" '+(line.applied?'disabled':'')+'></div><div class="field"><label>差異</label><div class="pill">'+(variance>0?"+":"")+escapeHtml(variance)+(line.applied?" · 已入帳":"")+'</div></div></div><label><input type="checkbox" style="width:auto;min-height:0;margin-right:6px" data-stocktake-verified="'+index+'" '+(line.verified?'checked':'')+' '+(line.applied?'disabled':'')+'>已核對此商品（掃描確認或人工清點後勾選）</label><div class="actions">'+(line.applied?'<span class="muted">已完成</span>':removeButton)+'</div></article>';
  }).join("");
+ if(appliedCount>0&&!pending.length){
+  box.insertAdjacentElement("afterbegin",createBunnyContextNote("bunnyStocktakeComplete","盤點任務完成！","這一批商品已全部完成入帳，帳面差異與庫存異動也已保留紀錄。","is-success"));
+ }
  $("applyStocktake").disabled=!pending.length||pending.some(x=>!x.verified);
 }
 async function loadStocktakeBaseline(refreshSnapshot=false){
@@ -2109,11 +2112,12 @@ async function loadInventoryOptions(){
 }
 function renderInventoryStock(){
  const box=$("stockList"),summary=$("stockResultsSummary");
- if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';summary.textContent="請先選擇公司與據點";return;}
+ if(!companyId||!selectedSiteId){box.innerHTML='<div class="empty">請先選擇公司與據點</div>';summary.textContent="請先選擇公司與據點";renderZeroStockBunnyHint([]);return;}
  const q=$("inventorySearch").value.trim().toLocaleLowerCase();
  const filtered=inventoryStockRows.filter(x=>!q||[x.product_code,x.product_name,x.barcode,x.location_name,x.location_code].some(v=>String(v||"").toLocaleLowerCase().includes(q)));
  const quantityTotal=filtered.reduce((total,row)=>total+Number(row.quantity||0),0);
  summary.textContent="符合 "+filtered.length+" 筆庫存位置資料 · 數量合計 "+quantityTotal+" 件"+(q?" · 搜尋中":"");
+ renderZeroStockBunnyHint(filtered);
  const productMap=new Map(inventoryProducts.map(p=>[p.id,p]));
  box.innerHTML=filtered.length?filtered.map(x=>{const product=productMap.get(x.product_id);const weight=product?'<span><small>單件淨重</small><strong>'+escapeHtml(product.net_weight)+' '+escapeHtml(goldUnitLabel(product.weight_unit_code||"QIAN"))+'</strong></span>':'';return '<article class="item stock-item"><div class="stock-item-head"><div class="stock-item-identity"><strong>'+escapeHtml(x.product_name)+'</strong><span class="pill">'+escapeHtml(x.product_code)+'</span></div><div class="stock-item-quantity"><span>目前庫存</span><strong>'+escapeHtml(x.quantity)+'</strong></div></div><div class="stock-item-meta"><span><small>條碼</small><strong>'+escapeHtml(x.barcode||"未設定")+'</strong></span><span><small>儲存位置</small><strong>'+escapeHtml(x.location_name)+'（'+escapeHtml(x.location_code)+'）</strong></span>'+weight+'</div></article>';}).join(""):'<div class="empty">'+(q?"沒有符合搜尋條件的庫存，請檢查條碼或清除搜尋。":"沒有符合條件的庫存資料")+'</div>';
 }
@@ -5832,6 +5836,108 @@ document.addEventListener("click",function(event){
   const observer=new MutationObserver(decorateCategoryCards);
   observer.observe(categoryList,{childList:true});
  }
+})();
+
+
+/* 道奇兔店長情境提示：只提供視覺引導，不參與庫存或交易判斷。 */
+function createBunnyContextNote(id,title,copy,variant){
+ const note=document.createElement("div");
+ note.id=id;
+ note.className="bunny-context-note"+(variant?" "+variant:"");
+ note.setAttribute("role","note");
+ const source=document.querySelector(".bunny-shop-note .bunny-art");
+ if(source){
+  const art=source.cloneNode(true);
+  art.className="bunny-context-art";
+  art.setAttribute("aria-hidden","true");
+  note.appendChild(art);
+ }
+ const content=document.createElement("div");
+ content.className="bunny-context-copy";
+ const heading=document.createElement("strong");
+ heading.textContent=title;
+ const paragraph=document.createElement("p");
+ paragraph.textContent=copy;
+ content.append(heading,paragraph);
+ note.appendChild(content);
+ return note;
+}
+function renderBunnyContextNote(anchor,id,show,title,copy,variant){
+ if(!anchor)return;
+ const existing=document.getElementById(id);
+ if(!show){if(existing)existing.remove();return;}
+ const note=existing||createBunnyContextNote(id,title,copy,variant);
+ const heading=note.querySelector("strong"),paragraph=note.querySelector("p");
+ if(heading)heading.textContent=title;
+ if(paragraph)paragraph.textContent=copy;
+ note.className="bunny-context-note"+(variant?" "+variant:"");
+ if(!existing)anchor.insertAdjacentElement("afterend",note);
+}
+function renderZeroStockBunnyHint(rows){
+ const summary=document.getElementById("stockResultsSummary");
+ const enabled=Boolean(document.getElementById("includeZeroStock")&&document.getElementById("includeZeroStock").checked);
+ const zeroRows=(Array.isArray(rows)?rows:[]).filter(row=>Number(row.quantity)===0);
+ const count=zeroRows.length;
+ renderBunnyContextNote(
+  summary,
+  "bunnyZeroStockHint",
+  enabled&&count>0,
+  "補貨小提醒",
+  "目前查詢範圍有 "+count+" 筆零庫存位置資料，建議核對是否需要補貨。",
+  "is-alert"
+ );
+}
+(function initDutchRabbitEmptyGuidance(){
+ const configs=[
+  {
+   id:"stockList",
+   noteId:"bunnyEmptyStockGuide",
+   matches:text=>text.includes("沒有符合搜尋條件的庫存")||text.includes("沒有符合條件的庫存資料"),
+   title:"找不到符合的庫存資料",
+   copy:"可以換商品編號、條碼或櫃位搜尋；也可以清除關鍵字，再查看全部庫存。"
+  },
+  {
+   id:"stocktakeList",
+   noteId:"bunnyEmptyStocktakeGuide",
+   matches:text=>text.includes("此位置目前沒有帳面庫存商品"),
+   title:"這個位置目前沒有帳面庫存",
+   copy:"先確認選取的儲存位置是否正確，再開始掃描；若是新位置，可先完成商品入庫。"
+  },
+  {
+   id:"categoryList",
+   noteId:"bunnyEmptyCategoryGuide",
+   matches:text=>text.includes("尚未建立商品分類"),
+   title:"先建立常用商品分類",
+   copy:"建立金條、元寶、戒指等分類後，新增商品時就能快速選擇並顯示對應小圖。"
+  },
+  {
+   id:"quoteSearchResults",
+   noteId:"bunnyEmptyQuoteGuide",
+   matches:text=>text.includes("沒有找到符合商品"),
+   title:"暫時找不到這件商品",
+   copy:"試試商品編號、款式或條碼；若沒有正式商品，也可以使用下方臨時估價。"
+  }
+ ];
+ function decorate(config){
+  const host=document.getElementById(config.id);
+  if(!host)return;
+  const empty=host.querySelector(".empty");
+  const existing=document.getElementById(config.noteId);
+  if(!empty||!config.matches(empty.textContent||"")){
+   if(existing)existing.remove();
+   return;
+  }
+  if(existing)return;
+  empty.insertAdjacentElement("afterend",createBunnyContextNote(config.noteId,config.title,config.copy,"is-empty"));
+ }
+ configs.forEach(config=>{
+  decorate(config);
+  const host=document.getElementById(config.id);
+  if(host&&window.MutationObserver){
+   const observer=new MutationObserver(()=>decorate(config));
+   observer.observe(host,{childList:true,subtree:true});
+  }
+ });
 })();
 
 </script>
