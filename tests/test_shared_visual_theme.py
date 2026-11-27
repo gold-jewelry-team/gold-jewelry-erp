@@ -160,9 +160,7 @@ def test_scanner_feedback_uses_contextual_dutch_rabbit_and_distinguishes_states(
     assert 'error.name==="NotAllowedError"' in home
     assert 'error.name==="NotFoundError"' in home
     assert 'error.name==="NotReadableError"' in home
-    assert 'kind==="success"' in home
-    assert 'kind==="warning"' in home
-    assert 'kind==="error"' in home
+    assert 'const kind=!isError?"success":notFound?"warning":"error"' in home
     assert "setScanFeedbackActionVisibility(false)" in home
     assert "setScanFeedbackActionVisibility(true)" in home
     assert ".scan-feedback.success" in home
