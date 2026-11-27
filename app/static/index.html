@@ -1914,6 +1914,28 @@ function persistStocktakeDraft(){
  const draft={location_id:stocktakeLocationId,lines:stocktakeLines.map(x=>({product_id:x.product.id,expected:x.expected,expected_net_weight:x.expected_net_weight,counted:x.counted,verified:!!x.verified,applied:!!x.applied,idempotency_key:x.idempotency_key}))};
  try{localStorage.setItem(stocktakeStorageKey(),JSON.stringify(draft));}catch(error){message("stocktakeStatus","瀏覽器無法儲存盤點暫存，請勿關閉此頁面。",true);}
 }
+function stocktakeBunnyFeedbackState({locationSelected,hasLines,pendingCount,verifiedCount,varianceCount,appliedCount}){
+ if(!locationSelected||!hasLines||(appliedCount>0&&pendingCount===0))return null;
+ const unverifiedCount=Math.max(0,pendingCount-verifiedCount);
+ if(unverifiedCount>0){
+  const copy=varianceCount>0
+   ?"尚有 "+unverifiedCount+" 項商品待勾選核對；已核對項目中另有 "+varianceCount+" 項數量有差異，請先確認每項數量再入帳。"
+   :"尚有 "+unverifiedCount+" 項商品未完成核對。請逐項確認實際數量，再執行整批入帳。";
+  return {title:"盤點待核對",copy,variant:"is-alert"};
+ }
+ if(varianceCount>0){
+  return {
+   title:"盤點差異待入帳",
+   copy:"已核對商品中有 "+varianceCount+" 項與帳面數量不同。請重新檢查差異明細；確認後才會寫入庫存異動。",
+   variant:"is-alert"
+  };
+ }
+ return {
+  title:"逐項核對完成，尚未入帳",
+  copy:"目前沒有數量差異。檢查清單無誤後，按「確認差異並更新庫存」才會正式入帳。",
+  variant:"is-success"
+ };
+}
 function renderStocktake(){
  const box=$("stocktakeList"),summary=$("stocktakeSummary");
  const appliedCount=stocktakeLines.filter(x=>x.applied).length;
@@ -1923,6 +1945,15 @@ function renderStocktake(){
  summary.textContent=stocktakeLocationId
   ?"待盤商品 "+pending.length+" 項 · 已核對 "+verifiedCount+" 項 · 尚待核對 "+(pending.length-verifiedCount)+" 項 · 有差異 "+varianceCount+" 項 · 已完成 "+appliedCount+" 項"
   :"請先選擇盤點位置";
+ const bunnyState=stocktakeBunnyFeedbackState({
+  locationSelected:Boolean(stocktakeLocationId),
+  hasLines:stocktakeLines.length>0,
+  pendingCount:pending.length,
+  verifiedCount,
+  varianceCount,
+  appliedCount
+ });
+ renderBunnyContextNote(summary,"bunnyStocktakeReviewHint",Boolean(bunnyState),bunnyState?.title||"",bunnyState?.copy||"",bunnyState?.variant||"");
  if(!stocktakeLocationId){box.innerHTML='<div class="empty">請先選擇盤點位置</div>';$("applyStocktake").disabled=true;return;}
  if(!stocktakeLines.length){box.innerHTML='<div class="empty">此位置目前沒有帳面庫存商品。</div>';$("applyStocktake").disabled=true;return;}
  box.innerHTML=stocktakeLines.map((line,index)=>{
