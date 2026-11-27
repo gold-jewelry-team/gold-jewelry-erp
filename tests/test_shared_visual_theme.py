@@ -44,3 +44,22 @@ def test_every_static_workspace_page_uses_the_shared_theme() -> None:
         assert html.index(THEME_LINK) < html.lower().index("</head>"), (
             f"{page.name} must load the theme from the document head."
         )
+
+
+def test_home_workspace_renders_chibi_jewelry_category_illustrations() -> None:
+    home = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    theme = (STATIC_DIR / "theme.css").read_text(encoding="utf-8")
+
+    assert "initJewelryCategoryIllustrations" in home
+    assert "productCategoryPreview" in home
+    assert "categoryList" in home
+    assert "金條|金錠|金磚" in home
+    assert "元寶" in home
+    assert "金塊|金粒|金礦" in home
+    assert "戒指|鑽戒|婚戒" in home
+    assert "項鍊|項鏈" in home
+    assert "手鍊|手鏈|手環" in home
+    assert "耳環|耳針" in home
+    assert "寶石|翡翠|玉石" in home
+    assert ".jewelry-category-card-head" in theme
+    assert ".jewelry-category-preview" in theme
