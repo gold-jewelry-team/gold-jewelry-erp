@@ -115,3 +115,143 @@ test("a business day with no saved prices clearly reports both missing price typ
   assert.match(state.text, /請至「金價管理」確認是否已建立牌價/);
   assert.doesNotMatch(state.text, /目前顯示最近一次有效牌價/);
 });
+
+test("gold summary renders daily movement hints only beside the home buy and sell prices", () => {
+  assert.match(html, /function getGoldPriceDailyComparison\(current,history,displayUnit\)/);
+  assert.match(html, /renderPrice\(buy,"買入價",true\)\+renderPrice\(sell,"賣出價",true\)/);
+  assert.match(html, /gold-price-trend-icon/);
+  assert.match(html, /is-up/);
+  assert.match(html, /is-down/);
+  assert.match(html, /is-same/);
+  assert.match(html, /goldPriceHistoryRows=Array\.isArray\(history\)\?history:\[\]/);
+});
+
+const comparisonStart = html.indexOf("function getGoldPriceDailyComparison(");
+const comparisonEnd = html.indexOf("function renderGoldPriceViews()", comparisonStart);
+assert.notEqual(comparisonStart, -1, "daily gold comparison helper must exist");
+assert.notEqual(comparisonEnd, -1, "daily gold comparison helper must have a stable boundary");
+const comparisonContext = {
+  taipeiDateKey(value) {
+    if (!value) return "";
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  },
+  convertGoldPrice(value, fromUnit, toUnit) {
+    const grams = { QIAN: 3.75, GRAM: 1, TAEL: 37.5 };
+    const amount = Number(value);
+    if (!grams[fromUnit] || !grams[toUnit] || !Number.isFinite(amount)) return null;
+    return amount * grams[toUnit] / grams[fromUnit];
+  },
+};
+vm.createContext(comparisonContext);
+vm.runInContext(html.slice(comparisonStart, comparisonEnd), comparisonContext);
+
+test("gold price comparison marks an increase against the previous available price date", () => {
+  const current = {
+    price_type: "BUY", price_value: "13000", currency_code: "TWD",
+    unit_code: "QIAN", site_id: null, effective_at: "2026-11-27T10:00:00+08:00",
+  };
+  const history = [
+    { ...current, price_value: "12900", effective_at: "2026-11-27T09:00:00+08:00" },
+    { ...current, price_value: "12500", effective_at: "2026-11-26T10:00:00+08:00" },
+    { ...current, price_value: "12400", effective_at: "2026-11-25T10:00:00+08:00" },
+  ];
+  const result = comparisonContext.getGoldPriceDailyComparison(current, history, "QIAN");
+  assert.equal(result.direction, "up");
+  assert.equal(result.delta, 500);
+  assert.equal(result.previousDate, "2026-11-26");
+});
+
+test("gold price comparison marks a decrease and an unchanged price", () => {
+  const base = {
+    price_type: "SELL", currency_code: "TWD", unit_code: "QIAN",
+    site_id: null, effective_at: "2026-11-27T10:00:00+08:00",
+  };
+  const lower = comparisonContext.getGoldPriceDailyComparison(
+    { ...base, price_value: "12800" },
+    [{ ...base, price_value: "13000", effective_at: "2026-11-26T10:00:00+08:00" }],
+    "QIAN",
+  );
+  assert.equal(lower.direction, "down");
+  assert.equal(lower.delta, -200);
+
+  const same = comparisonContext.getGoldPriceDailyComparison(
+    { ...base, price_value: "13000" },
+    [{ ...base, price_value: "13000", effective_at: "2026-11-26T10:00:00+08:00" }],
+    "QIAN",
+  );
+  assert.equal(same.direction, "same");
+  assert.equal(same.delta, 0);
+});
+
+test("daily comparison converts different gold weight units before comparing", () => {
+  const current = {
+    price_type: "BUY", price_value: "13000", currency_code: "TWD",
+    unit_code: "QIAN", site_id: null, effective_at: "2026-11-27T10:00:00+08:00",
+  };
+  const previous = {
+    ...current, price_value: "3300", unit_code: "GRAM",
+    effective_at: "2026-11-26T10:00:00+08:00",
+  };
+  const result = comparisonContext.getGoldPriceDailyComparison(current, [previous], "QIAN");
+  assert.equal(result.direction, "up");
+  assert.equal(result.delta, 625);
+});
+
+test("site-specific price history takes precedence over newer company fallback rows", () => {
+  const current = {
+    price_type: "BUY", price_value: "14500", currency_code: "TWD",
+    unit_code: "QIAN", site_id: "site-1", effective_at: "2026-11-27T10:00:00+08:00",
+  };
+  const history = [
+    { ...current, site_id: null, price_value: "15500", effective_at: "2026-11-26T10:00:00+08:00" },
+    { ...current, price_value: "14000", effective_at: "2026-11-25T10:00:00+08:00" },
+  ];
+  const result = comparisonContext.getGoldPriceDailyComparison(current, history, "QIAN");
+  assert.equal(result.previousDate, "2026-11-25");
+  assert.equal(result.delta, 500);
+});
+
+test("daily comparison falls back to company history when a site has no earlier site quote", () => {
+  const current = {
+    price_type: "SELL", price_value: "16000", currency_code: "TWD",
+    unit_code: "QIAN", site_id: "site-1", effective_at: "2026-11-27T10:00:00+08:00",
+  };
+  const previous = {
+    ...current, site_id: null, price_value: "15800",
+    effective_at: "2026-11-26T10:00:00+08:00",
+  };
+  const result = comparisonContext.getGoldPriceDailyComparison(current, [previous], "QIAN");
+  assert.equal(result.previousDate, "2026-11-26");
+  assert.equal(result.direction, "up");
+  assert.equal(result.delta, 200);
+});
+
+test("daily comparison hides when no previous day or safe currency/unit comparison exists", () => {
+  const current = {
+    price_type: "BUY", price_value: "13000", currency_code: "TWD",
+    unit_code: "QIAN", site_id: null, effective_at: "2026-11-27T10:00:00+08:00",
+  };
+  assert.equal(comparisonContext.getGoldPriceDailyComparison(current, [], "QIAN"), null);
+  assert.equal(comparisonContext.getGoldPriceDailyComparison(
+    current,
+    [{ ...current, price_value: "12900", effective_at: "2026-11-27T09:00:00+08:00" }],
+    "QIAN",
+  ), null);
+  assert.equal(comparisonContext.getGoldPriceDailyComparison(
+    current,
+    [{ ...current, currency_code: "USD", price_value: "400", effective_at: "2026-11-26T09:00:00+08:00" }],
+    "QIAN",
+  ), null);
+  assert.equal(comparisonContext.getGoldPriceDailyComparison(
+    current,
+    [{ ...current, unit_code: "UNKNOWN", price_value: "400", effective_at: "2026-11-26T09:00:00+08:00" }],
+    "QIAN",
+  ), null);
+});
