@@ -98,7 +98,7 @@ test("fully updated prices show a positive state even on a closed day", () => {
     latestDate: "2026-11-28",
   });
   assert.equal(state.kind, "success");
-  assert.match(state.text, /今日買入價與賣出價均已更新/);
+  assert.match(state.text, /今日買進價與賣出價均已更新/);
 });
 
 test("a business day with no saved prices clearly reports both missing price types", () => {
@@ -110,7 +110,7 @@ test("a business day with no saved prices clearly reports both missing price typ
     latestDate: null,
   });
   assert.equal(state.kind, "warning");
-  assert.match(state.text, /買入價與賣出價/);
+  assert.match(state.text, /買進價與賣出價/);
   assert.match(state.text, /目前尚無有效牌價紀錄/);
   assert.match(state.text, /請至「金價管理」確認是否已建立牌價/);
   assert.doesNotMatch(state.text, /目前顯示最近一次有效牌價/);
@@ -118,7 +118,7 @@ test("a business day with no saved prices clearly reports both missing price typ
 
 test("gold summary renders daily movement hints only beside the home buy and sell prices", () => {
   assert.match(html, /function getGoldPriceDailyComparison\(current,history,displayUnit\)/);
-  assert.match(html, /renderPrice\(buy,"買入價",true\)\+renderPrice\(sell,"賣出價",true\)/);
+  assert.match(html, /renderPrice\(buy,"買進價",true\)\+renderPrice\(sell,"賣出價",true\)/);
   assert.match(html, /gold-price-trend-icon/);
   assert.match(html, /is-up/);
   assert.match(html, /is-down/);
