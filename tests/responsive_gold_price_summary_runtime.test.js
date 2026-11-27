@@ -41,7 +41,7 @@ test("foreign-currency conversion stays hidden until its checkbox is selected", 
   assert.match(html, /<label class="gold-currency-toggle" for="showGoldCurrencyConversion">/);
   assert.match(html, /<input id="showGoldCurrencyConversion" type="checkbox" aria-controls="goldCurrencyRateEditor">/);
   assert.match(html, /id="goldCurrencyRateEditor" class="gold-currency-rate-editor hidden"/);
-  assert.match(html, /showGoldCurrencyConversion").addEventListener\("change",event=>setGoldCurrencyConversionVisible\(event.target.checked\)\)/);
+  assert.ok(html.includes('$("showGoldCurrencyConversion").addEventListener("change",event=>setGoldCurrencyConversionVisible(event.target.checked));'));
   assert.match(html, /function setGoldCurrencyConversionVisible\(visible\)/);
   assert.ok(
     html.indexOf('id="goldPriceReminder"') < html.indexOf('id="goldSummaryValues"'),
