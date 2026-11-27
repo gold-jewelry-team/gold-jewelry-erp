@@ -37,6 +37,7 @@ test("lookup and temporary progress messages do not masquerade as saved operatio
     "請先選擇公司。",
     "已產生編號：G00R-21664；此號碼已保留，未使用也不會回收。",
     "已確認商品：G00R-21663；請繼續掃描下一件。",
+    "最新商品資料、帳面數量與淨重快照已更新；所有未入帳項目請重新清點及核對。",
   ];
   for (const message of examples) {
     assert.equal(context.isBunnyPersistedOperationSuccess(message, false), false, message);
