@@ -388,10 +388,22 @@ button.secondary{
 .bunny-context-note.is-success{border-color:#d8e6d8;background:linear-gradient(105deg,#f4faf2,#edf5ed)}
 .bunny-context-note.is-success .bunny-context-copy strong{color:#477452}
 .bunny-context-note.is-empty{background:linear-gradient(105deg,#fbfaf4,#f1f6ef)}
+/* 操作成功的輕量道奇兔確認，不取代原本狀態文字，也不遮擋表單 */
+.bunny-context-note.is-feedback{gap:7px;margin:4px 0 6px;padding:6px 8px;border-radius:10px;box-shadow:none}
+.bunny-context-note.is-feedback .bunny-context-art,
+.bunny-context-note.is-feedback .bunny-context-art svg{width:30px;height:30px}
+.bunny-context-note.is-feedback .bunny-context-art{flex-basis:30px}
+.bunny-context-note.is-feedback .bunny-context-copy{gap:1px}
+.bunny-context-note.is-feedback .bunny-context-copy strong{font-size:11px}
+.bunny-context-note.is-feedback .bunny-context-copy p{font-size:10px;line-height:1.45}
 @media(max-width:420px){
  .bunny-context-note{gap:8px;padding:8px 9px}
  .bunny-context-art,.bunny-context-art svg{width:40px;height:40px}
  .bunny-context-art{flex-basis:40px}
+ .bunny-context-note.is-feedback{gap:6px;margin:3px 0 5px;padding:5px 7px}
+ .bunny-context-note.is-feedback .bunny-context-art,
+ .bunny-context-note.is-feedback .bunny-context-art svg{width:28px;height:28px}
+ .bunny-context-note.is-feedback .bunny-context-art{flex-basis:28px}
 }
 
 
