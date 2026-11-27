@@ -7,7 +7,7 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127b">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127c">'
 INDEX_THEME_LINK = THEME_LINK
 
 
@@ -106,6 +106,7 @@ def test_dutch_rabbit_shopkeeper_guide_is_present_on_every_static_page() -> None
         if page.name != "index.html":
             html = (STATIC_DIR / page.name).read_text(encoding="utf-8")
             assert 'data-scene="' in html, f"{page.name} must define a contextual mascot scene."
+            assert 'class="bunny-page-guide-prop"' in html, f"{page.name} must show its contextual SVG prop."
 
     for scene in ("banking", "work", "catalog", "orders", "payables", "purchases", "sales", "material", "welcome", "members", "reports", "permissions"):
         assert f'data-scene="{scene}"' in theme, f"Missing contextual accessory for {scene}."
