@@ -120,7 +120,7 @@ jobs:
         run: node --test tests/product_stock_weight_unit_runtime.test.js
       - name: Run workspace status and unit localization runtime tests
         run: node --test tests/workspace_status_localization_runtime.test.js
-      - name: Run shared warm visual theme tests
+      - name: Run shared blue-green visual theme tests
         run: pytest -q tests/test_shared_visual_theme.py
       - name: Run operating expense retry runtime tests
         run: node --test tests/operating_expense_retry_runtime.test.js
