@@ -765,6 +765,35 @@ button.secondary:disabled{opacity:.42}
  #goldPriceSummary .gold-summary-price>small{font-size:9px}
 }
 
+
+/* Sales workspace: keep reference quotes readable but visually below the home price board. */
+#saleGoldPriceValues{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0;
+}
+#saleGoldPriceValues .gold-summary-price{
+ display:grid;grid-template-columns:minmax(0,1fr);align-content:center;gap:3px;
+ min-width:0;min-height:72px;padding:8px 10px;
+}
+#saleGoldPriceValues .gold-summary-price>span{
+ font-size:10px;font-weight:700;line-height:1.3;color:#526257;
+}
+#saleGoldPriceValues .gold-summary-price>strong{
+ display:block;min-width:0;font-size:clamp(22px,2.4vw,26px);line-height:1.12;
+ font-weight:800;letter-spacing:-.025em;white-space:nowrap;overflow-wrap:normal;
+ font-variant-numeric:tabular-nums;
+}
+#saleGoldPriceValues .gold-summary-price>small{
+ display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:1px;
+ font-size:9px;line-height:1.35;color:#526257;
+}
+@media(max-width:520px){
+ #saleGoldPriceValues .gold-summary-price{min-height:68px;padding:8px}
+ #saleGoldPriceValues .gold-summary-price>strong{font-size:clamp(20px,6vw,23px)}
+}
+@media(max-width:360px){
+ #saleGoldPriceValues{grid-template-columns:minmax(0,1fr)}
+}
+
 </style>
 </head>
 <body>
