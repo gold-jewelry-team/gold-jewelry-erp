@@ -339,3 +339,31 @@ button.secondary{
 @media(max-width:640px){
  body::before{top:170px;right:-220px;opacity:.25}
 }
+
+
+/* Q 版珠寶分類插圖：以暖金、玉綠、奶油白維持銀樓品牌一致性 */
+.jewelry-category-card-head{
+ display:flex;align-items:center;gap:11px;min-width:0;padding:2px 0;
+}
+.jewelry-category-card-head strong{min-width:0;overflow-wrap:anywhere}
+.jewelry-category-illustration{
+ flex:0 0 52px;width:52px;height:52px;display:inline-flex;align-items:center;justify-content:center;
+ border:1px solid #eadfbe;border-radius:16px;
+ background:radial-gradient(circle at 32% 24%,#fffef5 0,#f8f1dc 58%,#edf3e9 100%);
+ box-shadow:0 2px 7px rgba(126,99,47,.08);
+}
+.jewelry-category-illustration svg{display:block;width:88%;height:88%;overflow:visible}
+.jewelry-category-illustration.is-compact{flex-basis:44px;width:44px;height:44px;border-radius:14px}
+.jewelry-category-preview{
+ display:flex;align-items:center;gap:11px;margin-top:8px;padding:9px 11px;
+ border:1px solid #e8e1ce;border-radius:13px;background:linear-gradient(110deg,#fbfaf2,#f1f6ef);
+}
+.jewelry-category-preview .jewelry-category-illustration{flex-basis:48px;width:48px;height:48px}
+.jewelry-category-preview-copy{display:grid;gap:3px;min-width:0}
+.jewelry-category-preview-copy strong{font-size:13px;color:#45564a;font-weight:750;overflow-wrap:anywhere}
+.jewelry-category-preview-copy small{font-size:11px;color:#788276;line-height:1.45}
+@media(max-width:420px){
+ .jewelry-category-card-head{gap:9px}
+ .jewelry-category-illustration.is-compact{flex-basis:40px;width:40px;height:40px}
+ .jewelry-category-preview{padding:8px 9px}
+}
