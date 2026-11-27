@@ -500,3 +500,43 @@ button.secondary{
  .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transition:transform .18s ease}
  .bunny-page-guide:hover .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:translateY(-2px) rotate(1deg)}
 }
+
+
+/* 道奇兔空狀態導引：讓查無資料、尚無紀錄及無可處理項目都有溫暖且可讀的說明。 */
+.bunny-empty-guide{
+ display:flex;align-items:center;gap:12px;width:min(100%,620px);
+ margin:10px auto 12px;padding:12px 14px;
+ border:1px solid #e7e3d5;border-radius:15px;
+ background:linear-gradient(112deg,#fffdf7 0%,#f1f6ef 100%);
+ box-shadow:0 3px 10px rgba(76,91,68,.045);
+ text-align:left;
+}
+.bunny-empty-art{
+ position:relative;display:grid;place-items:center;
+ width:62px;height:62px;flex:0 0 62px;
+ border:1px solid #e8e2d1;border-radius:17px;
+ background:radial-gradient(circle at 34% 24%,#fffefa 0%,#f7f2e4 64%,#eef4ec 100%);
+}
+.bunny-empty-art>svg{display:block;width:58px;height:58px;overflow:visible}
+.bunny-empty-token{
+ position:absolute;right:-5px;bottom:-4px;display:grid;place-items:center;
+ min-width:23px;height:23px;padding:0 4px;border:1px solid #e5d7b3;
+ border-radius:9px;background:#fffaf0;color:#866d3e;
+ box-shadow:0 2px 5px rgba(83,73,48,.12);
+ font-size:13px;font-weight:800;line-height:1;
+}
+.bunny-empty-copy{display:grid;gap:4px;min-width:0}
+.bunny-empty-copy strong{color:#526b58;font-size:13px;line-height:1.45;font-weight:750}
+.bunny-empty-copy>span{color:#737b70;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+@media(max-width:480px){
+ .bunny-empty-guide{gap:10px;margin:8px 0 10px;padding:10px 11px;border-radius:13px}
+ .bunny-empty-art{width:52px;height:52px;flex-basis:52px;border-radius:14px}
+ .bunny-empty-art>svg{width:49px;height:49px}
+ .bunny-empty-token{min-width:21px;height:21px;font-size:12px}
+ .bunny-empty-copy strong{font-size:12px}
+ .bunny-empty-copy>span{font-size:11px}
+}
+@media(prefers-reduced-motion:no-preference){
+ .bunny-empty-art>svg{transition:transform .18s ease}
+ .bunny-empty-guide:hover .bunny-empty-art>svg{transform:translateY(-2px) rotate(-2deg)}
+}
