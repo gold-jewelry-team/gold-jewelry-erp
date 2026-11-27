@@ -7,26 +7,26 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=bluegreen-20261127a">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-20261127b">'
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
-    response = client.get("/theme.css?v=bluegreen-20261127a")
+    response = client.get("/theme.css?v=botanical-20261127b")
 
     assert response.status_code == 200
     assert "text/css" in response.headers["content-type"]
-    assert "--erp-bg:#edf5ff" in response.text
+    assert "--erp-bg:#f6f6ef" in response.text
     assert "--erp-surface:#ffffff" in response.text
-    assert "--erp-blue:#2f65b0" in response.text
-    assert "--erp-green:#6f9f8c" in response.text
+    assert "--erp-blue:#66869a" in response.text
+    assert "--erp-green:#7b9d87" in response.text
     assert "--erp-green-soft:#eaf4ef" in response.text
     assert "--erp-champagne:#d6b875" in response.text
     assert "--green:var(--erp-green-dark)" in response.text
     assert "prefers-reduced-motion:reduce" in response.text
-    assert "#dceafa" in response.text
-    assert "header h1{color:#263b54}" in response.text
+    assert "#e5eee5" in response.text
+    assert "header h1{color:#3e4a40}" in response.text
     assert "button.secondary{" in response.text
-    assert "background:#eaf4ef" in response.text
+    assert "background:#edf4ed" in response.text
 
 
 def test_every_static_workspace_page_uses_the_shared_theme() -> None:
