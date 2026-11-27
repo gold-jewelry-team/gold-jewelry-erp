@@ -50,7 +50,7 @@ test("foreign-currency conversion stays hidden until its checkbox is selected", 
 });
 
 const reminderStart = html.indexOf("function goldPriceReminderState(");
-const reminderEnd = html.indexOf("\\nfunction isGoldPriceReminderBusinessDay()", reminderStart);
+const reminderEnd = html.indexOf("function isGoldPriceReminderBusinessDay()", reminderStart);
 assert.notEqual(reminderStart, -1, "gold-price reminder state helper must exist");
 assert.notEqual(reminderEnd, -1, "gold-price reminder state helper must have a stable boundary");
 const reminderContext = {};
