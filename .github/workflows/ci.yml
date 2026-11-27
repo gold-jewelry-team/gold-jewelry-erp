@@ -110,6 +110,8 @@ jobs:
         run: node --test tests/scanner_startup_fallback_runtime.test.js
       - name: Run Dutch rabbit stocktake feedback runtime tests
         run: node --test tests/stocktake_bunny_feedback_runtime.test.js
+      - name: Run saved-operation Dutch rabbit feedback runtime tests
+        run: node --test tests/operation_bunny_feedback_runtime.test.js
       - name: Run label dialog close runtime tests
         run: node --test tests/label_dialog_close_runtime.test.js
       - name: Run sticker print formatting runtime tests
