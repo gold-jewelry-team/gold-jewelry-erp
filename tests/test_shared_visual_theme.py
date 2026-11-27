@@ -98,6 +98,12 @@ def test_dutch_rabbit_shopkeeper_guide_is_present_on_every_static_page() -> None
         )
 
     assert ".bunny-page-guide" in theme
+    assert ".bunny-page-guide-prop" in theme
+    assert "position:absolute!important" in theme
+    assert "prefers-reduced-motion:no-preference" in theme
+    home = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+    assert 'class="bunny-shop-prop"' in home
+    assert ".bunny-shop-prop" in home
     assert "bunny-page-guide-art::after" in theme
     assert 'data-scene="banking"' in (STATIC_DIR / "banking.html").read_text(encoding="utf-8")
     assert 'data-scene="sales"' in (STATIC_DIR / "employee_sales.html").read_text(encoding="utf-8")
