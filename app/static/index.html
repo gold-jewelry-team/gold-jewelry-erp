@@ -644,6 +644,16 @@ button.secondary:disabled{opacity:.42}
  .sale-workflow-guide li:last-child{grid-column:1/-1}
 }
 
+
+/* Dutch rabbit shop mascot */
+.bunny-shop-note{display:flex;align-items:center;gap:12px;margin:12px 0 16px;padding:10px 13px;border:1px solid #eadfca;border-radius:16px;background:linear-gradient(105deg,#fffaf0,#f0f6ee);box-shadow:0 3px 12px rgba(99,79,43,.06)}
+.bunny-shop-note .bunny-art{width:66px;height:66px;flex:0 0 66px;display:grid;place-items:center}
+.bunny-shop-note svg{width:64px;height:64px;overflow:visible}
+.bunny-shop-note strong{display:block;color:#526b58;font-size:13px;margin-bottom:3px}
+.bunny-shop-note p{margin:0;color:#74796f;font-size:11px;line-height:1.55}
+.bunny-sparkle{color:#c59b4b}
+@media(max-width:420px){.bunny-shop-note{gap:8px;padding:9px}.bunny-shop-note .bunny-art{width:56px;height:56px;flex-basis:56px}.bunny-shop-note svg{width:55px;height:55px}}
+
 </style>
 <link rel="stylesheet" href="/theme.css?v=botanical-20261127b">
 </head>
@@ -654,6 +664,26 @@ button.secondary:disabled{opacity:.42}
 <section id="homeDashboard" aria-label="營運首頁">
   <div class="home-kicker">JEWELRY STORE · MANAGEMENT</div>
   <div class="home-heading"><div><h2>營運總覽</h2><p class="home-intro">掌握門市日常作業，常用功能一鍵進入。</p></div><span class="home-date">門市工作台</span></div>
+  <div class="bunny-shop-note" role="note" aria-label="道奇兔店長小提醒">
+    <div class="bunny-art" aria-hidden="true">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="38" cy="24" rx="11" ry="24" fill="#252729" transform="rotate(-13 38 24)"/>
+        <ellipse cx="64" cy="23" rx="10" ry="23" fill="#fff" stroke="#d7d8d2" stroke-width="2" transform="rotate(12 64 23)"/>
+        <path d="M29 24q8-5 15 1" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <ellipse cx="50" cy="62" rx="34" ry="29" fill="#fff" stroke="#d7d8d2" stroke-width="2"/>
+        <path d="M22 51q2-19 25-18 14 0 20 13 3 8-3 14-11 9-26 5-14-3-16-14Z" fill="#252729"/>
+        <path d="M58 38q16-9 28 6 9 11 0 22-9 10-22 3-9-5-7-17Z" fill="#252729"/>
+        <ellipse cx="40" cy="60" rx="5" ry="6" fill="#252729"/><ellipse cx="69" cy="60" rx="5" ry="6" fill="#252729"/>
+        <circle cx="41.5" cy="58" r="1.8" fill="#fff"/><circle cx="70.5" cy="58" r="1.8" fill="#fff"/>
+        <ellipse cx="55" cy="72" rx="5" ry="3.5" fill="#e8a9a4"/>
+        <path d="M55 75q-5 6-10 1m10-1q5 6 10 1" fill="none" stroke="#8b7771" stroke-width="1.8" stroke-linecap="round"/>
+        <ellipse cx="27" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/><ellipse cx="75" cy="78" rx="10" ry="5" fill="#fff" stroke="#d7d8d2" stroke-width="1.5"/>
+        <path d="m83 17 3 7 7 3-7 3-3 7-3-7-7-3 7-3z" fill="#e4c16e"/>
+        <path d="m16 40 2 4 4 2-4 2-2 4-2-4-4-2 4-2z" fill="#d9c18a"/>
+      </svg>
+    </div>
+    <div><strong>道奇兔店長來巡店啦！ <span class="bunny-sparkle">✦</span></strong><p>今天也一起把商品、庫存與帳務整理得漂漂亮亮。先選擇上方常用工作開始吧！</p></div>
+  </div>
   <div class="home-section-title">今天要做什麼？</div>
   <p class="home-start-copy">選一個工作開始，系統會帶你到對應的作業畫面。</p>
   <div class="home-actions">
