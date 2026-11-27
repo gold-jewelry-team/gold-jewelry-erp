@@ -238,7 +238,7 @@ header{
  background:linear-gradient(112deg,#f2f3e9 0%,#e5eee5 52%,#f4eddd 100%);
  color:#3e4a40;
 }
-header h1,header p,header .eyebrow{color:#46564a}
+header h1{color:#3e4a40}header h1,header p,header .eyebrow{color:#46564a}
 header a,header .back,header .back-link{color:#52785e}
 header .quick-nav a{background:rgba(255,255,255,.72);color:#52785e;border-color:#d2ddd0}
 button:not(.secondary):not(.danger){
