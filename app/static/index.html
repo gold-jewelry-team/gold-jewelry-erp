@@ -1585,8 +1585,10 @@ function clearPaymentIdempotencyKey(kind,sourceId,key){
 }
 const statusMessageTimers=new Map();
 function isBunnyPersistedOperationSuccess(text,error=false){
- if(error)return false;
- return /成功|已建立|已儲存|已完成|已新增|已更新|已作廢|已取消|已匯入|已調整|已結帳|已列印|已入帳|已送出|已確認|已保留/.test(String(text||""));
+ const value=String(text||"");
+ if(error||/失敗|錯誤|無法|未能|未成功|逾時|中斷/.test(value))return false;
+ if(/已產生編號|已確認商品/.test(value))return false;
+ return /成功|已建立|已儲存|已完成|已新增|已更新|已作廢|已取消|已匯入|已調整|已結帳|已列印|已入帳|已送出|已確認|已保留/.test(value);
 }
 function bunnyOperationFeedbackCopy(text){
  const value=String(text||"");
