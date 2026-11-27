@@ -7,7 +7,7 @@ from app.main import app
 
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
-THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127a">'
+THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-bunny-global-20261127b">'
 INDEX_THEME_LINK = THEME_LINK
 
 
