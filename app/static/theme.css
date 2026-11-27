@@ -393,3 +393,14 @@ button.secondary{
  .bunny-context-art,.bunny-context-art svg{width:40px;height:40px}
  .bunny-context-art{flex-basis:40px}
 }
+
+
+/* Consistent Dutch rabbit shopkeeper guide shared across all workspaces */
+.bunny-page-guide{display:flex;align-items:center;gap:12px;max-width:760px;margin:12px auto 14px;padding:9px 14px;border:1px solid #e9dfca;border-radius:16px;background:linear-gradient(105deg,#fffaf0 0%,#f0f6ee 100%);box-shadow:0 3px 12px rgba(99,79,43,.055);color:var(--erp-ink);}
+.bunny-page-guide-art{width:58px;height:58px;flex:0 0 58px;display:grid;place-items:center;}
+.bunny-page-guide-art svg{width:56px;height:56px;overflow:visible;}
+.bunny-page-guide-copy{display:grid;gap:3px;min-width:0;}
+.bunny-page-guide-copy strong{font-size:13px;line-height:1.4;color:#526b58;}
+.bunny-page-guide-copy span{font-size:11px;line-height:1.55;color:#74796f;}
+.bunny-page-guide-sparkle{margin-left:auto;color:#c59b4b;font-size:20px;flex:0 0 auto;}
+@media(max-width:600px){.bunny-page-guide{margin:10px 12px 12px;padding:8px 10px;gap:9px}.bunny-page-guide-art{width:50px;height:50px;flex-basis:50px}.bunny-page-guide-art svg{width:49px;height:49px}.bunny-page-guide-copy strong{font-size:12px}.bunny-page-guide-copy span{font-size:10px}.bunny-page-guide-sparkle{font-size:16px}}
