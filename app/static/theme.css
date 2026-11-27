@@ -442,3 +442,61 @@ button.secondary{
 @media(prefers-reduced-motion:no-preference){
  .bunny-page-guide-art::after{transition:transform .18s ease;}
 }
+
+
+/* 情境道具 SVG：與道奇兔同框但不遮住表情，手機上保留足夠呼吸空間。 */
+.bunny-page-guide-art{
+ position:relative;
+ width:68px;
+ height:60px;
+ flex:0 0 68px;
+ display:grid;
+ place-items:center;
+}
+.bunny-page-guide-art>svg:not(.bunny-page-guide-prop){
+ position:relative;
+ z-index:1;
+ width:56px;
+ height:56px;
+ transform-origin:50% 65%;
+}
+.bunny-page-guide-art::after{content:none!important}
+.bunny-page-guide-prop{
+ position:absolute!important;
+ z-index:3;
+ right:-2px;
+ bottom:-1px;
+ width:28px!important;
+ height:28px!important;
+ padding:2px;
+ border:1px solid #e7ddc5;
+ border-radius:9px;
+ background:linear-gradient(145deg,#fffefa,#f4f0e3);
+ box-shadow:0 2px 6px rgba(75,83,65,.13);
+ overflow:visible;
+}
+.bunny-page-guide[data-scene="banking"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="work"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="catalog"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:scale(1.035) translateY(-1px)}
+.bunny-page-guide[data-scene="orders"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(3deg) translateY(-1px)}
+.bunny-page-guide[data-scene="payables"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-3deg)}
+.bunny-page-guide[data-scene="purchases"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(2deg) translate(-1px,-1px)}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-3deg) translateY(-1px)}
+.bunny-page-guide[data-scene="material"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-1deg) scale(1.025)}
+.bunny-page-guide[data-scene="welcome"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:scale(1.04) translateY(-1px)}
+.bunny-page-guide[data-scene="members"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="reports"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(-2deg) translateY(-1px)}
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:rotate(1deg) translateY(-1px)}
+.bunny-page-guide[data-scene="sales"] .bunny-page-guide-prop,
+.bunny-page-guide[data-scene="orders"] .bunny-page-guide-prop{background:linear-gradient(145deg,#fffaf0,#f7e9d9)}
+.bunny-page-guide[data-scene="material"] .bunny-page-guide-prop{background:linear-gradient(145deg,#fffdf1,#f4e8c5)}
+.bunny-page-guide[data-scene="permissions"] .bunny-page-guide-prop{background:linear-gradient(145deg,#f7faf4,#e8f0e7)}
+@media(max-width:600px){
+ .bunny-page-guide-art{width:62px;height:54px;flex-basis:62px}
+ .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){width:51px;height:51px}
+ .bunny-page-guide-prop{width:25px!important;height:25px!important;right:-1px;bottom:-1px;padding:1px;border-radius:8px}
+}
+@media(prefers-reduced-motion:no-preference){
+ .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transition:transform .18s ease}
+ .bunny-page-guide:hover .bunny-page-guide-art>svg:not(.bunny-page-guide-prop){transform:translateY(-2px) rotate(1deg)}
+}
