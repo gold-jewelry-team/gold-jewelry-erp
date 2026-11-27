@@ -146,3 +146,26 @@ def test_employee_and_report_empty_states_show_contextual_dutch_rabbit_guides() 
     assert ".bunny-empty-copy" in theme
     assert ".bunny-empty-token" in theme
 
+
+
+def test_scanner_feedback_uses_contextual_dutch_rabbit_and_distinguishes_states() -> None:
+    home = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="scanFeedbackBunny"' in home
+    assert "function ensureScanFeedbackBunny" in home
+    assert "function showScanNotice" in home
+    assert "function showScanFeedback" in home
+    assert 'showScanNotice("目前無法使用相機掃描"' in home
+    assert 'showScanNotice("相機權限尚未就緒"' in home
+    assert 'error.name==="NotAllowedError"' in home
+    assert 'error.name==="NotFoundError"' in home
+    assert 'error.name==="NotReadableError"' in home
+    assert 'kind==="success"' in home
+    assert 'kind==="warning"' in home
+    assert 'kind==="error"' in home
+    assert "setScanFeedbackActionVisibility(false)" in home
+    assert "setScanFeedbackActionVisibility(true)" in home
+    assert ".scan-feedback.success" in home
+    assert ".scan-feedback.warning" in home
+    assert ".scan-feedback.error" in home
+    assert "aria-live",kind==="error"?"assertive":"polite"" in home
