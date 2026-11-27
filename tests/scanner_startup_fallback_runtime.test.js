@@ -102,7 +102,7 @@ function setup({ barcodeDetector = true, mediaDevices = true, formats = ["ean_13
     $(id) { return get(id); },
   };
   const feedbackStart = html.indexOf("function ensureScanFeedbackBunny(){");
-  const feedbackEnd = html.indexOf("\\nasync function copyLastScannedCode", feedbackStart);
+  const feedbackEnd = html.indexOf("\nasync function copyLastScannedCode", feedbackStart);
   assert.notEqual(feedbackStart, -1, "Rabbit scanner feedback helpers must exist");
   assert.notEqual(feedbackEnd, -1, "Rabbit scanner feedback helpers must have a stable boundary");
   const feedbackSource = html.slice(feedbackStart, feedbackEnd);
