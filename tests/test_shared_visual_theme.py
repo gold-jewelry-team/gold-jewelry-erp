@@ -167,3 +167,16 @@ def test_scanner_feedback_uses_contextual_dutch_rabbit_and_distinguishes_states(
     assert ".scan-feedback.warning" in home
     assert ".scan-feedback.error" in home
     assert 'aria-live",kind==="error"?"assertive":"polite"' in home
+
+
+def test_dutch_rabbit_stocktake_guidance_is_connected_to_review_and_variance_state() -> None:
+    home = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+
+    assert "function stocktakeBunnyFeedbackState" in home
+    assert "renderBunnyContextNote(summary,\"bunnyStocktakeReviewHint\"" in home
+    assert "盤點待核對" in home
+    assert "盤點差異待入帳" in home
+    assert "逐項核對完成，尚未入帳" in home
+    assert "bunnyStocktakeComplete" in home
+    assert 'variant:"is-alert"' in home
+    assert 'variant:"is-success"' in home
