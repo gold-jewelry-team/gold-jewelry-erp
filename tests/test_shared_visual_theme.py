@@ -8,6 +8,7 @@ from app.main import app
 client = TestClient(app)
 STATIC_DIR = Path(__file__).resolve().parents[1] / "app" / "static"
 THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-20261127b">'
+INDEX_THEME_LINK = '<link rel="stylesheet" href="/theme.css?v=botanical-jewelry-20261127c">'
 
 
 def test_shared_theme_stylesheet_is_public_and_served() -> None:
@@ -38,10 +39,11 @@ def test_every_static_workspace_page_uses_the_shared_theme() -> None:
 
     for page in html_pages:
         html = page.read_text(encoding="utf-8")
-        assert html.count(THEME_LINK) == 1, (
+        expected_link = INDEX_THEME_LINK if page.name == "index.html" else THEME_LINK
+        assert html.count(expected_link) == 1, (
             f"{page.name} must load the shared theme exactly once."
         )
-        assert html.index(THEME_LINK) < html.lower().index("</head>"), (
+        assert html.index(expected_link) < html.lower().index("</head>"), (
             f"{page.name} must load the theme from the document head."
         )
 
